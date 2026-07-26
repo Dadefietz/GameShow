@@ -42,9 +42,13 @@ app.post('/api/rooms', async (req, reply) => {
   const auth = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const host = await verifyHostSession(auth);
   const ownerId = host?.sub || 'dev-host'; // en dev sans Supabase, animateur local
-  const room = roomManager.createRoom(ownerId);
+  // Reconnexion : si l'animateur a déjà un salon ouvert, on le lui redonne (même compte).
+  let room = roomManager.getByOwner(ownerId);
+  const reused = !!room;
+  if (!room) room = roomManager.createRoom(ownerId);
   return {
     code: room.code,
+    reused,
     hostToken: makeHostToken(room.code, ownerId),
     overlayToken: makeOverlayToken(room.code),
   };

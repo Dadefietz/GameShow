@@ -17,10 +17,12 @@ services:
         generateValue: true          # secret aléatoire fort, généré et gardé par Render (jamais dans Git)
       - key: MAX_PLAYERS_PER_ROOM
         value: "1000"
-      # --- Optionnels : à renseigner plus tard pour brancher Supabase (auth animateur + questions durables) ---
-      # - key: SUPABASE_URL
-      #   sync: false
-      # - key: SUPABASE_SERVICE_ROLE_KEY
-      #   sync: false
-      # - key: SUPABASE_JWKS_URL
-      #   sync: false
+      # --- Supabase (auth animateur + questionnaires durables) ---
+      # URL et JWKS sont PUBLICS (valeurs en clair). Le service_role est SECRET : à saisir
+      # dans le dashboard Render (sync:false), jamais commité.
+      - key: SUPABASE_URL
+        value: "https://sajdeadrrchahtuxmqxk.supabase.co"
+      - key: SUPABASE_JWKS_URL
+        value: "https://sajdeadrrchahtuxmqxk.supabase.co/auth/v1/.well-known/jwks.json"
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

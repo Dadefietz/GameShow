@@ -14,15 +14,50 @@ export function getServiceClient() {
   return client;
 }
 
-// Charge les questions d'un module pour l'animateur (ses banques). Repli démo si pas de client.
+// Traduit une question du format Studio ({prompt, answer, correct, target, options})
+// vers le format attendu par le moteur de jeu (modules.js : {text, correctIndex, correct, target}).
+function mapQuestion(type, q, durationSec) {
+  const text = (q.prompt ?? q.text ?? '').toString().trim();
+  const base = { id: q.id, text, durationSec };
+  if (type === 'quiz') {
+    return { ...base, options: Array.isArray(q.options) ? q.options : [], correctIndex: Number(q.correct ?? q.correctIndex ?? 0) };
+  }
+  if (type === 'true_false') {
+    return { ...base, correct: (q.answer ?? q.correct) === true };
+  }
+  if (type === 'estimation') {
+    return { ...base, target: Number(q.target) || 0 };
+  }
+  // vote
+  return { ...base, options: Array.isArray(q.options) ? q.options : [] };
+}
+
+// Question exploitable ? (énoncé non vide + données minimales selon le type)
+function isUsable(type, q) {
+  if (!q.text) return false;
+  if (type === 'quiz' || type === 'vote') return Array.isArray(q.options) && q.options.filter((o) => String(o).trim()).length >= 2;
+  return true;
+}
+
+// Charge les questions d'un module pour l'animateur (ses modules). Repli démo si pas de client.
+// Lit la table `modules` (questions imbriquées en jsonb) filtrée par owner + type.
 export async function loadQuestions(ownerId, moduleType) {
   const sb = getServiceClient();
-  if (!sb) return null; // le caller utilisera le seed démo
+  if (!sb || !ownerId) return null; // le caller utilisera le seed démo
   const { data, error } = await sb
-    .from('questions')
-    .select('id, payload, module_type, question_banks!inner(owner_id)')
-    .eq('module_type', moduleType)
-    .eq('question_banks.owner_id', ownerId);
-  if (error) return null;
-  return (data || []).map((r) => ({ id: r.id, ...r.payload }));
+    .from('modules')
+    .select('type, duration, questions')
+    .eq('owner_id', ownerId)
+    .eq('type', moduleType);
+  if (error || !Array.isArray(data)) return null;
+  const pool = [];
+  for (const mod of data) {
+    const durationSec = Number(mod.duration) || undefined;
+    const qs = Array.isArray(mod.questions) ? mod.questions : [];
+    for (const q of qs) {
+      const mapped = mapQuestion(moduleType, q, durationSec);
+      if (isUsable(moduleType, mapped)) pool.push(mapped);
+    }
+  }
+  return pool.length ? pool : null; // null => le caller garde le seed démo
 }

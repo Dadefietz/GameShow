@@ -18,11 +18,24 @@ export class RoomManager {
   constructor() {
     /** @type {Map<string, Salon>} */
     this.rooms = new Map();
+    /** @type {Map<string, string>} ownerId -> code du salon actif (reconnexion animateur) */
+    this.ownerRooms = new Map();
+  }
+
+  // Salon actif d'un animateur (pour reconnecter le même compte à son salon ouvert).
+  getByOwner(ownerId) {
+    if (!ownerId) return null;
+    const code = this.ownerRooms.get(ownerId);
+    if (!code) return null;
+    const room = this.rooms.get(code);
+    if (!room || room.state === RoomState.ENDED) { this.ownerRooms.delete(ownerId); return null; }
+    return room;
   }
 
   createRoom(ownerId) {
     let code = codeGen();
     while (this.rooms.has(code)) code = codeGen();
+    if (ownerId) this.ownerRooms.set(ownerId, code);
     const room = {
       code,
       ownerId,
@@ -78,6 +91,7 @@ export class RoomManager {
     for (const [code, room] of this.rooms) {
       if (room.state === RoomState.ENDED || now - room.lastActivity > config.roomIdleTtlMs) {
         this.rooms.delete(code);
+        if (room.ownerId && this.ownerRooms.get(room.ownerId) === code) this.ownerRooms.delete(room.ownerId);
       }
     }
   }

@@ -8,10 +8,10 @@ import './studio.css';
 
 // --- Référentiel des 4 types de module (icône + variante couleur du mockup) ---
 const MODULE_TYPES = {
-  quiz:      { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire' },
-  truefalse: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest' },
-  estimate:  { label: 'Estimation', subtitle: 'Réponse chiffrée', icon: 'target',       color: 'flame' },
-  vote:      { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
+  quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire' },
+  true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest' },
+  estimation: { label: 'Estimation', subtitle: 'Réponse chiffrée', icon: 'target',       color: 'flame' },
+  vote:       { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];
@@ -24,8 +24,8 @@ const uid = (p = 'id') => `${p}-${Date.now().toString(36)}-${(SEQ++).toString(36
 function makeQuestion(type) {
   const base = { id: uid('q'), type, prompt: '' };
   if (type === 'quiz') return { ...base, options: ['', '', '', ''], correct: 0 };
-  if (type === 'truefalse') return { ...base, answer: true };
-  if (type === 'estimate') return { ...base, target: 0 };
+  if (type === 'true_false') return { ...base, answer: true };
+  if (type === 'estimation') return { ...base, target: 0 };
   return { ...base, options: ['', ''] }; // vote
 }
 
@@ -40,17 +40,17 @@ function seedModules() {
       ],
     },
     {
-      id: uid('m'), type: 'truefalse', name: 'Vrai ou Faux', duration: 10, color: 'forest',
+      id: uid('m'), type: 'true_false', name: 'Vrai ou Faux', duration: 10, color: 'forest',
       questions: [
-        { id: uid('q'), type: 'truefalse', prompt: 'La Tour Eiffel mesure plus de 300 mètres.', answer: true },
-        { id: uid('q'), type: 'truefalse', prompt: 'Un octogone possède six côtés.', answer: false },
+        { id: uid('q'), type: 'true_false', prompt: 'La Tour Eiffel mesure plus de 300 mètres.', answer: true },
+        { id: uid('q'), type: 'true_false', prompt: 'Un octogone possède six côtés.', answer: false },
       ],
     },
     {
-      id: uid('m'), type: 'estimate', name: 'À vue de nez', duration: 30, color: 'flame',
+      id: uid('m'), type: 'estimation', name: 'À vue de nez', duration: 30, color: 'flame',
       questions: [
-        { id: uid('q'), type: 'estimate', prompt: "Combien de pays composent l'Union européenne ?", target: 27 },
-        { id: uid('q'), type: 'estimate', prompt: 'En quelle année a eu lieu le premier pas sur la Lune ?', target: 1969 },
+        { id: uid('q'), type: 'estimation', prompt: "Combien de pays composent l'Union européenne ?", target: 27 },
+        { id: uid('q'), type: 'estimation', prompt: 'En quelle année a eu lieu le premier pas sur la Lune ?', target: 1969 },
       ],
     },
     {
@@ -121,17 +121,21 @@ export function StudioApp() {
   const removeModule = (id) => {
     setModules((prev) => prev.filter((m) => m.id !== id));
     if (selectedId === id) { setSelectedId(null); setEditingQuestionId(null); }
+    // Suppression en base (best-effort, RLS restreint à l'animateur connecté).
+    if (sb) { sb.from('modules').delete().eq('id', id).then(() => {}, () => {}); }
   };
 
   const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); };
 
-  // Enregistrer : persiste best-effort vers Supabase, sans bloquer.
+  // Enregistrer : upsert vers Supabase (owner_id auto = auth.uid() via défaut DB).
+  // Best-effort — si non authentifié, l'état local reste la source de vérité.
   const saveModule = async (m) => {
     if (!sb || !m) return;
     try {
-      await sb.from('modules').insert({
+      const { error } = await sb.from('modules').upsert({
         id: m.id, type: m.type, name: m.name, duration: m.duration, color: m.color, questions: m.questions,
       });
+      if (!error) setMode('supabase');
     } catch {
       /* tolère l'échec : l'état local reste la source de vérité */
     }
@@ -492,7 +496,7 @@ function QuestionFields({ type, question, onPatch }) {
     );
   }
 
-  if (type === 'truefalse') {
+  if (type === 'true_false') {
     return (
       <>
         {prompt}
@@ -515,7 +519,7 @@ function QuestionFields({ type, question, onPatch }) {
     );
   }
 
-  if (type === 'estimate') {
+  if (type === 'estimation') {
     return (
       <>
         {prompt}

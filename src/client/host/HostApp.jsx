@@ -12,7 +12,7 @@ const EMBLEM_SRC = '/assets/avatar-emblem-tipi.png';
 
 const MODULE_TYPES = [
   { type: 'quiz', name: 'Quiz', icon: 'help-circle' },
-  { type: 'truefalse', name: 'Vrai / Faux', icon: 'check-square' },
+  { type: 'true_false', name: 'Vrai / Faux', icon: 'check-square' },
   { type: 'estimation', name: 'Estimation', icon: 'target' },
   { type: 'vote', name: 'Vote', icon: 'bar-chart-2' },
 ];
@@ -635,6 +635,24 @@ export function HostApp() {
     setSession(next);
   }, []);
 
+  // Session Supabase persistante / magic link : si l'animateur est déjà authentifié
+  // (rechargement de page, retour depuis l'email), on rouvre automatiquement SON salon
+  // (le serveur redonne le salon existant du même compte — reconnexion #2).
+  const supa = useMemo(() => getSupabase(), []);
+  const establishing = useRef(false);
+  useEffect(() => {
+    if (!supa || session) return;
+    let alive = true;
+    const open = (token) => {
+      if (!alive || !token || establishing.current) return;
+      establishing.current = true;
+      establishRoom(token).catch(() => {}).finally(() => { establishing.current = false; });
+    };
+    supa.auth.getSession().then(({ data }) => open(data?.session?.access_token));
+    const { data: authSub } = supa.auth.onAuthStateChange((_e, s) => open(s?.access_token));
+    return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
+  }, [supa, session, establishRoom]);
+
   const startModule = useCallback((moduleType) => {
     g.emit('host:startModule', { moduleType });
   }, [g]);
@@ -643,12 +661,13 @@ export function HostApp() {
     g.emit('host:endGame');
   }, [g]);
 
-  // Déconnexion animateur : efface la session locale et revient à l'écran de connexion.
+  // Déconnexion animateur : efface la session locale + Supabase, revient au login.
   const logout = useCallback(() => {
     store.clear('host');
     setShowResults(false);
     setSession(null);
-  }, []);
+    if (supa) supa.auth.signOut().catch(() => {});
+  }, [supa]);
 
   // --- Non authentifié : écran de connexion ---
   if (!hostToken) {
