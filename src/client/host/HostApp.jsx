@@ -175,7 +175,7 @@ function OverlayLinks({ overlayToken }) {
 // ============================================================
 // ÉCRAN — Salon d'attente (host-lobby)
 // ============================================================
-function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, onLogout }) {
+function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
   const [qr, setQr] = useState('');
@@ -211,6 +211,10 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
             <span className="status-pill__dot" aria-hidden="true"></span>
             En attente
           </span>
+          <button className="button button--ghost button--sm" type="button" onClick={onCloseRoom}>
+            <Icon name="x" />
+            Fermer le salon
+          </button>
           <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
             <Icon name="log-out" />
             Déconnexion
@@ -289,6 +293,11 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
             </button>
           )}
 
+          <a className="button button--forest button--block" href="/studio" target="_blank" rel="noopener">
+            <Icon name="check-square" />
+            Gérer mes questionnaires
+          </a>
+
           {overlayToken ? <OverlayLinks overlayToken={overlayToken} /> : null}
         </div>
       </main>
@@ -318,7 +327,7 @@ function revealText(reveal, current) {
 // ============================================================
 // ÉCRAN — Pilotage en direct (host-live)
 // ============================================================
-function LiveScreen({ g, code, onShowResults, onLogout }) {
+function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const room = g.room || {};
   const current = g.current;
@@ -360,6 +369,10 @@ function LiveScreen({ g, code, onShowResults, onLogout }) {
             <Icon name="bar-chart-2" />
             Épreuve {progIndex} / {progTotal}
           </span>
+          <button className="button button--ghost button--sm" type="button" onClick={onCloseRoom}>
+            <Icon name="x" />
+            Fermer le salon
+          </button>
           <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
             <Icon name="log-out" />
             Déconnexion
@@ -514,7 +527,7 @@ function LiveScreen({ g, code, onShowResults, onLogout }) {
 // ============================================================
 // ÉCRAN — Classement / podium (host-results)
 // ============================================================
-function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout }) {
+function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, onCloseRoom }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3, 8);
@@ -573,6 +586,10 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout }
           <button className="button button--outline-danger" type="button" onClick={onEndGame}>
             <Icon name="x" />
             Terminer la partie
+          </button>
+          <button className="button button--outline" type="button" onClick={onCloseRoom}>
+            <Icon name="x" />
+            Fermer le salon
           </button>
           <button className="button button--ghost" type="button" onClick={onLogout}>
             <Icon name="log-out" />
@@ -637,6 +654,17 @@ export function HostApp() {
     if (supa) supa.auth.signOut().catch(() => {});
   }, [supa]);
 
+  // Fermer le salon SANS se déconnecter : ferme le salon courant côté serveur, puis
+  // efface la session de salon locale — l'effet de détection rouvre aussitôt un salon neuf.
+  const closeRoom = useCallback(() => {
+    g.emit('host:closeRoom');
+    setTimeout(() => {
+      store.clear('host');
+      setShowResults(false);
+      setSession(null);
+    }, 250);
+  }, [g]);
+
   // --- Non authentifié : écran de connexion ---
   if (!hostToken) {
     return <LoginScreen onEstablishRoom={establishRoom} />;
@@ -666,6 +694,7 @@ export function HostApp() {
           onBack={() => setShowResults(false)}
           canBack={state !== 'ended'}
           onLogout={logout}
+          onCloseRoom={closeRoom}
         />
         {connFlag}
       </>
@@ -676,7 +705,7 @@ export function HostApp() {
   if (state === 'playing' || state === 'paused' || state === 'results') {
     return (
       <>
-        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} />
+        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} onCloseRoom={closeRoom} />
         {connFlag}
       </>
     );
@@ -692,6 +721,7 @@ export function HostApp() {
         overlayToken={session.overlayToken}
         onStartModule={startModule}
         onLogout={logout}
+        onCloseRoom={closeRoom}
       />
       {connFlag}
     </>

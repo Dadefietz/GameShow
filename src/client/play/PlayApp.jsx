@@ -397,6 +397,15 @@ export function PlayApp() {
 
   const g = useGame(playerToken);
 
+  // Salon fermé par l'animateur : on ramène le joueur à l'écran « rejoindre ».
+  useEffect(() => {
+    if (!g.roomClosed) return;
+    if (code) store.clear('play:' + code);
+    setPlayerToken(null);
+    setPlayerId(null);
+    setMyAnswer(null);
+  }, [g.roomClosed, code]);
+
   // Réinitialise la sélection locale à chaque nouvelle manche.
   const roundKey = g.current ? (g.current.index ?? g.current.id ?? g.current.text) : null;
   const prevRound = useRef(roundKey);

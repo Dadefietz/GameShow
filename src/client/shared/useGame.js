@@ -14,6 +14,7 @@ export function useGame(token) {
   const [you, setYou] = useState(null);           // { rank, score, delta } (joueur)
   const [podium, setPodium] = useState(null);
   const [answered, setAnswered] = useState(false);
+  const [roomClosed, setRoomClosed] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -31,6 +32,7 @@ export function useGame(token) {
     s.on('play:you', (y) => setYou(y));
     s.on('play:accepted', (res) => { if (res && res.ok) setAnswered(true); });
     s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); });
+    s.on('room:closed', () => setRoomClosed(true));
     return () => s.close();
   }, [token]);
 
@@ -38,7 +40,7 @@ export function useGame(token) {
     socketRef.current?.emit(event, payload);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, emit };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, emit };
 }
 
 // Persistance légère (reconnexion sans perte).

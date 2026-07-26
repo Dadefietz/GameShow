@@ -150,6 +150,15 @@ io.on('connection', (socket) => {
     r.state = RoomState.WAITING; r.currentModule = null; engine.emitRoomState(io, r);
   });
   socket.on('host:endGame', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.endGame(io, r); });
+  // Fermer le salon : le supprime (mémoire + mapping propriétaire), notifie les joueurs.
+  // L'animateur reste authentifié et pourra rouvrir un salon neuf.
+  socket.on('host:closeRoom', () => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    r.state = RoomState.ENDED;
+    io.to(r.code).emit('room:closed');
+    roomManager.rooms.delete(r.code);
+    if (r.ownerId && roomManager.ownerRooms.get(r.ownerId) === r.code) roomManager.ownerRooms.delete(r.ownerId);
+  });
 
   // ---- Réponse JOUEUR (validée serveur, anti-triche) ----
   socket.on('play:answer', ({ value } = {}) => {
