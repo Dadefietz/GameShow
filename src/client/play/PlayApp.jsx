@@ -66,12 +66,15 @@ function JoinScreen({ initialCode, onJoin }) {
               id="code"
               name="code"
               type="text"
-              inputMode="numeric"
+              inputMode="text"
               autoComplete="off"
-              maxLength={6}
-              placeholder="4 7 2 9"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={5}
+              placeholder="SM9HF"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
             />
           </div>
 

@@ -205,7 +205,7 @@ function OverlayLinks({ overlayToken }) {
 // ============================================================
 // ÉCRAN — Salon d'attente (host-lobby)
 // ============================================================
-function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule }) {
+function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, onLogout }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
   const [qr, setQr] = useState('');
@@ -236,10 +236,16 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule }
           </span>
           <span className="topbar__name">Project Game Show</span>
         </nav>
-        <span className="status-pill">
-          <span className="status-pill__dot" aria-hidden="true"></span>
-          En attente
-        </span>
+        <div className="topbar__end">
+          <span className="status-pill">
+            <span className="status-pill__dot" aria-hidden="true"></span>
+            En attente
+          </span>
+          <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
+            <Icon name="log-out" />
+            Déconnexion
+          </button>
+        </div>
       </header>
 
       <main className="lobby" role="main">
@@ -342,7 +348,7 @@ function revealText(reveal, current) {
 // ============================================================
 // ÉCRAN — Pilotage en direct (host-live)
 // ============================================================
-function LiveScreen({ g, code, onShowResults }) {
+function LiveScreen({ g, code, onShowResults, onLogout }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const room = g.room || {};
   const current = g.current;
@@ -384,6 +390,10 @@ function LiveScreen({ g, code, onShowResults }) {
             <Icon name="bar-chart-2" />
             Épreuve {progIndex} / {progTotal}
           </span>
+          <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
+            <Icon name="log-out" />
+            Déconnexion
+          </button>
         </div>
       </header>
 
@@ -534,7 +544,7 @@ function LiveScreen({ g, code, onShowResults }) {
 // ============================================================
 // ÉCRAN — Classement / podium (host-results)
 // ============================================================
-function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack }) {
+function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3, 8);
@@ -594,6 +604,10 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack }) {
             <Icon name="x" />
             Terminer la partie
           </button>
+          <button className="button button--ghost" type="button" onClick={onLogout}>
+            <Icon name="log-out" />
+            Déconnexion
+          </button>
         </div>
       </main>
     </div>
@@ -627,6 +641,13 @@ export function HostApp() {
     g.emit('host:endGame');
   }, [g]);
 
+  // Déconnexion animateur : efface la session locale et revient à l'écran de connexion.
+  const logout = useCallback(() => {
+    store.clear('host');
+    setShowResults(false);
+    setSession(null);
+  }, []);
+
   // --- Non authentifié : écran de connexion ---
   if (!hostToken) {
     return <LoginScreen onEstablishRoom={establishRoom} />;
@@ -655,6 +676,7 @@ export function HostApp() {
           onEndGame={endGame}
           onBack={() => setShowResults(false)}
           canBack={state !== 'ended'}
+          onLogout={logout}
         />
         {connFlag}
       </>
@@ -665,7 +687,7 @@ export function HostApp() {
   if (state === 'playing' || state === 'paused' || state === 'results') {
     return (
       <>
-        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} />
+        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} />
         {connFlag}
       </>
     );
@@ -680,6 +702,7 @@ export function HostApp() {
         players={players}
         overlayToken={session.overlayToken}
         onStartModule={startModule}
+        onLogout={logout}
       />
       {connFlag}
     </>

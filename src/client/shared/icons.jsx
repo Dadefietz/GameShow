@@ -19,6 +19,7 @@ const PATHS = {
   clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2',
   'qr-code': 'M5 3H3v4h4V3H5z M5 17H3v4h4v-4H5z M19 3h-4v4h4V3z M21 21v-4h-4v4h4z M12 7v4 M7 12h4 M17 12h.01 M12 17v.01 M17 17h.01 M12 12h.01',
   'log-in': 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4 M10 17l5-5-5-5 M15 12H3',
+  'log-out': 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
   'arrow-right': 'M5 12h14 M12 5l7 7-7 7',
   check: 'M20 6 9 17l-5-5',
   plus: 'M12 5v14 M5 12h14',

@@ -4,6 +4,7 @@
   html, body, #root { height: 100%; }
   body {
     margin: 0;
+    min-height: 100%;
     font-family: var(--font-family-text);
     font-size: var(--font-size-step-0);
     line-height: var(--font-line-height-normal);
@@ -18,6 +19,10 @@
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
 }
+/* Fond de sécurité HORS cascade layers (priorité max) : garantit qu'aucune bande
+   blanche n'apparaisse (overscroll mobile, marges, avant hydratation). Repli en dur. */
+html, body { background-color: var(--semantic-color-bg-page, oklch(0.20 0.008 80)); }
+
 @layer base {
   .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; flex: 0 0 auto; }
   .icon--sm { font-size: var(--font-size-step-0); }

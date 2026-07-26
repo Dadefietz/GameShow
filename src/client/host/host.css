@@ -185,6 +185,10 @@
     background: var(--semantic-color-bg-surface);
   }
   .topbar__brand { display: flex; align-items: center; gap: var(--size-space-3); }
+  .topbar__end { display: flex; align-items: center; gap: var(--size-space-3); }
+  /* Variante compacte de bouton (déconnexion en barre). */
+  .button--sm { min-height: auto; padding: var(--size-space-2) var(--size-space-4); font-size: var(--font-size-step--1); }
+  .button--sm svg { width: 16px; height: 16px; }
   .topbar__emblem {
     display: inline-grid;
     place-items: center;
@@ -221,7 +225,7 @@
 
   /* ============ Lobby ============ */
   .lobby {
-    max-width: 1120px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: var(--size-space-8) var(--size-space-7) var(--size-space-9);
     display: grid;
