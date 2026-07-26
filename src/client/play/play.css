@@ -9,7 +9,35 @@
     color: var(--semantic-color-text-primary);
     font-family: var(--font-family-text);
     background: var(--semantic-color-bg-page);
+    /* Zéro-scroll mobile : pas de rebond élastique ni de tiré vers le bas. */
+    overscroll-behavior-y: contain;
   }
+
+  /* ---- Bouton Quitter (joueur connecté) ----------------------------------- */
+  .quit-btn {
+    position: fixed;
+    top: max(var(--size-space-3), env(safe-area-inset-top, 0px));
+    right: max(var(--size-space-3), env(safe-area-inset-right, 0px));
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-4);
+    border-radius: var(--size-radius-full);
+    border: 1px solid var(--component-card-border);
+    background: color-mix(in oklch, var(--semantic-color-bg-surface) 88%, transparent);
+    color: var(--semantic-color-text-secondary);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    backdrop-filter: blur(8px);
+    transition: color var(--motion-duration-fast) var(--motion-easing-standard),
+                border-color var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .quit-btn .icon { width: 16px; height: 16px; font-size: 16px; }
+  .quit-btn:hover { color: var(--semantic-color-status-danger); border-color: color-mix(in oklch, var(--semantic-color-status-danger) 45%, transparent); }
+  .quit-btn:active { transform: translateY(1px); }
+  .quit-btn:focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
   .screen--join {
     background:
       radial-gradient(130% 75% at 50% -8%,
@@ -620,4 +648,29 @@
   }
   .next .icon { width: 17px; height: 17px; font-size: 17px; color: var(--semantic-color-action-primary); }
   .next__count { font-weight: var(--font-weight-bold); color: var(--semantic-color-text-primary); }
-}
+
+  /* ---- Zéro-scroll mobile : compacter pour tenir dans le viewport ---------- */
+  .screen__main--question { justify-content: center; }
+  @media (max-height: 800px) {
+    .screen__main--join { padding-top: var(--size-space-5); gap: var(--size-space-4); }
+    .screen__main--question { padding-top: var(--size-space-4); gap: var(--size-space-4); }
+    .answer { min-height: 54px; padding-block: var(--size-space-3); }
+    .question__text { font-size: var(--font-size-step-3); }
+    .join { gap: var(--size-space-4); }
+    .join__input--code { padding-block: var(--size-space-4); font-size: var(--font-size-step-3); }
+    .emblem { gap: var(--size-space-3); }
+    .emblem__glow { width: 72px; height: 72px; }
+    .emblem__glow .icon { width: 36px; height: 36px; font-size: 36px; }
+    .fire { width: 104px; height: 104px; }
+    .fire .icon { width: 46px; height: 46px; font-size: 46px; }
+  }
+  /* Très petits écrans : compaction supplémentaire pour éviter le scroll. */
+  @media (max-height: 680px) {
+    .emblem__tagline { display: none; }
+    .screen__main--join { padding-top: var(--size-space-4); gap: var(--size-space-3); }
+    .emblem__glow { width: 60px; height: 60px; }
+    .emblem__glow .icon { width: 30px; height: 30px; font-size: 30px; }
+    .emblem__brand { font-size: var(--font-size-step-3); }
+    .join__input { padding: var(--size-space-3); }
+    .join__input--code { padding-block: var(--size-space-3); }
+  }

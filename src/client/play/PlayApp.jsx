@@ -421,9 +421,25 @@ export function PlayApp() {
     g.emit('play:answer', { value });
   }
 
+  // Quitter le salon : efface la session locale, coupe le socket (token -> null) et
+  // revient à l'écran « rejoindre ».
+  function handleLeave() {
+    if (code) store.clear('play:' + code);
+    setPlayerToken(null);
+    setPlayerId(null);
+    setMyAnswer(null);
+  }
+
   if (!playerToken) {
     return <JoinScreen initialCode={urlCode} onJoin={handleJoin} />;
   }
+
+  const QuitButton = (
+    <button className="quit-btn" type="button" onClick={handleLeave} aria-label="Quitter le salon">
+      <Icon name="log-out" className="icon" />
+      <span className="quit-btn__label">Quitter</span>
+    </button>
+  );
 
   const room = g.room;
   const roomCode = room?.code || code;
@@ -431,36 +447,41 @@ export function PlayApp() {
 
   // Fin de partie.
   if (g.podium || room?.state === 'ended') {
-    return <EndScreen you={g.you} podium={g.podium || g.leaderboard} playerId={playerId} />;
+    return (<>{QuitButton}<EndScreen you={g.you} podium={g.podium || g.leaderboard} playerId={playerId} /></>);
   }
 
   // Résultat d'une manche révélée.
   if (g.reveal) {
     return (
-      <ScoreScreen
-        you={g.you}
-        reveal={g.reveal}
-        leaderboard={g.leaderboard}
-        playerId={playerId}
-        myAnswer={myAnswer}
-      />
+      <>
+        {QuitButton}
+        <ScoreScreen
+          you={g.you}
+          reveal={g.reveal}
+          leaderboard={g.leaderboard}
+          playerId={playerId}
+          myAnswer={myAnswer}
+        />
+      </>
     );
   }
 
-  // Question en cours.
+  // Question en cours (pas de bouton Quitter : l'écran reste focalisé sur la réponse).
   if (g.current && room?.state !== 'waiting') {
     return (
-      <QuestionScreen
-        current={g.current}
-        tick={g.tick}
-        score={g.you?.score || 0}
-        answered={g.answered === true}
-        myAnswer={myAnswer}
-        onAnswer={handleAnswer}
-      />
+      <>
+        <QuestionScreen
+          current={g.current}
+          tick={g.tick}
+          score={g.you?.score || 0}
+          answered={g.answered === true}
+          myAnswer={myAnswer}
+          onAnswer={handleAnswer}
+        />
+      </>
     );
   }
 
   // Attente du lancement.
-  return <WaitScreen pseudo={displayPseudo} code={roomCode} playerCount={room?.playerCount} />;
+  return (<>{QuitButton}<WaitScreen pseudo={displayPseudo} code={roomCode} playerCount={room?.playerCount} /></>);
 }
