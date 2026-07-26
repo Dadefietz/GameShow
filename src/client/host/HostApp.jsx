@@ -43,15 +43,14 @@ function Emblem({ imgClass, iconName = 'flame' }) {
 function LoginScreen({ onEstablishRoom }) {
   const supabase = useMemo(() => getSupabase(), []);
   const [email, setEmail] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const requestCode = useCallback(async (e) => {
+  const requestLink = useCallback(async (e) => {
     e.preventDefault();
     setError('');
-    // Mode dev (Supabase non configuré) : entrée directe sans OTP.
+    // Repli dev (Supabase non configuré) : entrée directe.
     if (!supabase) {
       setBusy(true);
       try {
@@ -65,33 +64,18 @@ function LoginScreen({ onEstablishRoom }) {
     if (!email) { setError('Entrez votre adresse email.'); return; }
     setBusy(true);
     try {
-      const { error: otpErr } = await supabase.auth.signInWithOtp({ email });
+      const { error: otpErr } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/host` },
+      });
       if (otpErr) throw otpErr;
-      setOtpSent(true);
+      setSent(true);
     } catch (err) {
-      setError("Envoi du code impossible. Vérifiez l'adresse.");
+      setError("Envoi du lien impossible. Vérifiez l'adresse.");
     } finally {
       setBusy(false);
     }
   }, [supabase, email, onEstablishRoom]);
-
-  const verifyCode = useCallback(async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!otp) { setError('Entrez le code reçu par email.'); return; }
-    setBusy(true);
-    try {
-      const { data, error: vErr } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
-      if (vErr) throw vErr;
-      const accessToken = data?.session?.access_token;
-      await onEstablishRoom(accessToken);
-    } catch (err) {
-      setError('Code invalide ou expiré.');
-      setBusy(false);
-    }
-  }, [supabase, email, otp, onEstablishRoom]);
-
-  const primaryLabel = supabase ? 'Recevoir le code' : 'Entrer (mode animateur)';
 
   return (
     <main className="page page--login" role="main" aria-labelledby="auth-title">
@@ -100,66 +84,50 @@ function LoginScreen({ onEstablishRoom }) {
         <Emblem imgClass="auth-card__emblem-img" />
       </span>
       <h1 className="auth-card__title" id="auth-title">Project Game Show</h1>
-      <p className="auth-card__subtitle">Le plateau de jeu autour du feu. Connectez-vous pour animer votre partie.</p>
-
-      {!otpSent ? (
-        <form onSubmit={requestCode} noValidate>
-          <div className="field">
-            <label className="field__label" htmlFor="host-email">Adresse email de l'animateur</label>
-            <div className="field__control">
-              <span className="field__icon" aria-hidden="true">
-                <Icon name="log-in" />
-              </span>
-              <input
-                className="field__input"
-                id="host-email"
-                type="email"
-                name="email"
-                placeholder="vous@exemple.fr"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={busy}
-              />
-            </div>
+      {sent ? (
+        <>
+          <p className="auth-card__subtitle">Un lien de connexion vient d'être envoyé à <strong>{email}</strong>.</p>
+          <div className="auth-card__sent" role="status">
+            <span className="auth-card__sent-icon" aria-hidden="true"><Icon name="check" /></span>
+            <p>Ouvre ta boîte mail et clique sur le lien pour accéder à ton plateau. Tu peux fermer cette page.</p>
           </div>
-          <button className="button button--primary button--block" type="submit" disabled={busy}>
-            {primaryLabel}
-            <Icon name="arrow-right" />
+          <button className="button button--ghost button--block" type="button" onClick={() => setSent(false)}>
+            Utiliser une autre adresse
           </button>
-        </form>
+        </>
       ) : (
-        <form onSubmit={verifyCode} noValidate>
-          <div className="field">
-            <label className="field__label" htmlFor="host-otp">Code reçu par email</label>
-            <div className="field__control">
-              <span className="field__icon" aria-hidden="true">
-                <Icon name="check-square" />
-              </span>
-              <input
-                className="field__input"
-                id="host-otp"
-                type="text"
-                name="otp"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                disabled={busy}
-                autoFocus
-              />
+        <>
+          <p className="auth-card__subtitle">Le plateau de jeu autour du feu. Connectez-vous pour animer votre partie.</p>
+          <form onSubmit={requestLink} noValidate>
+            <div className="field">
+              <label className="field__label" htmlFor="host-email">Adresse email de l'animateur</label>
+              <div className="field__control">
+                <span className="field__icon" aria-hidden="true">
+                  <Icon name="log-in" />
+                </span>
+                <input
+                  className="field__input"
+                  id="host-email"
+                  type="email"
+                  name="email"
+                  placeholder="vous@exemple.fr"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
             </div>
-          </div>
-          <button className="button button--primary button--block" type="submit" disabled={busy}>
-            Valider le code
-            <Icon name="arrow-right" />
-          </button>
-        </form>
+            <button className="button button--primary button--block" type="submit" disabled={busy}>
+              {busy ? 'Envoi…' : (supabase ? 'Recevoir le lien de connexion' : 'Entrer (mode animateur)')}
+              <Icon name="arrow-right" />
+            </button>
+          </form>
+        </>
       )}
 
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
-      <p className="auth-card__note">Un seul animateur — accès par code email (OTP).</p>
+      <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
       </div>
     </main>
   );

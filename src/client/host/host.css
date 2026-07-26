@@ -79,6 +79,33 @@
     font-size: var(--font-size-step--1);
     color: var(--semantic-color-text-secondary);
   }
+  /* Message « lien envoyé » (magic link) */
+  .auth-card__sent {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-3);
+    margin: var(--size-space-5) 0;
+    padding: var(--size-space-4) var(--size-space-5);
+    border-radius: var(--size-radius-md);
+    text-align: left;
+    background: color-mix(in oklch, var(--semantic-color-status-success) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-success) 45%, transparent);
+    color: var(--semantic-color-text-primary);
+    font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
+  }
+  .auth-card__sent p { margin: 0; }
+  .auth-card__sent-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--size-radius-full);
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+  }
+  .auth-card__sent-icon svg { width: 18px; height: 18px; }
   .auth-card__error {
     margin: var(--size-space-4) 0 0;
     font-size: var(--font-size-step--1);
