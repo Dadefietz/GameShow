@@ -225,14 +225,17 @@
     margin: 0 auto;
     padding: var(--size-space-8) var(--size-space-7) var(--size-space-9);
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
+    /* minmax(0, …) : empêche une piste fr de gonfler au min-content d'un contenu
+       insécable (URLs d'overlay). La troncation (overflow:hidden) reprend la main. */
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: var(--size-space-7);
     align-items: start;
   }
-  @media (max-width: 900px) { .lobby { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .lobby { grid-template-columns: minmax(0, 1fr); } }
 
   .join-card {
     position: relative;
+    min-width: 0;
     background: var(--component-card-bg);
     border: 1px solid var(--component-card-border);
     border-radius: var(--size-radius-xl);
@@ -300,7 +303,7 @@
   }
   .qr-plate__icon svg { width: 46px; height: 46px; }
 
-  .lobby__side { display: flex; flex-direction: column; gap: var(--size-space-6); }
+  .lobby__side { display: flex; flex-direction: column; gap: var(--size-space-6); min-width: 0; }
 
   .count-card {
     display: flex;
@@ -533,11 +536,11 @@
   .live-body {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--size-space-6);
     padding: var(--size-space-6) var(--size-space-7);
   }
-  @media (max-width: 900px) { .live-body { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .live-body { grid-template-columns: minmax(0, 1fr); } }
 
   .hero {
     position: relative;
