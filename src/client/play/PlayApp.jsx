@@ -55,7 +55,7 @@ function JoinScreen({ initialCode, onJoin }) {
             <Icon name="flame" className="icon" />
           </span>
           <h1 className="emblem__brand" id="join-title">Project Game&nbsp;Show</h1>
-          <p className="emblem__tagline">Approche-toi du feu. La partie va commencer.</p>
+          <p className="emblem__tagline">Installe-toi, la partie va commencer.</p>
         </header>
 
         <form className="join" onSubmit={handleSubmit} noValidate>
@@ -344,7 +344,7 @@ function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer }) {
           <span className="points__unit">pts</span>
         </p>
 
-        <Board title="Autour du feu" rows={(leaderboard || []).slice(0, 5)} playerId={playerId} />
+        <Board title="Classement" rows={(leaderboard || []).slice(0, 5)} playerId={playerId} />
 
         <p className="next" role="status" aria-live="polite">
           <Icon name="clock" className="icon" />

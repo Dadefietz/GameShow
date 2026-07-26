@@ -97,7 +97,7 @@ function LoginScreen({ onEstablishRoom }) {
         </>
       ) : (
         <>
-          <p className="auth-card__subtitle">Le plateau de jeu autour du feu. Connectez-vous pour animer votre partie.</p>
+          <p className="auth-card__subtitle">Le plateau de jeu de votre communauté. Connectez-vous pour animer votre partie.</p>
           <form onSubmit={requestLink} noValidate>
             <div className="field">
               <label className="field__label" htmlFor="host-email">Adresse email de l'animateur</label>
@@ -248,7 +248,7 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
           </div>
 
           <section className="flock" aria-label="Joueurs qui rejoignent">
-            <h2 className="flock__title">Ils arrivent au feu</h2>
+            <h2 className="flock__title">Ils rejoignent la partie</h2>
             {players.length === 0 ? (
               <p className="flock__empty">En attente des premiers joueurs…</p>
             ) : (

@@ -15,7 +15,7 @@ const MODULE_TYPES = {
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];
-const COLOR_LABEL = { fire: 'Feu', forest: 'Forêt', flame: 'Flamme', info: 'Bleu' };
+const COLOR_LABEL = { fire: 'Orange', forest: 'Vert', flame: 'Ambre', info: 'Bleu' };
 
 let SEQ = 0;
 const uid = (p = 'id') => `${p}-${Date.now().toString(36)}-${(SEQ++).toString(36)}`;
