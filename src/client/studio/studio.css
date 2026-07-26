@@ -477,6 +477,31 @@
     border-top: 1px solid var(--semantic-color-border);
   }
   .studio .editor__footer .button--primary { flex: 1; }
+  .studio .save-status {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+  }
+  .studio .save-status--ok { color: var(--semantic-color-status-success); }
+  .studio .save-status--warn { color: var(--semantic-color-status-warning); }
+  .studio .save-status--err { color: var(--semantic-color-status-danger); }
+
+  /* Bandeau « non connecté » */
+  .studio .studio-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-3);
+    padding: var(--size-space-3) var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-status-warning) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-warning) 45%, transparent);
+    color: var(--semantic-color-text-primary);
+    font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
+  }
+  .studio .studio-banner .icon { color: var(--semantic-color-status-warning); flex-shrink: 0; margin-top: 2px; }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 960px) {

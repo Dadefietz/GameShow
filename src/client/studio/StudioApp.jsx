@@ -85,15 +85,19 @@ export function StudioApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [mode, setMode] = useState('local'); // 'local' | 'supabase'
+  const [authed, setAuthed] = useState(null); // null=inconnu, true/false
+  const [saveState, setSaveState] = useState('idle'); // idle|saving|saved|local|error
 
   const sb = useMemo(() => getSupabase(), []);
 
-  // Chargement Supabase best-effort au montage — jamais bloquant.
+  // Détection de session + chargement Supabase best-effort au montage.
   useEffect(() => {
-    if (!sb) return;
+    if (!sb) { setAuthed(false); return; }
     let alive = true;
     (async () => {
       try {
+        const { data: sess } = await sb.auth.getSession();
+        if (alive) setAuthed(!!sess?.session);
         const { data, error } = await sb.from('modules').select();
         if (!alive || error || !Array.isArray(data) || data.length === 0) return;
         const mapped = data.map(normalizeModule).filter(Boolean);
@@ -102,14 +106,17 @@ export function StudioApp() {
         /* silencieux : on garde l'état local */
       }
     })();
-    return () => { alive = false; };
+    const { data: authSub } = sb.auth.onAuthStateChange((_e, s) => { if (alive) setAuthed(!!s); });
+    return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
   }, [sb]);
 
   const selected = modules.find((m) => m.id === selectedId) || null;
 
   // --- Mutations modules (réactives) ---
-  const patchModule = (id, patch) =>
+  const patchModule = (id, patch) => {
+    setSaveState('idle');
     setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  };
 
   const addModule = () => {
     const m = { id: uid('m'), type: 'quiz', name: 'Nouveau module', duration: 20, color: 'fire', questions: [] };
@@ -128,24 +135,30 @@ export function StudioApp() {
   const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); };
 
   // Enregistrer : upsert vers Supabase (owner_id auto = auth.uid() via défaut DB).
-  // Best-effort — si non authentifié, l'état local reste la source de vérité.
+  // Retour de statut clair (saved / local / error) — plus d'échec silencieux.
   const saveModule = async (m) => {
-    if (!sb || !m) return;
+    if (!m) return;
+    if (!sb || authed === false) { setSaveState('local'); return; }
+    setSaveState('saving');
     try {
       const { error } = await sb.from('modules').upsert({
         id: m.id, type: m.type, name: m.name, duration: m.duration, color: m.color, questions: m.questions,
       });
-      if (!error) setMode('supabase');
+      if (error) { setSaveState('error'); return; }
+      setMode('supabase');
+      setSaveState('saved');
     } catch {
-      /* tolère l'échec : l'état local reste la source de vérité */
+      setSaveState('error');
     }
   };
 
   // --- Mutations questions (réactives) ---
-  const patchQuestion = (moduleId, qid, patch) =>
+  const patchQuestion = (moduleId, qid, patch) => {
+    setSaveState('idle');
     setModules((prev) => prev.map((m) =>
       m.id !== moduleId ? m : { ...m, questions: m.questions.map((q) => (q.id === qid ? { ...q, ...patch } : q)) }
     ));
+  };
 
   const addQuestion = (module) => {
     const q = makeQuestion(module.type);
@@ -183,6 +196,13 @@ export function StudioApp() {
             </button>
           </div>
 
+          {authed === false && (
+            <div className="studio-banner" role="status">
+              <Icon name="log-in" className="icon icon--sm" />
+              <span>Non connecté : tes modifications restent <strong>locales</strong>. Connecte-toi d'abord côté animateur (même navigateur) pour enregistrer tes questionnaires en ligne.</span>
+            </div>
+          )}
+
           <section className="module-grid" aria-label="Liste des modules">
             {modules.map((m) => (
               <ModuleCard
@@ -208,6 +228,7 @@ export function StudioApp() {
             onDeleteModule={() => removeModule(selected.id)}
             onSave={() => saveModule(selected)}
             onClose={() => selectModule(null)}
+            saveState={saveState}
           />
         )}
       </main>
@@ -302,11 +323,19 @@ function ModuleCard({ module, selected, onSelect, onDelete }) {
 }
 
 // ---------------------------------------------------------------------------
+const SAVE_STATUS = {
+  saving: { text: 'Enregistrement…', cls: '' },
+  saved: { text: 'Enregistré en ligne ✓', cls: 'save-status--ok' },
+  local: { text: 'Enregistré localement — connecte-toi côté animateur pour synchroniser', cls: 'save-status--warn' },
+  error: { text: "Échec de l'enregistrement, réessaie", cls: 'save-status--err' },
+};
+
 function EditorPanel({
   module, editingQuestionId, onPatchModule, onAddQuestion, onEditQuestion,
-  onPatchQuestion, onRemoveQuestion, onDeleteModule, onSave, onClose,
+  onPatchQuestion, onRemoveQuestion, onDeleteModule, onSave, onClose, saveState,
 }) {
   const t = MODULE_TYPES[module.type];
+  const status = saveState && saveState !== 'idle' ? SAVE_STATUS[saveState] : null;
   return (
     <aside className="editor" aria-label="Édition du module">
       <div className="editor__head">
@@ -406,6 +435,7 @@ function EditorPanel({
             Supprimer
           </button>
           <button className="button button--ghost" type="button" onClick={onClose}>Fermer</button>
+          {status ? <p className={`save-status ${status.cls}`} role="status">{status.text}</p> : null}
         </div>
       </form>
     </aside>
