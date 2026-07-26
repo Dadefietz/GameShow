@@ -1,9 +1,13 @@
 /* Surface OVERLAY OBS — fond TRANSPARENT (source navigateur par-dessus le gameplay).
    Canvas 1920×1080. Toute valeur colorée via var(--token)/color-mix — aucune couleur littérale. */
 
-/* FOND TRANSPARENT obligatoire pour OBS — non layered pour battre le reset partagé. */
-html, body { background: transparent; margin: 0; padding: 0; }
-#root { background: transparent; }
+/* FOND TRANSPARENT obligatoire pour OBS — SCOPÉ à la page overlay uniquement
+   (classe .overlay-page posée par OverlayApp ; html/body aussi en inline).
+   Ne doit JAMAIS fuiter sur les autres surfaces via le bundle CSS partagé. */
+body.overlay-page,
+body.overlay-page #root { background: transparent; }
+/* Canvas fixe 1920×1080 : on masque le débordement en aperçu réduit (aucun impact OBS). */
+body.overlay-page { overflow: hidden; }
 
 @layer components {
   /* ---- Cadre commun 1920×1080 ---- */
@@ -33,7 +37,7 @@ html, body { background: transparent; margin: 0; padding: 0; }
 
   /* aperçu adaptatif : scale down sans casser le canvas 1920×1080 */
   @media (max-width: 1920px) {
-    body { display: flex; justify-content: center; }
+    body.overlay-page { display: flex; justify-content: center; }
     .overlay {
       transform: scale(calc(100vw / 1920));
       transform-origin: top left;

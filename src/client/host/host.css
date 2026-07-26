@@ -19,10 +19,14 @@
 
   /* ============ host-login ============ */
   .page--login {
-    display: grid;
-    place-items: center;
+    /* Flex (et non grid place-items) : la carte respecte min(440px,100%) sans qu'une
+       colonne auto grandisse à son contenu et déborde sur mobile. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: var(--size-space-6);
   }
+  @media (max-width: 640px) { .page--login { padding: var(--size-space-4); } }
   .page--login::before {
     content: "";
     position: fixed;
@@ -184,8 +188,13 @@
     border-bottom: 1px solid var(--semantic-color-border);
     background: var(--semantic-color-bg-surface);
   }
-  .topbar__brand { display: flex; align-items: center; gap: var(--size-space-3); }
-  .topbar__end { display: flex; align-items: center; gap: var(--size-space-3); }
+  .topbar__brand { display: flex; align-items: center; gap: var(--size-space-3); min-width: 0; }
+  .topbar__end { display: flex; align-items: center; gap: var(--size-space-3); flex-wrap: wrap; justify-content: flex-end; }
+  /* Mobile : la barre s'enroule et réduit son padding pour ne pas déborder. */
+  @media (max-width: 640px) {
+    .topbar { padding: var(--size-space-3) var(--size-space-4); flex-wrap: wrap; row-gap: var(--size-space-3); }
+    .lobby { padding: var(--size-space-6) var(--size-space-4) var(--size-space-8); }
+  }
   /* Variante compacte de bouton (déconnexion en barre). */
   .button--sm { min-height: auto; padding: var(--size-space-2) var(--size-space-4); font-size: var(--font-size-step--1); }
   .button--sm svg { width: 16px; height: 16px; }

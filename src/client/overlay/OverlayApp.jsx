@@ -1,7 +1,7 @@
 // Surface OVERLAY OBS — source navigateur, fond transparent, display-only.
 // Trois types déterminés par le chemin : /overlay/question | /overlay/leaderboard | /overlay/podium.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGame } from '../shared/useGame.js';
 import { Icon } from '../shared/icons.jsx';
 import './overlay.css';
@@ -149,6 +149,26 @@ function PodiumOverlay({ g }) {
 export function OverlayApp() {
   const token = new URLSearchParams(window.location.search).get('token');
   const g = useGame(token);
+
+  // Fond TRANSPARENT pour OBS — appliqué UNIQUEMENT sur la page overlay (inline = priorité max),
+  // pour ne jamais fuiter sur les autres surfaces (login/lobby/joueur) via le bundle CSS partagé.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.backgroundColor;
+    const prevBody = body.style.backgroundColor;
+    const prevOverflow = html.style.overflow;
+    body.classList.add('overlay-page');
+    html.style.backgroundColor = 'transparent';
+    body.style.backgroundColor = 'transparent';
+    html.style.overflow = 'hidden'; // canvas fixe 1920×1080 : pas de scroll en aperçu
+    return () => {
+      body.classList.remove('overlay-page');
+      html.style.backgroundColor = prevHtml;
+      body.style.backgroundColor = prevBody;
+      html.style.overflow = prevOverflow;
+    };
+  }, []);
 
   // Pas de token ou déconnecté : rendu vide (transparent) — c'est une source OBS par-dessus le jeu.
   if (!token || !g.connected) return null;

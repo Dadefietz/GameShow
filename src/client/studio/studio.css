@@ -454,4 +454,8 @@
     .main { grid-template-columns: 1fr; }
     .editor { position: static; }
   }
+  /* Mobile : cartes de modules en 1 colonne (évite les titres cassés). */
+  @media (max-width: 640px) {
+    .module-grid { grid-template-columns: 1fr; }
+  }
 }

@@ -94,7 +94,8 @@ function LoginScreen({ onEstablishRoom }) {
   const primaryLabel = supabase ? 'Recevoir le code' : 'Entrer (mode animateur)';
 
   return (
-    <main className="page page--login auth-card" role="main" aria-labelledby="auth-title">
+    <main className="page page--login" role="main" aria-labelledby="auth-title">
+      <div className="auth-card">
       <span className="auth-card__emblem" aria-hidden="true">
         <Emblem imgClass="auth-card__emblem-img" />
       </span>
@@ -159,6 +160,7 @@ function LoginScreen({ onEstablishRoom }) {
 
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
       <p className="auth-card__note">Un seul animateur — accès par code email (OTP).</p>
+      </div>
     </main>
   );
 }
