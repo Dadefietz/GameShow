@@ -1,0 +1,7 @@
+.vault/
+design/assets/_candidates/
+apps/subapps/*/design/assets/_candidates/
+design/proposals/_candidates/
+apps/subapps/*/design/proposals/_candidates/
+node_modules/
+dist/

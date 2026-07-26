@@ -1,0 +1,140 @@
+<!-- artifact: design_board_html; app:root; version:1; produced_by:design-builder -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design board — Project Game Show (feu-de-camp)</title>
+<link rel="stylesheet" href="tokens/tokens.css">
+<style>
+  body{margin:0;font-family:var(--font-family-text);background:var(--semantic-color-bg-page);color:var(--semantic-color-text-primary);
+    font-size:var(--font-size-step-0);line-height:var(--font-line-height-normal);}
+  .board__header{padding:var(--size-space-6) var(--size-space-6) var(--size-space-4);border-bottom:1px solid var(--semantic-color-border);}
+  .board__title{font-family:var(--font-family-display);font-weight:var(--font-weight-black);font-size:var(--font-size-step-4);margin:0;color:var(--semantic-color-signature);}
+  .board__meta{color:var(--semantic-color-text-secondary);font-size:var(--font-size-step--1);}
+  .board__section{padding:var(--size-space-6);border-bottom:1px solid var(--semantic-color-border);}
+  .board__h{font-family:var(--font-family-display);font-weight:var(--font-weight-semibold);font-size:var(--font-size-step-2);color:var(--semantic-color-heading);margin:0 0 var(--size-space-5);}
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--size-space-3);}
+  .swatch{border-radius:var(--size-radius-sm);overflow:hidden;background:var(--semantic-color-bg-surface);border:1px solid var(--semantic-color-border);}
+  .swatch__chip{height:64px;}
+  .swatch__label{padding:var(--size-space-2) var(--size-space-3);font-size:var(--font-size-step--1);}
+  .swatch__label b{font-weight:var(--font-weight-semibold);}
+  .swatch__val{color:var(--semantic-color-text-secondary);}
+  .type-row{display:flex;align-items:baseline;gap:var(--size-space-4);padding:var(--size-space-2) 0;border-bottom:1px dashed var(--semantic-color-border);}
+  .type-row__name{font-size:var(--font-size-step--1);color:var(--semantic-color-text-secondary);min-width:120px;}
+  .specimen{font-family:var(--font-family-display);}
+  .specimen--num{font-family:var(--font-family-display);font-weight:var(--font-weight-black);color:var(--semantic-color-signature);font-size:var(--font-size-step-6);}
+  .motion-grid{display:flex;flex-wrap:wrap;gap:var(--size-space-4);}
+  .motion-demo{padding:var(--size-space-4);background:var(--semantic-color-bg-surface);border-radius:var(--size-radius-md);border:1px solid var(--semantic-color-border);}
+  .motion-demo__box{width:56px;height:56px;border-radius:var(--size-radius-sm);background:var(--semantic-color-action-primary);transform:translateX(0);}
+  .motion-demo--standard .motion-demo__box{transition:transform var(--motion-duration-base) var(--motion-easing-standard);}
+  .motion-demo--decelerate .motion-demo__box{transition:transform var(--motion-duration-slow) var(--motion-easing-decelerate);}
+  .motion-demo--emphasized .motion-demo__box{transition:transform var(--motion-duration-slow) var(--motion-easing-emphasized);}
+  .motion-demo.is-on .motion-demo__box{transform:translateX(120px);}
+  .motion-demo__label{font-size:var(--font-size-step--1);color:var(--semantic-color-text-secondary);margin-top:var(--size-space-2);}
+  .comp-row{display:flex;flex-wrap:wrap;gap:var(--size-space-4);align-items:center;}
+  .btn{font-family:var(--font-family-text);font-weight:var(--font-weight-bold);font-size:var(--font-size-step-0);
+    border:0;border-radius:var(--size-radius-md);padding:var(--size-space-3) var(--size-space-5);min-height:var(--size-touch-min);cursor:pointer;
+    transition:background-color var(--motion-duration-fast) var(--motion-easing-standard),transform var(--motion-duration-fast) var(--motion-easing-decelerate);}
+  .btn--primary{background:var(--component-button-bg);color:var(--component-button-text);}
+  .btn--primary:hover{background:var(--component-button-bg-hover);}
+  .btn--primary:active{transform:scale(1.02);}
+  .btn--secondary{background:var(--semantic-color-action-secondary);color:var(--semantic-color-action-on-forest);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn:focus-visible{outline:2px solid var(--semantic-color-action-primary);outline-offset:2px;}
+  .card{background:var(--component-card-bg);border:1px solid var(--component-card-border);border-radius:var(--size-radius-lg);padding:var(--size-space-5);max-width:280px;}
+  .card__title{font-family:var(--font-family-display);font-weight:var(--font-weight-semibold);color:var(--semantic-color-heading);margin:0 0 var(--size-space-2);}
+  .card__num{font-family:var(--font-family-display);font-weight:var(--font-weight-black);color:var(--semantic-color-signature);font-size:var(--font-size-step-5);line-height:var(--font-line-height-tight);}
+</style>
+</head>
+<body>
+<header class="board__header">
+  <h1 class="board__title">Project Game Show</h1>
+  <p class="board__meta">Design board — tokens v1 — direction feu-de-camp convivial — 2026-07-22</p>
+</header>
+
+<section class="board__section" id="palette">
+  <h2 class="board__h">1. Palette</h2>
+  <h3 class="board__meta">Feu (primary) — 9 teintes</h3>
+  <div class="swatches">
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-100)"></div><div class="swatch__label"><b>primary-100</b><br><span class="swatch__val">L0.95 C0.051 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-200)"></div><div class="swatch__label"><b>primary-200</b><br><span class="swatch__val">L0.88 C0.085 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-300)"></div><div class="swatch__label"><b>primary-300</b><br><span class="swatch__val">L0.79 C0.122 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-400)"></div><div class="swatch__label"><b>primary-400</b><br><span class="swatch__val">L0.70 C0.153 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-500)"></div><div class="swatch__label"><b>primary-500</b><br><span class="swatch__val">L0.62 C0.170 H58 · action</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-600)"></div><div class="swatch__label"><b>primary-600</b><br><span class="swatch__val">L0.53 C0.170 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-700)"></div><div class="swatch__label"><b>primary-700</b><br><span class="swatch__val">L0.44 C0.150 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-800)"></div><div class="swatch__label"><b>primary-800</b><br><span class="swatch__val">L0.35 C0.122 H58</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-primary-900)"></div><div class="swatch__label"><b>primary-900</b><br><span class="swatch__val">L0.26 C0.094 H58</span></div></div>
+  </div>
+  <h3 class="board__meta" style="margin-top:var(--size-space-5)">Chaud-neutre — 9 teintes (sans brun)</h3>
+  <div class="swatches">
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-100)"></div><div class="swatch__label"><b>neutral-100</b><br><span class="swatch__val">L0.95 · texte 16.6:1 AAA</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-200)"></div><div class="swatch__label"><b>neutral-200</b><br><span class="swatch__val">L0.88</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-300)"></div><div class="swatch__label"><b>neutral-300</b><br><span class="swatch__val">L0.79 · secondaire 11:1</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-400)"></div><div class="swatch__label"><b>neutral-400</b><br><span class="swatch__val">L0.70</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-500)"></div><div class="swatch__label"><b>neutral-500</b><br><span class="swatch__val">L0.62</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-700)"></div><div class="swatch__label"><b>neutral-700</b><br><span class="swatch__val">L0.44</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-900)"></div><div class="swatch__label"><b>neutral-900</b><br><span class="swatch__val">L0.26 · surface</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--color-neutral-950)"></div><div class="swatch__label"><b>neutral-950</b><br><span class="swatch__val">L0.20 · fond page</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-bg-elevated)"></div><div class="swatch__label"><b>bg-elevated</b><br><span class="swatch__val">L0.32 · surélevé</span></div></div>
+  </div>
+  <h3 class="board__meta" style="margin-top:var(--size-space-5)">Sémantiques — 4 statuts (+ accents)</h3>
+  <div class="swatches">
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-status-success)"></div><div class="swatch__label"><b>success</b><br><span class="swatch__val">6.2:1 AA</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-status-warning)"></div><div class="swatch__label"><b>warning</b><br><span class="swatch__val">10.3:1 AAA</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-status-danger)"></div><div class="swatch__label"><b>danger</b><br><span class="swatch__val">5.3:1 AA</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-status-info)"></div><div class="swatch__label"><b>info</b><br><span class="swatch__val">5.9:1 AA</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-signature)"></div><div class="swatch__label"><b>signature (flamme)</b><br><span class="swatch__val">9.4:1 · grand chiffre</span></div></div>
+    <div class="swatch"><div class="swatch__chip" style="background:var(--semantic-color-action-secondary)"></div><div class="swatch__label"><b>forest (accent)</b><br><span class="swatch__val">7.2:1 · vert frais</span></div></div>
+  </div>
+</section>
+
+<section class="board__section" id="typographie">
+  <h2 class="board__h">2. Typographie</h2>
+  <p class="board__meta">Display : Fraunces (OFL) — titres et grand chiffre-flamme. Texte/UI : Inter (OFL).</p>
+  <p class="specimen" style="font-size:var(--font-size-step-4)">Fraunces — Au coin du feu &amp; du jeu — ÀÉÈÊ 0123456789</p>
+  <p style="font-family:var(--font-family-text);font-size:var(--font-size-step-1)">Inter — Rejoignez la partie depuis votre téléphone, sans compte, en quelques secondes.</p>
+  <div class="specimen--num">832</div>
+  <div style="margin-top:var(--size-space-5)">
+    <div class="type-row"><span class="type-row__name">step-0 · corps</span><span style="font-size:var(--font-size-step-0)">clamp(1rem … 1.125rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-1 · lead</span><span style="font-size:var(--font-size-step-1)">clamp(1.2rem … 1.4063rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-2 · h4</span><span class="specimen" style="font-size:var(--font-size-step-2)">clamp(1.44rem … 1.7578rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-3 · h3</span><span class="specimen" style="font-size:var(--font-size-step-3)">clamp(1.728rem … 2.1973rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-4 · h2</span><span class="specimen" style="font-size:var(--font-size-step-4)">clamp(2.0736rem … 2.7466rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-5 · h1</span><span class="specimen" style="font-size:var(--font-size-step-5)">clamp(2.4883rem … 3.4332rem)</span></div>
+    <div class="type-row"><span class="type-row__name">step-6 · display</span><span class="specimen" style="font-size:var(--font-size-step-6)">clamp(2.986rem … 4.2915rem)</span></div>
+  </div>
+</section>
+
+<section class="board__section" id="motion">
+  <h2 class="board__h">3. Motion — organique-doux (variante flamme)</h2>
+  <p class="board__meta">Cliquez une carte pour animer. fast 140ms · base 240ms · slow 320ms · reveal 600ms. Zéro rebond.</p>
+  <div class="motion-grid">
+    <div class="motion-demo motion-demo--standard" onclick="this.classList.toggle('is-on')"><div class="motion-demo__box"></div><div class="motion-demo__label">standard · base 240ms</div></div>
+    <div class="motion-demo motion-demo--decelerate" onclick="this.classList.toggle('is-on')"><div class="motion-demo__box"></div><div class="motion-demo__label">decelerate · slow (entrée)</div></div>
+    <div class="motion-demo motion-demo--emphasized" onclick="this.classList.toggle('is-on')"><div class="motion-demo__box"></div><div class="motion-demo__label">emphasized · navigation</div></div>
+  </div>
+  <p class="board__meta" style="margin-top:var(--size-space-4)">prefers-reduced-motion : toutes les durées passent à 0ms (translations/scale supprimées, seuls les fondus d'opacité subsistent). Aucune information n'est portée uniquement par le mouvement.</p>
+</section>
+
+<section class="board__section" id="composants">
+  <h2 class="board__h">4. Composants clés</h2>
+  <div class="comp-row">
+    <button class="btn btn--primary">Afficher les résultats</button>
+    <button class="btn btn--secondary">Passer à la suivante</button>
+    <button class="btn btn--primary" disabled>Désactivé</button>
+  </div>
+  <div class="comp-row" style="margin-top:var(--size-space-5)">
+    <article class="card">
+      <h3 class="card__title">Réponses reçues</h3>
+      <div class="card__num">832</div>
+    </article>
+    <article class="card">
+      <h3 class="card__title">Classement — 1er</h3>
+      <div class="card__num" style="font-size:var(--font-size-step-4)">PixelNight · 1 250</div>
+    </article>
+  </div>
+</section>
+</body>
+</html>

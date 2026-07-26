@@ -1,0 +1,15 @@
+# Marqueur d'app (mono-app, racine). Identité du code src/ pour le pipeline.
+artifact_type: src
+app: root
+version: 1
+change_set: forward
+produced_by: app-builder
+derived_from:
+  tech_spec: 1
+  design_manifest: 1
+  tokens: 1
+  user_needs: 1
+  image_assets:
+    hero-ambiance-campfire: 1
+    avatar-emblem-tipi: 1
+    social-card-join: 1

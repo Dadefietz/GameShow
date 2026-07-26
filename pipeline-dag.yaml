@@ -1,0 +1,67 @@
+# pipeline-dag.yaml — graphe de dépendances du pipeline (source unique d'ordre).
+#
+# Emplacement : RACINE DU PROJET (committé). Template copié par product-discovery à l'init,
+# en miroir machine du « Pipeline order » de REPO-CONVENTION.md (qui reste la version humaine).
+#
+# DEUX consommateurs, une seule source :
+#   - le PIPELINE FORWARD  : résolution « prochaine étape » (migration douce — voir REPO-CONVENTION
+#     §« DAG »: le forward ne dérive du DAG que s'il existe, sinon il garde son texte en dur).
+#   - saas-change-orchestrator : ANALYSE D'IMPACT AVAL — parcours des `edges` depuis le nœud
+#     d'entrée pour calculer l'ensemble des artefacts aval à refaire en mode PATCH.
+#
+# Aucune logique d'ordre n'est dupliquée ailleurs : c'est ICI la source unique. Absent → le
+# change-orchestrator le bootstrappe depuis REPO-CONVENTION.md §Pipeline order (jamais de skip).
+
+schema_version: 1
+
+# ── Nœuds (phases) ───────────────────────────────────────────────────────────────────────────
+# Un nœud = une phase = une skill. `produces` = artefacts logiques produits par ce nœud
+# (mêmes clés que les entrées de docs/PIPELINE-INDEX.yaml). `optional: true` = nœud sautable
+# par défaut (le change-orchestrator ne l'inclut que sur scope explicite).
+#
+# APP-SCOPING — `scope:` indique la portée du nœud (cf. REPO-CONVENTION §App-scoping) :
+#   scope: project  → artefact PARTAGÉ, UNE instance au niveau projet     (nœuds 1, 1.5, 2, 3, 3.5)
+#   scope: per-app  → artefact PER-APP, une instance par app cible        (nœuds 4, 4.5, 5, 6, 7, 8)
+# Les nœuds `per-app` s'exécutent UNE FOIS PAR APP CIBLE (mono-app = 1 fois sur l'app implicite
+# `root`). Un changement d'un nœud `project` (partagé) fait fan-out vers TOUTES les apps en aval ;
+# un changement d'un nœud `per-app` reste confiné à l'app ciblée par le scope du change-set.
+nodes:
+  - { id: 1,   skill: product-discovery, produces: [user_needs],              optional: false, scope: project }
+  - { id: 1.5, skill: design-benchmark,  produces: [design_domain_explore],   optional: false, scope: project }
+  - { id: 2,   skill: tech-spec-writer,  produces: [tech_spec],               optional: false, scope: project }
+  - { id: 3,   skill: design-board,      produces: [design_board],            optional: false, scope: project }
+  - { id: 3.5, skill: design-explorer,   produces: [design_directions],       optional: true,  scope: project }
+  - { id: 3.6, skill: design-proposer,   produces: [design_proposals],        optional: true,  scope: per-app }   # change-only : entrée d'un change-set type=design-proposal ; analyse l'app construite, JAMAIS en forward
+  - { id: 4,   skill: design-builder,    produces: [tokens, design_manifest], optional: false, scope: per-app }
+  - { id: 4.x, skill: asset-imagery,     produces: [image_asset],             optional: false, scope: per-app }
+  - { id: 4.5, skill: design-audit,      produces: [design_audit],            optional: false, scope: per-app }
+  - { id: 5,   skill: app-builder,       produces: [src],                     optional: false, scope: per-app }
+  - { id: 6,   skill: tester,            produces: [test_report],             optional: false, scope: per-app }
+  - { id: 7,   skill: security-tester,   produces: [security_audit],          optional: false, scope: per-app }
+  - { id: 8,   skill: deployer,          produces: [deploy],                  optional: false, scope: per-app }
+
+# ── Arêtes = dépendances ENTRE ARTEFACTS (pas entre skills) ──────────────────────────────────
+# « target dépend de sources ». L'analyse d'impact aval part de l'artefact du nœud d'entrée et
+# suit ces arêtes vers l'aval (jamais vers l'amont). Ce sont aussi les amonts enregistrés dans
+# `derived_from` du registre (l'invariant de cohérence compare derived_from[source] à la version
+# active de source).
+edges:
+  - { target: design_domain_explore, sources: [user_needs] }
+  - { target: tech_spec,             sources: [user_needs, design_domain_explore] }
+  - { target: design_board,          sources: [user_needs, tech_spec, design_domain_explore] }
+  - { target: design_directions,     sources: [design_board, tech_spec] }
+  - { target: design_proposals,      sources: [design_domain_explore, design_manifest, tokens, src] }   # change-only ; la ratification relie design_proposals→design_board par provenance DYNAMIQUE (pas d'arête statique → DAG acyclique)
+  - { target: tokens,                sources: [design_board] }
+  - { target: design_manifest,       sources: [design_board, tokens] }
+  - { target: image_asset,           sources: [design_board, tokens, design_manifest] }   # 4.x asset-imagery : design_manifest fournit les slots ; design_board/tokens la direction visuelle
+  - { target: design_audit,          sources: [design_manifest, tokens, image_asset] }
+  - { target: src,                   sources: [tech_spec, design_manifest, tokens, user_needs, image_asset] }
+  - { target: test_report,           sources: [src] }
+  - { target: security_audit,        sources: [src] }
+  - { target: deploy,                sources: [src, test_report, security_audit] }
+
+# ── Groupes parallèles autorisés ─────────────────────────────────────────────────────────────
+# Membres d'un même groupe : aucun ne consomme la sortie de l'autre → exécutables en concurrence.
+# Le change-orchestrator lance ces membres en parallèle (Phase 4), cap de concurrence raisonnable.
+parallel_groups:
+  - [test_report, security_audit]   # tester ∥ security-tester (cf. REPO-CONVENTION §Pipeline order)

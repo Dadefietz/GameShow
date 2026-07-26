@@ -1,0 +1,10 @@
+{
+  "asset_type": "hero",
+  "slug": "ambiance-campfire",
+  "backend": "higgsfield/nano-banana (nano_banana_pro)",
+  "aspect_ratio": "16:9",
+  "resolution": "1k->upscale 1920w LANCZOS",
+  "source_job_id": "c7a85ffa-efc7-44ed-80da-90e998a1001b",
+  "prompt": "A warm and inviting campfire with bright cheerful golden flames, a cozy friendly gathering spot with a tipi, in a sunny pine forest at warm golden-hour dusk, glowing amber firelight, soft fresh green tones, welcoming and convivial mood, bright and warm, not dark, not misty, painterly digital illustration, negative space upper area, no text, no people, no logos",
+  "note": "Visuel convivial validé par l'utilisateur (direction feu-de-camp v2 sans brun)."
+}

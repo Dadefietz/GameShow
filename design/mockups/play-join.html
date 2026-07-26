@@ -1,0 +1,222 @@
+<!-- artifact: mockup; app:root; screen:play-join; version:1; produced_by:design-builder -->
+<!-- A11Y: focus=ordre logique, anneau 2px action-primary offset 2px; contrast=texte neutral-100/bg-page 16.6:1 AAA; aria=main landmark, boutons libellés; touch=44px min -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre — Project Game Show</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .screen {
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    background:
+      radial-gradient(130% 75% at 50% -8%,
+        color-mix(in oklch, var(--semantic-color-signature) 22%, transparent) 0%,
+        color-mix(in oklch, var(--semantic-color-signature) 6%, transparent) 34%,
+        transparent 62%),
+      var(--semantic-color-bg-page);
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+  }
+  .screen__main {
+    width: 100%;
+    max-width: 430px;
+    padding: var(--size-space-8) var(--size-space-5) var(--size-space-6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-6);
+  }
+
+  /* COMPOSANT: Emblème */
+  .emblem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-4);
+    text-align: center;
+  }
+  .emblem__glow {
+    display: grid;
+    place-items: center;
+    width: 96px;
+    height: 96px;
+    border-radius: var(--size-radius-full);
+    color: var(--semantic-color-signature);
+    background:
+      radial-gradient(circle at 50% 60%,
+        color-mix(in oklch, var(--semantic-color-signature) 34%, transparent) 0%,
+        color-mix(in oklch, var(--semantic-color-action-primary) 12%, transparent) 55%,
+        transparent 75%);
+    box-shadow: 0 0 46px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent);
+    animation: flicker 3.4s var(--motion-easing-standard) infinite;
+  }
+  .emblem__glow svg { width: 46px; height: 46px; }
+  .emblem__brand {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-4);
+    line-height: var(--font-line-height-tight);
+    color: var(--semantic-color-text-primary);
+    letter-spacing: -0.01em;
+  }
+  .emblem__tagline {
+    font-size: var(--font-size-step-0);
+    color: var(--semantic-color-text-secondary);
+    line-height: var(--font-line-height-snug);
+  }
+  @keyframes flicker {
+    0%, 100% { box-shadow: 0 0 46px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent); }
+    50%      { box-shadow: 0 0 60px color-mix(in oklch, var(--semantic-color-signature) 56%, transparent); }
+  }
+  /* /COMPOSANT: Emblème */
+
+  /* COMPOSANT: Formulaire de connexion */
+  .join {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-5);
+  }
+  .join__field { display: flex; flex-direction: column; gap: var(--size-space-2); }
+  .join__label {
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-left: var(--size-space-1);
+  }
+  .join__input {
+    width: 100%;
+    min-height: var(--size-touch-min);
+    padding: var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    border: 1px solid var(--component-card-border);
+    background: var(--component-card-bg);
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-1);
+    transition: border-color var(--motion-duration-base) var(--motion-easing-standard),
+                box-shadow var(--motion-duration-base) var(--motion-easing-standard);
+  }
+  .join__input::placeholder { color: color-mix(in oklch, var(--semantic-color-text-secondary) 70%, transparent); }
+  .join__input:focus-visible {
+    outline: 2px solid var(--semantic-color-action-primary);
+    outline-offset: 2px;
+    border-color: var(--semantic-color-action-primary);
+  }
+  .join__input--code {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-4);
+    text-align: center;
+    letter-spacing: 0.28em;
+    text-indent: 0.28em;
+    color: var(--semantic-color-signature);
+    padding-block: var(--size-space-5);
+  }
+  /* /COMPOSANT: Formulaire de connexion */
+
+  /* COMPOSANT: Bouton primaire */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-space-2);
+    width: 100%;
+    min-height: 56px;
+    padding: var(--size-space-4) var(--size-space-5);
+    border: none;
+    border-radius: var(--size-radius-full);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-1);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    transition: background var(--motion-duration-fast) var(--motion-easing-standard),
+                transform var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .btn--primary {
+    background: var(--component-button-bg);
+    color: var(--component-button-text);
+    box-shadow: 0 8px 30px color-mix(in oklch, var(--semantic-color-action-primary) 40%, transparent);
+  }
+  .btn--primary:hover { background: var(--component-button-bg-hover); }
+  .btn--primary:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
+  .btn svg { width: 22px; height: 22px; }
+  /* /COMPOSANT: Bouton primaire */
+
+  .join__note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-space-2);
+    font-size: var(--font-size-step--1);
+    color: var(--semantic-color-text-secondary);
+    text-align: center;
+  }
+  .join__note svg { width: 16px; height: 16px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<main class="screen" aria-labelledby="join-title">
+  <div class="screen__main">
+
+    <!-- COMPOSANT: Emblème -->
+    <header class="emblem">
+      <span class="emblem__glow" aria-hidden="true">
+        <!-- Lucide: flame -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+        </svg>
+      </span>
+      <h1 class="emblem__brand" id="join-title">Project Game&nbsp;Show</h1>
+      <p class="emblem__tagline">Approche-toi du feu. La partie va commencer.</p>
+    </header>
+    <!-- /COMPOSANT: Emblème -->
+
+    <!-- COMPOSANT: Formulaire de connexion -->
+    <form class="join" novalidate>
+      <div class="join__field">
+        <label class="join__label" for="code">Code de la partie</label>
+        <input class="join__input join__input--code" id="code" name="code" type="text"
+               inputmode="numeric" autocomplete="off" maxlength="6" placeholder="4 7 2 9"
+               aria-describedby="code-hint" value="">
+      </div>
+
+      <div class="join__field">
+        <label class="join__label" for="pseudo">Ton pseudo</label>
+        <input class="join__input" id="pseudo" name="pseudo" type="text"
+               autocomplete="off" maxlength="18" placeholder="PixelNight">
+      </div>
+
+      <!-- COMPOSANT: Bouton primaire -->
+      <button class="btn btn--primary" type="submit">
+        <!-- Lucide: log-in -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>
+        </svg>
+        Rejoindre
+      </button>
+      <!-- /COMPOSANT: Bouton primaire -->
+
+      <p class="join__note" id="code-hint">
+        <!-- Lucide: sparkles -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/>
+        </svg>
+        Aucun compte, aucune installation.
+      </p>
+    </form>
+    <!-- /COMPOSANT: Formulaire de connexion -->
+
+  </div>
+</main>
+</body>
+</html>

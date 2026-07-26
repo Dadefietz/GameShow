@@ -1,0 +1,423 @@
+---
+# USER-NEEDS — Project Game Show — Produit par product-discovery (Phase 1). Livrable machine.
+# ── Tag de codification (backstop) ──
+artifact_type: user_needs
+app: root
+change_set: bootstrap
+produced_by: product-discovery
+# ── Métadonnées livrable ──
+version: 1
+created_at: "2026-07-22"
+updated_at: "2026-07-22"
+created_by: product-discovery
+completeness_score: 0.96
+status: draft
+superseded_by: null
+---
+
+# ─────────────────────────────────────────────
+# 1. CONTEXTE PROJET
+# ─────────────────────────────────────────────
+
+project_name: "Project Game Show"
+tagline: "La plateforme d'animation où le streamer présente un vrai jeu télévisé et toute sa communauté joue depuis son téléphone."
+
+problem_statement: |
+  Les streamers (Twitch, Kick, YouTube) veulent transformer leur audience passive en
+  participants actifs, mais aucun outil existant ne le permet vraiment sans compromis.
+  Les outils d'engagement type webinaire (StreamAlive, Slido) ne sont pas pensés pour le
+  stream et coûtent cher avec peu de personnalisation. Les jeux party (Jackbox, Kahoot)
+  plafonnent le nombre de joueurs (Jackbox 3-10 actifs ; Kahoot gratuit 10) et ne
+  s'intègrent pas nativement à OBS. Les jeux "chat" (Marbles, Kukoro) limitent la
+  participation à des commandes de chat Twitch et souvent au simple vote, donc mono-plateforme.
+  Il manque une plateforme stream-native, multi-plateforme, où le téléphone devient une
+  manette pour CHAQUE viewer, sans compte, à grande échelle, sous forme d'un jeu-show
+  modulaire entièrement piloté par l'animateur et diffusé via des overlays OBS.
+
+# ─────────────────────────────────────────────
+# 2. BENCHMARK MARCHÉ
+# ─────────────────────────────────────────────
+
+market:
+  size_indicator: "Catégorie 'audience engagement' active mais fragmentée : StreamAlive noté 4.8/5 sur 16 avis vérifiés (source: https://www.capterra.com/p/10010918/StreamAlive/reviews/) ; Kahoot monte à 2 000-10 000 participants sur plans payants (source: https://support.kahoot.com/hc/en-us/articles/115003072287-How-many-participants-can-play-a-kahoot) ; Marbles on Stream jusqu'à ~900 joueurs (source: https://www.boardgamefightclub.com/articles/Every-Twitch-Chat-Integrated-Video-Game/)."
+  trend: "Créneau émergent : le jeu-avec-l'audience est décrit comme 'still a new concept with limited game availability' (source: https://www.boardgamefightclub.com/articles/Every-Twitch-Chat-Integrated-Video-Game/). Forte demande d'interactivité côté streamers."
+  opportunity: "Jeu-show stream-natif + multi-plateforme + téléphone-manette pour tous + sans compte + grande échelle + modulaire + overlays OBS : cette combinaison n'est couverte par aucun acteur."
+
+competitors:
+  - name: "StreamAlive (et Slido)"
+    url: "https://www.streamalive.com/"
+    value_proposition: "Engagement d'audience en direct (sondages, quiz, nuages de mots) via le chat existant."
+    strengths:
+      - text: "Interaction temps réel qui 'a fait passer mes webinaires au niveau supérieur' ; participation à faible friction via le chat déjà utilisé."
+        source_url: "https://www.capterra.com/p/10010918/StreamAlive/reviews/"
+      - text: "Jugé intuitif et facile à prendre en main."
+        source_url: "https://www.capterra.com/p/10010918/StreamAlive/reviews/"
+    weaknesses:
+      - text: "Les utilisateurs réclament 'une option moins chère ou à plus petit palier'."
+        source_url: "https://www.capterra.com/p/10010918/StreamAlive/reviews/"
+      - text: "Personnalisation limitée des éléments interactifs ; pensé pour Zoom/Meet/Teams, pas pour le stream (OBS)."
+        source_url: "https://www.capterra.com/p/10010918/StreamAlive/reviews/"
+    pricing: "~20 $/mois (mentionné en réponse éditeur ; pas de palier plus bas)"
+
+  - name: "Jackbox Party Pack"
+    url: "https://www.jackboxgames.com/"
+    value_proposition: "Jeux de soirée où l'on rejoint depuis son téléphone via jackbox.tv."
+    strengths:
+      - text: "Rejoindre depuis le téléphone sans app dédiée ; jeux polis et fun."
+        source_url: "https://support.jackboxgames.com/hc/en-us/articles/15794756085015-How-many-players-can-join-each-game"
+    weaknesses:
+      - text: "Plafond de 3 à 10 joueurs actifs par jeu (Lie Swatter exceptionnellement 100) ; l'audience ne fait que 'suivre'."
+        source_url: "https://support.jackboxgames.com/hc/en-us/articles/15794756085015-How-many-players-can-join-each-game"
+      - text: "Achat Steam, pas d'overlays OBS natifs, pas de format 'game-show' modulaire enchaînable, pas de contrôle fin de l'animateur."
+        source_url: "https://support.jackboxgames.com/hc/en-us/articles/15794756085015-How-many-players-can-join-each-game"
+    pricing: "Achat unique par pack (Steam)"
+
+  - name: "Kahoot"
+    url: "https://kahoot.com/"
+    value_proposition: "Quiz interactif rejoint par un PIN, orienté éducation/entreprise."
+    strengths:
+      - text: "Rejoindre instantanément par un code ; capable de grande échelle (2 000-10 000) sur plans payants."
+        source_url: "https://support.kahoot.com/hc/en-us/articles/115003072287-How-many-participants-can-play-a-kahoot"
+    weaknesses:
+      - text: "Gratuit plafonné à 10 participants ; l'échelle exige un abonnement payant coûteux."
+        source_url: "https://support.kahoot.com/hc/en-us/articles/115003072287-How-many-participants-can-play-a-kahoot"
+      - text: "Orienté salle de classe / webinaire, pas stream-natif, pas d'overlays OBS, un seul type de jeu (quiz)."
+        source_url: "https://support.kahoot.com/hc/en-us/articles/115003072287-How-many-participants-can-play-a-kahoot"
+    pricing: "Gratuit (10 joueurs) → plans payants pour l'échelle"
+
+  - name: "Marbles on Stream / jeux 'chat' (Kukoro, Mega Quiz)"
+    url: "https://store.steampowered.com/app/1170970/Marbles_On_Stream/"
+    value_proposition: "Jeux stream-natifs où l'audience participe via des commandes de chat."
+    strengths:
+      - text: "Grande échelle (jusqu'à ~900 joueurs) et vraie intégration au stream."
+        source_url: "https://www.boardgamefightclub.com/articles/Every-Twitch-Chat-Integrated-Video-Game/"
+    weaknesses:
+      - text: "Participation limitée aux commandes de chat et souvent au vote, pas au contrôle individuel ; mono-plateforme (Twitch)."
+        source_url: "https://www.boardgamefightclub.com/articles/Every-Twitch-Chat-Integrated-Video-Game/"
+      - text: "Utilisateurs frustrés par des bugs de synchro cross-plateforme et un manque de variété ; support seulement via Discord."
+        source_url: "https://steamcommunity.com/app/1170970/discussions/0/4516632983095949848"
+    pricing: "Achat Steam"
+
+# NOTE FALLBACK REDDIT : Reddit est inexploitable via le proxy de recherche de cet
+# environnement (résultats systématiquement parasités par itch.io/Wikipedia, une requête
+# rejetée en HTTP 400). Conformément au repli prévu (Phase 2), les insights voix-utilisateur
+# ci-dessous s'appuient sur des sources équivalentes : avis vérifiés Capterra, discussions
+# Steam Community, devlog itch.io, analyse Board Game Fight Club.
+reddit_insights:
+  - subreddit: "Capterra (avis vérifiés StreamAlive) — substitut Reddit"
+    url: "https://www.capterra.com/p/10010918/StreamAlive/reviews/"
+    insight: "Les animateurs valorisent l'interaction temps réel à faible friction mais veulent un prix plus bas ET plus de personnalisation des éléments interactifs."
+  - subreddit: "Steam Community (Marbles on Stream) — substitut Reddit"
+    url: "https://steamcommunity.com/app/1170970/discussions/0/4516632983095949848"
+    insight: "Les joueurs se plaignent de synchro cross-plateforme défaillante, d'un manque de variété et d'un support difficile d'accès (Discord uniquement)."
+  - subreddit: "itch.io devlog (Streamers Interactive Quiz Game) — substitut Reddit"
+    url: "https://bareth87.itch.io/streaming-quiz-game/devlog"
+    insight: "Fonctionnalités réclamées par les streamers : mode solo/AFK, choix de catégories, crowdsourcing des questions par la communauté, compatibilité OBS (green screen). La qualité/variété des questions est un facteur clé."
+  - subreddit: "Board Game Fight Club (analyse catégorie) — substitut Reddit"
+    url: "https://www.boardgamefightclub.com/articles/Every-Twitch-Chat-Integrated-Video-Game/"
+    insight: "La catégorie reste bridée par le chat-commande/vote et le mono-plateforme Twitch ; c'est un 'nouveau concept' encore peu servi — d'où l'espace pour une manette mobile universelle."
+
+# ─────────────────────────────────────────────
+# 3. PERSONAS UTILISATEURS
+# ─────────────────────────────────────────────
+
+personas:
+  primary:
+    name: "Théo — le streamer-animateur"
+    description: "Streamer (Twitch/Kick/YouTube) avec une communauté moyenne à grande, qui aime créer des moments forts et parler directement à son audience."
+    job_to_be_done: "Transformer son stream en émission interactive où toute sa communauté joue en direct, sans dépendre d'un jeu tiers et sans setup lourd."
+    context: "En live, seul aux commandes derrière OBS. Doit garder le rythme et le show tout en pilotant la partie d'une main."
+    frustrations:
+      - "Les outils d'engagement webinaire ne sont pas stream-natifs et sont payants avec peu de personnalisation."
+      - "Les jeux party plafonnent à ~10 joueurs actifs — sa communauté est trop grande pour ça."
+      - "Les jeux 'chat' se limitent aux commandes de chat et à Twitch uniquement."
+      - "Le setup technique et la modération sont souvent complexes."
+    goals:
+      - "Faire participer un maximum de viewers, pas seulement les regarder."
+      - "Créer des moments mémorables et du suspense qu'il révèle au bon moment."
+      - "Garder le contrôle total du rythme (lancer, mettre en pause, révéler, terminer)."
+      - "Zéro friction pour ses viewers et une rejouabilité infinie via des modules variés."
+
+  secondary:
+    name: "Léa — la viewer-joueuse (mobile)"
+    description: "Spectatrice du stream qui regarde sur un écran et veut participer depuis son téléphone."
+    job_to_be_done: "Rejoindre une partie en moins de 10 secondes et jouer sans rien installer."
+    context: "Le stream tourne sur un écran (TV/PC) ; son téléphone devient la manette. Peut arriver après le début."
+    frustrations:
+      - "Devoir créer un compte ou installer une application pour jouer."
+      - "Arriver en cours de partie et ne pas pouvoir rejoindre."
+      - "Interfaces lentes ou confuses qui cassent le plaisir en direct."
+    goals:
+      - "Rejoindre instantanément via un code ou un QR code."
+      - "Comprendre l'écran sans explication et répondre vite."
+      - "Voir son score, sa progression et son classement, et rester impliquée même sans gagner."
+
+# ─────────────────────────────────────────────
+# 4. BESOINS (MoSCoW)
+# ─────────────────────────────────────────────
+
+requirements:
+  must:
+    - id: M1
+      text: "L'animateur peut créer un salon avec un code unique et un QR code."
+      rationale: "Sans salon partageable, aucun viewer ne peut rejoindre — c'est le point d'entrée du jeu."
+      source: "Spec fonctionnelle §6 + convention marché (Kahoot PIN, Jackbox room code)"
+    - id: M2
+      text: "Le joueur peut rejoindre via code ou QR, saisir un pseudo, et jouer sans compte ni installation en moins de 10 secondes."
+      rationale: "L'accessibilité instantanée est la proposition de valeur centrale ; l'obligation de compte est la frustration n°1 des joueurs."
+      source: "Spec §4 (Accessibilité) + gap concurrent (Kahoot/Jackbox join)"
+    - id: M3
+      text: "Le joueur peut rejoindre une partie déjà commencée."
+      rationale: "Les viewers arrivent en continu pendant un live ; interdire le join en cours exclut une grande partie de l'audience."
+      source: "Spec §2 (viewers) + comportement réel des streams"
+    - id: M4
+      text: "L'animateur peut lancer les modules librement, dans l'ordre qu'il veut, et enchaîner sans durée imposée."
+      rationale: "Le format 'game-show' libre est la différence structurelle avec un simple quiz linéaire."
+      source: "Spec §1, §7"
+    - id: M5
+      text: "Le joueur peut jouer aux 4 modules de lancement : Quiz (QCM), Vrai/Faux, Estimation (numérique), Vote/Sondage."
+      rationale: "Ce sont les modules choisis comme indispensables pour la première version publique ; ils couvrent 4 mécaniques distinctes."
+      source: "Décision utilisateur directe (intake) + Spec §9"
+    - id: M6
+      text: "Le système attribue des points par module et recalcule le classement après chaque module."
+      rationale: "Sans score ni classement, il n'y a ni compétition ni raison de rester impliqué."
+      source: "Spec §11, §12"
+    - id: M7
+      text: "L'animateur peut afficher/masquer les réponses, mettre en pause, passer au module suivant et terminer la partie."
+      rationale: "Le contrôle total du déroulé par l'animateur est au cœur du produit (piloter le show en direct)."
+      source: "Spec §3 (Animateur), §13"
+    - id: M8
+      text: "L'animateur peut afficher des overlays OBS (question, chronomètre, classement/podium, résultats) comme sources navigateur."
+      rationale: "Le spectacle vit sur le stream ; sans overlays OBS, le jeu reste invisible pour l'audience."
+      source: "Spec §15 + gap concurrent (aucun rival OBS-first)"
+    - id: M9
+      text: "Le système pousse les réponses et mises à jour en temps réel aux joueurs et aux overlays."
+      rationale: "Un jeu en direct sans temps réel n'a pas de tension ni de synchronisation avec le stream."
+      source: "Spec §17"
+    - id: M10
+      text: "L'animateur dispose d'un dashboard : nombre de joueurs, épreuve en cours, temps restant, classement live, boutons de contrôle."
+      rationale: "C'est le poste de pilotage unique de l'animateur pendant le live."
+      source: "Spec §13 + maquette infographie"
+    - id: M11
+      text: "Le joueur dispose d'une interface mobile minimaliste : question, réponse, chronomètre, score, classement."
+      rationale: "Le téléphone doit être une manette simple ; toute complexité casse l'expérience en direct."
+      source: "Spec §14 (Simplicité) + maquette infographie"
+
+  should:
+    - id: S1
+      text: "L'animateur peut déclencher des événements spéciaux (Double Points, Mort Subite, Bonus, etc.) pendant la partie."
+      rationale: "Les événements créent les rebondissements et le suspense qui distinguent une émission d'un quiz plat ; visés dès la v1 'complète'."
+      source: "Spec §10 + maquette infographie"
+    - id: S2
+      text: "L'animateur peut ajouter des bonus et retirer des points manuellement."
+      rationale: "Donne à l'animateur la latitude d'arbitrer et d'animer en direct."
+      source: "Spec §3 (Animateur)"
+    - id: S3
+      text: "L'animateur peut relancer une manche."
+      rationale: "Permet de récupérer un bug réseau ou une manche ratée sans casser la partie."
+      source: "Spec §3 (Animateur)"
+    - id: S4
+      text: "Le joueur peut jouer à des modules additionnels (Blind Test, Image Mystère, Rapidité, Mémoire, Classement/ordre, Texte libre)."
+      rationale: "La variété alimente la rejouabilité, faiblesse majeure des concurrents 'chat'."
+      source: "Spec §9 + Steam Community (manque de variété)"
+    - id: S5
+      text: "Le joueur est reconnecté automatiquement en cas de perte réseau."
+      rationale: "Sur mobile en live, les micro-coupures sont fréquentes ; sans reconnexion, le joueur est éjecté de la partie."
+      source: "Spec §17"
+    - id: S6
+      text: "L'animateur peut choisir ce qu'il affiche du classement (Top 10, Podium, Top 50, position perso, évolution)."
+      rationale: "Adapte la dramaturgie du reveal au moment du show."
+      source: "Spec §12"
+    - id: S7
+      text: "Le salon expose des états explicites (En attente, En jeu, Pause, Résultats, Terminé)."
+      rationale: "Clarifie l'expérience joueur et le pilotage animateur à chaque instant."
+      source: "Spec §6"
+    - id: S8
+      text: "L'animateur peut consulter un historique/journal des manches jouées."
+      rationale: "Aide à animer (rappeler les scores, les temps forts) et à débriefer."
+      source: "Spec §13"
+    - id: S9
+      text: "La plateforme tient de gros pics de joueurs et vise une montée en charge vers ~1000 simultanés."
+      rationale: "L'échelle massive est un différenciateur clé, mais traitée comme objectif progressif (seuil de départ à définir en tech-spec)."
+      source: "Spec §17 + décision utilisateur (échelle progressive)"
+
+  could:
+    - id: C1
+      text: "L'animateur peut jouer des modules 'signature' originaux (Le Menteur, Le Saboteur, Le Banquier, Puzzle collaboratif, Emoji/deviner une phrase)."
+      rationale: "Ces jeux originaux deviendront la signature du projet, mais viennent après le socle."
+      source: "Spec §9 (Modules originaux)"
+    - id: C2
+      text: "L'animateur peut personnaliser les thèmes et l'habillage visuel des modules."
+      rationale: "Personnalisation demandée par les utilisateurs d'outils concurrents, mais non bloquante."
+      source: "Capterra StreamAlive (demande de personnalisation)"
+    - id: C3
+      text: "L'animateur peut activer des intégrations Twitch optionnelles (pseudo Twitch, récompenses de chaîne, commandes chat, events subs/raids)."
+      rationale: "Bonus d'immersion ; explicitement optionnel et postérieur dans la spec."
+      source: "Spec §16"
+    - id: C4
+      text: "L'animateur peut crowdsourcer des questions proposées par le chat."
+      rationale: "Feature appréciée (itch.io) qui augmente l'implication, mais secondaire."
+      source: "itch.io devlog (Streamers Interactive Quiz Game)"
+    - id: C5
+      text: "L'administrateur peut consulter des statistiques d'usage et gérer les modules/utilisateurs."
+      rationale: "Utile pour faire évoluer la plateforme, pas nécessaire pour jouer."
+      source: "Spec §3 (Administrateur)"
+    - id: C6
+      text: "Le jeu propose des sons et animations de plateau avancés (transitions, jingles)."
+      rationale: "Renforce le feeling 'game-show TV' mais peut arriver par itérations."
+      source: "Spec §8, §15 + feeling design"
+
+  wont:
+    - id: W1
+      text: "Application mobile native (iOS/Android)."
+      rationale: "Le web responsive suffit et respecte le principe 'zéro installation' ; une app native contredit la proposition de valeur."
+      source: "Spec §4 + décision produit"
+    - id: W2
+      text: "Comptes joueurs et persistance de profil/score entre parties."
+      rationale: "L'anonymat éphémère (pseudo seul) est un choix produit qui garantit le join <10s et allège le RGPD."
+      source: "Spec §4 + décision produit"
+    - id: W3
+      text: "Multi-animateurs et multi-salons simultanés."
+      rationale: "La v1 est un outil personnel mono-animateur/mono-salon ; le SaaS multi-streamers est hors périmètre pour l'instant."
+      source: "Décision utilisateur (périmètre perso)"
+    - id: W4
+      text: "Dépendance obligatoire à Twitch (ou toute plateforme unique)."
+      rationale: "Le jeu doit fonctionner indépendamment de Twitch ; les intégrations restent optionnelles."
+      source: "Spec §16"
+    - id: W5
+      text: "Classement mondial persistant et système de modération lourd."
+      rationale: "Hors scope : le jeu est éphémère par partie ; la modération se limite au filtrage de pseudo."
+      source: "Décision produit"
+
+# ─────────────────────────────────────────────
+# 5. FLUX UTILISATEURS PRINCIPAUX
+# ─────────────────────────────────────────────
+
+user_flows:
+  - id: F1
+    name: "Animer une partie (parcours animateur)"
+    actor: "Théo — animateur"
+    trigger: "Théo veut lancer un jeu-show pendant son stream."
+    steps:
+      - "Se connecte et crée un salon."
+      - "Affiche le code et le QR code à l'écran (overlay OBS)."
+      - "Attend que les joueurs rejoignent (salle d'attente)."
+      - "Lance la partie puis choisit un premier module."
+      - "Anime : lance le chrono, met en pause, déclenche un événement, affiche/masque les réponses."
+      - "Révèle les résultats et le classement au bon moment."
+      - "Enchaîne un nouveau module, autant de fois qu'il veut."
+      - "Termine la partie sur un podium final."
+    outcome: "Une émission interactive complète animée en direct, du salon au podium, sans dépendre d'un jeu tiers."
+
+  - id: F2
+    name: "Rejoindre et jouer (parcours joueur)"
+    actor: "Léa — viewer-joueuse"
+    trigger: "Léa voit le code/QR à l'écran du stream et veut jouer."
+    steps:
+      - "Scanne le QR code (ou saisit le code) depuis son téléphone."
+      - "Entre un pseudo, sans compte."
+      - "Arrive en salle d'attente puis participe au module en cours."
+      - "Répond dans le temps imparti et voit sa réponse confirmée."
+      - "Voit son score, sa progression et son classement."
+      - "Enchaîne les manches suivantes jusqu'à la fin."
+    outcome: "Léa a joué toute l'émission depuis son téléphone en moins de 10 secondes d'onboarding."
+
+  - id: F3
+    name: "Rejoindre une partie déjà commencée"
+    actor: "Léa (retardataire)"
+    trigger: "Léa arrive sur le stream après le début de la partie."
+    steps:
+      - "Scanne le QR / saisit le code pendant qu'un module est en cours."
+      - "Entre un pseudo et est intégrée à la partie en cours."
+      - "Participe dès le prochain module (ou immédiatement si le module l'autorise)."
+    outcome: "Aucun viewer n'est exclu à cause de son heure d'arrivée."
+
+# ─────────────────────────────────────────────
+# 6. FEELING DESIGN
+# ─────────────────────────────────────────────
+
+design_feeling:
+  adjectives:
+    - "Spectaculaire"
+    - "Énergique"
+    - "Premium"
+  references:
+    - name: "Infographie promotionnelle fournie (direction game-show TV)"
+      url: "computer:///Users/mathis/Documents/Claude/Projects/Théo/PHOTO-2026-07-22-19-48-14.jpg"
+      what_we_like: "Ambiance plateau télé : violet/néon, gros chiffres animés, suspense, contraste sombre, énergie de show."
+    - name: "Kahoot (simplicité de join)"
+      url: "https://kahoot.com/"
+      what_we_like: "Le rejoindre-en-un-code et l'écran joueur ultra simple : à égaler pour la friction zéro."
+  anti_references:
+    - name: "Outils d'engagement webinaire type Slido"
+      url: "https://www.slido.com/"
+      what_to_avoid: "Le rendu 'corporate/plat' de webinaire — trop sage, sans spectacle ni tension de plateau."
+
+# ─────────────────────────────────────────────
+# 7. CONTRAINTES
+# ─────────────────────────────────────────────
+
+constraints:
+  target_platform:
+    - "web"        # responsive : joueur sur mobile, animateur sur desktop, overlays comme sources navigateur OBS
+  budget_range: "Bootstrap / projet personnel"
+  timeline: "Pas de deadline stricte ; viser une v1 'complète' (4 modules + événements + overlays OBS + dashboard)."
+  legal_compliance:
+    - "RGPD léger : pseudo uniquement, aucun compte, données éphémères par partie ; mentions légales minimales."
+    - "Filtrage/modération des pseudos (anti-contenu offensant)."
+  technical_constraints:
+    - "Temps réel bidirectionnel (WebSockets) entre animateur, joueurs et overlays."
+    - "Overlays exploitables comme sources navigateur dans OBS."
+    - "Reconnexion réseau automatique côté mobile."
+    - "Indépendance vis-à-vis de Twitch (fonctionne sur Twitch/Kick/YouTube)."
+  non_goals:
+    - "Comptes joueurs et persistance de profil."
+    - "Application mobile native."
+    - "Multi-animateurs / multi-salons simultanés (v1)."
+
+# ─────────────────────────────────────────────
+# 8. MVP SCOPE
+# ─────────────────────────────────────────────
+
+mvp:
+  hypothesis: "Un jeu-show stream-natif où chaque viewer joue depuis son téléphone sans compte génère un engagement massif et des moments mémorables qu'aucun outil existant ne permet."
+  scope:
+    - "M1"
+    - "M2"
+    - "M3"
+    - "M4"
+    - "M5"
+    - "M6"
+    - "M7"
+    - "M8"
+    - "M9"
+    - "M10"
+    - "M11"
+  out_of_scope: []   # Tous les Must sont dans le MVP. Cible v1 'complète' inclut aussi S1 (événements) et S2 (bonus/malus).
+  success_metric: "Sur un vrai stream : un fort taux de participation (joueurs actifs / viewers présents), des parties enchaînées sans friction ni décrochage, et un onboarding joueur mesuré < 10 s. Signal qualitatif : les viewers décrivent un 'moment mémorable' et reviennent."
+
+# ─────────────────────────────────────────────
+# 9. LOG DE DÉCISIONS
+# ─────────────────────────────────────────────
+
+decision_log:
+  - date: "2026-07-22"
+    decision: "Périmètre v1 = outil personnel mono-animateur / mono-salon."
+    rationale: "Correspond à la spec v1 et réduit fortement la complexité (pas de comptes, pas d'isolation multi-tenant)."
+    alternatives_rejected: "Plateforme SaaS multi-streamers dès le départ (reportée en Won't W3)."
+  - date: "2026-07-22"
+    decision: "4 modules de lancement : Quiz (QCM), Vrai/Faux, Estimation, Vote."
+    rationale: "Choisis par l'utilisateur comme indispensables ; couvrent 4 mécaniques distinctes (choix, binaire, numérique, opinion)."
+    alternatives_rejected: "Démarrer avec un seul module (trop maigre pour un 'game-show') ; démarrer avec les 15 modules (trop lourd)."
+  - date: "2026-07-22"
+    decision: "1000 joueurs simultanés = objectif progressif (Should S9), pas un Must de v1."
+    rationale: "L'utilisateur a laissé l'architecte fixer un seuil de départ raisonnable ; permet de livrer plus vite sans surdimensionner l'infra."
+    alternatives_rejected: "1000 simultanés dès la v1 comme Must (surcoût technique injustifié au démarrage)."
+  - date: "2026-07-22"
+    decision: "Direction design = game-show TV spectaculaire."
+    rationale: "Choix utilisateur ; aligne avec l'infographie et différencie du rendu webinaire des concurrents."
+    alternatives_rejected: "Arcade rétro, minimaliste SaaS, cartoon party-game."
+  - date: "2026-07-22"
+    decision: "Indépendance Twitch ; intégrations plateformes en Could (C3)."
+    rationale: "Le jeu doit marcher sur Twitch/Kick/YouTube ; les intégrations natives sont un bonus optionnel."
+    alternatives_rejected: "Couplage fort à Twitch (réduirait le marché et contredit la spec §16)."

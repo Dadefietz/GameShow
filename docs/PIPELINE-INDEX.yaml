@@ -1,0 +1,107 @@
+schema_version: 1
+updated_at: "2026-07-22T23:40:00Z"
+updated_by: "forward:app-builder (src v1, build vérifié)"
+
+apps: [root]            # MONO-APP : une seule application web (implicite root)
+
+artifacts:
+  user_needs:
+    node: 1
+    producer_skill: product-discovery
+    active_version: 1
+    path: docs/USER-NEEDS-v1.yaml
+    companion_paths:
+      - docs/USER-NEEDS-v1.md
+    change_set: bootstrap
+    derived_from: {}
+    updated_at: "2026-07-22T18:40:00Z"
+
+  design_domain_explore:
+    node: 1.5
+    producer_skill: design-benchmark
+    active_version: 1
+    path: docs/DESIGN-DOMAIN-EXPLORE-v1.md
+    companion_paths: []
+    change_set: forward
+    derived_from: { user_needs: 1 }
+    domain_slug: interactive-stream-game-show
+    updated_at: "2026-07-22T19:05:00Z"
+
+  tech_spec:
+    node: 2
+    producer_skill: tech-spec-writer
+    active_version: 1
+    path: docs/TECH-SPEC-v1.md
+    companion_paths:
+      - AGENTS.md
+    agents_sections: [PROJECT, STACK, COMMANDS, CONVENTIONS, SECURITY, ASSETS, CONVENTION]
+    change_set: forward
+    derived_from: { user_needs: 1, design_domain_explore: 1 }
+    pattern_id: interactive-stream-game-show-node-socketio-supabase-20260722
+    updated_at: "2026-07-22T19:40:00Z"
+
+  design_board:
+    node: 3
+    producer_skill: design-board
+    active_version: 3
+    path: docs/DESIGN-BOARD-v3.md
+    companion_paths: []
+    agents_sections: [DESIGN]
+    change_set: none
+    supersedes: docs/DESIGN-BOARD-v2.md
+    provenance: { design_explorer_choice: feu-de-camp-v2-convivial-sans-brun }
+    derived_from: { user_needs: 1, tech_spec: 1, design_domain_explore: 1 }
+    updated_at: "2026-07-22T21:55:00Z"
+
+  tokens:
+    node: 4
+    producer_skill: design-builder
+    active_version: 1
+    path: design/tokens/tokens.css
+    companion_paths:
+      - design/tokens/tokens.json
+      - design/design-board.html
+    agents_sections: [ASSETS]
+    change_set: none
+    derived_from: { design_board: 3 }
+    updated_at: "2026-07-22T22:30:00Z"
+
+app_artifacts:
+  root:
+    design_manifest:
+      node: 4
+      active_version: 1
+      path: design/design-manifest.yaml
+      mockups_dir: design/mockups/
+      derived_from: { design_board: 3, tokens: 1 }
+      updated_at: "2026-07-22T22:30:00Z"
+    image_assets:
+      hero-ambiance-campfire:
+        active_version: 1
+        path: design/assets/hero-ambiance-campfire-v1.png
+        derived_from: { design_board: 3, tokens: 1 }
+      avatar-emblem-tipi:
+        active_version: 1
+        path: design/assets/avatar-emblem-tipi-v1.png
+        derived_from: { design_board: 3, tokens: 1 }
+      social-card-join:
+        active_version: 1
+        path: design/assets/social-card-join-v1.png
+        derived_from: { design_board: 3, tokens: 1 }
+    design_audit:
+      node: 4.5
+      active_version: 1
+      path: docs/DESIGN-AUDIT-v1.yaml
+      companion_paths: [docs/DESIGN-AUDIT-v1.md]
+      verdict: PASS
+      derived_from: { design_manifest: 1, tokens: 1, image_asset: 1 }
+      updated_at: "2026-07-22T23:10:00Z"
+    src:
+      node: 5
+      active_version: 1
+      path: src/
+      change_set: forward
+      manifest_coverage: 100
+      build_verified: true
+      derived_from: { tech_spec: 1, design_manifest: 1, tokens: 1, user_needs: 1, image_assets: { hero-ambiance-campfire: 1, avatar-emblem-tipi: 1, social-card-join: 1 } }
+      updated_at: "2026-07-22T23:40:00Z"

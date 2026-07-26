@@ -1,0 +1,141 @@
+/* artifact: tokens; app:root; version:1; produced_by:design-builder; source:design-board-v3 */
+/* Project Game Show — direction feu-de-camp convivial. Généré 1:1 depuis tokens.json (dark-first). */
+/* @font-face self-hosted (../fonts/) — aucun CDN */
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/fraunces-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/fraunces-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:600;font-display:swap;src:url('../fonts/fraunces-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:600;font-display:swap;src:url('../fonts/fraunces-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:900;font-display:swap;src:url('../fonts/fraunces-900-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:900;font-display:swap;src:url('../fonts/fraunces-900-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/inter-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('../fonts/inter-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('../fonts/inter-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('../fonts/inter-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url('../fonts/inter-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url('../fonts/inter-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('../fonts/inter-700-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('../fonts/inter-700-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+2215;}
+
+@layer reset, tokens, base, components, utilities;
+
+@layer tokens {
+  :root {
+    /* ---- primitifs : couleur — feu (primary) ---- */
+    --color-primary-100: oklch(0.95 0.051 58);
+    --color-primary-200: oklch(0.88 0.085 58);
+    --color-primary-300: oklch(0.79 0.122 58);
+    --color-primary-400: oklch(0.70 0.153 58);
+    --color-primary-500: oklch(0.62 0.170 58);
+    --color-primary-600: oklch(0.53 0.170 58);
+    --color-primary-700: oklch(0.44 0.150 58);
+    --color-primary-800: oklch(0.35 0.122 58);
+    --color-primary-900: oklch(0.26 0.094 58);
+    /* ---- primitifs : couleur — chaud-neutre (SANS brun) ---- */
+    --color-neutral-100: oklch(0.95 0.005 80);
+    --color-neutral-200: oklch(0.88 0.008 80);
+    --color-neutral-300: oklch(0.79 0.012 80);
+    --color-neutral-400: oklch(0.70 0.014 80);
+    --color-neutral-500: oklch(0.62 0.016 80);
+    --color-neutral-600: oklch(0.53 0.016 80);
+    --color-neutral-700: oklch(0.44 0.014 80);
+    --color-neutral-800: oklch(0.35 0.012 80);
+    --color-neutral-900: oklch(0.26 0.009 80);
+    --color-neutral-950: oklch(0.20 0.008 80);
+    /* ---- primitifs : couleur — vert forêt (accent) ---- */
+    --color-forest-300: oklch(0.80 0.13 150);
+    --color-forest-500: oklch(0.70 0.14 150);
+    --color-forest-600: oklch(0.55 0.12 150);
+    /* ---- primitifs : couleur — divers ---- */
+    --color-flame-bright: oklch(0.80 0.15 65);
+    --color-ink: oklch(0.22 0.03 55);
+    --color-cream: oklch(0.97 0.02 85);
+    --color-success-500: oklch(0.66 0.15 150);
+    --color-warning-500: oklch(0.82 0.16 88);
+    --color-danger-500: oklch(0.66 0.21 28);
+    --color-info-500: oklch(0.66 0.10 235);
+
+    /* ---- primitifs : typographie ---- */
+    --font-family-display: "Fraunces", Georgia, serif;
+    --font-family-text: "Inter", system-ui, sans-serif;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
+    --font-line-height-tight: 1.15;
+    --font-line-height-snug: 1.3;
+    --font-line-height-normal: 1.55;
+    --font-size-step--1: clamp(0.8333rem, 0.8072rem + 0.1159vw, 0.9rem);
+    --font-size-step-0: clamp(1rem, 0.9511rem + 0.2174vw, 1.125rem);
+    --font-size-step-1: clamp(1.2rem, 1.1193rem + 0.3587vw, 1.4063rem);
+    --font-size-step-2: clamp(1.44rem, 1.3156rem + 0.5527vw, 1.7578rem);
+    --font-size-step-3: clamp(1.728rem, 1.5444rem + 0.8161vw, 2.1973rem);
+    --font-size-step-4: clamp(2.0736rem, 1.8103rem + 1.1704vw, 2.7466rem);
+    --font-size-step-5: clamp(2.4883rem, 2.1186rem + 1.6433vw, 3.4332rem);
+    --font-size-step-6: clamp(2.986rem, 2.4751rem + 2.2705vw, 4.2915rem);
+    --font-size-display-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+
+    /* ---- primitifs : espacement / rayon ---- */
+    --size-space-1: 4px;  --size-space-2: 8px;  --size-space-3: 12px;
+    --size-space-4: 16px; --size-space-5: 24px; --size-space-6: 32px;
+    --size-space-7: 48px; --size-space-8: 64px; --size-space-9: 96px;
+    --size-radius-sm: 10px; --size-radius-md: 16px; --size-radius-lg: 22px;
+    --size-radius-xl: 28px; --size-radius-full: 9999px;
+    --size-touch-min: 44px;
+
+    /* ---- primitifs : motion (organique-doux, variante flamme) ---- */
+    --motion-duration-fast: 140ms;
+    --motion-duration-base: 240ms;
+    --motion-duration-slow: 320ms;
+    --motion-duration-reveal: 600ms;
+    --motion-easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --motion-easing-decelerate: cubic-bezier(0, 0, 0.2, 1);
+    --motion-easing-accelerate: cubic-bezier(0.4, 0, 1, 1);
+    --motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+    /* ---- sémantiques (SENS — alias vers primitifs) ---- */
+    --semantic-color-bg-page: var(--color-neutral-950);
+    --semantic-color-bg-surface: oklch(0.26 0.018 80);
+    --semantic-color-bg-elevated: oklch(0.32 0.020 80);
+    --semantic-color-text-primary: var(--color-neutral-100);
+    --semantic-color-text-secondary: var(--color-neutral-300);
+    --semantic-color-text-on-fire: var(--color-ink);
+    --semantic-color-action-primary: var(--color-primary-500);
+    --semantic-color-action-secondary: var(--color-forest-500);
+    --semantic-color-action-on-forest: var(--color-ink);
+    --semantic-color-signature: var(--color-flame-bright);
+    --semantic-color-heading: var(--color-forest-300);
+    --semantic-color-border: oklch(0.45 0.02 80 / 0.55);
+    --semantic-color-status-success: var(--color-success-500);
+    --semantic-color-status-warning: var(--color-warning-500);
+    --semantic-color-status-danger: var(--color-danger-500);
+    --semantic-color-status-info: var(--color-info-500);
+
+    /* ---- composants (alias vers sémantiques ; états dérivés documentés) ---- */
+    --component-button-bg: var(--semantic-color-action-primary);
+    --component-button-bg-hover: var(--color-primary-400); /* état dérivé hover : primitif toléré */
+    --component-button-text: var(--semantic-color-text-on-fire);
+    --component-card-bg: var(--semantic-color-bg-surface);
+    --component-card-border: var(--semantic-color-border);
+  }
+
+  /* Mode clair optionnel (surface Studio admin) — re-dérivé, jamais une simple inversion. */
+  [data-theme="light"] {
+    --semantic-color-bg-page: var(--color-neutral-100);
+    --semantic-color-bg-surface: oklch(0.99 0.008 85);
+    --semantic-color-bg-elevated: oklch(1 0 0);
+    --semantic-color-text-primary: var(--color-neutral-900);
+    --semantic-color-text-secondary: var(--color-neutral-700);
+    --semantic-color-heading: var(--color-forest-600);
+    --semantic-color-border: oklch(0.75 0.02 80 / 0.6);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --motion-duration-fast: 0ms;
+      --motion-duration-base: 0ms;
+      --motion-duration-slow: 0ms;
+      --motion-duration-reveal: 0ms;
+    }
+  }
+}

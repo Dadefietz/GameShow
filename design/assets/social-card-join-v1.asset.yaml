@@ -1,0 +1,10 @@
+artifact_type: image_asset
+app: root
+version: 1
+asset_type: social-card
+slug: join
+change_set: null
+produced_by: asset-imagery
+derived_from: { design_board: 3, tokens: 1 }
+spec_ref: social-card-join-v1.spec.json
+backend: higgsfield-nano-banana

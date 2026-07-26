@@ -1,0 +1,181 @@
+<!-- artifact: mockup; app:root; screen:overlay-podium; version:1; produced_by:design-builder -->
+<!-- A11Y: focus=n/a (overlay display-only, non interactif); contrast=texte crème/plaque sombre color-mix >=4.5:1; aria=n/a display-only; touch=n/a -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overlay — Podium</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<style>
+  /* FOND TRANSPARENT obligatoire pour OBS */
+  html, body { background: transparent; margin: 0; padding: 0; }
+
+  .overlay {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-space-8);
+    padding: var(--size-space-8);
+    font-family: var(--font-family-text);
+    background: transparent;
+  }
+
+  @media (max-width: 1920px) {
+    body { display: flex; justify-content: center; }
+    .overlay { transform: scale(calc(100vw / 1920)); transform-origin: top left; position: absolute; top: 0; left: 0; }
+  }
+
+  /* COMPOSANT: TitrePodium */
+  .title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-4);
+    padding: var(--size-space-3) var(--size-space-7);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 78%, transparent);
+    border: 2px solid var(--semantic-color-border);
+    backdrop-filter: blur(8px);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-6);
+    color: var(--semantic-color-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .title__icon { width: 1em; height: 1em; display: block; color: var(--semantic-color-signature); }
+
+  /* COMPOSANT: Podium */
+  .podium {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--size-space-6);
+  }
+
+  /* COMPOSANT: MarchePodium */
+  .step { display: flex; flex-direction: column; align-items: center; width: 380px; }
+
+  .step__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-2);
+    margin-bottom: var(--size-space-4);
+    padding: var(--size-space-4) var(--size-space-5);
+    border-radius: var(--size-radius-lg);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 80%, transparent);
+    border: 2px solid var(--semantic-color-border);
+    backdrop-filter: blur(6px);
+  }
+  .step__name {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-3);
+    color: var(--semantic-color-text-primary);
+  }
+  .step__score {
+    font-size: var(--font-size-step-2);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step__block {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: var(--size-space-4);
+    border-radius: var(--size-radius-md) var(--size-radius-md) 0 0;
+    border: 2px solid var(--semantic-color-border);
+    border-bottom: none;
+    background: color-mix(in oklch, var(--semantic-color-bg-surface) 70%, transparent);
+  }
+  .step__rank {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-display-hero);
+    line-height: 1;
+    color: var(--semantic-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Marches : 1er le plus haut */
+  .step--first  .step__block { height: 420px; }
+  .step--second .step__block { height: 300px; }
+  .step--third  .step__block { height: 220px; }
+
+  /* COMPOSANT: MarcheGagnante (halo flamme) */
+  .step--first .step__block {
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 26%, transparent);
+    border-color: color-mix(in oklch, var(--semantic-color-action-primary) 70%, transparent);
+    box-shadow: 0 0 80px color-mix(in oklch, var(--semantic-color-signature) 50%, transparent);
+  }
+  .step--first .step__card {
+    border-color: color-mix(in oklch, var(--semantic-color-action-primary) 60%, transparent);
+    box-shadow: 0 0 48px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent);
+  }
+  .step--first .step__rank {
+    color: var(--semantic-color-signature);
+    text-shadow: 0 0 48px color-mix(in oklch, var(--semantic-color-signature) 65%, transparent);
+  }
+  .step--first .step__name { color: var(--semantic-color-signature); }
+
+  /* COMPOSANT: CouronneGagnante */
+  .step__crown { width: 2.4em; height: 2.4em; display: block; color: var(--semantic-color-signature);
+    filter: drop-shadow(0 0 20px color-mix(in oklch, var(--semantic-color-signature) 60%, transparent)); }
+</style>
+</head>
+<body>
+  <!-- COMPOSANT: OverlayPodium -->
+  <div class="overlay">
+    <!-- COMPOSANT: TitrePodium -->
+    <h1 class="title">
+      <svg class="title__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+      </svg>
+      Podium
+    </h1>
+
+    <!-- COMPOSANT: Podium -->
+    <div class="podium">
+      <!-- COMPOSANT: MarchePodium (2e, gauche) -->
+      <div class="step step--second">
+        <div class="step__card">
+          <span class="step__name">LunaVibe</span>
+          <span class="step__score">1&nbsp;180 pts</span>
+        </div>
+        <div class="step__block"><span class="step__rank">2</span></div>
+      </div>
+
+      <!-- COMPOSANT: MarchePodium (1er, centre — le plus haut) -->
+      <div class="step step--first">
+        <div class="step__card">
+          <!-- COMPOSANT: CouronneGagnante -->
+          <svg class="step__crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>
+          </svg>
+          <span class="step__name">PixelNight</span>
+          <span class="step__score">1&nbsp;250 pts</span>
+        </div>
+        <div class="step__block"><span class="step__rank">1</span></div>
+      </div>
+
+      <!-- COMPOSANT: MarchePodium (3e, droite) -->
+      <div class="step step--third">
+        <div class="step__card">
+          <span class="step__name">FreeZe</span>
+          <span class="step__score">1&nbsp;045 pts</span>
+        </div>
+        <div class="step__block"><span class="step__rank">3</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

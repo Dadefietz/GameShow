@@ -1,0 +1,363 @@
+/* Surface OVERLAY OBS — fond TRANSPARENT (source navigateur par-dessus le gameplay).
+   Canvas 1920×1080. Toute valeur colorée via var(--token)/color-mix — aucune couleur littérale. */
+
+/* FOND TRANSPARENT obligatoire pour OBS — non layered pour battre le reset partagé. */
+html, body { background: transparent; margin: 0; padding: 0; }
+#root { background: transparent; }
+
+@layer components {
+  /* ---- Cadre commun 1920×1080 ---- */
+  .overlay {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    box-sizing: border-box;
+    display: flex;
+    padding: var(--size-space-9);
+    font-family: var(--font-family-text);
+    background: transparent;
+    overflow: hidden;
+  }
+  /* Question : plaque ancrée en bas. */
+  .overlay:has(.plate) { align-items: flex-end; }
+  /* Classement : plaque ancrée à droite, centrée. */
+  .overlay:has(.board) { align-items: center; justify-content: flex-end; }
+  /* Podium : colonne centrée. */
+  .overlay:has(.podium) {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-space-8);
+    padding: var(--size-space-8);
+  }
+
+  /* aperçu adaptatif : scale down sans casser le canvas 1920×1080 */
+  @media (max-width: 1920px) {
+    body { display: flex; justify-content: center; }
+    .overlay {
+      transform: scale(calc(100vw / 1920));
+      transform-origin: top left;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  }
+
+  /* ======================================================= OVERLAY QUESTION */
+  .plate {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--size-space-8);
+    align-items: center;
+    padding: var(--size-space-7) var(--size-space-8);
+    border-radius: var(--size-radius-xl);
+    border: 2px solid var(--semantic-color-border);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 82%, transparent);
+    box-shadow: 0 24px 64px color-mix(in oklch, var(--semantic-color-bg-page) 60%, transparent);
+    backdrop-filter: blur(8px);
+    animation: plate-rise var(--motion-duration-reveal) var(--motion-easing-emphasized) both;
+  }
+  @keyframes plate-rise {
+    from { opacity: 0; transform: translateY(32px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .plate__body { min-width: 0; }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-4);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 22%, transparent);
+    border: 1.5px solid color-mix(in oklch, var(--semantic-color-action-primary) 60%, transparent);
+    color: var(--semantic-color-signature);
+    font-size: var(--font-size-step-1);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tag__icon { width: 1.4em; height: 1.4em; display: block; }
+
+  .question {
+    margin: var(--size-space-5) 0 0;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-6);
+    line-height: var(--font-line-height-tight);
+    color: var(--semantic-color-text-primary);
+    text-shadow: 0 4px 24px color-mix(in oklch, var(--semantic-color-signature) 35%, transparent);
+  }
+
+  /* Bonne réponse révélée (animée) */
+  .answer {
+    margin: var(--size-space-5) 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-3);
+    padding: var(--size-space-3) var(--size-space-5);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-status-success) 26%, transparent);
+    border: 2px solid color-mix(in oklch, var(--semantic-color-status-success) 65%, transparent);
+    color: var(--semantic-color-status-success);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-4);
+    animation: answer-reveal var(--motion-duration-reveal) var(--motion-easing-emphasized) both;
+  }
+  .answer__icon { width: 1em; height: 1em; display: block; }
+  .answer__text {
+    color: var(--semantic-color-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  @keyframes answer-reveal {
+    from { opacity: 0; transform: scale(0.88) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-4);
+    padding-left: var(--size-space-8);
+    border-left: 2px solid var(--semantic-color-border);
+  }
+
+  .count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+  }
+  .count__value {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-display-hero);
+    color: var(--semantic-color-signature);
+    line-height: 0.9;
+    text-shadow: 0 0 40px color-mix(in oklch, var(--semantic-color-signature) 55%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+  .count__label {
+    margin-top: var(--size-space-2);
+    font-size: var(--font-size-step-2);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .timer {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-3);
+    padding: var(--size-space-3) var(--size-space-5);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-heading) 20%, transparent);
+    border: 2px solid color-mix(in oklch, var(--semantic-color-heading) 55%, transparent);
+    color: var(--semantic-color-heading);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer__icon { width: 1em; height: 1em; display: block; }
+
+  /* ==================================================== OVERLAY LEADERBOARD */
+  .board {
+    width: 720px;
+    padding: var(--size-space-7);
+    border-radius: var(--size-radius-xl);
+    border: 2px solid var(--semantic-color-border);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 82%, transparent);
+    box-shadow: 0 24px 64px color-mix(in oklch, var(--semantic-color-bg-page) 60%, transparent);
+    backdrop-filter: blur(8px);
+    animation: board-in var(--motion-duration-reveal) var(--motion-easing-emphasized) both;
+  }
+  @keyframes board-in {
+    from { opacity: 0; transform: translateX(32px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .board__title {
+    margin: 0 0 var(--size-space-6);
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-4);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-5);
+    color: var(--semantic-color-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .board__title-icon { width: 1em; height: 1em; display: block; color: var(--semantic-color-signature); }
+
+  .rows { display: flex; flex-direction: column; gap: var(--size-space-3); }
+
+  .row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--size-space-5);
+    padding: var(--size-space-4) var(--size-space-5);
+    border-radius: var(--size-radius-md);
+    border: 1.5px solid var(--semantic-color-border);
+    background: color-mix(in oklch, var(--semantic-color-bg-surface) 55%, transparent);
+    animation: row-in var(--motion-duration-base) var(--motion-easing-decelerate) both;
+  }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .row--leader {
+    border-color: color-mix(in oklch, var(--semantic-color-action-primary) 70%, transparent);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 24%, transparent);
+    box-shadow: 0 0 40px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent);
+  }
+
+  .row__rank {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-6);
+    line-height: 1;
+    color: var(--semantic-color-text-secondary);
+    min-width: 1.4ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .row--leader .row__rank {
+    color: var(--semantic-color-signature);
+    text-shadow: 0 0 32px color-mix(in oklch, var(--semantic-color-signature) 60%, transparent);
+  }
+
+  .row__name {
+    font-size: var(--font-size-step-3);
+    font-weight: var(--font-weight-bold);
+    color: var(--semantic-color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row__score {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-4);
+    color: var(--semantic-color-text-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .row--leader .row__score { color: var(--semantic-color-signature); }
+
+  /* ========================================================= OVERLAY PODIUM */
+  .title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-4);
+    padding: var(--size-space-3) var(--size-space-7);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 78%, transparent);
+    border: 2px solid var(--semantic-color-border);
+    backdrop-filter: blur(8px);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-6);
+    color: var(--semantic-color-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    animation: plate-rise var(--motion-duration-reveal) var(--motion-easing-emphasized) both;
+  }
+  .title__icon { width: 1em; height: 1em; display: block; color: var(--semantic-color-signature); }
+
+  .podium {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--size-space-6);
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 380px;
+    animation: board-in var(--motion-duration-reveal) var(--motion-easing-emphasized) both;
+  }
+
+  .step__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-2);
+    margin-bottom: var(--size-space-4);
+    padding: var(--size-space-4) var(--size-space-5);
+    border-radius: var(--size-radius-lg);
+    background: color-mix(in oklch, var(--semantic-color-bg-page) 80%, transparent);
+    border: 2px solid var(--semantic-color-border);
+    backdrop-filter: blur(6px);
+  }
+  .step__name {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-3);
+    color: var(--semantic-color-text-primary);
+  }
+  .step__score {
+    font-size: var(--font-size-step-2);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step__block {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: var(--size-space-4);
+    border-radius: var(--size-radius-md) var(--size-radius-md) 0 0;
+    border: 2px solid var(--semantic-color-border);
+    border-bottom: none;
+    background: color-mix(in oklch, var(--semantic-color-bg-surface) 70%, transparent);
+  }
+  .step__rank {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-display-hero);
+    line-height: 1;
+    color: var(--semantic-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Marches : 1er le plus haut */
+  .step--first  .step__block { height: 420px; }
+  .step--second .step__block { height: 300px; }
+  .step--third  .step__block { height: 220px; }
+
+  .step--first .step__block {
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 26%, transparent);
+    border-color: color-mix(in oklch, var(--semantic-color-action-primary) 70%, transparent);
+    box-shadow: 0 0 80px color-mix(in oklch, var(--semantic-color-signature) 50%, transparent);
+  }
+  .step--first .step__card {
+    border-color: color-mix(in oklch, var(--semantic-color-action-primary) 60%, transparent);
+    box-shadow: 0 0 48px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent);
+  }
+  .step--first .step__rank {
+    color: var(--semantic-color-signature);
+    text-shadow: 0 0 48px color-mix(in oklch, var(--semantic-color-signature) 65%, transparent);
+  }
+  .step--first .step__name { color: var(--semantic-color-signature); }
+
+  .step__crown {
+    width: 2.4em;
+    height: 2.4em;
+    display: block;
+    color: var(--semantic-color-signature);
+    filter: drop-shadow(0 0 20px color-mix(in oklch, var(--semantic-color-signature) 60%, transparent));
+  }
+}

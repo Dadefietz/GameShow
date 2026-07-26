@@ -1,0 +1,20 @@
+# assets-manifest.yaml — index PER-APP (root) des image_asset promus. Produit par asset-imagery.
+assets:
+  - id: hero-ambiance-campfire
+    asset_type: hero
+    slug: ambiance-campfire
+    version: 1
+    path: design/assets/hero-ambiance-campfire-v1.png
+    sidecar: design/assets/hero-ambiance-campfire-v1.asset.yaml
+  - id: avatar-emblem-tipi
+    asset_type: avatar
+    slug: emblem-tipi
+    version: 1
+    path: design/assets/avatar-emblem-tipi-v1.png
+    sidecar: design/assets/avatar-emblem-tipi-v1.asset.yaml
+  - id: social-card-join
+    asset_type: social-card
+    slug: join
+    version: 1
+    path: design/assets/social-card-join-v1.png
+    sidecar: design/assets/social-card-join-v1.asset.yaml

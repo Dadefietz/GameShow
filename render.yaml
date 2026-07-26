@@ -1,0 +1,26 @@
+# Render Blueprint — déploiement 1-service du serveur de jeu (Node + Socket.IO + front statique).
+# Render injecte automatiquement PORT et RENDER_EXTERNAL_URL. GAME_JWT_SECRET est généré à la création.
+services:
+  - type: web
+    name: project-game-show
+    runtime: node
+    plan: free
+    # --include=dev force l'installation des devDependencies (Vite) malgré NODE_ENV=production.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GAME_JWT_SECRET
+        generateValue: true          # secret aléatoire fort, généré et gardé par Render (jamais dans Git)
+      - key: MAX_PLAYERS_PER_ROOM
+        value: "1000"
+      # --- Optionnels : à renseigner plus tard pour brancher Supabase (auth animateur + questions durables) ---
+      # - key: SUPABASE_URL
+      #   sync: false
+      # - key: SUPABASE_SERVICE_ROLE_KEY
+      #   sync: false
+      # - key: SUPABASE_JWKS_URL
+      #   sync: false

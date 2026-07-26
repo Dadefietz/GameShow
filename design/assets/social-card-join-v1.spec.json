@@ -1,0 +1,10 @@
+{
+  "asset_type": "social-card",
+  "slug": "join",
+  "backend": "higgsfield/nano-banana (nano_banana_pro)",
+  "aspect_ratio": "1200x630 (crop centré depuis le hero)",
+  "resolution": "1200x630",
+  "source_job_id": "c7a85ffa-efc7-44ed-80da-90e998a1001b",
+  "prompt": "(dérivé du hero convivial) — carte de partage play.tonjeu.fr, ambiance feu de camp conviviale, sans texte (titre ajouté par l'app).",
+  "note": "Base social-card ; le texte 'Rejoins la partie' est ajouté par l'app, pas peint dans l'image."
+}

@@ -1,0 +1,240 @@
+<!-- artifact: mockup; app:root; screen:play-question; version:1; produced_by:design-builder -->
+<!-- A11Y: focus=ordre logique, anneau 2px action-primary offset 2px; contrast=texte neutral-100/bg-page 16.6:1 AAA; aria=main landmark, boutons libellés; touch=44px min -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Question — Project Game Show</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .screen {
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    background:
+      radial-gradient(120% 55% at 50% 0%,
+        color-mix(in oklch, var(--semantic-color-signature) 14%, transparent) 0%,
+        transparent 55%),
+      var(--semantic-color-bg-page);
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+  }
+  .screen__main {
+    width: 100%;
+    max-width: 430px;
+    padding: var(--size-space-5) var(--size-space-5) var(--size-space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-5);
+  }
+
+  /* COMPOSANT: Barre d'état */
+  .hud { display: flex; flex-direction: column; gap: var(--size-space-3); }
+  .hud__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--size-space-3);
+  }
+  .hud__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-3);
+    border-radius: var(--size-radius-full);
+    border: 1px solid var(--component-card-border);
+    background: color-mix(in oklch, var(--semantic-color-bg-surface) 82%, transparent);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+  }
+  .hud__pill svg { width: 15px; height: 15px; }
+  .hud__pill--timer { color: var(--semantic-color-signature); }
+  .hud__pill--timer svg { color: var(--semantic-color-signature); }
+  .hud__pill--score svg { color: var(--semantic-color-action-secondary); }
+  .hud__pill-value { color: var(--semantic-color-text-primary); font-weight: var(--font-weight-bold); }
+
+  /* COMPOSANT: Chrono barre */
+  .timerbar {
+    width: 100%;
+    height: 8px;
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-text-primary) 12%, transparent);
+    overflow: hidden;
+  }
+  .timerbar__fill {
+    height: 100%;
+    width: 100%;
+    border-radius: var(--size-radius-full);
+    background: linear-gradient(90deg,
+      var(--semantic-color-action-primary),
+      var(--semantic-color-signature));
+    transform-origin: left;
+    animation: drain 15s linear forwards;
+  }
+  @keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  /* /COMPOSANT: Chrono barre */
+  /* /COMPOSANT: Barre d'état */
+
+  /* COMPOSANT: Question */
+  .question {
+    padding: var(--size-space-2) var(--size-space-1);
+  }
+  .question__index {
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--semantic-color-heading);
+  }
+  .question__text {
+    margin-top: var(--size-space-2);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-4);
+    line-height: var(--font-line-height-tight);
+    color: var(--semantic-color-text-primary);
+    letter-spacing: -0.01em;
+  }
+  /* /COMPOSANT: Question */
+
+  /* COMPOSANT: Réponses */
+  .answers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-3);
+  }
+  .answer {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-4);
+    width: 100%;
+    min-height: 64px;
+    padding: var(--size-space-4) var(--size-space-5);
+    border-radius: var(--size-radius-lg);
+    border: 1px solid var(--component-card-border);
+    background: var(--component-card-bg);
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-1);
+    font-weight: var(--font-weight-semibold);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--motion-duration-fast) var(--motion-easing-standard),
+                background var(--motion-duration-fast) var(--motion-easing-standard),
+                transform var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .answer:hover { border-color: color-mix(in oklch, var(--semantic-color-action-primary) 60%, transparent); }
+  .answer:active { transform: translateY(1px); }
+  .answer:focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
+  .answer__key {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-text-primary) 10%, transparent);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-0);
+    color: var(--semantic-color-text-secondary);
+  }
+  .answer__label { flex: 1; }
+  .answer__mark { flex-shrink: 0; display: none; }
+  .answer__mark svg { width: 24px; height: 24px; }
+
+  .answer--correct {
+    border-color: var(--semantic-color-status-success);
+    background: color-mix(in oklch, var(--semantic-color-status-success) 20%, var(--component-card-bg));
+    color: var(--semantic-color-text-primary);
+    box-shadow: 0 6px 26px color-mix(in oklch, var(--semantic-color-status-success) 30%, transparent);
+  }
+  .answer--correct .answer__key {
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+  }
+  .answer--correct .answer__mark { display: block; color: var(--semantic-color-status-success); }
+  /* /COMPOSANT: Réponses */
+</style>
+</head>
+<body>
+<main class="screen" aria-labelledby="q-text">
+  <div class="screen__main">
+
+    <!-- COMPOSANT: Barre d'état -->
+    <div class="hud">
+      <div class="hud__row">
+        <span class="hud__pill">
+          <!-- Lucide: list-checks -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>
+          </svg>
+          Question <span class="hud__pill-value">4 / 12</span>
+        </span>
+        <span class="hud__pill hud__pill--timer" aria-label="Temps restant 15 secondes">
+          <!-- Lucide: timer -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>
+          </svg>
+          <span class="hud__pill-value">15 s</span>
+        </span>
+      </div>
+      <div class="hud__row">
+        <span class="hud__pill hud__pill--score">
+          <!-- Lucide: star -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z"/>
+          </svg>
+          Score <span class="hud__pill-value">1 250</span>
+        </span>
+      </div>
+      <!-- COMPOSANT: Chrono barre -->
+      <div class="timerbar" role="progressbar" aria-label="Chrono" aria-valuenow="15" aria-valuemin="0" aria-valuemax="15">
+        <div class="timerbar__fill"></div>
+      </div>
+      <!-- /COMPOSANT: Chrono barre -->
+    </div>
+    <!-- /COMPOSANT: Barre d'état -->
+
+    <!-- COMPOSANT: Question -->
+    <div class="question">
+      <p class="question__index">Question 4 sur 12</p>
+      <h1 class="question__text" id="q-text">Quel est le plus grand océan ?</h1>
+    </div>
+    <!-- /COMPOSANT: Question -->
+
+    <!-- COMPOSANT: Réponses -->
+    <div class="answers" role="group" aria-label="Choisis ta réponse">
+      <button class="answer" type="button">
+        <span class="answer__key" aria-hidden="true">A</span>
+        <span class="answer__label">Atlantique</span>
+      </button>
+      <button class="answer" type="button">
+        <span class="answer__key" aria-hidden="true">B</span>
+        <span class="answer__label">Indien</span>
+      </button>
+      <button class="answer answer--correct" type="button" aria-pressed="true">
+        <span class="answer__key" aria-hidden="true">C</span>
+        <span class="answer__label">Pacifique</span>
+        <span class="answer__mark" aria-label="Réponse correcte">
+          <!-- Lucide: check -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+        </span>
+      </button>
+      <button class="answer" type="button">
+        <span class="answer__key" aria-hidden="true">D</span>
+        <span class="answer__label">Arctique</span>
+      </button>
+    </div>
+    <!-- /COMPOSANT: Réponses -->
+
+  </div>
+</main>
+</body>
+</html>

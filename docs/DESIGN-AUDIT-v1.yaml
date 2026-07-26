@@ -1,0 +1,29 @@
+artifact_type: design_audit
+app: root
+version: 1
+change_set: forward
+produced_by: design-audit
+date: 2026-07-22
+
+verdict: PASS
+coverage:
+  numerator: 12
+  denominator: 12
+  pct: 100.0
+counts:
+  blocking: 0
+  major: 0
+  warn: 0
+bem:
+  classes_total: 475
+  classes_nonconform: 0
+remediation_cycles: 0
+assets_audited: true
+
+inputs:
+  tech_spec: v1
+  design_manifest: v1
+  tokens: v1
+  image_asset: v1
+
+violations: []

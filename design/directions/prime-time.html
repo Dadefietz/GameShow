@@ -1,0 +1,82 @@
+<!-- artifact: direction; app:root; name:prime-time; produced_by:design-explorer -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction — prime-time (signature)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:oklch(0.16 0.02 350); --surface:oklch(0.21 0.02 350); --elev:oklch(0.26 0.03 350);
+  --text:oklch(0.95 0.01 350); --text-dim:oklch(0.78 0.015 350);
+  --primary:oklch(0.62 0.20 350); --primary-600:oklch(0.53 0.19 350); --primary-300:oklch(0.80 0.16 350);
+  --lime:oklch(0.86 0.19 120); --warning:oklch(0.82 0.17 85);
+  --f-display:"Anton",system-ui,sans-serif; --f-text:"Archivo",system-ui,sans-serif; --f-mono:"JetBrains Mono",monospace;
+  --space:12px; --radius:4px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-deep);color:var(--text);font-family:var(--f-text);min-height:100vh}
+.banner{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--text-dim);padding:9px 20px;border-bottom:2px solid var(--primary);text-transform:uppercase}
+.banner b{color:var(--lime)}
+main{max-width:1120px;margin:0 auto;padding:20px 18px 44px}
+.hero{background:linear-gradient(160deg,var(--surface),oklch(0.19 0.03 350));border-left:6px solid var(--primary);border-radius:var(--radius);padding:22px 26px;position:relative;overflow:hidden}
+.tag{display:inline-block;font-family:var(--f-display);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:8px}
+.q{font-family:var(--f-display);font-size:clamp(26px,4vw,52px);line-height:.98;margin:0 0 10px;max-width:760px;text-transform:uppercase;letter-spacing:.005em}
+.bignum{font-family:var(--f-display);font-size:clamp(96px,18vw,200px);line-height:.82;color:var(--lime);letter-spacing:.01em;text-shadow:0 0 10px oklch(0.86 0.19 120 / .4)}
+.bignum-label{font-family:var(--f-display);color:var(--primary-300);letter-spacing:.2em;text-transform:uppercase;font-size:16px}
+.timer{position:absolute;top:18px;right:22px;font-family:var(--f-mono);font-weight:800;font-size:40px;color:var(--warning);line-height:1}
+.timer small{display:block;font-size:10px;letter-spacing:.15em;color:var(--text-dim);text-align:center;font-family:var(--f-text)}
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:var(--radius);padding:16px 18px;border-top:3px solid var(--primary)}
+.card h3{font-family:var(--f-display);font-size:16px;letter-spacing:.16em;text-transform:uppercase;margin:0 0 12px;color:var(--text-dim)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:6px;background:var(--elev);border-radius:var(--radius)}
+.rank{font-family:var(--f-display);font-size:20px;width:30px;color:var(--primary-300)}
+.row.lead{background:var(--primary-600);color:oklch(0.99 0 0)}
+.row.lead .rank{color:var(--lime)}
+.name{flex:1;font-weight:700}
+.pts{font-family:var(--f-mono);font-weight:800;color:var(--lime)}
+.row.lead .pts{color:oklch(0.99 0 0)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{font-family:var(--f-display);font-size:15px;letter-spacing:.06em;text-transform:uppercase;border:0;border-radius:var(--radius);padding:16px 12px;cursor:pointer;color:var(--text)}
+.btn.primary{background:var(--primary-600);color:oklch(0.99 0 0);grid-column:1/-1}
+.btn.accent{background:var(--lime);color:oklch(0.22 0.05 120)}
+.btn.ghost{background:var(--elev);color:var(--text-dim)}
+.btn.warn{background:transparent;border:2px solid var(--warning);color:var(--warning)}
+</style>
+</head>
+<body>
+<div class="banner">Direction <b>prime-time</b> — SIGNATURE · magenta H350 + chroma+ · display <b>Anton</b> condensé · densité serrée · radius 4</div>
+<main>
+  <section class="hero">
+    <div class="timer">14<small>SEC</small></div>
+    <span class="tag">Épreuve 4 / 12 — Quiz</span>
+    <h1 class="q">Quelle est la plus haute montagne d'Europe ?</h1>
+    <div class="bignum">832</div>
+    <div class="bignum-label">réponses reçues</div>
+  </section>
+  <div class="grid">
+    <div class="card">
+      <h3>Classement live</h3>
+      <div class="row lead"><span class="rank">1</span><span class="name">PixelNight</span><span class="pts">1 250</span></div>
+      <div class="row"><span class="rank">2</span><span class="name">LunaVibe</span><span class="pts">1 180</span></div>
+      <div class="row"><span class="rank">3</span><span class="name">FreeZe</span><span class="pts">1 045</span></div>
+      <div class="row"><span class="rank">4</span><span class="name">SkyLynn</span><span class="pts">930</span></div>
+      <div class="row"><span class="rank">5</span><span class="name">DarkShadow</span><span class="pts">870</span></div>
+    </div>
+    <div class="card">
+      <h3>Contrôles</h3>
+      <div class="controls">
+        <button class="btn primary">Afficher les résultats</button>
+        <button class="btn accent">Suivante</button>
+        <button class="btn ghost">Événements</button>
+        <button class="btn warn" style="grid-column:1/-1">Pause</button>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

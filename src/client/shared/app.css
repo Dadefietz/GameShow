@@ -1,0 +1,27 @@
+/* Base partagée — consomme tokens.css (chargé globalement). @layer base/reset. */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-0);
+    line-height: var(--font-line-height-normal);
+    color: var(--semantic-color-text-primary);
+    background: var(--semantic-color-bg-page);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; cursor: pointer; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+@layer base {
+  .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; flex: 0 0 auto; }
+  .icon--sm { font-size: var(--font-size-step-0); }
+  .icon--md { font-size: var(--font-size-step-2); }
+  .icon--lg { font-size: var(--font-size-step-4); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

@@ -1,0 +1,168 @@
+---
+artifact_type: design_manifest
+app: root
+version: 1
+change_set: none
+produced_by: design-builder
+derived_from: { design_board: 3, tokens: 1 }
+---
+# Design manifest — Project Game Show (direction feu-de-camp convivial)
+# Coverage : 12 / 12 écrans (100%). Bijection stricte mockup <-> écran (0 orphelin).
+
+screens:
+  # --- Surface ANIMATEUR (desktop) ---
+  - id: host-login
+    title: "Connexion animateur (OTP)"
+    surface: host
+    mockup: design/mockups/host-login.html
+    components: [AuthCard, Field, Button]
+  - id: host-lobby
+    title: "Salon & salle d'attente (code + QR)"
+    surface: host
+    mockup: design/mockups/host-lobby.html
+    components: [TopBar, JoinCard, QrPlate, Button]
+    assets: [avatar-emblem-tipi, hero-ambiance-campfire]
+  - id: host-live
+    title: "Pilotage en direct (dashboard)"
+    surface: host
+    mockup: design/mockups/host-live.html
+    components: [LiveHeader, QuestionHero, Timer, Leaderboard, HostControlBar, Button, StatChip]
+    assets: [hero-ambiance-campfire]
+  - id: host-results
+    title: "Classement / podium entre modules"
+    surface: host
+    mockup: design/mockups/host-results.html
+    components: [Podium, Leaderboard, Button]
+  # --- Surface JOUEUR (mobile / manette) ---
+  - id: play-join
+    title: "Rejoindre (code + pseudo)"
+    surface: play
+    mockup: design/mockups/play-join.html
+    components: [JoinCard, Field, Button]
+    assets: [avatar-emblem-tipi]
+  - id: play-wait
+    title: "Salle d'attente joueur"
+    surface: play
+    mockup: design/mockups/play-wait.html
+    components: [Button]
+  - id: play-question
+    title: "Écran de jeu (Quiz)"
+    surface: play
+    mockup: design/mockups/play-question.html
+    components: [QuestionHero, AnswerButton, Timer]
+  - id: play-score
+    title: "Réponse envoyée & rang"
+    surface: play
+    mockup: design/mockups/play-score.html
+    components: [Leaderboard, Button]
+  # --- Overlays OBS (fond transparent, display-only) ---
+  - id: overlay-question
+    title: "Overlay OBS — question + compteur"
+    surface: overlay
+    mockup: design/mockups/overlay-question.html
+    components: [OverlayPlate, QuestionHero, Timer]
+  - id: overlay-leaderboard
+    title: "Overlay OBS — Top 5"
+    surface: overlay
+    mockup: design/mockups/overlay-leaderboard.html
+    components: [OverlayPlate, Leaderboard]
+  - id: overlay-podium
+    title: "Overlay OBS — podium final"
+    surface: overlay
+    mockup: design/mockups/overlay-podium.html
+    components: [OverlayPlate, Podium]
+  # --- Studio (gestion de contenu admin) ---
+  - id: studio-modules
+    title: "Studio — modules & questions"
+    surface: studio
+    mockup: design/mockups/studio-modules.html
+    components: [Sidebar, ModuleCard, EditorPanel, Field, Button]
+
+components:
+  - name: Button
+    css_class: button
+    states: [default, hover, disabled, focus]
+    tokens_used: [--component-button-bg, --component-button-bg-hover, --component-button-text, --size-radius-md, --size-touch-min]
+  - name: QuestionHero
+    css_class: hero
+    states: [default]
+    tokens_used: [--semantic-color-signature, --font-size-display-hero, --font-family-display, --semantic-color-text-primary]
+  - name: Timer
+    css_class: timer
+    states: [default, warning]
+    tokens_used: [--semantic-color-signature, --font-family-display, --semantic-color-status-warning]
+  - name: Leaderboard
+    css_class: leaderboard
+    states: [default, leader]
+    tokens_used: [--component-card-bg, --semantic-color-border, --semantic-color-signature, --semantic-color-action-primary]
+  - name: HostControlBar
+    css_class: control-bar
+    states: [default]
+    tokens_used: [--semantic-color-action-primary, --semantic-color-action-secondary, --semantic-color-status-danger]
+  - name: AnswerButton
+    css_class: answer
+    states: [default, selected, correct]
+    tokens_used: [--semantic-color-bg-elevated, --semantic-color-status-success, --size-touch-min, --semantic-color-border]
+  - name: OverlayPlate
+    css_class: plate
+    states: [default]
+    tokens_used: [--semantic-color-bg-page, --semantic-color-border, --semantic-color-signature]
+  - name: Podium
+    css_class: podium
+    states: [default]
+    tokens_used: [--semantic-color-signature, --semantic-color-bg-surface, --font-family-display]
+  - name: ModuleCard
+    css_class: module-card
+    states: [default, fire, forest]
+    tokens_used: [--component-card-bg, --semantic-color-border, --semantic-color-heading, --semantic-color-action-primary]
+  - name: Field
+    css_class: field
+    states: [default, focus]
+    tokens_used: [--semantic-color-bg-elevated, --semantic-color-border, --semantic-color-text-primary]
+  - name: Sidebar
+    css_class: sidebar
+    states: [default, active]
+    tokens_used: [--semantic-color-bg-surface, --semantic-color-action-primary, --semantic-color-text-secondary]
+
+# Slots d'asset (LES COMMANDES) — path/version laissés VIDES, remplis par asset-imagery (Phase 4.x).
+assets:
+  - id: hero-ambiance-campfire
+    asset_type: hero
+    path: design/assets/hero-ambiance-campfire-v1.png
+    version: 1
+    usage:
+      - screen: host-live
+        slot: ambiance-background
+      - screen: host-lobby
+        slot: ambiance-background
+      - component: QuestionHero
+    brief: >
+      Ambiance chaleureuse et conviviale de feu de camp au coin du tipi dans une forêt de
+      pins au coucher de soleil doré : flammes vives et accueillantes, lumière ambrée, verts
+      frais, lumineux et non sombre/mystique. Zone plus sombre en haut pour poser du texte.
+    alt: "Ambiance feu de camp conviviale près d'un tipi dans une forêt de pins au soleil couchant"
+  - id: avatar-emblem-tipi
+    asset_type: avatar
+    path: design/assets/avatar-emblem-tipi-v1.png
+    version: 1
+    usage:
+      - screen: host-lobby
+        slot: brand-emblem
+      - screen: play-join
+        slot: brand-emblem
+      - component: TopBar
+    brief: >
+      Emblème rond de marque : petit feu de camp joyeux et un tipi, style illustration
+      chaleureuse, flammes dorées + vert frais, sur fond chaud-neutre, lisible en petit (48px).
+    alt: "Emblème Project Game Show — feu de camp et tipi"
+  - id: social-card-join
+    asset_type: social-card
+    path: design/assets/social-card-join-v1.png
+    version: 1
+    usage:
+      - screen: play-join
+        slot: og-image
+    brief: >
+      Carte sociale de partage (og-image) pour play.tonjeu.fr : ambiance feu de camp conviviale,
+      espace pour un titre "Rejoins la partie", palette de la marque.
+    alt: "Carte de partage — Project Game Show, rejoins la partie"
