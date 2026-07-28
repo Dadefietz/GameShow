@@ -209,4 +209,5 @@ export function endGame(io, room) {
   const history = room.history.map((h) => ({ type: h.moduleType, text: h.text, reveal: h.reveal, options: h.options }));
   toRoom(io, room).emit('game:ended', { podium, leaderboard: roomManager.leaderboard(room, 50), history });
   emitRoomState(io, room);
+  roomManager.touch(room); // fenêtre de grâce : relance possible après le podium
 }

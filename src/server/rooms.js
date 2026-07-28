@@ -85,11 +85,15 @@ export class RoomManager {
     return rows.find((r) => r.id === playerId) || null;
   }
 
-  // Purge des salons inactifs (appelée périodiquement).
+  // Purge des salons inactifs (appelée périodiquement). Un salon ENDED reste
+  // vivant 5 minutes : l'animateur peut relancer une partie après le podium
+  // sans que ses joueurs aient à rejoindre de nouveau.
   sweep() {
     const now = Date.now();
+    const ENDED_GRACE_MS = 5 * 60 * 1000;
     for (const [code, room] of this.rooms) {
-      if (room.state === RoomState.ENDED || now - room.lastActivity > config.roomIdleTtlMs) {
+      const idle = now - room.lastActivity;
+      if ((room.state === RoomState.ENDED && idle > ENDED_GRACE_MS) || idle > config.roomIdleTtlMs) {
         this.rooms.delete(code);
         if (room.ownerId && this.ownerRooms.get(room.ownerId) === code) this.ownerRooms.delete(room.ownerId);
       }

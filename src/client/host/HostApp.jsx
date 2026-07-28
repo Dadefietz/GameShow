@@ -317,6 +317,48 @@ function ExitMenu({ onCloseRoom, onLogout, onEndGame }) {
 }
 
 // ============================================================
+// Menu « Changer de module » — bifurquer vers un autre type d'épreuve
+// SANS repasser par le salon d'attente.
+// ============================================================
+function ModuleMenu({ currentType, onPick }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onEsc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc); };
+  }, [open]);
+  return (
+    <div className="exit-menu" ref={ref}>
+      <button className="button button--ghost" type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Icon name="bar-chart-2" />
+        Changer de module
+        <Icon name="chevron-down" />
+      </button>
+      {open ? (
+        <div className="exit-menu__pop exit-menu__pop--up" role="menu">
+          {MODULE_TYPES.map((m) => (
+            <button
+              key={m.type}
+              className={`exit-menu__item${m.type === currentType ? ' exit-menu__item--current' : ''}`}
+              role="menuitem"
+              type="button"
+              onClick={() => { setOpen(false); onPick(m.type); }}
+            >
+              <Icon name={m.icon} />
+              {m.name}{m.type === currentType ? ' — en cours' : ''}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================
 // Répartition des réponses EN DIRECT — visible par l'animateur seul.
 // Alimente l'espace libre de la carte question pour piloter la partie.
 // ============================================================
@@ -533,7 +575,7 @@ function revealText(reveal, current) {
 // ============================================================
 // ÉCRAN — Pilotage en direct (host-live)
 // ============================================================
-function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }) {
+function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const room = g.room || {};
   const current = g.current;
@@ -704,10 +746,11 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
           <Icon name="eye" />
           Afficher les résultats
         </button>
-        <button className="button button--forest" type="button" onClick={() => g.emit('host:nextModule')}>
+        <button className="button button--forest" type="button" onClick={onNextQuestion}>
           <Icon name="skip-forward" />
           Question suivante
         </button>
+        <ModuleMenu currentType={current && current.type} onPick={onChangeModule} />
         <button
           className="button button--ghost"
           type="button"
@@ -741,7 +784,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
 // ============================================================
 // ÉCRAN — Classement / podium (host-results)
 // ============================================================
-function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, onCloseRoom }) {
+function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3, 8);
@@ -794,7 +837,7 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, 
             </button>
           ) : null}
           <button className="button button--primary" type="button" onClick={onNextModule}>
-            Question suivante
+            {continueLabel || 'Question suivante'}
             <Icon name="arrow-right" />
           </button>
           <span className="action-row__spacer" />
@@ -1025,13 +1068,18 @@ export function HostApp() {
     </span>
   ) : null;
 
+  // Type du module en cours (ou dernier joué) : « Question suivante » enchaîne
+  // DIRECTEMENT la question suivante de ce module — on ne repasse jamais par le salon.
+  const lastType = (g.current && g.current.type) || 'quiz';
+
   // --- Partie terminée OU classement demandé ---
   if (state === 'ended' || showResults) {
     return (
       <>
         <ResultsScreen
           g={g}
-          onNextModule={() => { setShowResults(false); g.emit('host:nextModule'); }}
+          onNextModule={() => { setShowResults(false); startModule(lastType); }}
+          continueLabel={state === 'ended' ? 'Relancer une partie' : 'Question suivante'}
           onEndGame={endGame}
           onBack={() => setShowResults(false)}
           canBack={state !== 'ended'}
@@ -1048,7 +1096,16 @@ export function HostApp() {
   if (state === 'playing' || state === 'paused' || state === 'results') {
     return (
       <>
-        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} onCloseRoom={closeRoom} onEndGame={endGame} />
+        <LiveScreen
+          g={g}
+          code={code}
+          onShowResults={() => setShowResults(true)}
+          onLogout={logout}
+          onCloseRoom={closeRoom}
+          onEndGame={endGame}
+          onNextQuestion={() => startModule(lastType)}
+          onChangeModule={(t) => startModule(t)}
+        />
         {connFlag}
         {toastEl}
       </>
