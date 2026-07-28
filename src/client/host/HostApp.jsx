@@ -544,7 +544,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
           )}
           <span className="stat-chip">
             <Icon name="users" />
-            {room.playerCount || 0} joueurs
+            {room.playerCount || 0} {(room.playerCount || 0) > 1 ? 'joueurs' : 'joueur'}
           </span>
           <span className="stat-chip stat-chip--progress">
             <Icon name="bar-chart-2" />
@@ -616,7 +616,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
                   key={playerId(p) || i}
                 >
                   <span className="leaderboard__rank">{i + 1}</span>
-                  <span className="leaderboard__name">{playerName(p)}</span>
+                  <span className="leaderboard__name" title={playerName(p)}>{playerName(p)}</span>
                   <span className="leaderboard__score">{formatScore(p.score)}</span>
                 </li>
               ))}
@@ -641,7 +641,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
             <ul className="adjust-panel__list">
               {(g.leaderboard || []).map((p, i) => (
                 <li className="adjust-row" key={playerId(p) || i}>
-                  <span className="adjust-row__name">{playerName(p)}</span>
+                  <span className="adjust-row__name" title={playerName(p)}>{playerName(p)}</span>
                   <button
                     className="adjust-row__btn adjust-row__btn--minus"
                     type="button"

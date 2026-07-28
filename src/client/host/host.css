@@ -1223,9 +1223,13 @@
     grid-column: 2;
     grid-row: 1;
     align-self: end;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    /* Libellé d'option ENTIÈREMENT lisible : seul endroit où l'animateur voit
+       les options en direct — retour à la ligne, jamais de troncature. */
+    white-space: normal;
+    overflow-wrap: anywhere;
     font-weight: var(--font-weight-medium);
     font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
   }
   .dist__track {
     grid-column: 2;
