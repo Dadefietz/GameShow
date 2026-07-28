@@ -3,6 +3,7 @@
 //  - Joueur / overlay : anonymes, jetons courts signés par le serveur (HS256), portée = salon.
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
+import { getServiceClient } from './supabase.js';
 
 // --- Jetons de jeu signés par le serveur (le client ne calcule jamais rien de sensible) ---
 export function signGameToken(payload, expiresIn) {
@@ -28,31 +29,28 @@ export function makeOverlayToken(roomCode) {
 }
 
 // --- Vérification de la session animateur Supabase ---
-// En prod : valider le JWT Supabase via JWKS. Ici, décodage + contrôles de base ;
-// la source de vérité reste le service-role côté DB (RLS). Retourne { sub, email } ou null.
-let jwksCache = null;
-async function getJwks() {
-  if (jwksCache) return jwksCache;
-  if (!config.supabaseJwksUrl) return null;
-  try {
-    const res = await fetch(config.supabaseJwksUrl);
-    jwksCache = await res.json();
-    return jwksCache;
-  } catch {
-    return null;
-  }
-}
-
+// Prod : le token est VALIDÉ auprès de Supabase (auth.getUser) — la signature et
+// l'expiration sont vérifiées côté Supabase, ce qui empêche toute usurpation d'identité.
+// Repli dev (Supabase non configuré) : décodage sans vérif (aucune sécurité, dev only).
+// Retourne { sub, email } ou null.
 export async function verifyHostSession(accessToken) {
   if (!accessToken) return null;
-  // Décodage sans vérif de signature pour extraire le sujet ; la vérif forte se fait
-  // côté DB via service-role + RLS. (En prod : vérifier la signature RS256 via JWKS.)
+  const sb = getServiceClient();
+  if (sb) {
+    try {
+      const { data, error } = await sb.auth.getUser(accessToken);
+      if (error || !data || !data.user) return null;
+      return { sub: data.user.id, email: data.user.email || null };
+    } catch {
+      return null;
+    }
+  }
+  // --- Repli DEV uniquement (pas de Supabase) : décodage non vérifié ---
   try {
     const decoded = jwt.decode(accessToken, { complete: true });
     if (!decoded || !decoded.payload || !decoded.payload.sub) return null;
     const { sub, email, exp } = decoded.payload;
     if (exp && Date.now() / 1000 > exp) return null;
-    await getJwks(); // best-effort (préchargement)
     return { sub, email: email || null };
   } catch {
     return null;

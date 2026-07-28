@@ -128,6 +128,24 @@ export function pause(io, room) {
   emitRoomState(io, room);
 }
 
+// Reprise après pause : si un module est encore en cours (fenêtre ouverte), on repasse
+// en PLAYING et on relance le tick ; sinon on revient en attente.
+export function resume(io, room) {
+  const rt = room.currentModule;
+  if (rt && !rt.closed && !rt.revealed && Date.now() < rt.deadline) {
+    room.state = RoomState.PLAYING;
+    if (room._tick) clearInterval(room._tick);
+    room._tick = setInterval(() => {
+      const rem = Math.max(0, Math.ceil((room.currentModule?.deadline - Date.now()) / 1000));
+      toRoom(io, room).emit('module:tick', { timeLeft: rem, answers: room.currentModule?.answers.size || 0 });
+      if (rem <= 0) clearInterval(room._tick);
+    }, 1000);
+  } else {
+    room.state = rt && rt.revealed ? RoomState.RESULTS : RoomState.WAITING;
+  }
+  emitRoomState(io, room);
+}
+
 export function endGame(io, room) {
   room.state = RoomState.ENDED;
   if (room._timer) clearTimeout(room._timer);

@@ -490,10 +490,6 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom }) {
           <Icon name="skip-forward" />
           Passer à la suivante
         </button>
-        <button className="button button--ghost" type="button" onClick={() => g.emit('host:triggerEvent')}>
-          <Icon name="zap" />
-          Événements
-        </button>
         <button
           className="button button--ghost"
           type="button"

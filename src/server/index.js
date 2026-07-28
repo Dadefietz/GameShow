@@ -29,6 +29,27 @@ function cleanPseudo(raw) {
 const app = Fastify({ logger: false });
 await app.register(cors, { origin: config.corsOrigins });
 
+// En-têtes de sécurité (appliqués par le serveur — `_headers` est une convention
+// Cloudflare, ignorée par Fastify/Render). CSP permissive juste ce qu'il faut :
+// même origine + Supabase (auth) + WebSocket (Socket.IO) + images data: (QR).
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self'",
+  "connect-src 'self' https: wss: ws:",
+].join('; ');
+app.addHook('onSend', async (req, reply) => {
+  reply.header('Content-Security-Policy', CSP);
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('X-Frame-Options', 'SAMEORIGIN');
+  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  reply.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+});
+
 // Statique : build front + assets publics.
 const distDir = path.resolve(process.cwd(), config.clientDist);
 app.register(fastifyStatic, { root: distDir, prefix: '/', decorateReply: true, wildcard: false });
@@ -141,6 +162,7 @@ io.on('connection', (socket) => {
     engine.startModule(io, r, moduleType, q);
   });
   socket.on('host:pause', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.pause(io, r); });
+  socket.on('host:resume', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.resume(io, r); });
   socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.reveal(io, r); });
   socket.on('host:adjustScore', ({ playerId, delta } = {}) => {
     const r = requireRoom(socket); if (isHost(socket, r)) engine.adjustScore(io, r, playerId, delta);
