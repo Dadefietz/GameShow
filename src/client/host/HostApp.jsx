@@ -105,6 +105,33 @@ function LoginScreen({ onEstablishRoom }) {
             <span><strong>Quiz, Vrai/Faux, Estimation, Vote</strong> : compose tes propres questionnaires dans le Studio.</span>
           </li>
         </ul>
+
+        {/* D2 — vignette produit : mini-podium stylisé, dessiné en CSS (aucun asset). */}
+        <div className="hero-vignette" aria-hidden="true">
+          <div className="hero-vignette__podium">
+            <div className="hero-vignette__step hero-vignette__step--2"><span>2</span></div>
+            <div className="hero-vignette__step hero-vignette__step--1">
+              <span className="hero-vignette__crown"><Icon name="trophy" /></span>
+              <span>1</span>
+            </div>
+            <div className="hero-vignette__step hero-vignette__step--3"><span>3</span></div>
+          </div>
+          <p className="hero-vignette__caption">Le podium, en overlay transparent sur ton live</p>
+        </div>
+      </section>
+
+      <div className="login-doors">
+      {/* D1 — double porte d'entrée (pattern Contra) : le spectateur d'abord. */}
+      <section className="door-card" aria-labelledby="door-play-title">
+        <div className="door-card__body">
+          <h2 className="door-card__title" id="door-play-title">Tu viens pour jouer ?</h2>
+          <p className="door-card__sub">Un code et un pseudo suffisent — pas de compte.</p>
+        </div>
+        <a className="door-card__cta" href="/play">
+          <Icon name="log-in" />
+          Rejoindre une partie
+          <Icon name="arrow-right" />
+        </a>
       </section>
 
       <div className="auth-card">
@@ -156,14 +183,6 @@ function LoginScreen({ onEstablishRoom }) {
 
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
       <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
-
-      <div className="auth-card__alt">
-        <span className="auth-card__alt-text">Tu viens pour jouer, pas pour animer ?</span>
-        <a className="auth-card__alt-link" href="/play">
-          <Icon name="log-in" />
-          Rejoindre une partie
-          <Icon name="arrow-right" />
-        </a>
       </div>
       </div>
       </div>
@@ -516,8 +535,10 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
   const paused = room.state === 'paused';
   const progression = room.progression || {};
   const progIndex = progression.index != null ? progression.index : 1;
-  const progTotal = progression.total || 12;
+  const progTotal = progression.total || 0;
   const top5 = (g.leaderboard || []).slice(0, 5);
+  // F3 — pas de « leader » surligné tant que personne n'a marqué.
+  const hasScores = top5.some((p) => (p.score || 0) > 0);
   const rt = revealText(g.reveal, current);
   const moduleName = (current && current.meta && current.meta.name) || 'Épreuve';
 
@@ -536,6 +557,11 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
               <span className="stat-chip__dot" aria-hidden="true"></span>
               En pause
             </span>
+          ) : room.state === 'results' ? (
+            <span className="stat-chip stat-chip--results">
+              <span className="stat-chip__dot" aria-hidden="true"></span>
+              Résultats
+            </span>
           ) : (
             <span className="stat-chip stat-chip--live">
               <span className="stat-chip__dot" aria-hidden="true"></span>
@@ -548,7 +574,8 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
           </span>
           <span className="stat-chip stat-chip--progress">
             <Icon name="bar-chart-2" />
-            Épreuve {progIndex} / {progTotal}
+            {/* B4 — total affiché seulement s'il dépasse l'index (pas de « 1/1 » trompeur). */}
+            Épreuve {progIndex}{progTotal > progIndex ? ` / ${progTotal}` : ''}
           </span>
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame} />
         </div>
@@ -612,7 +639,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
             <ol className="leaderboard__list">
               {top5.map((p, i) => (
                 <li
-                  className={`leaderboard__row${i === 0 ? ' leaderboard__row--lead' : ''}`}
+                  className={`leaderboard__row${i === 0 && hasScores ? ' leaderboard__row--lead' : ''}`}
                   key={playerId(p) || i}
                 >
                   <span className="leaderboard__rank">{i + 1}</span>
@@ -672,7 +699,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
         </button>
         <button className="button button--forest" type="button" onClick={() => g.emit('host:nextModule')}>
           <Icon name="skip-forward" />
-          Passer à la suivante
+          Question suivante
         </button>
         <button
           className="button button--ghost"
@@ -760,7 +787,7 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, 
             </button>
           ) : null}
           <button className="button button--primary" type="button" onClick={onNextModule}>
-            Module suivant
+            Question suivante
             <Icon name="arrow-right" />
           </button>
           <span className="action-row__spacer" />

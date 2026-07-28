@@ -677,6 +677,135 @@
     font-weight: var(--font-weight-semibold);
   }
 
+  /* ---- Validation inline du join (A1/A2, pattern Quizlet) ------------------ */
+  .join__input--error {
+    border-color: var(--semantic-color-status-danger) !important;
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--semantic-color-status-danger) 45%, transparent);
+  }
+  .join__field-error {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    margin: var(--size-space-2) 0 0;
+    font-size: var(--font-size-step--1);
+    color: var(--semantic-color-status-danger);
+    text-align: left;
+  }
+  .join__field-error .icon { width: 15px; height: 15px; font-size: 15px; flex-shrink: 0; }
+
+  /* ---- Feedback sur l'option choisie (B1, pattern Best Buy) ---------------- */
+  .answer--chosen {
+    border-color: var(--semantic-color-status-success) !important;
+    background: color-mix(in oklch, var(--semantic-color-status-success) 16%, transparent);
+    opacity: 1 !important;
+  }
+  .answer--chosen .answer__key {
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+  }
+  .answer--dimmed { opacity: 0.38; }
+  .answer__sent {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-status-success);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .btn--sent {
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+  }
+
+  /* ---- Confettis (B2) ------------------------------------------------------- */
+  .confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 5;
+  }
+  .confetti__piece {
+    position: absolute;
+    top: -14px;
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    animation-name: confetti-fall;
+    animation-timing-function: var(--motion-easing-decelerate);
+    animation-fill-mode: forwards;
+  }
+  .confetti__piece--0 { background: var(--semantic-color-signature); }
+  .confetti__piece--1 { background: var(--semantic-color-status-success); }
+  .confetti__piece--2 { background: var(--semantic-color-action-primary); border-radius: 50%; height: 10px; }
+  .confetti__piece--3 { background: var(--semantic-color-text-primary); width: 6px; }
+  @keyframes confetti-fall {
+    0%   { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+    100% { opacity: 0; transform: translate(var(--drift, 0px), 105vh) rotate(540deg); }
+  }
+  @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+
+  /* ---- Récap des questions (B3) --------------------------------------------- */
+  .recap { width: 100%; }
+  .recap__toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    width: 100%;
+    min-height: var(--size-touch-min);
+    padding: var(--size-space-3) var(--size-space-4);
+    border: 1px solid var(--semantic-color-border);
+    border-radius: var(--size-radius-md);
+    background: transparent;
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-0);
+    font-weight: var(--font-weight-semibold);
+  }
+  .recap__toggle .icon { width: 18px; height: 18px; font-size: 18px; color: var(--semantic-color-action-primary); }
+  .recap__list {
+    list-style: none;
+    margin: var(--size-space-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-2);
+    text-align: left;
+  }
+  .recap__item {
+    padding: var(--size-space-3) var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    background: var(--component-card-bg);
+    border: 1px solid var(--component-card-border);
+  }
+  .recap__q { display: block; font-size: var(--font-size-step--1); line-height: var(--font-line-height-snug); }
+  .recap__a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    margin-top: var(--size-space-1);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-status-success);
+  }
+  .recap__a .icon { width: 14px; height: 14px; font-size: 14px; }
+
+  /* ---- Rendez-vous de fin (C2) ---------------------------------------------- */
+  .stayhint {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-2);
+    margin: var(--size-space-2) 0 0;
+    font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
+    color: var(--semantic-color-text-secondary);
+    text-align: left;
+  }
+  .stayhint .icon { width: 16px; height: 16px; font-size: 16px; flex-shrink: 0; margin-top: 2px; color: var(--semantic-color-action-primary); }
+  .stayhint strong { color: var(--semantic-color-signature); }
+
   /* ---- Révélation dramatisée (score) -------------------------------------- */
   /* Le titre « Raté… » ne doit pas s'afficher dans le vert « bonne réponse ». */
   .sent--lose .sent__text { color: var(--semantic-color-text-primary); }

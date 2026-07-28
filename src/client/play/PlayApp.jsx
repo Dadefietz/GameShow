@@ -66,26 +66,48 @@ const ERROR_MESSAGES = {
   'room-full': 'Ce salon est complet.',
   'join-failed': 'Connexion impossible. Réessaie.',
 };
+// Chaque erreur est rattachée à SON champ (pattern Quizlet) : bordure + message sous le champ.
+const ERROR_FIELD = {
+  'room-not-found': 'code',
+  'invalid-pseudo': 'pseudo',
+  'pseudo-taken': 'pseudo',
+  'room-full': 'code',
+  'join-failed': 'general',
+};
 
 // ---- Écran : rejoindre ------------------------------------------------------
 function JoinScreen({ initialCode, onJoin }) {
   const [code, setCode] = useState(initialCode || '');
   const [pseudo, setPseudo] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null);       // { field, message }
   const [busy, setBusy] = useState(false);
+
+  // A1 — le bouton reste désactivé tant que la saisie n'est pas plausible.
+  const canSubmit = code.trim().length === 5 && pseudo.trim().length >= 1;
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !canSubmit) return;
     setError(null);
     setBusy(true);
     try {
       await onJoin(code.trim(), pseudo.trim());
     } catch (err) {
-      setError(ERROR_MESSAGES[err?.message] || ERROR_MESSAGES['join-failed']);
+      const key = err?.message;
+      setError({
+        field: ERROR_FIELD[key] || 'general',
+        message: ERROR_MESSAGES[key] || ERROR_MESSAGES['join-failed'],
+      });
       setBusy(false);
     }
   }
+
+  const fieldError = (f) => (error && error.field === f ? (
+    <p className="join__field-error" role="alert">
+      <Icon name="x" className="icon" />
+      {error.message}
+    </p>
+  ) : null);
 
   return (
     <main className="screen screen--join" aria-labelledby="join-title">
@@ -102,7 +124,7 @@ function JoinScreen({ initialCode, onJoin }) {
           <div className="join__field">
             <label className="join__label" htmlFor="code">Code de la partie</label>
             <input
-              className="join__input join__input--code"
+              className={`join__input join__input--code${error && error.field === 'code' ? ' join__input--error' : ''}`}
               id="code"
               name="code"
               type="text"
@@ -114,14 +136,16 @@ function JoinScreen({ initialCode, onJoin }) {
               maxLength={5}
               placeholder="SM9HF"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              aria-invalid={error && error.field === 'code' ? true : undefined}
+              onChange={(e) => { setCode(e.target.value.toUpperCase()); if (error?.field === 'code') setError(null); }}
             />
+            {fieldError('code')}
           </div>
 
           <div className="join__field">
             <label className="join__label" htmlFor="pseudo">Ton pseudo</label>
             <input
-              className="join__input"
+              className={`join__input${error && error.field === 'pseudo' ? ' join__input--error' : ''}`}
               id="pseudo"
               name="pseudo"
               type="text"
@@ -129,18 +153,20 @@ function JoinScreen({ initialCode, onJoin }) {
               maxLength={18}
               placeholder="PixelNight"
               value={pseudo}
-              onChange={(e) => setPseudo(e.target.value)}
+              aria-invalid={error && error.field === 'pseudo' ? true : undefined}
+              onChange={(e) => { setPseudo(e.target.value); if (error?.field === 'pseudo') setError(null); }}
             />
+            {fieldError('pseudo')}
           </div>
 
-          {error ? (
+          {error && error.field === 'general' ? (
             <p className="join__error" role="alert">
               <Icon name="x" className="icon" />
-              {error}
+              {error.message}
             </p>
           ) : null}
 
-          <button className="btn btn--primary" type="submit" disabled={busy}>
+          <button className="btn btn--primary" type="submit" disabled={busy || !canSubmit}>
             <Icon name="log-in" className="icon" />
             {busy ? 'Connexion…' : 'Rejoindre'}
           </button>
@@ -246,18 +272,24 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
 
         {type === 'true_false' ? (
           <div className="answers" role="group" aria-label="Choisis ta réponse">
-            {[['Vrai', true], ['Faux', false]].map(([label, val]) => (
-              <button
-                key={label}
-                className={`answer${myAnswer === val ? ' answer--selected' : ''}`}
-                type="button"
-                disabled={disabled}
-                onClick={() => onAnswer(val)}
-              >
-                <span className="answer__key" aria-hidden="true">{label === 'Vrai' ? 'V' : 'F'}</span>
-                <span className="answer__label">{label}</span>
-              </button>
-            ))}
+            {[['Vrai', true], ['Faux', false]].map(([label, val]) => {
+              const chosen = myAnswer === val;
+              return (
+                <button
+                  key={label}
+                  className={`answer${chosen ? ' answer--chosen' : ''}${answered && !chosen ? ' answer--dimmed' : ''}`}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onAnswer(val)}
+                >
+                  <span className="answer__key" aria-hidden="true">
+                    {chosen && answered ? <Icon name="check" className="icon" /> : (label === 'Vrai' ? 'V' : 'F')}
+                  </span>
+                  <span className="answer__label">{label}</span>
+                  {chosen && answered ? <span className="answer__sent">Envoyé</span> : null}
+                </button>
+              );
+            })}
           </div>
         ) : type === 'estimation' ? (
           <form
@@ -274,25 +306,31 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
               onChange={(e) => setEstimate(e.target.value)}
               aria-label="Ton estimation"
             />
-            <button className="btn btn--primary" type="submit" disabled={disabled || estimate === ''}>
-              <Icon name="arrow-right" className="icon" />
-              Envoyer
+            <button className={`btn btn--primary${answered ? ' btn--sent' : ''}`} type="submit" disabled={disabled || estimate === ''}>
+              <Icon name={answered ? 'check' : 'arrow-right'} className="icon" />
+              {answered ? 'Envoyé ✓' : 'Envoyer'}
             </button>
           </form>
         ) : (
           <div className="answers" role="group" aria-label="Choisis ta réponse">
-            {options.map((opt, i) => (
-              <button
-                key={i}
-                className={`answer${myAnswer === i ? ' answer--selected' : ''}`}
-                type="button"
-                disabled={disabled}
-                onClick={() => onAnswer(i)}
-              >
-                <span className="answer__key" aria-hidden="true">{keys[i] || i + 1}</span>
-                <span className="answer__label">{opt}</span>
-              </button>
-            ))}
+            {options.map((opt, i) => {
+              const chosen = myAnswer === i;
+              return (
+                <button
+                  key={i}
+                  className={`answer${chosen ? ' answer--chosen' : ''}${answered && !chosen ? ' answer--dimmed' : ''}`}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onAnswer(i)}
+                >
+                  <span className="answer__key" aria-hidden="true">
+                    {chosen && answered ? <Icon name="check" className="icon" /> : (keys[i] || i + 1)}
+                  </span>
+                  <span className="answer__label">{opt}</span>
+                  {chosen && answered ? <span className="answer__sent">Envoyé</span> : null}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -326,6 +364,26 @@ function Board({ title, rows, playerId }) {
   );
 }
 
+// ---- Confettis (célébration bonne réponse) ----------------------------------
+// Positions/délais dérivés de l'index (déterministe, pas de Math.random au rendu).
+function Confetti() {
+  const pieces = Array.from({ length: 26 }, (_, i) => {
+    const left = ((i * 37) % 100);
+    const delay = ((i * 53) % 40) / 100;          // 0 → 0.4s
+    const dur = 1.6 + ((i * 29) % 60) / 100;       // 1.6 → 2.2s
+    const kind = i % 4;                            // 4 teintes
+    const drift = ((i * 17) % 60) - 30;            // -30 → +30px
+    return (
+      <span
+        key={i}
+        className={`confetti__piece confetti__piece--${kind}`}
+        style={{ left: `${left}%`, animationDelay: `${delay}s`, animationDuration: `${dur}s`, '--drift': `${drift}px` }}
+      />
+    );
+  });
+  return <div className="confetti" aria-hidden="true">{pieces}</div>;
+}
+
 // ---- Écran : résultat de manche --------------------------------------------
 function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer, current }) {
   // Déterminer bon/mauvais quand la révélation le permet.
@@ -355,6 +413,7 @@ function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer, current }) 
 
   return (
     <main className={`screen screen--score screen--score-${tone}`} aria-labelledby="sent-text">
+      {tone === 'win' ? <Confetti /> : null}
       <div className="screen__main screen__main--center">
         <div className={`sent sent--${tone}`}>
           <span className={`sent__check sent__check--${tone}`} aria-hidden="true">
@@ -400,11 +459,74 @@ function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer, current }) 
   );
 }
 
+// ---- Carte de score partageable (C1) ----------------------------------------
+// Dessinée en canvas 1080×1920 : marque, pseudo, rang, points — partagée en image
+// quand le navigateur le permet (navigator.canShare files), sinon repli texte.
+function drawScoreCard({ pseudo, rank, score }) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  // Fond + halos (palette du site)
+  ctx.fillStyle = '#181612';
+  ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, H * 0.42, 60, W / 2, H * 0.42, 640);
+  glow.addColorStop(0, 'rgba(255, 176, 92, 0.32)');
+  glow.addColorStop(1, 'rgba(255, 176, 92, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  // Marque
+  ctx.fillStyle = '#f4ede2';
+  ctx.font = 'bold 64px Georgia, serif';
+  ctx.fillText('Project Game Show', W / 2, 220);
+  ctx.fillStyle = '#8fce9e';
+  ctx.font = '600 44px system-ui, sans-serif';
+  ctx.fillText('RÉSULTAT DE LA PARTIE', W / 2, 300);
+  // Pseudo
+  ctx.fillStyle = '#ffb05c';
+  ctx.font = 'bold 88px Georgia, serif';
+  ctx.fillText(String(pseudo || 'Joueur').slice(0, 20), W / 2, 560);
+  // Rang géant
+  if (rank != null) {
+    ctx.fillStyle = '#ffb05c';
+    ctx.font = '900 420px Georgia, serif';
+    ctx.fillText(`${rank}${rank === 1 ? 'ᵉʳ' : 'ᵉ'}`, W / 2, H * 0.55 + 140);
+  }
+  // Points
+  ctx.fillStyle = '#f4ede2';
+  ctx.font = 'bold 96px system-ui, sans-serif';
+  ctx.fillText(`${Number(score || 0).toLocaleString('fr-FR')} pts`, W / 2, H * 0.72);
+  // URL
+  ctx.fillStyle = '#b9b0a2';
+  ctx.font = '48px system-ui, sans-serif';
+  ctx.fillText(window.location.host, W / 2, H - 160);
+  return new Promise((resolve) => c.toBlob(resolve, 'image/png'));
+}
+
+// Libellé de la bonne réponse d'une manche du récap (B3).
+function historyAnswer(h) {
+  const rv = h.reveal || {};
+  if (h.type === 'true_false') return rv.correct ? 'Vrai' : 'Faux';
+  if (h.type === 'estimation') return rv.target != null ? fmtNum(rv.target) : null;
+  if (h.type === 'quiz') {
+    if (Array.isArray(h.options) && rv.correctIndex != null && h.options[rv.correctIndex] != null) return h.options[rv.correctIndex];
+    return rv.correctIndex != null ? `Réponse ${String.fromCharCode(65 + rv.correctIndex)}` : null;
+  }
+  if (h.type === 'vote' && Array.isArray(rv.tally) && Array.isArray(h.options) && rv.tally.length) {
+    let best = 0;
+    for (let i = 1; i < rv.tally.length; i += 1) if (rv.tally[i] > rv.tally[best]) best = i;
+    return `${h.options[best]} (vote du public)`;
+  }
+  return null;
+}
+
 // ---- Écran : fin de partie --------------------------------------------------
-function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
+function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode }) {
   const rank = you?.rank;
   const isPodium = rank != null && rank <= 3;
   const [shared, setShared] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
   const headline = rank === 1 ? 'Victoire !'
     : isPodium ? 'Sur le podium !'
     : 'Partie terminée !';
@@ -414,8 +536,19 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
     const text = `J'ai terminé ${rankTxt} avec ${fmtNum(you?.score)} pts sur Project Game Show ! 🎮`;
     const url = typeof window !== 'undefined' ? window.location.origin : '';
     try {
+      // C1 — carte de score en image quand le partage de fichiers est supporté.
       if (navigator.share) {
-        await navigator.share({ title: 'Project Game Show', text, url });
+        let filesPayload = null;
+        try {
+          const blob = await drawScoreCard({ pseudo, rank, score: you?.score });
+          if (blob) {
+            const file = new File([blob], 'mon-score.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) filesPayload = [file];
+          }
+        } catch { /* canvas indisponible : repli texte */ }
+        await navigator.share(filesPayload
+          ? { title: 'Project Game Show', text, files: filesPayload }
+          : { title: 'Project Game Show', text, url });
       } else {
         await navigator.clipboard.writeText(`${text} ${url}`);
         setShared(true);
@@ -424,8 +557,11 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
     } catch { /* partage annulé */ }
   };
 
+  const recap = Array.isArray(history) ? history.filter((h) => h && h.text) : [];
+
   return (
     <main className="screen screen--end" aria-labelledby="end-text">
+      {isPodium ? <Confetti /> : null}
       <div className="screen__main screen__main--center">
         <div className={`sent sent--${isPodium ? 'win' : 'neutral'}`}>
           <span className={`sent__check sent__check--${isPodium ? 'win' : 'neutral'}`} aria-hidden="true">
@@ -446,6 +582,28 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
 
         <Board title="Podium" rows={(podium || []).slice(0, 5)} playerId={playerId} />
 
+        {recap.length > 0 ? (
+          <section className="recap" aria-label="Récapitulatif des questions">
+            <button className="recap__toggle" type="button" aria-expanded={showRecap} onClick={() => setShowRecap((v) => !v)}>
+              <Icon name={showRecap ? 'chevron-down' : 'chevron-right'} className="icon" />
+              Revoir les questions ({recap.length})
+            </button>
+            {showRecap ? (
+              <ol className="recap__list">
+                {recap.map((h, i) => {
+                  const ans = historyAnswer(h);
+                  return (
+                    <li className="recap__item" key={i}>
+                      <span className="recap__q">{h.text}</span>
+                      {ans != null ? <span className="recap__a"><Icon name="check" className="icon" />{ans}</span> : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : null}
+          </section>
+        ) : null}
+
         <div className="endactions">
           <button className="btn btn--primary" type="button" onClick={share}>
             <Icon name={shared ? 'check' : 'arrow-right'} className="icon" />
@@ -456,6 +614,13 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
             Rejouer
           </button>
         </div>
+
+        {roomCode ? (
+          <p className="stayhint">
+            <Icon name="clock" className="icon" />
+            Reste connecté — si l'animateur relance une partie dans le salon <strong>{roomCode}</strong>, tu y seras automatiquement.
+          </p>
+        ) : null}
       </div>
     </main>
   );
@@ -547,7 +712,7 @@ export function PlayApp() {
 
   // Fin de partie.
   if (g.podium || room?.state === 'ended') {
-    return (<>{QuitButton}<EndScreen you={effectiveYou} podium={podiumRows} playerId={playerId} pseudo={displayPseudo} onReplay={handleLeave} /></>);
+    return (<>{QuitButton}<EndScreen you={effectiveYou} podium={podiumRows} playerId={playerId} pseudo={displayPseudo} onReplay={handleLeave} history={g.history} roomCode={roomCode} /></>);
   }
 
   // Résultat d'une manche révélée.

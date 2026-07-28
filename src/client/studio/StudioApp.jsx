@@ -115,6 +115,7 @@ export function StudioApp() {
   // --- Mutations modules (réactives) ---
   const patchModule = (id, patch) => {
     setSaveState('idle');
+    setValidationErrors([]);
     setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   };
 
@@ -134,10 +135,42 @@ export function StudioApp() {
 
   const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); };
 
+  // E2 — Validation avant enregistrement (pattern Podia : « at least one right answer »).
+  // Renvoie la liste des problèmes ; un module invalide serait silencieusement
+  // filtré en jeu (isUsable serveur) — on préfère le dire AVANT la sauvegarde.
+  const validateModule = (m) => {
+    const problems = [];
+    if (!String(m.name || '').trim()) problems.push({ qid: null, msg: 'Donne un nom au module.' });
+    if (!Number.isFinite(m.duration) || m.duration < 3) problems.push({ qid: null, msg: 'Durée minimale : 3 secondes.' });
+    if (!m.questions.length) problems.push({ qid: null, msg: 'Ajoute au moins une question.' });
+    m.questions.forEach((q, i) => {
+      const label = `Question ${i + 1}`;
+      if (!String(q.prompt || '').trim()) problems.push({ qid: q.id, msg: `${label} : l'énoncé est vide.` });
+      if (m.type === 'quiz' || m.type === 'vote') {
+        const opts = (q.options || []).map((o) => String(o || '').trim());
+        const filled = opts.filter(Boolean).length;
+        if (filled < 2) problems.push({ qid: q.id, msg: `${label} : il faut au moins 2 options remplies.` });
+        if (m.type === 'quiz') {
+          const c = q.correct;
+          if (!Number.isInteger(c) || !opts[c]) problems.push({ qid: q.id, msg: `${label} : coche une bonne réponse (option non vide).` });
+        }
+      }
+      if (m.type === 'estimation' && !Number.isFinite(Number(q.target))) {
+        problems.push({ qid: q.id, msg: `${label} : la cible doit être un nombre.` });
+      }
+    });
+    return problems;
+  };
+
+  const [validationErrors, setValidationErrors] = useState([]);
+
   // Enregistrer : upsert vers Supabase (owner_id auto = auth.uid() via défaut DB).
   // Retour de statut clair (saved / local / error) — plus d'échec silencieux.
   const saveModule = async (m) => {
     if (!m) return;
+    const problems = validateModule(m);
+    setValidationErrors(problems);
+    if (problems.length) { setSaveState('invalid'); return; }
     if (!sb || authed === false) { setSaveState('local'); return; }
     setSaveState('saving');
     try {
@@ -155,6 +188,7 @@ export function StudioApp() {
   // --- Mutations questions (réactives) ---
   const patchQuestion = (moduleId, qid, patch) => {
     setSaveState('idle');
+    setValidationErrors([]);
     setModules((prev) => prev.map((m) =>
       m.id !== moduleId ? m : { ...m, questions: m.questions.map((q) => (q.id === qid ? { ...q, ...patch } : q)) }
     ));
@@ -233,6 +267,7 @@ export function StudioApp() {
             onSave={() => saveModule(selected)}
             onClose={() => selectModule(null)}
             saveState={saveState}
+            validationErrors={validationErrors}
           />
         )}
       </main>
@@ -332,14 +367,17 @@ const SAVE_STATUS = {
   saved: { text: 'Enregistré en ligne ✓', cls: 'save-status--ok' },
   local: { text: 'Enregistré localement — connecte-toi côté animateur pour synchroniser', cls: 'save-status--warn' },
   error: { text: "Échec de l'enregistrement, réessaie", cls: 'save-status--err' },
+  invalid: { text: 'Corrige les points ci-dessous avant d’enregistrer :', cls: 'save-status--err' },
 };
 
 function EditorPanel({
   module, editingQuestionId, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onDeleteModule, onSave, onClose, saveState,
+  validationErrors = [],
 }) {
   const t = MODULE_TYPES[module.type];
   const status = saveState && saveState !== 'idle' ? SAVE_STATUS[saveState] : null;
+  const invalidIds = new Set(validationErrors.map((p) => p.qid).filter(Boolean));
   return (
     <aside className="editor" aria-label="Édition du module">
       <div className="editor__head">
@@ -414,19 +452,29 @@ function EditorPanel({
                 module={module}
                 question={q}
                 editing={editingQuestionId === q.id}
+                invalid={invalidIds.has(q.id)}
                 onToggle={() => onEditQuestion(q.id)}
                 onPatch={(patch) => onPatchQuestion(q.id, patch)}
                 onRemove={() => onRemoveQuestion(q.id)}
               />
             ))}
             {module.questions.length === 0 && (
-              <p className="editor__empty">Aucune question. Ajoutez-en une pour démarrer la banque.</p>
+              /* E3 — empty state ACTIF : le message porte l'action. */
+              <div className="editor-empty">
+                <p className="editor-empty__text">Aucune question pour l'instant — c'est ici que ta banque démarre.</p>
+                <button className="button button--primary" type="button" onClick={onAddQuestion}>
+                  <Icon name="plus" className="icon icon--sm" />
+                  Ajouter une question
+                </button>
+              </div>
             )}
           </div>
-          <button className="question-add" type="button" onClick={onAddQuestion}>
-            <Icon name="plus" className="icon icon--sm" />
-            Ajouter une question
-          </button>
+          {module.questions.length > 0 && (
+            <button className="question-add" type="button" onClick={onAddQuestion}>
+              <Icon name="plus" className="icon icon--sm" />
+              Ajouter une question
+            </button>
+          )}
         </div>
 
         <div className="editor__footer">
@@ -440,6 +488,11 @@ function EditorPanel({
           </button>
           <button className="button button--ghost" type="button" onClick={onClose}>Fermer</button>
           {status ? <p className={`save-status ${status.cls}`} role="status">{status.text}</p> : null}
+          {saveState === 'invalid' && validationErrors.length > 0 ? (
+            <ul className="validation-list" role="alert">
+              {validationErrors.map((p, i) => <li className="validation-list__item" key={i}>{p.msg}</li>)}
+            </ul>
+          ) : null}
         </div>
       </form>
     </aside>
@@ -447,9 +500,9 @@ function EditorPanel({
 }
 
 // ---------------------------------------------------------------------------
-function QuestionRow({ index, module, question, editing, onToggle, onPatch, onRemove }) {
+function QuestionRow({ index, module, question, editing, invalid, onToggle, onPatch, onRemove }) {
   return (
-    <div className={`question${editing ? ' question--editing' : ''}`}>
+    <div className={`question${editing ? ' question--editing' : ''}${invalid ? ' question--invalid' : ''}`}>
       <span className="question__index">{index}</span>
       <span className="question__text">{question.prompt || 'Nouvelle question'}</span>
       <span className="question__actions">
@@ -489,42 +542,40 @@ function QuestionFields({ type, question, onPatch }) {
 
   if (type === 'quiz') {
     const options = question.options || ['', '', '', ''];
+    // E1 — la bonne réponse se coche SUR l'option (pattern Podia/Circle),
+    // plus de menu séparé à corréler mentalement.
     return (
       <>
         {prompt}
         <div className="field">
-          <span className="field__label">Options</span>
-          <div className="field__options">
-            {options.map((opt, i) => (
-              <span className="field__option" key={i}>
-                <input
-                  className="input" type="text" value={opt}
-                  aria-label={`Option ${i + 1}`} placeholder={`Option ${i + 1}`}
-                  onChange={(e) => {
-                    const next = options.slice();
-                    next[i] = e.target.value;
-                    onPatch({ options: next });
-                  }}
-                />
-              </span>
-            ))}
+          <span className="field__label">Options — coche la bonne réponse</span>
+          <div className="field__options" role="radiogroup" aria-label="Bonne réponse">
+            {options.map((opt, i) => {
+              const isCorrect = (question.correct ?? 0) === i;
+              return (
+                <span className={`field__option field__option--radio${isCorrect ? ' field__option--correct' : ''}`} key={i}>
+                  <input
+                    className="option-radio"
+                    type="radio"
+                    name={`correct-${question.id}`}
+                    checked={isCorrect}
+                    aria-label={`Marquer l'option ${i + 1} comme bonne réponse`}
+                    onChange={() => onPatch({ correct: i })}
+                  />
+                  <input
+                    className="input" type="text" value={opt}
+                    aria-label={`Option ${i + 1}`} placeholder={`Option ${i + 1}`}
+                    onChange={(e) => {
+                      const next = options.slice();
+                      next[i] = e.target.value;
+                      onPatch({ options: next });
+                    }}
+                  />
+                  {isCorrect ? <span className="field__option-badge"><Icon name="check" className="icon icon--sm" /></span> : null}
+                </span>
+              );
+            })}
           </div>
-        </div>
-        <div className="field">
-          <label className="field__label">Bonne réponse</label>
-          <span className="select-field">
-            <select
-              className="select" value={String(question.correct ?? 0)}
-              onChange={(e) => onPatch({ correct: Number(e.target.value) })}
-            >
-              {options.map((opt, i) => (
-                <option key={i} value={String(i)}>{opt || `Option ${i + 1}`}</option>
-              ))}
-            </select>
-            <span className="select-field__caret" aria-hidden="true">
-              <Icon name="chevron-right" className="icon icon--sm" />
-            </span>
-          </span>
         </div>
       </>
     );

@@ -326,6 +326,66 @@
   .studio .field__options { display: flex; flex-direction: column; gap: var(--size-space-2); }
   .studio .field__option { display: flex; align-items: center; gap: var(--size-space-2); }
   .studio .field__option .input { flex: 1; min-width: 0; }
+  /* E1 — radio « bonne réponse » directement sur l'option */
+  .studio .option-radio {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--semantic-color-status-success);
+    cursor: pointer;
+  }
+  .studio .field__option--correct .input {
+    border-color: color-mix(in oklch, var(--semantic-color-status-success) 55%, transparent);
+    background-color: color-mix(in oklch, var(--semantic-color-status-success) 8%, var(--semantic-color-bg-surface));
+  }
+  .studio .field__option-badge {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: var(--size-radius-full);
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+  }
+  /* E2 — question fautive + liste d'erreurs de validation */
+  .studio .question--invalid {
+    border-color: color-mix(in oklch, var(--semantic-color-status-danger) 60%, transparent);
+    background-color: color-mix(in oklch, var(--semantic-color-status-danger) 8%, var(--semantic-color-bg-surface));
+  }
+  .studio .validation-list {
+    width: 100%;
+    list-style: none;
+    margin: var(--size-space-2) 0 0;
+    padding: var(--size-space-3) var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-status-danger) 12%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-danger) 45%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-1);
+  }
+  .studio .validation-list__item {
+    font-size: var(--font-size-step--1);
+    color: var(--semantic-color-text-primary);
+    line-height: var(--font-line-height-snug);
+  }
+  /* E3 — empty state actif */
+  .studio .editor-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-3);
+    padding: var(--size-space-6) var(--size-space-4);
+    border: 1px dashed var(--semantic-color-border);
+    border-radius: var(--size-radius-md);
+    text-align: center;
+  }
+  .studio .editor-empty__text {
+    margin: 0;
+    color: var(--semantic-color-text-secondary);
+    font-size: var(--font-size-step--1);
+  }
   .studio .input, .studio .select {
     width: 100%;
     min-height: var(--size-touch-min);

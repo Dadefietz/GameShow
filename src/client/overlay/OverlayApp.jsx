@@ -75,7 +75,7 @@ function QuestionOverlay({ g, preview }) {
           <span className="tag">
             <Icon name={meta?.icon || 'flame'} className="tag__icon" />
             {meta?.name || 'Épreuve'}
-            {prog?.index ? ` · Épreuve ${prog.index}${prog.total ? `/${prog.total}` : ''}` : ''}
+            {prog?.index ? ` · Épreuve ${prog.index}${prog.total > prog.index ? `/${prog.total}` : ''}` : ''}
           </span>
           <h1 className="question">{current?.text || ''}</h1>
           {answer != null && (

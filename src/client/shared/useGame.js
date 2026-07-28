@@ -16,6 +16,7 @@ export function useGame(token) {
   const [answered, setAnswered] = useState(false);
   const [roomClosed, setRoomClosed] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
+  const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
 
   useEffect(() => {
     if (!token) return;
@@ -33,7 +34,7 @@ export function useGame(token) {
     s.on('leaderboard:update', (d) => setLeaderboard(d.leaderboard || []));
     s.on('play:you', (y) => setYou(y));
     s.on('play:accepted', (res) => { if (res && res.ok) setAnswered(true); });
-    s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); });
+    s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); setHistory(d.history || []); });
     s.on('room:closed', () => setRoomClosed(true));
     return () => s.close();
   }, [token]);
@@ -42,7 +43,7 @@ export function useGame(token) {
     socketRef.current?.emit(event, payload);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, emit };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, emit };
 }
 
 // Persistance légère (reconnexion sans perte).

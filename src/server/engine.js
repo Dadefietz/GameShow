@@ -150,7 +150,7 @@ export function reveal(io, room) {
   rt.revealed = true;
   room.state = RoomState.RESULTS;
   const board = roomManager.leaderboard(room, 10);
-  room.history.push({ moduleType: rt.type, text: rt.text, reveal, at: Date.now() });
+  room.history.push({ moduleType: rt.type, text: rt.text, reveal, options: rt.options || null, at: Date.now() });
   toRoom(io, room).emit('module:reveal', { ...reveal, type: rt.type });
   toRoom(io, room).emit('leaderboard:update', { leaderboard: board });
   emitRoomState(io, room);
@@ -204,6 +204,8 @@ export function endGame(io, room) {
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
   const podium = roomManager.leaderboard(room, 3);
-  toRoom(io, room).emit('game:ended', { podium, leaderboard: roomManager.leaderboard(room, 50) });
+  // Récap des manches (B3) : question + révélation, jamais le détail par joueur.
+  const history = room.history.map((h) => ({ type: h.moduleType, text: h.text, reveal: h.reveal, options: h.options }));
+  toRoom(io, room).emit('game:ended', { podium, leaderboard: roomManager.leaderboard(room, 50), history });
   emitRoomState(io, room);
 }

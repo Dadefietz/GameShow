@@ -1,6 +1,6 @@
 # Plan d'action UI/UX — benchmark Mobbin × Project Game Show
 ### Bonnes pratiques modernes des funnels et workflows, collisionnées avec notre site
-*Recherche Mobbin (flows & screens réels) · 28 juillet 2026*
+*Recherche Mobbin (flows & screens réels) · 28 juillet 2026 — **STATUT : les 17 actions sont implémentées et déployées** (commit « Sprints 1-4 »)*
 
 ---
 
