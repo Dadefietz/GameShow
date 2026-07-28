@@ -9,6 +9,12 @@
   <meta property="og:image" content="/assets/social-card-join.png" />
   <link rel="icon" href="/assets/avatar-emblem-tipi.png" />
   <link rel="preload" as="image" href="/assets/avatar-emblem-tipi.png" />
+  <!-- Polices critiques préchargées (chemins publics stables) : supprime le
+       redessin du texte (FOUT) quand Fraunces/Inter arrivent après le 1er rendu. -->
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-400-latin.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-600-latin.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/fraunces-600-latin.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/fraunces-900-latin.woff2" crossorigin />
   <!-- Design system (tokens + polices self-hostées) bundlé par Vite via l'import dans main.jsx (aucun CDN) -->
   <!-- CSS critique EN DUR (avant tout bundle) : supprime le flash blanc au chargement. -->
   <style>

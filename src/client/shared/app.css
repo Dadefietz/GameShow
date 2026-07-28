@@ -26,6 +26,12 @@
 html, body { background-color: var(--semantic-color-bg-page, oklch(0.20 0.008 80)); }
 
 @layer base {
+  /* Fondu d'apparition des surfaces : les transitions loader→écran et écran→écran
+     deviennent des fondus courts au lieu de coupes sèches (jamais sur l'overlay OBS). */
+  .page, .screen, .studio { animation: surface-in 140ms var(--motion-easing-decelerate) both; }
+  @keyframes surface-in { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .page, .screen, .studio { animation: none; } }
+
   .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; flex: 0 0 auto; }
   .icon--sm { font-size: var(--font-size-step-0); }
   .icon--md { font-size: var(--font-size-step-2); }

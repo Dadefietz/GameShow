@@ -1,7 +1,7 @@
 // Surface OVERLAY OBS — source navigateur, fond transparent, display-only.
 // Trois types déterminés par le chemin : /overlay/question | /overlay/leaderboard | /overlay/podium.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 import { useGame } from '../shared/useGame.js';
 import { Icon } from '../shared/icons.jsx';
 import './overlay.css';
@@ -177,7 +177,9 @@ export function OverlayApp() {
 
   // Fond TRANSPARENT pour OBS — appliqué UNIQUEMENT sur la page overlay (inline = priorité max),
   // pour ne jamais fuiter sur les autres surfaces (login/lobby/joueur) via le bundle CSS partagé.
-  useEffect(() => {
+  // useLayoutEffect : fond transparent + échelle appliqués AVANT le premier rendu
+  // (aucun flash de canvas non mis à l'échelle en aperçu).
+  useLayoutEffect(() => {
     const html = document.documentElement;
     const body = document.body;
     const prevHtml = html.style.backgroundColor;

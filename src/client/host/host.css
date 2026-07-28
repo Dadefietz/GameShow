@@ -508,7 +508,8 @@
     border: 6px solid var(--color-neutral-100);
     overflow: hidden;
   }
-  .qr-plate__img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .qr-plate__img { width: 100%; height: 100%; object-fit: contain; display: block; animation: qr-in 0.2s ease-out; }
+  @keyframes qr-in { from { opacity: 0; } to { opacity: 1; } }
   .qr-plate__icon {
     display: grid; place-items: center;
     width: 74px; height: 74px;
