@@ -1325,9 +1325,10 @@
     grid-row: 1;
     align-self: end;
     /* Libellé d'option ENTIÈREMENT lisible : seul endroit où l'animateur voit
-       les options en direct — retour à la ligne, jamais de troncature. */
+       les options en direct — retour à la ligne aux frontières de MOTS
+       (break-word, pas anywhere : fini « Atlantiqu-e » coupé en plein mot). */
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     font-weight: var(--font-weight-medium);
     font-size: var(--font-size-step--1);
     line-height: var(--font-line-height-snug);
@@ -1434,4 +1435,49 @@
     border: 1px solid color-mix(in oklch, var(--semantic-color-status-danger) 40%, transparent);
   }
   .conn-flag__dot { width: 8px; height: 8px; border-radius: var(--size-radius-full); background: currentColor; }
+
+  /* ============================================================
+     MOBILE (≤640px) — la régie animateur pensée pour téléphone :
+     en-tête compact en deux rangées, carte question resserrée,
+     barre de contrôle en grille tactile pleine largeur.
+     ============================================================ */
+  @media (max-width: 640px) {
+    .live-header {
+      flex-wrap: wrap;
+      gap: var(--size-space-3);
+      padding: var(--size-space-3) var(--size-space-4);
+    }
+    .live-header__stats {
+      margin-left: 0;
+      width: 100%;
+      gap: var(--size-space-2);
+    }
+    .live-body { padding: var(--size-space-4); gap: var(--size-space-4); }
+    .hero { padding: var(--size-space-5) var(--size-space-4); }
+    .hero__question { max-width: none; }
+    .hero__dist { padding: var(--size-space-4); }
+    .hero__dist-note { display: none; }
+    .hero__count { font-size: var(--font-size-step-5); }
+    .hero__meters { gap: var(--size-space-5); }
+    .leaderboard { padding: var(--size-space-4); }
+    .control-bar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--size-space-2);
+      padding: var(--size-space-3) var(--size-space-4);
+    }
+    .control-bar__spacer { display: none; }
+    .control-bar .button { width: 100%; justify-content: center; }
+    .control-bar .exit-menu { width: 100%; }
+    .control-bar .exit-menu > .button { width: 100%; justify-content: center; }
+    /* Lobby : en-tête compact, carte code resserrée. */
+    .topbar { padding: var(--size-space-3) var(--size-space-4); }
+    .lobby { padding: var(--size-space-4); gap: var(--size-space-4); }
+    .join-card { padding: var(--size-space-5) var(--size-space-4); }
+    /* Résultats : actions pleine largeur, empilées. */
+    .action-row { flex-direction: column; align-items: stretch; }
+    .action-row .button { justify-content: center; }
+    .action-row .exit-menu { width: 100%; }
+    .action-row .exit-menu > .button { width: 100%; justify-content: center; }
+  }
 }

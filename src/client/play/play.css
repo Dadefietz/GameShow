@@ -990,3 +990,37 @@
     .join__input { padding: var(--size-space-3); }
     .join__input--code { padding-block: var(--size-space-3); }
   }
+
+  /* ============================================================
+     DESKTOP (≥900px) — le jeu devient une SCÈNE pensée pour grand écran :
+     halos d'ambiance sur le fond, carte de jeu encadrée et centrée (plus de
+     colonne mobile flottant dans le vide), réponses en grille 2×2.
+     ============================================================ */
+  @media (min-width: 900px) {
+    .screen {
+      align-items: center;
+      padding: var(--size-space-7) var(--size-space-6);
+      background:
+        radial-gradient(ellipse 55% 45% at 50% 0%, color-mix(in oklch, var(--semantic-color-signature) 13%, transparent), transparent 60%),
+        radial-gradient(ellipse 60% 50% at 50% 100%, color-mix(in oklch, var(--semantic-color-action-primary) 10%, transparent), transparent 65%),
+        var(--semantic-color-bg-page);
+    }
+    .screen__main {
+      max-width: 580px;
+      padding: var(--size-space-7) var(--size-space-8);
+      background: var(--component-card-bg);
+      border: 1px solid var(--component-card-border);
+      border-radius: var(--size-radius-xl);
+      box-shadow: 0 24px 70px color-mix(in oklch, var(--color-neutral-950) 60%, transparent);
+    }
+    /* Réponses en 2×2 : l'espace horizontal du desktop est exploité. */
+    .answers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--size-space-3);
+    }
+    .answer { min-height: 64px; }
+    /* Le bouton Quitter s'aligne sur la scène, pas collé au bord de l'écran. */
+    .quit-btn { top: var(--size-space-5); right: var(--size-space-5); }
+  }
+}

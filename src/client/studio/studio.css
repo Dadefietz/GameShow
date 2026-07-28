@@ -626,10 +626,27 @@
     .studio { grid-template-columns: 1fr; }
     .studio .main { grid-template-columns: minmax(0, 1fr); }
     .studio .editor { position: static; }
+    /* Mobile/tablette : la sidebar desktop devient un EN-TÊTE COMPACT.
+       La liste des modules (redondante avec les cartes juste dessous) et la
+       méta disparaissent — plus d'écran entier de navigation avant le contenu. */
+    .studio .sidebar {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--size-space-3);
+      padding: var(--size-space-3) var(--size-space-4);
+      border-right: none;
+      border-bottom: 1px solid var(--semantic-color-border);
+    }
+    .studio .sidebar .nav,
+    .studio .sidebar .nav__spacer,
+    .studio .sidebar > .meta { display: none; }
+    .studio .sidebar__back { margin-left: auto; min-height: 40px; }
+    .studio .sidebar__brand { padding: 0; }
+    .studio .sidebar__brand-name { font-size: var(--font-size-step--1); }
   }
   /* Mobile : cartes de modules en 1 colonne (évite les titres cassés). */
   @media (max-width: 640px) {
     .studio .module-grid { grid-template-columns: 1fr; }
     .studio .main { padding: var(--size-space-4); }
-    .studio .sidebar { padding: var(--size-space-4); }
   }
