@@ -151,6 +151,36 @@
     font-size: var(--font-size-step--1);
     color: var(--semantic-color-text-secondary);
   }
+  /* Porte d'entrée spectateur : le public arrive souvent ici par erreur. */
+  .auth-card__alt {
+    margin-top: var(--size-space-5);
+    padding-top: var(--size-space-5);
+    border-top: 1px solid var(--semantic-color-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--size-space-3);
+  }
+  .auth-card__alt-text {
+    font-size: var(--font-size-step--1);
+    color: var(--semantic-color-text-secondary);
+  }
+  .auth-card__alt-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-3) var(--size-space-5);
+    border-radius: var(--size-radius-full);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-action-secondary) 55%, transparent);
+    background: color-mix(in oklch, var(--semantic-color-action-secondary) 14%, transparent);
+    color: var(--semantic-color-heading);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-step-0);
+    text-decoration: none;
+    transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .auth-card__alt-link:hover { background: color-mix(in oklch, var(--semantic-color-action-secondary) 22%, transparent); }
+  .auth-card__alt-link svg { width: 18px; height: 18px; }
   /* Message « lien envoyé » (magic link) */
   .auth-card__sent {
     display: flex;

@@ -392,7 +392,7 @@
   .studio .questions { display: flex; flex-direction: column; gap: var(--size-space-2); }
   .studio .question {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--size-space-3);
     padding: var(--size-space-3);
     background-color: var(--semantic-color-bg-surface);
@@ -418,17 +418,18 @@
   .studio .question__text {
     flex: 1;
     min-width: 0;
-    margin-top: 0;
+    /* Aligne la 1re ligne avec la pastille d'index (28px) même quand le texte passe à la ligne. */
+    margin-top: 3px;
     font-family: var(--font-family-text);
     font-weight: var(--font-weight-medium);
     font-size: var(--font-size-step-0);
-    line-height: var(--font-line-height-normal);
+    line-height: var(--font-line-height-snug);
     letter-spacing: normal;
     color: var(--semantic-color-text-primary);
     text-shadow: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* Question ENTIÈREMENT lisible : retour à la ligne, plus de troncature sur une ligne. */
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .studio .question__actions {
     display: flex;
@@ -492,7 +493,7 @@
   /* Bandeau « non connecté » */
   .studio .studio-banner {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--size-space-3);
     padding: var(--size-space-3) var(--size-space-4);
     border-radius: var(--size-radius-md);
@@ -502,7 +503,29 @@
     font-size: var(--font-size-step--1);
     line-height: var(--font-line-height-snug);
   }
-  .studio .studio-banner .icon { color: var(--semantic-color-status-warning); flex-shrink: 0; margin-top: 2px; }
+  .studio .studio-banner__text { flex: 1; }
+  .studio .studio-banner .icon { color: var(--semantic-color-status-warning); flex-shrink: 0; }
+  .studio .studio-banner__cta {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-4);
+    border-radius: var(--size-radius-full);
+    background: var(--component-button-bg);
+    color: var(--component-button-text);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .studio .studio-banner__cta:hover { background: var(--component-button-bg-hover); }
+  .studio .studio-banner__cta .icon { color: var(--component-button-text); }
+  @media (max-width: 640px) {
+    .studio .studio-banner { flex-wrap: wrap; }
+    .studio .studio-banner__cta { width: 100%; justify-content: center; }
+  }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 960px) {

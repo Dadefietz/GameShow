@@ -199,7 +199,11 @@ export function StudioApp() {
           {authed === false && (
             <div className="studio-banner" role="status">
               <Icon name="log-in" className="icon icon--sm" />
-              <span>Non connecté : tes modifications restent <strong>locales</strong>. Connecte-toi d'abord côté animateur (même navigateur) pour enregistrer tes questionnaires en ligne.</span>
+              <span className="studio-banner__text">Non connecté : tes modifications restent <strong>locales</strong>. Connecte-toi pour enregistrer tes questionnaires en ligne (ça s'ouvre dans un nouvel onglet — ton travail ici est conservé).</span>
+              <a className="studio-banner__cta" href="/host" target="_blank" rel="noopener">
+                <Icon name="log-in" className="icon icon--sm" />
+                Se connecter
+              </a>
             </div>
           )}
 

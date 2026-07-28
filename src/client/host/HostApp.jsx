@@ -156,6 +156,15 @@ function LoginScreen({ onEstablishRoom }) {
 
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
       <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
+
+      <div className="auth-card__alt">
+        <span className="auth-card__alt-text">Tu viens pour jouer, pas pour animer ?</span>
+        <a className="auth-card__alt-link" href="/play">
+          <Icon name="log-in" />
+          Rejoindre une partie
+          <Icon name="arrow-right" />
+        </a>
+      </div>
       </div>
       </div>
     </main>

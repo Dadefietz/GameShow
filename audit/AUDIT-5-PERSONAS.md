@@ -120,8 +120,8 @@ Ce qui reste tient à **deux angles morts récurrents** :
 | A2 | ✅ corrigé | Léa | Vrai/Faux : « Bonne réponse » à tort | Comparaison à la réponse du joueur |
 | A3 | ✅ corrigé | Léa | « Raté… » affiché en vert | Couleur neutre (succès reste vert) |
 | A4 | ✅ corrigé | Karim/Léa | Reconnecté = « rang — / 0 pts » (même vainqueur) | Repli rang+score depuis le classement |
-| P1 | 🟠 majeur | Karim | Pas de porte d'entrée spectateur | Lien « Rejoindre une partie » → `/play` sur l'accueil |
-| P2 | 🟠 majeur | Sofia | Persistance dépend d'une auth invisible | CTA « Se connecter pour enregistrer » dans le bandeau Studio |
+| P1 | ✅ corrigé | Karim | Pas de porte d'entrée spectateur | Lien « Rejoindre une partie » → `/play` ajouté sur l'accueil |
+| P2 | ✅ corrigé | Sofia | Persistance dépend d'une auth invisible | Bouton « Se connecter » (nouvel onglet) ajouté au bandeau Studio |
 | P3 | 🟠 majeur | Sofia | Pas d'état de sync par module | Badge « Synchronisé / Local » par carte |
 | P4 | 🟠 majeur | Marc | Contraste du gris secondaire limite AA | Audit chiffré + remontée de luminance |
 | P5 | 🟡 mineur | Théo | Chip « En direct » pendant Résultats | Chip « Résultats » distinct |
