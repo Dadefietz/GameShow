@@ -23,6 +23,7 @@ function RankValue({ rank }) {
 const ERROR_MESSAGES = {
   'room-not-found': "Ce salon n'existe pas. Vérifie le code.",
   'invalid-pseudo': 'Ce pseudo ne convient pas. Essaie-en un autre.',
+  'pseudo-taken': 'Ce pseudo est déjà pris, choisis-en un autre.',
   'room-full': 'Ce salon est complet.',
   'join-failed': 'Connexion impossible. Réessaie.',
 };

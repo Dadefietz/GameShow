@@ -367,6 +367,47 @@
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-step-3);
     line-height: var(--font-line-height-tight);
+    animation: count-pop 0.4s var(--motion-easing-emphasized);
+  }
+  @keyframes count-pop {
+    0% { transform: scale(0.6); opacity: 0.4; }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Guide d'onboarding (affiché tant qu'aucun joueur) */
+  .lobby-guide {
+    list-style: none;
+    margin: 0;
+    padding: var(--size-space-5) var(--size-space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-4);
+    background: var(--component-card-bg);
+    border: 1px solid var(--component-card-border);
+    border-radius: var(--size-radius-lg);
+  }
+  .lobby-guide__step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-3);
+    font-size: var(--font-size-step-0);
+    color: var(--semantic-color-text-secondary);
+    line-height: var(--font-line-height-snug);
+  }
+  .lobby-guide__step strong { color: var(--semantic-color-text-primary); font-weight: var(--font-weight-semibold); }
+  .lobby-guide__num {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 20%, transparent);
+    color: var(--semantic-color-action-primary);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-0);
   }
   .count-card__label { color: var(--semantic-color-text-secondary); font-size: var(--font-size-step--1); }
 
@@ -401,6 +442,13 @@
     border: 1px solid var(--semantic-color-border);
     font-size: var(--font-size-step--1);
     font-weight: var(--font-weight-medium);
+  }
+  .flock__chip {
+    animation: chip-in 0.35s var(--motion-easing-decelerate) both;
+  }
+  @keyframes chip-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.92); }
+    to { opacity: 1; transform: none; }
   }
   .flock__chip::before {
     content: "";

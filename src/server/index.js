@@ -86,6 +86,11 @@ app.post('/api/rooms/:code/join', async (req, reply) => {
   if (room.players.size >= config.maxPlayersPerRoom) return reply.code(429).send({ error: 'room-full' });
   const pseudo = cleanPseudo(parsed.data.pseudo);
   if (!pseudo) return reply.code(422).send({ error: 'invalid-pseudo' });
+  // Dédup (insensible à la casse) : deux joueurs ne peuvent pas partager un pseudo.
+  const low = pseudo.toLowerCase();
+  for (const p of room.players.values()) {
+    if (p.pseudo.toLowerCase() === low) return reply.code(409).send({ error: 'pseudo-taken' });
+  }
   const player = roomManager.addPlayer(room, pseudo);
   return { playerId: player.id, pseudo, playerToken: makePlayerToken(code, player.id), state: room.state };
 });

@@ -253,23 +253,36 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
               <Icon name="users" />
             </span>
             <div>
-              <div className="count-card__value">{playerCount}</div>
+              <div className="count-card__value" key={playerCount}>{playerCount}</div>
               <div className="count-card__label">joueurs connectés</div>
             </div>
           </div>
 
-          <section className="flock" aria-label="Joueurs qui rejoignent">
-            <h2 className="flock__title">Ils rejoignent la partie</h2>
-            {players.length === 0 ? (
-              <p className="flock__empty">En attente des premiers joueurs…</p>
-            ) : (
+          {playerCount === 0 ? (
+            <ol className="lobby-guide" aria-label="Comment lancer une partie">
+              <li className="lobby-guide__step">
+                <span className="lobby-guide__num">1</span>
+                <span>Partage le <strong>code {code}</strong> ou le QR — tes joueurs rejoignent depuis leur téléphone.</span>
+              </li>
+              <li className="lobby-guide__step">
+                <span className="lobby-guide__num">2</span>
+                <span><strong>(Option)</strong> Prépare tes questions dans « Gérer mes questionnaires ».</span>
+              </li>
+              <li className="lobby-guide__step">
+                <span className="lobby-guide__num">3</span>
+                <span>Clique <strong>« Lancer la partie »</strong> et choisis un module.</span>
+              </li>
+            </ol>
+          ) : (
+            <section className="flock" aria-label="Joueurs qui rejoignent">
+              <h2 className="flock__title">Ils rejoignent la partie</h2>
               <ul className="flock__list">
                 {players.map((p, i) => (
                   <li className="flock__chip" key={playerId(p) || i}>{playerName(p)}</li>
                 ))}
               </ul>
-            )}
-          </section>
+            </section>
+          )}
 
           {picking ? (
             <section className="module-picker" aria-label="Choix du module">
