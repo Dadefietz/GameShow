@@ -1175,7 +1175,7 @@
     color: var(--semantic-color-text-secondary);
   }
   .hero__dist-title svg { width: 16px; height: 16px; }
-  .hero__dist-note { text-transform: none; letter-spacing: 0; font-weight: var(--font-weight-regular); opacity: 0.8; }
+  .hero__dist-note { text-transform: none; letter-spacing: 0; font-weight: var(--font-weight-regular); }
   .dist { display: flex; flex-direction: column; gap: var(--size-space-3); }
   .dist__empty { margin: 0; color: var(--semantic-color-text-secondary); font-size: var(--font-size-step-0); }
   .dist__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--size-space-3); }

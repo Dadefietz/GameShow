@@ -33,6 +33,7 @@
     /* ---- primitifs : couleur — chaud-neutre (SANS brun) ---- */
     --color-neutral-100: oklch(0.95 0.005 80);
     --color-neutral-200: oklch(0.88 0.008 80);
+    --color-neutral-250: oklch(0.83 0.012 80); /* texte secondaire — marge AA confortable sur fonds sombres */
     --color-neutral-300: oklch(0.79 0.012 80);
     --color-neutral-400: oklch(0.70 0.014 80);
     --color-neutral-500: oklch(0.62 0.016 80);
@@ -98,7 +99,7 @@
     --semantic-color-bg-surface: oklch(0.26 0.018 80);
     --semantic-color-bg-elevated: oklch(0.32 0.020 80);
     --semantic-color-text-primary: var(--color-neutral-100);
-    --semantic-color-text-secondary: var(--color-neutral-300);
+    --semantic-color-text-secondary: var(--color-neutral-250);
     --semantic-color-text-on-fire: var(--color-ink);
     --semantic-color-action-primary: var(--color-primary-500);
     --semantic-color-action-secondary: var(--color-forest-500);

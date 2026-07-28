@@ -99,7 +99,7 @@ Autrement dit, l'incohérence n'est pas systémique : ce sont des **écarts ponc
 - Rôles ARIA et libellés présents ; `prefers-reduced-motion` respecté ; focus visibles tokenisés.
 
 **Frictions**
-- 🟠 **Contraste du texte secondaire** (gris `text-secondary`, et surtout les variantes `color-mix … 70%`) sur fond sombre : plusieurs libellés (sous-titres, `%` de répartition, « temps restant », placeholders) frôlent le seuil AA 4.5:1. Un audit chiffré + une remontée d'un cran de la luminance du gris secondaire fiabiliserait la lecture. *(Report du précédent audit — non encore traité.)*
+- ✅ **corrigé** · 🟠 **Contraste du texte secondaire.** Mesures WCAG (OKLCH→sRGB) : le gris de base passait déjà AA (6,6–9,4:1), mais les variantes semi-transparentes `color-mix … 70%` (placeholders) tombaient à **4,69:1** — conforme de justesse. Correctif : nouveau primitif `--color-neutral-250` (L 0,79→0,83) pour `text-secondary`, mix des placeholders 70→82 %, retrait d'une `opacity:0.8` parasite. Résultat : **7,5–10,7:1** pour le texte secondaire et **6,7:1** pour les placeholders (proche AAA), sans aplatir la hiérarchie.
 - 🟡 **Les plus petits libellés `step--1`** (≈ 0,83 rem en bas de l'échelle) servent beaucoup d'étiquettes en majuscules espacées ; à ce niveau, l'`letter-spacing` élevé réduit un peu la lisibilité pour une basse vision. Réserver l'espacement large aux libellés ≥ `step-0`.
 
 ---
@@ -120,7 +120,7 @@ Restent surtout des **arbitrages de hiérarchie** (poids du titre héros vert, t
 | C2 | ✅ corrigé | Animateur | Bouton-lien souligné | `text-decoration:none` sur les liens-boutons |
 | C3 | ✅ corrigé | Animateur/Joueur | Pluriels (« 1 joueurs prêts »…) | Accord singulier/pluriel dynamique |
 | C4 | ✅ corrigé | Studio | Type tronqué + vocabulaire divergent | Déroulant affiche le nom du type |
-| U1 | 🟠 majeur | Transverse (a11y) | Contraste gris secondaire limite AA | Audit chiffré + remontée de luminance |
+| U1 | ✅ corrigé | Transverse (a11y) | Contraste gris secondaire limite AA (4,69:1 placeholders) | Primitif neutral-250, mix 82 %, opacity retirée → 6,7–10,7:1 |
 | U2 | 🟡 mineur | Animateur | « Réponses reçues » surdimensionné (display-hero) | Descendre à `step-6`/`step-5` |
 | U3 | 🟡 mineur | Accueil/Studio | Deux noms de marque (« Project Game Show » / « Game Show ») | Unifier la marque |
 | U4 | 🟡 mineur | Accueil | Titre héros vert très dominant vs carte de connexion | `step-4` ou saturation tempérée |
