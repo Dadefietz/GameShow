@@ -151,7 +151,8 @@ export function reveal(io, room) {
   room.state = RoomState.RESULTS;
   const board = roomManager.leaderboard(room, 10);
   room.history.push({ moduleType: rt.type, text: rt.text, reveal, options: rt.options || null, at: Date.now() });
-  toRoom(io, room).emit('module:reveal', { ...reveal, type: rt.type });
+  rt.revealPayload = { ...reveal, type: rt.type }; // mémorisé pour la restauration à la reconnexion
+  toRoom(io, room).emit('module:reveal', rt.revealPayload);
   toRoom(io, room).emit('leaderboard:update', { leaderboard: board });
   emitRoomState(io, room);
 

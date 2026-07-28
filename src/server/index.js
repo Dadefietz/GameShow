@@ -146,9 +146,11 @@ io.on('connection', (socket) => {
   }
   // État courant à la connexion.
   socket.emit('room:state', engine.publicRoomState(room));
-  // Un retardataire (M3) reçoit la question en cours si la fenêtre est ouverte.
+  // Restauration complète à la (re)connexion : question en cours si la fenêtre est
+  // ouverte, OU question + révélation si la manche est déjà révélée — un rechargement
+  // de page pendant les résultats retrouve ainsi son écran, sans état fantôme.
   const cur = room.currentModule;
-  if (cur && !cur.revealed && !cur.closed) {
+  if (cur && ((!cur.revealed && !cur.closed) || cur.revealed)) {
     const mod = modules[cur.type];
     socket.emit('module:started', {
       ...mod.publicQuestion(cur),
@@ -158,20 +160,27 @@ io.on('connection', (socket) => {
       index: room.progression.index,
       total: room.progression.total,
     });
+    if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
   }
 
   // ---- Commandes ANIMATEUR (host:*) — vérifiées par rôle + salon ----
   socket.on('host:startModule', async ({ moduleType, question } = {}) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     if (!MODULE_TYPES.includes(moduleType)) return;
-    let q = question;
-    if (!q) {
-      const fromDb = await loadQuestions(r.ownerId, moduleType);
-      const pool = (fromDb && fromDb.length ? fromDb : demoQuestions[moduleType]) || [];
-      q = pool[Math.floor((r.progression.index) % Math.max(pool.length, 1))] || pool[0];
+    // Un échec ne doit JAMAIS être silencieux : l'animateur reçoit host:error.
+    try {
+      let q = question;
+      if (!q) {
+        let fromDb = null;
+        try { fromDb = await loadQuestions(r.ownerId, moduleType); } catch { fromDb = null; }
+        const pool = (fromDb && fromDb.length ? fromDb : demoQuestions[moduleType]) || [];
+        q = pool[Math.floor((r.progression.index) % Math.max(pool.length, 1))] || pool[0];
+      }
+      if (!q) return socket.emit('host:error', { code: 'no-question' });
+      engine.startModule(io, r, moduleType, q);
+    } catch {
+      socket.emit('host:error', { code: 'start-failed' });
     }
-    if (!q) return;
-    engine.startModule(io, r, moduleType, q);
   });
   socket.on('host:pause', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.pause(io, r); });
   socket.on('host:resume', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.resume(io, r); });

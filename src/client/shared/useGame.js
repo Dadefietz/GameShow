@@ -17,23 +17,43 @@ export function useGame(token) {
   const [roomClosed, setRoomClosed] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
+  const [fatal, setFatal] = useState(null);               // salon mort / token invalide (irrécupérable)
+  const [serverError, setServerError] = useState(null);   // erreur signalée par le serveur (host:error)
 
   useEffect(() => {
     if (!token) return;
+    setFatal(null);
     const s = connectSocket(token);
     socketRef.current = s;
     s.on('connect', () => setConnected(true));
     s.on('disconnect', () => setConnected(false));
+    // Salon disparu (redéploiement serveur, expiration) ou token invalide :
+    // inutile de réessayer — on le signale pour que la surface purge sa session
+    // locale au lieu de rester figée sur des informations périmées.
+    s.on('connect_error', (err) => {
+      const msg = err && err.message;
+      if (msg === 'room-not-found' || msg === 'unauthorized') {
+        setFatal(msg);
+        s.close();
+      }
+    });
     s.on('room:state', (st) => { setRoom(st); if (st.leaderboard) setLeaderboard(st.leaderboard); });
-    s.on('module:started', (m) => { setCurrent(m); setReveal(null); setAnswered(false); setDistribution(null); setPodium(null); setTick({ timeLeft: Math.ceil((m.durationMs || 0) / 1000), answers: 0 }); });
+    s.on('module:started', (m) => {
+      setCurrent(m); setReveal(null); setAnswered(false); setDistribution(null); setPodium(null);
+      // Temps restant RÉEL (deadline serveur) — un rechargement en cours de manche
+      // n'affiche plus la durée totale comme s'il restait tout le temps.
+      const left = m.deadline ? Math.max(0, Math.ceil((m.deadline - Date.now()) / 1000)) : Math.ceil((m.durationMs || 0) / 1000);
+      setTick({ timeLeft: left, answers: 0 });
+    });
     s.on('module:distribution', (d) => setDistribution(d));
+    s.on('host:error', (e) => setServerError({ ...e, at: Date.now() }));
     s.on('module:tick', (t) => setTick(t));
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
     s.on('module:closed', () => setTick((prev) => ({ ...(prev || {}), timeLeft: 0 })));
     s.on('module:reveal', (r) => setReveal(r));
     s.on('leaderboard:update', (d) => setLeaderboard(d.leaderboard || []));
     s.on('play:you', (y) => setYou(y));
-    s.on('play:accepted', (res) => { if (res && res.ok) setAnswered(true); });
+    s.on('play:accepted', (res) => { if (res && (res.ok || res.reason === 'already')) setAnswered(true); });
     s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); setHistory(d.history || []); });
     s.on('room:closed', () => setRoomClosed(true));
     return () => s.close();
@@ -43,7 +63,7 @@ export function useGame(token) {
     socketRef.current?.emit(event, payload);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, emit };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, fatal, serverError, emit };
 }
 
 // Persistance légère (reconnexion sans perte).

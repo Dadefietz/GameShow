@@ -48,6 +48,40 @@
     font-size: var(--font-size-step--1);
     color: var(--semantic-color-text-secondary);
   }
+  /* Retour au plateau — le Studio n'est jamais un cul-de-sac. */
+  .studio .sidebar__back {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    min-height: var(--size-touch-min);
+    padding: var(--size-space-2) var(--size-space-3);
+    border-radius: var(--size-radius-md);
+    border: 1px solid var(--semantic-color-border);
+    color: var(--semantic-color-text-primary);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+    transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .studio .sidebar__back:hover { background: var(--semantic-color-bg-elevated); }
+  .studio .sidebar__back-arrow { transform: rotate(180deg); color: var(--semantic-color-action-primary); }
+
+  /* Squelettes de chargement — jamais de contenu rémanent qui « saute ». */
+  .studio .skeleton-card,
+  .studio .skeleton-row {
+    border-radius: var(--size-radius-md);
+    background: linear-gradient(100deg,
+      var(--semantic-color-bg-surface) 40%,
+      color-mix(in oklch, var(--semantic-color-bg-elevated) 80%, transparent) 50%,
+      var(--semantic-color-bg-surface) 60%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s linear infinite;
+  }
+  .studio .skeleton-card { min-height: 180px; border-radius: var(--size-radius-lg); border: 1px solid var(--semantic-color-border); }
+  .studio .skeleton-row { display: block; height: 40px; }
+  @keyframes skeleton-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .studio .skeleton-card, .studio .skeleton-row { animation: none; } }
+
   .studio .nav { display: flex; flex-direction: column; gap: var(--size-space-1); }
   .studio .nav__label {
     font-size: var(--font-size-step--1);

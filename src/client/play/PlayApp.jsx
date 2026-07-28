@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from '../shared/icons.jsx';
 import { useGame, store } from '../shared/useGame.js';
 import { joinRoom } from '../shared/net.js';
+import { BrandLoader } from '../shared/BrandLoader.jsx';
 import './play.css';
 
 // ---- helpers ----------------------------------------------------------------
@@ -76,7 +77,7 @@ const ERROR_FIELD = {
 };
 
 // ---- Écran : rejoindre ------------------------------------------------------
-function JoinScreen({ initialCode, onJoin }) {
+function JoinScreen({ initialCode, onJoin, notice }) {
   const [code, setCode] = useState(initialCode || '');
   const [pseudo, setPseudo] = useState('');
   const [error, setError] = useState(null);       // { field, message }
@@ -119,6 +120,13 @@ function JoinScreen({ initialCode, onJoin }) {
           <h1 className="emblem__brand" id="join-title">Project Game&nbsp;Show</h1>
           <p className="emblem__tagline">Installe-toi, la partie va commencer.</p>
         </header>
+
+        {notice ? (
+          <p className="join__notice" role="status">
+            <Icon name="clock" className="icon" />
+            {notice}
+          </p>
+        ) : null}
 
         <form className="join" onSubmit={handleSubmit} noValidate>
           <div className="join__field">
@@ -637,17 +645,31 @@ export function PlayApp() {
   const [playerId, setPlayerId] = useState(stored?.playerId || null);
   const [playerToken, setPlayerToken] = useState(stored?.playerToken || null);
   const [myAnswer, setMyAnswer] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   const g = useGame(playerToken);
 
-  // Salon fermé par l'animateur : on ramène le joueur à l'écran « rejoindre ».
+  // Salon fermé par l'animateur : on ramène le joueur à l'écran « rejoindre »,
+  // en lui DISANT pourquoi (pas de retour muet).
   useEffect(() => {
     if (!g.roomClosed) return;
     if (code) store.clear('play:' + code);
     setPlayerToken(null);
     setPlayerId(null);
     setMyAnswer(null);
+    setNotice("L'animateur a fermé le salon. Tu peux rejoindre une autre partie.");
   }, [g.roomClosed, code]);
+
+  // Salon disparu (serveur redéployé, partie expirée) : purge de la session périmée
+  // → retour à « rejoindre » avec explication, au lieu d'un écran figé.
+  useEffect(() => {
+    if (!g.fatal || !playerToken) return;
+    if (code) store.clear('play:' + code);
+    setPlayerToken(null);
+    setPlayerId(null);
+    setMyAnswer(null);
+    setNotice("Ce salon n'existe plus — il a peut-être expiré. Demande un nouveau code à l'animateur.");
+  }, [g.fatal, playerToken, code]);
 
   // Réinitialise la sélection locale à chaque nouvelle manche.
   const roundKey = g.current ? (g.current.index ?? g.current.id ?? g.current.text) : null;
@@ -683,7 +705,13 @@ export function PlayApp() {
   }
 
   if (!playerToken) {
-    return <JoinScreen initialCode={urlCode} onJoin={handleJoin} />;
+    return <JoinScreen initialCode={urlCode} onJoin={handleJoin} notice={notice} />;
+  }
+
+  // Session présente mais état du salon pas encore reçu : loader de marque — jamais
+  // un écran d'attente deviné qui « saute » vers le vrai état une demi-seconde après.
+  if (!g.room) {
+    return <BrandLoader />;
   }
 
   const QuitButton = (

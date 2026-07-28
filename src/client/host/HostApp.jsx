@@ -6,6 +6,7 @@ import { Icon } from '../shared/icons.jsx';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
 import { getSupabase } from '../shared/supabaseClient.js';
+import { BrandLoader } from '../shared/BrandLoader.jsx';
 import './host.css';
 
 const EMBLEM_SRC = '/assets/avatar-emblem-tipi.png';
@@ -466,6 +467,12 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
           {picking ? (
             <section className="module-picker" aria-label="Choix du module">
               <h2 className="module-picker__title">Quel module lancer ?</h2>
+              {playerCount === 0 ? (
+                <p className="module-picker__warn" role="status">
+                  <Icon name="users" />
+                  Aucun joueur connecté — l'épreuve démarrera sans joueurs. Partage le code <strong>{code}</strong> d'abord si tu veux du monde.
+                </p>
+              ) : null}
               <div className="module-picker__grid">
                 {MODULE_TYPES.map((m) => (
                   <button
@@ -799,12 +806,56 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, 
 }
 
 // ============================================================
+// ÉCRAN — Accueil animateur (écran STABLE après fermeture/expiration de salon)
+// Rien ne s'ouvre tout seul ici : c'est l'animateur qui décide.
+// ============================================================
+function HomeScreen({ variant, onOpenRoom, opening, onLogout }) {
+  const closed = variant === 'closed';
+  return (
+    <main className="page page--login" role="main" aria-labelledby="home-title">
+      <div className="auth-card">
+        <span className={`home-icon${closed ? '' : ' home-icon--warn'}`} aria-hidden="true">
+          <Icon name={closed ? 'check' : 'clock'} />
+        </span>
+        <h1 className="auth-card__title" id="home-title">{closed ? 'Salon fermé' : 'Ton salon a expiré'}</h1>
+        <p className="auth-card__subtitle">
+          {closed
+            ? 'Les joueurs ont été déconnectés. Tu restes connecté en tant qu’animateur.'
+            : 'Le serveur a redémarré ou le salon est resté inactif. Tes questionnaires sont intacts — tu peux ouvrir un nouveau salon.'}
+        </p>
+        <button className="button button--primary button--block button--lg" type="button" onClick={onOpenRoom} disabled={opening}>
+          <Icon name="play" />
+          {opening ? 'Ouverture…' : 'Ouvrir un nouveau salon'}
+        </button>
+        <a className="button button--forest button--block" href="/studio">
+          <Icon name="check-square" />
+          Gérer mes questionnaires
+        </a>
+        <button className="button button--ghost button--block" type="button" onClick={onLogout}>
+          <Icon name="log-out" />
+          Déconnexion
+        </button>
+      </div>
+    </main>
+  );
+}
+
+// ============================================================
 // HOSTAPP — orchestrateur / machine à états
 // ============================================================
+const HOST_ERROR_MESSAGES = {
+  'no-question': 'Aucune question disponible pour ce module — vérifie tes questionnaires.',
+  'start-failed': "Impossible de lancer l'épreuve. Réessaie.",
+};
+
 export function HostApp() {
   const [session, setSession] = useState(() => store.load('host') || null);
   const hostToken = session ? session.hostToken : null;
   const [showResults, setShowResults] = useState(false);
+  // Écran stable post-fermeture : 'closed' (choix de l'animateur) | 'expired' (salon mort).
+  const [home, setHome] = useState(null);
+  const [opening, setOpening] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const g = useGame(hostToken);
 
@@ -819,23 +870,55 @@ export function HostApp() {
 
   // Session Supabase persistante / magic link : si l'animateur est déjà authentifié
   // (rechargement de page, retour depuis l'email), on rouvre automatiquement SON salon
-  // (le serveur redonne le salon existant du même compte — reconnexion #2).
+  // (le serveur redonne le salon existant du même compte). JAMAIS depuis l'écran
+  // « Salon fermé » : là, seule une action explicite rouvre un salon.
   const supa = useMemo(() => getSupabase(), []);
   const establishing = useRef(false);
+  // Évite le flash de l'écran de connexion pour un animateur déjà authentifié.
+  const [authChecked, setAuthChecked] = useState(() => !getSupabase());
   useEffect(() => {
-    if (!supa || session) return;
+    if (!supa || session || home) return;
     let alive = true;
     const open = (token) => {
       if (!alive || !token || establishing.current) return;
       establishing.current = true;
       establishRoom(token).catch(() => {}).finally(() => { establishing.current = false; });
     };
-    supa.auth.getSession().then(({ data }) => open(data?.session?.access_token));
+    supa.auth.getSession().then(({ data }) => {
+      if (alive) setAuthChecked(true);
+      open(data?.session?.access_token);
+    });
     const { data: authSub } = supa.auth.onAuthStateChange((_e, s) => open(s?.access_token));
     return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
-  }, [supa, session, establishRoom]);
+  }, [supa, session, home, establishRoom]);
+
+  // Salon mort (redéploiement serveur, expiration) : on purge la session périmée et on
+  // atterrit sur l'écran stable « salon expiré » — plus jamais d'interface figée.
+  useEffect(() => {
+    if (!g.fatal || !session) return;
+    store.clear('host');
+    setShowResults(false);
+    setSession(null);
+    setHome('expired');
+  }, [g.fatal, session]);
+
+  // Erreurs signalées par le serveur (ex : lancement impossible) → toast visible.
+  useEffect(() => {
+    if (!g.serverError) return;
+    setToast(HOST_ERROR_MESSAGES[g.serverError.code] || HOST_ERROR_MESSAGES['start-failed']);
+  }, [g.serverError]);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const startModule = useCallback((moduleType) => {
+    // Jamais d'action silencieuse : socket pas prêt → on le DIT.
+    if (!g.connected) {
+      setToast('Connexion au salon en cours — réessaie dans une seconde.');
+      return;
+    }
     g.emit('host:startModule', { moduleType });
   }, [g]);
 
@@ -848,23 +931,85 @@ export function HostApp() {
     store.clear('host');
     setShowResults(false);
     setSession(null);
+    setHome(null);
     if (supa) supa.auth.signOut().catch(() => {});
   }, [supa]);
 
-  // Fermer le salon SANS se déconnecter : ferme le salon courant côté serveur, puis
-  // efface la session de salon locale — l'effet de détection rouvre aussitôt un salon neuf.
+  // Fermer le salon SANS se déconnecter : notifie le serveur, puis ATTERRIT sur
+  // l'écran stable « Salon fermé ». Aucun salon ne se rouvre tout seul.
   const closeRoom = useCallback(() => {
     g.emit('host:closeRoom');
+    setHome('closed');
+    setShowResults(false);
     setTimeout(() => {
       store.clear('host');
-      setShowResults(false);
       setSession(null);
     }, 250);
   }, [g]);
 
-  // --- Non authentifié : écran de connexion ---
+  // Ouverture d'un nouveau salon — action EXPLICITE depuis l'écran stable.
+  const openNewRoom = useCallback(async () => {
+    setOpening(true);
+    try {
+      let token;
+      if (supa) {
+        const { data } = await supa.auth.getSession();
+        token = data?.session?.access_token;
+        if (!token) { setHome(null); setSession(null); setOpening(false); return; } // session expirée → login
+      }
+      await establishRoom(token);
+      setHome(null);
+    } catch {
+      setToast("Impossible d'ouvrir un salon. Réessaie.");
+    } finally {
+      setOpening(false);
+    }
+  }, [supa, establishRoom]);
+
+  // Bandeau de reconnexion MAÎTRISÉ : seulement après avoir été connecté au moins une
+  // fois, et après 1,2 s de coupure continue — plus de « Reconnexion… » fantôme au
+  // chargement ou sur micro-coupure.
+  const everConnected = useRef(false);
+  const [connLost, setConnLost] = useState(false);
+  useEffect(() => {
+    if (g.connected) { everConnected.current = true; setConnLost(false); return; }
+    if (!everConnected.current || !hostToken) return;
+    const t = setTimeout(() => setConnLost(true), 1200);
+    return () => clearTimeout(t);
+  }, [g.connected, hostToken]);
+
+  const toastEl = toast ? (
+    <div className="toast" role="alert">
+      <Icon name="alert-triangle" />
+      {toast}
+    </div>
+  ) : null;
+
+  // --- Écran stable : salon fermé / expiré ---
+  if (home) {
+    return (
+      <>
+        <HomeScreen variant={home} onOpenRoom={openNewRoom} opening={opening} onLogout={logout} />
+        {toastEl}
+      </>
+    );
+  }
+
+  // --- Non authentifié : écran de connexion (après résolution de la session) ---
   if (!hostToken) {
+    if (!authChecked || establishing.current) return <BrandLoader />;
     return <LoginScreen onEstablishRoom={establishRoom} />;
+  }
+
+  // --- Session présente mais état du salon pas encore reçu : loader de marque,
+  // jamais un écran deviné qui « saute » vers le vrai contenu une demi-seconde après.
+  if (!g.room) {
+    return (
+      <>
+        <BrandLoader />
+        {toastEl}
+      </>
+    );
   }
 
   const room = g.room;
@@ -873,10 +1018,10 @@ export function HostApp() {
   const playerCount = room && room.playerCount != null ? room.playerCount : 0;
   const players = (room && room.players) || g.leaderboard || [];
 
-  const connFlag = !g.connected ? (
+  const connFlag = connLost ? (
     <span className="conn-flag" role="status">
       <span className="conn-flag__dot" aria-hidden="true"></span>
-      Reconnexion…
+      Connexion au serveur perdue — reconnexion en cours…
     </span>
   ) : null;
 
@@ -894,6 +1039,7 @@ export function HostApp() {
           onCloseRoom={closeRoom}
         />
         {connFlag}
+        {toastEl}
       </>
     );
   }
@@ -904,6 +1050,7 @@ export function HostApp() {
       <>
         <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} onCloseRoom={closeRoom} onEndGame={endGame} />
         {connFlag}
+        {toastEl}
       </>
     );
   }
@@ -921,6 +1068,7 @@ export function HostApp() {
         onCloseRoom={closeRoom}
       />
       {connFlag}
+      {toastEl}
     </>
   );
 }

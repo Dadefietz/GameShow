@@ -641,6 +641,19 @@
     border-radius: var(--size-radius-lg);
     padding: var(--size-space-5) var(--size-space-6);
   }
+  .module-picker__warn {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-2);
+    margin: 0 0 var(--size-space-4);
+    padding: var(--size-space-3) var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-status-warning) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-warning) 45%, transparent);
+    font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
+  }
+  .module-picker__warn svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--semantic-color-status-warning); }
   .module-picker__title {
     margin: 0 0 var(--size-space-4);
     font-family: var(--font-family-display);
@@ -1350,6 +1363,49 @@
   .dist__stat--hero .dist__stat-val { font-size: var(--font-size-step-4); color: var(--semantic-color-signature); }
   .dist__stat-lbl { font-size: var(--font-size-step--1); color: var(--semantic-color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
   @media (max-width: 900px) { .dist__count { font-size: var(--font-size-step-0); } }
+
+  /* ============ Accueil animateur (écran stable) ============ */
+  .home-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 68px;
+    height: 68px;
+    margin-bottom: var(--size-space-5);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-status-success) 18%, transparent);
+    color: var(--semantic-color-status-success);
+  }
+  .home-icon--warn {
+    background: color-mix(in oklch, var(--semantic-color-status-warning) 18%, transparent);
+    color: var(--semantic-color-status-warning);
+  }
+  .home-icon svg { width: 32px; height: 32px; }
+  .auth-card > .button--block + .button--block,
+  .auth-card > .button--block + a.button--block { margin-top: var(--size-space-3); }
+
+  /* ============ Toast d'erreur (jamais d'échec silencieux) ============ */
+  .toast {
+    position: fixed;
+    top: var(--size-space-5);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-3);
+    max-width: min(560px, calc(100vw - var(--size-space-7)));
+    padding: var(--size-space-3) var(--size-space-5);
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-status-danger) 24%, var(--semantic-color-bg-elevated));
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-danger) 55%, transparent);
+    color: var(--semantic-color-text-primary);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-medium);
+    box-shadow: 0 16px 48px color-mix(in oklch, var(--color-neutral-950) 55%, transparent);
+    animation: toast-in 0.2s var(--motion-easing-decelerate);
+  }
+  .toast svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--semantic-color-status-danger); }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
   /* ============ Connexion (bandeau discret) ============ */
   .conn-flag {

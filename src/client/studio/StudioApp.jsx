@@ -87,23 +87,33 @@ export function StudioApp() {
   const [mode, setMode] = useState('local'); // 'local' | 'supabase'
   const [authed, setAuthed] = useState(null); // null=inconnu, true/false
   const [saveState, setSaveState] = useState('idle'); // idle|saving|saved|local|error
+  // Tant que le chargement distant n'est pas tranché, on n'affiche RIEN de rémanent :
+  // squelettes de chargement, jamais les modules de démo qui « sautent » vers les vrais.
+  const [remoteLoading, setRemoteLoading] = useState(() => !!getSupabase());
 
   const sb = useMemo(() => getSupabase(), []);
 
   // Détection de session + chargement Supabase best-effort au montage.
   useEffect(() => {
-    if (!sb) { setAuthed(false); return; }
+    if (!sb) { setAuthed(false); setRemoteLoading(false); return; }
     let alive = true;
+    // Plafond de 4 s : si Supabase est lent ou injoignable, on bascule sur le
+    // contenu local plutôt que de laisser des squelettes indéfiniment.
+    const cap = setTimeout(() => { if (alive) setRemoteLoading(false); }, 4000);
     (async () => {
       try {
         const { data: sess } = await sb.auth.getSession();
         if (alive) setAuthed(!!sess?.session);
         const { data, error } = await sb.from('modules').select();
-        if (!alive || error || !Array.isArray(data) || data.length === 0) return;
-        const mapped = data.map(normalizeModule).filter(Boolean);
-        if (mapped.length) { setModules(mapped); setMode('supabase'); }
+        if (alive && !error && Array.isArray(data) && data.length > 0) {
+          const mapped = data.map(normalizeModule).filter(Boolean);
+          if (mapped.length) { setModules(mapped); setMode('supabase'); }
+        }
       } catch {
         /* silencieux : on garde l'état local */
+      } finally {
+        clearTimeout(cap);
+        if (alive) setRemoteLoading(false);
       }
     })();
     const { data: authSub } = sb.auth.onAuthStateChange((_e, s) => { if (alive) setAuthed(!!s); });
@@ -213,6 +223,7 @@ export function StudioApp() {
         modules={modules}
         selectedId={selectedId}
         mode={mode}
+        loading={remoteLoading}
         onSelect={selectModule}
         onAdd={addModule}
       />
@@ -230,7 +241,7 @@ export function StudioApp() {
             </button>
           </div>
 
-          {authed === false && (
+          {!remoteLoading && authed === false && (
             <div className="studio-banner" role="status">
               <Icon name="log-in" className="icon icon--sm" />
               <span className="studio-banner__text">Non connecté : tes modifications restent <strong>locales</strong>. Connecte-toi pour enregistrer tes questionnaires en ligne (ça s'ouvre dans un nouvel onglet — ton travail ici est conservé).</span>
@@ -242,7 +253,14 @@ export function StudioApp() {
           )}
 
           <section className="module-grid" aria-label="Liste des modules">
-            {modules.map((m) => (
+            {remoteLoading ? (
+              <>
+                <div className="skeleton-card" aria-hidden="true" />
+                <div className="skeleton-card" aria-hidden="true" />
+                <div className="skeleton-card" aria-hidden="true" />
+                <div className="skeleton-card" aria-hidden="true" />
+              </>
+            ) : modules.map((m) => (
               <ModuleCard
                 key={m.id}
                 module={m}
@@ -276,7 +294,7 @@ export function StudioApp() {
 }
 
 // ---------------------------------------------------------------------------
-function Sidebar({ modules, selectedId, mode, onSelect, onAdd }) {
+function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
   return (
     <nav className="sidebar" aria-label="Navigation du studio">
       <div className="sidebar__brand">
@@ -289,9 +307,22 @@ function Sidebar({ modules, selectedId, mode, onSelect, onAdd }) {
         </span>
       </div>
 
+      {/* Principe de navigation : le Studio n'est jamais un cul-de-sac. */}
+      <a className="sidebar__back" href="/host">
+        <Icon name="arrow-right" className="icon icon--sm sidebar__back-arrow" />
+        Retour au plateau
+      </a>
+
       <div className="nav" role="list">
         <span className="nav__label">Modules</span>
-        {modules.map((m) => {
+        {loading ? (
+          <>
+            <span className="skeleton-row" aria-hidden="true" />
+            <span className="skeleton-row" aria-hidden="true" />
+            <span className="skeleton-row" aria-hidden="true" />
+          </>
+        ) : null}
+        {!loading && modules.map((m) => {
           const t = MODULE_TYPES[m.type];
           const active = m.id === selectedId;
           return (
@@ -319,8 +350,8 @@ function Sidebar({ modules, selectedId, mode, onSelect, onAdd }) {
 
       <span className="nav__spacer" />
       <span className="meta">
-        <span className="meta__value">{mode === 'supabase' ? 'Supabase' : 'Mode local'}</span>
-        <span className="meta__label">Contenu {mode === 'supabase' ? 'synchronisé' : 'hors ligne'}</span>
+        <span className="meta__value">{loading ? 'Connexion…' : (mode === 'supabase' ? 'Supabase' : 'Mode local')}</span>
+        <span className="meta__label">{loading ? 'Synchronisation' : `Contenu ${mode === 'supabase' ? 'synchronisé' : 'hors ligne'}`}</span>
       </span>
     </nav>
   );

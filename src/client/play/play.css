@@ -677,6 +677,22 @@
     font-weight: var(--font-weight-semibold);
   }
 
+  /* ---- Bandeau d'information (salon fermé / expiré) ------------------------ */
+  .join__notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-2);
+    margin: 0 0 var(--size-space-4);
+    padding: var(--size-space-3) var(--size-space-4);
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-status-warning) 14%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-status-warning) 45%, transparent);
+    font-size: var(--font-size-step--1);
+    line-height: var(--font-line-height-snug);
+    text-align: left;
+  }
+  .join__notice .icon { width: 16px; height: 16px; font-size: 16px; flex-shrink: 0; margin-top: 2px; color: var(--semantic-color-status-warning); }
+
   /* ---- Validation inline du join (A1/A2, pattern Quizlet) ------------------ */
   .join__input--error {
     border-color: var(--semantic-color-status-danger) !important;
