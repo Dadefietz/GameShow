@@ -35,15 +35,19 @@ body.overlay-page { overflow: hidden; }
     padding: var(--size-space-8);
   }
 
-  /* aperçu adaptatif : scale down sans casser le canvas 1920×1080 */
-  @media (max-width: 1920px) {
-    body.overlay-page { display: flex; justify-content: center; }
+  /* Aperçu adaptatif : le canvas 1920×1080 est mis à l'échelle pour TENIR ENTIÈREMENT
+     (largeur ET hauteur) et CENTRÉ (letterbox) — plus de contenu coupé hors 1920×1080.
+     Dans OBS (source réglée à 1920×1080) l'échelle vaut 1 : plein format, fond transparent. */
+  @media (max-width: 1920px), (max-height: 1080px) {
+    /* Canvas 1920×1080 centré et mis à l'échelle « fit » (échelle = variable JS, un NOMBRE).
+       position fixed + translate(-50%,-50%) garantit le centrage même quand le canvas
+       dépasse le viewport. Dans OBS réglé 1920×1080, l'échelle vaut 1 → plein format. */
     .overlay {
-      transform: scale(calc(100vw / 1920));
-      transform-origin: top left;
-      position: absolute;
-      top: 0;
-      left: 0;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(var(--overlay-scale, 1));
+      transform-origin: center center;
     }
   }
 

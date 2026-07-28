@@ -162,11 +162,20 @@ export function OverlayApp() {
     html.style.backgroundColor = 'transparent';
     body.style.backgroundColor = 'transparent';
     html.style.overflow = 'hidden'; // canvas fixe 1920×1080 : pas de scroll en aperçu
+    // Échelle « fit » du canvas 1920×1080 (letterbox) — 1 dans OBS réglé à 1920×1080.
+    const applyScale = () => {
+      const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080, 1);
+      html.style.setProperty('--overlay-scale', String(s));
+    };
+    applyScale();
+    window.addEventListener('resize', applyScale);
     return () => {
+      window.removeEventListener('resize', applyScale);
       body.classList.remove('overlay-page');
       html.style.backgroundColor = prevHtml;
       body.style.backgroundColor = prevBody;
       html.style.overflow = prevOverflow;
+      html.style.removeProperty('--overlay-scale');
     };
   }, []);
 

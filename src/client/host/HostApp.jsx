@@ -156,11 +156,18 @@ function OverlayLinks({ overlayToken }) {
       <h2 className="overlay-links__title">
         <Icon name="eye" /> Overlays OBS
       </h2>
+      <p className="overlay-links__help">
+        Dans OBS : ajoute chaque lien comme <strong>Source navigateur</strong>, largeur <strong>1920</strong>, hauteur <strong>1080</strong>. Le fond est transparent (il se pose sur ton live).
+      </p>
       <ul className="overlay-links__list">
         {links.map((l) => (
           <li className="overlay-links__row" key={l.key}>
             <span className="overlay-links__label">{l.label}</span>
             <span className="overlay-links__url" title={l.url}>{l.url}</span>
+            <a className="overlay-links__open" href={l.url} target="_blank" rel="noopener" title="Aperçu dans un nouvel onglet">
+              <Icon name="eye" />
+              <span className="overlay-links__open-label">Aperçu</span>
+            </a>
             <button className="overlay-links__copy" type="button" onClick={() => copy(l.key, l.url)}>
               <Icon name={copied === l.key ? 'check' : 'save'} />
               {copied === l.key ? 'Copié' : 'Copier'}
