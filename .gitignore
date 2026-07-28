@@ -5,3 +5,4 @@ design/proposals/_candidates/
 apps/subapps/*/design/proposals/_candidates/
 node_modules/
 dist/
+audit/*.png
