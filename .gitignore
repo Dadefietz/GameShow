@@ -6,3 +6,4 @@ apps/subapps/*/design/proposals/_candidates/
 node_modules/
 dist/
 audit/*.png
+audit/**/*.png
