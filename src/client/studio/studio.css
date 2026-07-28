@@ -40,7 +40,8 @@
   .studio .sidebar__brand-name {
     font-family: var(--font-family-display);
     font-weight: var(--font-weight-black);
-    font-size: var(--font-size-step-1);
+    font-size: var(--font-size-step-0);
+    line-height: var(--font-line-height-tight);
     color: var(--semantic-color-text-primary);
   }
   .studio .sidebar__brand-sub {

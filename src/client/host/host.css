@@ -74,7 +74,7 @@
     margin: var(--size-space-5) 0 var(--size-space-4);
     font-family: var(--font-family-display);
     font-weight: var(--font-weight-black);
-    font-size: var(--font-size-step-5);
+    font-size: var(--font-size-step-4);
     line-height: var(--font-line-height-tight);
     color: var(--semantic-color-heading);
   }
@@ -783,7 +783,7 @@
   .hero__count {
     font-family: var(--font-family-display);
     font-weight: var(--font-weight-black);
-    font-size: var(--font-size-display-hero);
+    font-size: var(--font-size-step-6);
     line-height: 0.9;
     color: var(--semantic-color-signature);
     text-shadow: 0 0 60px color-mix(in oklch, var(--semantic-color-signature) 45%, transparent);

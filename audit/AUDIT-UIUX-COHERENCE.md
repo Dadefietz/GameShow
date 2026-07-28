@@ -121,9 +121,9 @@ Restent surtout des **arbitrages de hiérarchie** (poids du titre héros vert, t
 | C3 | ✅ corrigé | Animateur/Joueur | Pluriels (« 1 joueurs prêts »…) | Accord singulier/pluriel dynamique |
 | C4 | ✅ corrigé | Studio | Type tronqué + vocabulaire divergent | Déroulant affiche le nom du type |
 | U1 | ✅ corrigé | Transverse (a11y) | Contraste gris secondaire limite AA (4,69:1 placeholders) | Primitif neutral-250, mix 82 %, opacity retirée → 6,7–10,7:1 |
-| U2 | 🟡 mineur | Animateur | « Réponses reçues » surdimensionné (display-hero) | Descendre à `step-6`/`step-5` |
-| U3 | 🟡 mineur | Accueil/Studio | Deux noms de marque (« Project Game Show » / « Game Show ») | Unifier la marque |
-| U4 | 🟡 mineur | Accueil | Titre héros vert très dominant vs carte de connexion | `step-4` ou saturation tempérée |
+| U2 | ✅ corrigé | Animateur | « Réponses reçues » surdimensionné (display-hero) | Passé à `step-6` — au même gabarit que le chrono |
+| U3 | ✅ corrigé | Accueil/Studio | Deux noms de marque (« Project Game Show » / « Game Show ») | Studio unifié en « Project Game Show » |
+| U4 | ✅ corrigé | Accueil | Titre héros vert très dominant vs carte de connexion | Titre passé de `step-5` à `step-4` |
 | U5 | 🟡 mineur | Studio | Éditeur à l'étroit sur écran moyen | Mode plein largeur / masquer la liste en édition |
 | U6 | 🟡 mineur | Animateur | Modale Bonus/Malus chevauche le classement | Décaler / tiroir latéral |
 | U7 | 🟡 mineur | Joueur | Icône « Salon » (tipi) ambiguë en petit | Icône plus explicite ou retrait |

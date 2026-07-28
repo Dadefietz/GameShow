@@ -245,7 +245,7 @@ function Sidebar({ modules, selectedId, mode, onSelect, onAdd }) {
           <Icon name="flame" className="icon icon--sm" />
         </span>
         <span>
-          <span className="sidebar__brand-name">Game Show</span><br />
+          <span className="sidebar__brand-name">Project Game Show</span><br />
           <span className="sidebar__brand-sub">Studio</span>
         </span>
       </div>
