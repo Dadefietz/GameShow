@@ -126,8 +126,8 @@ Restent surtout des **arbitrages de hiérarchie** (poids du titre héros vert, t
 | U4 | ✅ corrigé | Accueil | Titre héros vert très dominant vs carte de connexion | Titre passé de `step-5` à `step-4` |
 | U5 | ✅ corrigé | Studio | Éditeur à l'étroit sur écran moyen | Panneau élargi `clamp(380px, 32vw, 460px)` — les champs respirent |
 | U6 | ⬜ conservé | Animateur | Modale Bonus/Malus chevauche le classement | Choix assumé : popover flottant temporaire pendant l'ajustement des scores |
-| U7 | 🟡 ouvert | Joueur | Icône « Salon » (tipi) ambiguë en petit | Icône plus explicite ou retrait (visuel de marque — à trancher) |
+| U7 | ✅ corrigé | Joueur | Icône « Salon » (tipi) ambiguë en petit | Remplacée par une icône `#` neutre (lecture « code/salon » immédiate) |
 | U8 | ⬜ conservé | a11y | `letter-spacing` large sur les libellés `step--1` | Style eyebrow assumé et lisible aux tests — conservé |
 | U9 | ⬜ conservé | Animateur | Deux boutons pleins concurrents (orange + vert) | Pattern établi (vert forêt = action secondaire) — conservé |
 
-**Bilan.** U1→U5 corrigés et déployés. U6, U8, U9 relèvent de choix de design assumés (conservés). Reste U7 (icône « Salon »), à trancher côté marque.
+**Bilan.** U1→U5 et U7 corrigés et déployés. U6, U8, U9 relèvent de choix de design assumés (conservés). Backlog clôturé.

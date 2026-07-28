@@ -189,7 +189,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
 
         {code ? (
           <p className="roomcode">
-            <Icon name="tent" className="icon" />
+            <Icon name="hash" className="icon" />
             Salon <span className="roomcode__value">{code}</span>
           </p>
         ) : null}

@@ -32,6 +32,7 @@ const PATHS = {
   menu: 'M4 6h16 M4 12h16 M4 18h16',
   'chevron-down': 'm6 9 6 6 6-6',
   'alert-triangle': 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
+  hash: 'M4 9h16 M4 15h16 M10 3 8 21 M16 3l-2 18',
 };
 
 export function Icon({ name, className = 'icon icon--md', title }) {
