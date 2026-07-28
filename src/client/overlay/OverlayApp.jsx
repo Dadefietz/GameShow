@@ -15,6 +15,23 @@ function overlayType() {
   return seg === 'leaderboard' || seg === 'podium' ? seg : 'question';
 }
 
+// Données de DÉMONSTRATION — utilisées uniquement en mode Aperçu (?preview=1),
+// pour que l'animateur voie à quoi ressemble l'overlay AVANT même qu'une partie
+// n'ait démarré. En production OBS (sans preview), l'overlay reste piloté par les
+// données réelles et invisible tant qu'il n'y a rien à afficher.
+const DEMO_LEADERBOARD = [
+  { id: 'demo1', pseudo: 'PixelNight', score: 1240, rank: 1 },
+  { id: 'demo2', pseudo: 'Luna', score: 1110, rank: 2 },
+  { id: 'demo3', pseudo: 'Marco', score: 980, rank: 3 },
+  { id: 'demo4', pseudo: 'Zoé', score: 870, rank: 4 },
+  { id: 'demo5', pseudo: 'Sam', score: 640, rank: 5 },
+];
+const DEMO_QUESTION = {
+  text: 'En quelle année la télévision couleur est-elle arrivée en France ?',
+  meta: { name: 'Quiz', icon: 'help-circle' },
+  options: ['1967', '1972', '1959', '1980'],
+};
+
 // Libellé de la bonne réponse selon le type de module révélé.
 function revealText(reveal, current) {
   if (!reveal) return null;
@@ -43,11 +60,12 @@ function revealText(reveal, current) {
   }
 }
 
-function QuestionOverlay({ g }) {
-  const answers = g.tick?.answers ?? 0;
-  const timeLeft = g.tick?.timeLeft;
-  const meta = g.current?.meta;
-  const prog = g.room?.progression;
+function QuestionOverlay({ g, preview }) {
+  const current = g.current || (preview ? DEMO_QUESTION : null);
+  const answers = g.tick?.answers ?? (preview ? 128 : 0);
+  const timeLeft = g.tick?.timeLeft ?? (preview ? 18 : undefined);
+  const meta = current?.meta;
+  const prog = g.room?.progression || (preview ? { index: 3, total: 10 } : null);
   const answer = revealText(g.reveal, g.current);
 
   return (
@@ -59,7 +77,7 @@ function QuestionOverlay({ g }) {
             {meta?.name || 'Épreuve'}
             {prog?.index ? ` · Épreuve ${prog.index}${prog.total ? `/${prog.total}` : ''}` : ''}
           </span>
-          <h1 className="question">{g.current?.text || ''}</h1>
+          <h1 className="question">{current?.text || ''}</h1>
           {answer != null && (
             <p className="answer">
               <Icon name="check" className="answer__icon" />
@@ -83,12 +101,15 @@ function QuestionOverlay({ g }) {
   );
 }
 
-function LeaderboardOverlay({ g }) {
-  const rows = (g.leaderboard || []).slice(0, 5);
+function LeaderboardOverlay({ g, preview }) {
+  const live = g.leaderboard || [];
+  const rows = (live.length ? live : (preview ? DEMO_LEADERBOARD : [])).slice(0, 5);
+  // OBS : rien à afficher tant qu'aucun joueur n'a de score → overlay invisible (voulu).
   if (!rows.length) return <div className="overlay" />;
 
   return (
     <div className="overlay">
+      {preview && !live.length ? <span className="preview-badge">Aperçu</span> : null}
       <div className="board">
         <h1 className="board__title">
           <Icon name="trophy" className="board__title-icon" />
@@ -111,8 +132,9 @@ function LeaderboardOverlay({ g }) {
   );
 }
 
-function PodiumOverlay({ g }) {
-  const top3 = (g.podium && g.podium.length ? g.podium : g.leaderboard || []).slice(0, 3);
+function PodiumOverlay({ g, preview }) {
+  const live = (g.podium && g.podium.length ? g.podium : g.leaderboard || []);
+  const top3 = (live.length ? live : (preview ? DEMO_LEADERBOARD : [])).slice(0, 3);
   if (!top3.length) return <div className="overlay" />;
 
   // Ordre visuel : 2e (gauche), 1er (centre, le plus haut), 3e (droite).
@@ -124,6 +146,7 @@ function PodiumOverlay({ g }) {
 
   return (
     <div className="overlay">
+      {preview && !live.length ? <span className="preview-badge">Aperçu</span> : null}
       <h1 className="title">
         <Icon name="flame" className="title__icon" />
         Podium
@@ -147,7 +170,9 @@ function PodiumOverlay({ g }) {
 }
 
 export function OverlayApp() {
-  const token = new URLSearchParams(window.location.search).get('token');
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const preview = params.get('preview') === '1';
   const g = useGame(token);
 
   // Fond TRANSPARENT pour OBS — appliqué UNIQUEMENT sur la page overlay (inline = priorité max),
@@ -179,11 +204,13 @@ export function OverlayApp() {
     };
   }, []);
 
-  // Pas de token ou déconnecté : rendu vide (transparent) — c'est une source OBS par-dessus le jeu.
-  if (!token || !g.connected) return null;
+  // Pas de token : rien. Déconnecté : rendu vide (transparent) SAUF en mode Aperçu,
+  // où l'on montre une démo même sans partie en cours (pour vérifier le rendu).
+  if (!token) return null;
+  if (!g.connected && !preview) return null;
 
   const type = overlayType();
-  if (type === 'leaderboard') return <LeaderboardOverlay g={g} />;
-  if (type === 'podium') return <PodiumOverlay g={g} />;
-  return <QuestionOverlay g={g} />;
+  if (type === 'leaderboard') return <LeaderboardOverlay g={g} preview={preview} />;
+  if (type === 'podium') return <PodiumOverlay g={g} preview={preview} />;
+  return <QuestionOverlay g={g} preview={preview} />;
 }

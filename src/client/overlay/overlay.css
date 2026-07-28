@@ -22,6 +22,23 @@ body.overlay-page { overflow: hidden; }
     background: transparent;
     overflow: hidden;
   }
+  /* Badge « Aperçu » (uniquement en mode preview avec données de démo). */
+  .preview-badge {
+    position: absolute;
+    top: var(--size-space-7);
+    left: var(--size-space-7);
+    z-index: 5;
+    padding: var(--size-space-2) var(--size-space-5);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 30%, transparent);
+    border: 1.5px solid color-mix(in oklch, var(--semantic-color-action-primary) 70%, transparent);
+    color: var(--semantic-color-signature);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-1);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
   /* Question : plaque ancrée en bas. */
   .overlay:has(.plate) { align-items: flex-end; }
   /* Classement : plaque ancrée à droite, centrée. */

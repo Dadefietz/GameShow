@@ -186,14 +186,14 @@ function OverlayLinks({ overlayToken }) {
         <Icon name="eye" /> Overlays OBS
       </h2>
       <p className="overlay-links__help">
-        Dans OBS : ajoute chaque lien comme <strong>Source navigateur</strong>, largeur <strong>1920</strong>, hauteur <strong>1080</strong>. Le fond est transparent (il se pose sur ton live).
+        Dans OBS : ajoute chaque lien comme <strong>Source navigateur</strong>, largeur <strong>1920</strong>, hauteur <strong>1080</strong>. Le fond est transparent (il se pose sur ton live). Le <strong>Classement</strong> et le <strong>Podium</strong> restent invisibles tant qu'il n'y a pas encore de scores — c'est normal. Clique <strong>Aperçu</strong> pour voir le rendu avec des données de démo.
       </p>
       <ul className="overlay-links__list">
         {links.map((l) => (
           <li className="overlay-links__row" key={l.key}>
             <span className="overlay-links__label">{l.label}</span>
             <span className="overlay-links__url" title={l.url}>{l.url}</span>
-            <a className="overlay-links__open" href={l.url} target="_blank" rel="noopener" title="Aperçu dans un nouvel onglet">
+            <a className="overlay-links__open" href={`${l.url}&preview=1`} target="_blank" rel="noopener" title="Aperçu (données de démonstration)">
               <Icon name="eye" />
               <span className="overlay-links__open-label">Aperçu</span>
             </a>
