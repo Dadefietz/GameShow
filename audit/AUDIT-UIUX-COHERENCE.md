@@ -124,10 +124,10 @@ Restent surtout des **arbitrages de hiérarchie** (poids du titre héros vert, t
 | U2 | ✅ corrigé | Animateur | « Réponses reçues » surdimensionné (display-hero) | Passé à `step-6` — au même gabarit que le chrono |
 | U3 | ✅ corrigé | Accueil/Studio | Deux noms de marque (« Project Game Show » / « Game Show ») | Studio unifié en « Project Game Show » |
 | U4 | ✅ corrigé | Accueil | Titre héros vert très dominant vs carte de connexion | Titre passé de `step-5` à `step-4` |
-| U5 | 🟡 mineur | Studio | Éditeur à l'étroit sur écran moyen | Mode plein largeur / masquer la liste en édition |
-| U6 | 🟡 mineur | Animateur | Modale Bonus/Malus chevauche le classement | Décaler / tiroir latéral |
-| U7 | 🟡 mineur | Joueur | Icône « Salon » (tipi) ambiguë en petit | Icône plus explicite ou retrait |
-| U8 | 🟢 confort | a11y | `letter-spacing` large sur les libellés `step--1` | Réserver aux libellés ≥ `step-0` |
-| U9 | 🟢 confort | Animateur | Deux boutons pleins concurrents (orange + vert) | Clarifier l'emphase secondaire |
+| U5 | ✅ corrigé | Studio | Éditeur à l'étroit sur écran moyen | Panneau élargi `clamp(380px, 32vw, 460px)` — les champs respirent |
+| U6 | ⬜ conservé | Animateur | Modale Bonus/Malus chevauche le classement | Choix assumé : popover flottant temporaire pendant l'ajustement des scores |
+| U7 | 🟡 ouvert | Joueur | Icône « Salon » (tipi) ambiguë en petit | Icône plus explicite ou retrait (visuel de marque — à trancher) |
+| U8 | ⬜ conservé | a11y | `letter-spacing` large sur les libellés `step--1` | Style eyebrow assumé et lisible aux tests — conservé |
+| U9 | ⬜ conservé | Animateur | Deux boutons pleins concurrents (orange + vert) | Pattern établi (vert forêt = action secondaire) — conservé |
 
-**Séquencement suggéré.** U1 en priorité (accessibilité, impact réel sur la lisibilité). Puis U2–U4 (arbitrages de hiérarchie, rapides et visibles). U5–U9 en passe de polissage groupée.
+**Bilan.** U1→U5 corrigés et déployés. U6, U8, U9 relèvent de choix de design assumés (conservés). Reste U7 (icône « Salon »), à trancher côté marque.

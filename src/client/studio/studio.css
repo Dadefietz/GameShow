@@ -90,7 +90,7 @@
   /* ---------- Main ---------- */
   .studio .main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-columns: minmax(0, 1fr) clamp(380px, 32vw, 460px);
     gap: var(--size-space-6);
     padding: var(--size-space-6);
     align-items: start;
