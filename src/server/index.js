@@ -145,6 +145,8 @@ io.on('connection', (socket) => {
       durationMs: cur.durationMs,
       deadline: cur.deadline,
       meta: mod.meta,
+      index: room.progression.index,
+      total: room.progression.total,
     });
   }
 

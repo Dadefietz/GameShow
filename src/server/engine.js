@@ -40,7 +40,14 @@ export function startModule(io, room, moduleType, question) {
   roomManager.touch(room);
 
   // Question publique (sans la bonne réponse) aux joueurs + overlays.
-  const payload = { ...mod.publicQuestion(rt), durationMs: rt.durationMs, deadline: rt.deadline, meta: mod.meta };
+  const payload = {
+    ...mod.publicQuestion(rt),
+    durationMs: rt.durationMs,
+    deadline: rt.deadline,
+    meta: mod.meta,
+    index: room.progression.index,
+    total: room.progression.total,
+  };
   toRoom(io, room).emit('module:started', payload);
   emitRoomState(io, room);
 

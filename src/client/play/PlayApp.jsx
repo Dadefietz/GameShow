@@ -162,9 +162,12 @@ function WaitScreen({ pseudo, code, playerCount }) {
 function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) {
   const type = current.type || 'quiz';
   const options = Array.isArray(current.options) ? current.options : [];
-  const index = current.index != null ? current.index + 1 : current.number;
+  const index = current.index != null ? current.index : current.number; // 1-based (serveur)
   const total = current.total;
   const timeLeft = tick?.timeLeft;
+  const totalSec = Math.max(1, Math.round((current.durationMs || 0) / 1000));
+  const frac = timeLeft != null ? Math.max(0, Math.min(1, timeLeft / totalSec)) : 1;
+  const low = timeLeft != null && timeLeft <= 5;
   const [estimate, setEstimate] = useState('');
 
   const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -173,45 +176,32 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
   return (
     <main className="screen screen--question" aria-labelledby="q-text">
       <div className="screen__main screen__main--question">
-        <div className="hud">
-          <div className="hud__row">
-            <span className="hud__pill">
-              <Icon name="check-square" className="icon" />
-              Question{' '}
-              <span className="hud__pill-value">
-                {index != null ? index : '—'}{total != null ? ` / ${total}` : ''}
-              </span>
-            </span>
-            <span className="hud__pill hud__pill--timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}>
-              <Icon name="clock" className="icon" />
-              <span className="hud__pill-value">{timeLeft != null ? `${timeLeft} s` : '—'}</span>
-            </span>
-          </div>
-          <div className="hud__row">
-            <span className="hud__pill hud__pill--score">
-              <Icon name="zap" className="icon" />
-              Score <span className="hud__pill-value">{fmtNum(score)}</span>
-            </span>
-          </div>
-          <div className="timerbar" role="progressbar" aria-label="Chrono" aria-valuenow={timeLeft ?? 0} aria-valuemin={0}>
-            <div className="timerbar__fill" />
-          </div>
+        <header className="qtop">
+          <span className="qtop__badge">
+            <Icon name="check-square" className="icon" />
+            Question{index != null ? ` ${index}` : ''}{total != null && total > (index || 0) ? ` / ${total}` : ''}
+          </span>
+          <span className="qtop__score">
+            <Icon name="zap" className="icon" />
+            {fmtNum(score)}
+          </span>
+        </header>
+
+        <div className={`qtimer${low ? ' qtimer--low' : ''}`} role="timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}>
+          <span className="qtimer__value">{timeLeft != null ? timeLeft : '—'}</span>
+          <span className="qtimer__unit">s</span>
+        </div>
+        <div className="qbar" role="progressbar" aria-valuenow={timeLeft ?? 0} aria-valuemin={0} aria-valuemax={totalSec}>
+          <div className={`qbar__fill${low ? ' qbar__fill--low' : ''}`} style={{ transform: `scaleX(${frac})` }} />
         </div>
 
-        <div className="question">
-          {index != null && total != null ? (
-            <p className="question__index">Question {index} sur {total}</p>
-          ) : null}
-          <h1 className="question__text" id="q-text">{current.text}</h1>
-        </div>
+        <h1 className="qtext" id="q-text">{current.text}</h1>
 
         {answered ? (
-          <div className="sent">
-            <span className="sent__check" aria-hidden="true">
-              <Icon name="check" className="icon" />
-            </span>
-            <p className="sent__text">Réponse envoyée&nbsp;!</p>
-          </div>
+          <p className="qsent" role="status">
+            <Icon name="check" className="icon" />
+            Réponse envoyée
+          </p>
         ) : null}
 
         {type === 'true_false' ? (
