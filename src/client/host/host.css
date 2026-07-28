@@ -37,6 +37,78 @@
       radial-gradient(ellipse 70% 60% at 50% 100%, color-mix(in oklch, var(--semantic-color-action-primary) 16%, transparent), transparent 70%);
   }
 
+  /* Split : proposition de valeur (gauche) + carte de connexion (droite). */
+  .login-split {
+    position: relative;
+    width: min(1040px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) min(440px, 100%);
+    align-items: center;
+    gap: var(--size-space-8);
+  }
+  @media (max-width: 900px) {
+    .login-split {
+      grid-template-columns: minmax(0, 100%);
+      justify-items: center;
+      gap: var(--size-space-7);
+      width: min(460px, 100%);
+    }
+  }
+  .login-hero { position: relative; max-width: 52ch; }
+  @media (max-width: 900px) { .login-hero { text-align: center; } }
+  .login-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-4);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 18%, transparent);
+    color: var(--semantic-color-action-primary);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .login-hero__eyebrow svg { width: 16px; height: 16px; }
+  .login-hero__title {
+    margin: var(--size-space-5) 0 var(--size-space-4);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-5);
+    line-height: var(--font-line-height-tight);
+    color: var(--semantic-color-heading);
+  }
+  .login-hero__lead {
+    margin: 0 0 var(--size-space-6);
+    font-size: var(--font-size-step-1);
+    line-height: var(--font-line-height-normal);
+    color: var(--semantic-color-text-secondary);
+  }
+  .login-hero__features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--size-space-4); }
+  .login-hero__feature {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-space-3);
+    font-size: var(--font-size-step-0);
+    line-height: var(--font-line-height-snug);
+    color: var(--semantic-color-text-primary);
+    text-align: left;
+  }
+  .login-hero__feature strong { color: var(--semantic-color-heading); font-weight: var(--font-weight-semibold); }
+  .login-hero__feature-icon {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--size-radius-md);
+    background: color-mix(in oklch, var(--semantic-color-signature) 16%, transparent);
+    color: var(--semantic-color-signature);
+  }
+  .login-hero__feature-icon svg { width: 20px; height: 20px; }
+  /* La carte ne doit plus centrer d'elle-même : le split s'en charge. */
+  .login-split .auth-card { width: 100%; }
+
   .auth-card {
     position: relative;
     width: min(440px, 100%);

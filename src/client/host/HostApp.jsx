@@ -79,6 +79,34 @@ function LoginScreen({ onEstablishRoom }) {
 
   return (
     <main className="page page--login" role="main" aria-labelledby="auth-title">
+      <div className="login-split">
+      <section className="login-hero" aria-labelledby="hero-value-title">
+        <span className="login-hero__eyebrow">
+          <Icon name="sparkles" />
+          Plateau de jeu en livestream
+        </span>
+        <h2 className="login-hero__title" id="hero-value-title">
+          Anime ton propre jeu télévisé, en direct avec ta communauté.
+        </h2>
+        <p className="login-hero__lead">
+          Tu présentes, tes spectateurs jouent depuis leur téléphone — et tu pilotes toute la partie depuis un seul écran.
+        </p>
+        <ul className="login-hero__features">
+          <li className="login-hero__feature">
+            <span className="login-hero__feature-icon"><Icon name="users" /></span>
+            <span>Des dizaines de joueurs à la fois, <strong>sans compte ni installation</strong> : un code, un pseudo, c'est parti.</span>
+          </li>
+          <li className="login-hero__feature">
+            <span className="login-hero__feature-icon"><Icon name="eye" /></span>
+            <span>Des <strong>overlays transparents prêts pour OBS</strong> — question, classement et podium se posent sur ton live.</span>
+          </li>
+          <li className="login-hero__feature">
+            <span className="login-hero__feature-icon"><Icon name="check-square" /></span>
+            <span><strong>Quiz, Vrai/Faux, Estimation, Vote</strong> : compose tes propres questionnaires dans le Studio.</span>
+          </li>
+        </ul>
+      </section>
+
       <div className="auth-card">
       <span className="auth-card__emblem" aria-hidden="true">
         <Emblem imgClass="auth-card__emblem-img" />
@@ -128,6 +156,7 @@ function LoginScreen({ onEstablishRoom }) {
 
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
       <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
+      </div>
       </div>
     </main>
   );

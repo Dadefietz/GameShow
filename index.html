@@ -8,10 +8,43 @@
   <meta property="og:title" content="Project Game Show — Rejoins la partie" />
   <meta property="og:image" content="/assets/social-card-join.png" />
   <link rel="icon" href="/assets/avatar-emblem-tipi.png" />
+  <link rel="preload" as="image" href="/assets/avatar-emblem-tipi.png" />
   <!-- Design system (tokens + polices self-hostées) bundlé par Vite via l'import dans main.jsx (aucun CDN) -->
+  <!-- CSS critique EN DUR (avant tout bundle) : supprime le flash blanc au chargement. -->
+  <style>
+    html, body { margin: 0; height: 100%; background-color: #181612; }
+    #root { min-height: 100%; }
+    .boot {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; background-color: #181612; color: #f4ede2;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .boot__emblem {
+      width: 76px; height: 76px; border-radius: 999px; object-fit: cover;
+      box-shadow: 0 0 48px rgba(255, 176, 92, 0.45);
+      animation: boot-pulse 1.6s ease-in-out infinite;
+    }
+    .boot__name { font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+    .boot__dots { display: flex; gap: 7px; }
+    .boot__dot { width: 8px; height: 8px; border-radius: 999px; background: #ffb05c; opacity: 0.4; animation: boot-dot 1.2s ease-in-out infinite; }
+    .boot__dot:nth-child(2) { animation-delay: 0.18s; }
+    .boot__dot:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes boot-pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: 0.85; } }
+    @keyframes boot-dot { 0%,100% { opacity: 0.35; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
+    @media (prefers-reduced-motion: reduce) { .boot__emblem, .boot__dot { animation: none; } }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div class="boot" role="status" aria-label="Chargement de Project Game Show">
+      <img class="boot__emblem" src="/assets/avatar-emblem-tipi.png" alt="" />
+      <span class="boot__name">Project Game Show</span>
+      <span class="boot__dots" aria-hidden="true">
+        <span class="boot__dot"></span><span class="boot__dot"></span><span class="boot__dot"></span>
+      </span>
+    </div>
+  </div>
   <script type="module" src="/src/client/main.jsx"></script>
 </body>
 </html>
