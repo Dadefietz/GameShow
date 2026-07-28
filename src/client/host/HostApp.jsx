@@ -405,7 +405,7 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
             </span>
             <div>
               <div className="count-card__value" key={playerCount}>{playerCount}</div>
-              <div className="count-card__label">joueurs connectés</div>
+              <div className="count-card__label">{playerCount > 1 ? 'joueurs connectés' : 'joueur connecté'}</div>
             </div>
           </div>
 
@@ -577,7 +577,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }
           <div className="hero__meters">
             <div className="hero__signature">
               <span className="hero__count">{answersCount}</span>
-              <span className="hero__count-label">réponses reçues</span>
+              <span className="hero__count-label">{answersCount > 1 ? 'réponses reçues' : 'réponse reçue'}</span>
             </div>
             <div className="timer" role="timer" aria-label={`Temps restant ${tick && tick.timeLeft != null ? tick.timeLeft : 0} secondes`}>
               <span className="timer__value">

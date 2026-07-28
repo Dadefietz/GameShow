@@ -364,7 +364,7 @@ function EditorPanel({
                 value={module.type} onChange={(e) => onPatchModule({ type: e.target.value })}
               >
                 {TYPE_KEYS.map((k) => (
-                  <option key={k} value={k}>{MODULE_TYPES[k].subtitle}</option>
+                  <option key={k} value={k}>{MODULE_TYPES[k].label}</option>
                 ))}
               </select>
               <span className="select-field__caret" aria-hidden="true">

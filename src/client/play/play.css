@@ -583,12 +583,15 @@
     flex-direction: column;
     gap: var(--size-space-3);
   }
+  /* Champ d'estimation : grand et centré (saisie d'un nombre), mais dans la police
+     de TEXTE comme les autres champs — pas la serif d'affichage (évite l'effet titre). */
   .estimate__input {
-    font-family: var(--font-family-display);
-    font-weight: var(--font-weight-bold);
+    font-family: var(--font-family-text);
+    font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-step-2);
     text-align: center;
   }
+  .estimate__input::placeholder { font-weight: var(--font-weight-regular); }
 
   /* ---- Confirmation envoi (question answered + score) --------------------- */
   .sent { display: flex; flex-direction: column; align-items: center; gap: var(--size-space-3); }

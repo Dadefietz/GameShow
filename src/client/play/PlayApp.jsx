@@ -184,7 +184,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
         <div className="counter">
           <Icon name="users" className="icon" />
           <span className="counter__value">{fmtNum(playerCount || 0)}</span>
-          <span className="counter__label">joueurs prêts</span>
+          <span className="counter__label">{(playerCount || 0) > 1 ? 'joueurs prêts' : 'joueur prêt'}</span>
         </div>
 
         {code ? (

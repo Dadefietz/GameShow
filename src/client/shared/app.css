@@ -14,6 +14,8 @@
   }
   button { font: inherit; cursor: pointer; }
   a { color: inherit; }
+  /* Les liens stylés en bouton ne doivent jamais porter le soulignement d'un lien. */
+  a.button, a[class*="button--"] { text-decoration: none; }
   :focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
