@@ -675,6 +675,9 @@
   }
 
   /* ---- Révélation dramatisée (score) -------------------------------------- */
+  /* Le titre « Raté… » ne doit pas s'afficher dans le vert « bonne réponse ». */
+  .sent--lose .sent__text { color: var(--semantic-color-text-primary); }
+  .sent--win .sent__text { color: var(--semantic-color-status-success); }
   .sent__check--win {
     background: var(--semantic-color-status-success);
     color: var(--semantic-color-action-on-forest);

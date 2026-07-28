@@ -15,6 +15,9 @@ function useCountUp(target, duration = 900) {
   useEffect(() => {
     const goal = typeof target === 'number' && Number.isFinite(target) ? target : 0;
     if (goal === 0) { setVal(0); return; }
+    // Respecte prefers-reduced-motion : on affiche directement la valeur finale.
+    const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { setVal(goal); return; }
     let raf;
     const start = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const step = (now) => {
@@ -529,9 +532,22 @@ export function PlayApp() {
   const roomCode = room?.code || code;
   const displayPseudo = g.you?.pseudo || pseudo;
 
+  // Repli si `play:you` n'a pas (encore) été reçu — typiquement après un rechargement/
+  // reconnexion : on reconstitue rang + score depuis le classement/podium par identifiant,
+  // pour ne jamais afficher « rang — / 0 pts » à un joueur (même vainqueur) déjà classé.
+  const deriveYou = (rows) => {
+    if (!playerId || !Array.isArray(rows)) return null;
+    const idx = rows.findIndex((r) => (r.id || r.playerId) === playerId);
+    if (idx < 0) return null;
+    const r = rows[idx];
+    return { rank: r.rank != null ? r.rank : idx + 1, score: r.score };
+  };
+  const podiumRows = g.podium || g.leaderboard;
+  const effectiveYou = g.you || deriveYou(g.leaderboard) || deriveYou(g.podium);
+
   // Fin de partie.
   if (g.podium || room?.state === 'ended') {
-    return (<>{QuitButton}<EndScreen you={g.you} podium={g.podium || g.leaderboard} playerId={playerId} pseudo={displayPseudo} onReplay={handleLeave} /></>);
+    return (<>{QuitButton}<EndScreen you={effectiveYou} podium={podiumRows} playerId={playerId} pseudo={displayPseudo} onReplay={handleLeave} /></>);
   }
 
   // Résultat d'une manche révélée.
@@ -540,7 +556,7 @@ export function PlayApp() {
       <>
         {QuitButton}
         <ScoreScreen
-          you={g.you}
+          you={effectiveYou}
           reveal={g.reveal}
           leaderboard={g.leaderboard}
           playerId={playerId}
