@@ -9,6 +9,42 @@ import './play.css';
 // ---- helpers ----------------------------------------------------------------
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
 
+// Compte à rebours animé (0 -> cible) pour dramatiser les points gagnés.
+function useCountUp(target, duration = 900) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    const goal = typeof target === 'number' && Number.isFinite(target) ? target : 0;
+    if (goal === 0) { setVal(0); return; }
+    let raf;
+    const start = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setVal(Math.round(goal * eased));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
+// Libellé de la bonne réponse selon le module (pour l'afficher quand le joueur s'est trompé).
+function correctAnswerLabel(reveal, current) {
+  if (!reveal) return null;
+  const type = reveal.type || current?.type;
+  if (type === 'true_false') return reveal.correct ? 'Vrai' : 'Faux';
+  if (type === 'estimation') return reveal.target != null ? fmtNum(reveal.target) : null;
+  if (type === 'quiz') {
+    const opts = current?.options;
+    if (Array.isArray(opts) && reveal.correctIndex != null && opts[reveal.correctIndex] != null) {
+      return opts[reveal.correctIndex];
+    }
+    return null;
+  }
+  return null; // vote : pas de bonne réponse
+}
+
 function RankValue({ rank }) {
   if (rank == null) return <span className="rank__value">—</span>;
   const suffix = rank === 1 ? 're' : 'e';
@@ -288,51 +324,66 @@ function Board({ title, rows, playerId }) {
 }
 
 // ---- Écran : résultat de manche --------------------------------------------
-function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer }) {
+function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer, current }) {
   // Déterminer bon/mauvais quand la révélation le permet.
   let correct = null;
   const rv = reveal || {};
+  const isVote = (rv.type || current?.type) === 'vote';
   const correctIndex = rv.correctIndex != null ? rv.correctIndex : rv.answerIndex;
   const correctValue = rv.correctValue != null ? rv.correctValue
     : (rv.answer != null ? rv.answer : rv.value);
   if (typeof rv.correct === 'boolean') {
-    correct = rv.correct;
+    correct = rv.correct === (myAnswer === true || myAnswer === 'true');
   } else if (typeof correctIndex === 'number' && typeof myAnswer === 'number') {
     correct = myAnswer === correctIndex;
   } else if (correctValue !== undefined && myAnswer != null) {
     correct = String(myAnswer) === String(correctValue);
   }
 
-  const delta = you?.delta;
-  const hasDelta = typeof delta === 'number' && delta !== 0;
+  // Points RÉELLEMENT gagnés cette manche (serveur), animés en compte à rebours.
+  const gained = typeof you?.delta === 'number' ? you.delta : 0;
+  const animatedGain = useCountUp(gained);
+  const answerLabel = correctAnswerLabel(reveal, current);
+  const tone = correct === true ? 'win' : correct === false ? 'lose' : 'neutral';
   const sentText = correct === true ? 'Bonne réponse !'
     : correct === false ? 'Raté…'
+    : isVote ? 'Vote enregistré !'
     : 'Réponse envoyée !';
 
   return (
-    <main className="screen screen--score" aria-labelledby="sent-text">
+    <main className={`screen screen--score screen--score-${tone}`} aria-labelledby="sent-text">
       <div className="screen__main screen__main--center">
-        <div className="sent">
-          <span className={`sent__check${correct === false ? ' sent__check--wrong' : ''}`} aria-hidden="true">
+        <div className={`sent sent--${tone}`}>
+          <span className={`sent__check sent__check--${tone}`} aria-hidden="true">
             <Icon name={correct === false ? 'x' : 'check'} className="icon" />
           </span>
           <h1 className="sent__text" id="sent-text">{sentText}</h1>
         </div>
 
+        {gained > 0 ? (
+          <div className="gain" role="status" aria-label={`Plus ${gained} points`}>
+            <span className="gain__value">+{fmtNum(animatedGain)}</span>
+            <span className="gain__unit">points</span>
+          </div>
+        ) : correct === false ? (
+          <div className="gain gain--zero"><span className="gain__value">+0</span><span className="gain__unit">point</span></div>
+        ) : null}
+
+        {correct === false && answerLabel != null ? (
+          <p className="rightanswer">
+            <Icon name="check" className="icon" />
+            La bonne réponse : <strong>{answerLabel}</strong>
+          </p>
+        ) : null}
+
         <div className="rank">
           <span className="rank__label">Ton rang</span>
           <RankValue rank={you?.rank} />
-          {hasDelta ? (
-            <span className="rank__delta">
-              <Icon name="arrow-right" className="icon rank__delta-arrow" />
-              {delta > 0 ? `+${delta}` : delta} places
-            </span>
-          ) : null}
         </div>
 
         <p className="points">
           <span className="points__value">{fmtNum(you?.score)}</span>
-          <span className="points__unit">pts</span>
+          <span className="points__unit">pts au total</span>
         </p>
 
         <Board title="Classement" rows={(leaderboard || []).slice(0, 5)} playerId={playerId} />
@@ -347,20 +398,42 @@ function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer }) {
 }
 
 // ---- Écran : fin de partie --------------------------------------------------
-function EndScreen({ you, podium, playerId }) {
+function EndScreen({ you, podium, playerId, pseudo, onReplay }) {
+  const rank = you?.rank;
+  const isPodium = rank != null && rank <= 3;
+  const [shared, setShared] = useState(false);
+  const headline = rank === 1 ? 'Victoire !'
+    : isPodium ? 'Sur le podium !'
+    : 'Partie terminée !';
+
+  const share = async () => {
+    const rankTxt = rank != null ? `${rank}${rank === 1 ? 're' : 'e'} place` : 'la partie';
+    const text = `J'ai terminé ${rankTxt} avec ${fmtNum(you?.score)} pts sur Project Game Show ! 🎮`;
+    const url = typeof window !== 'undefined' ? window.location.origin : '';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Project Game Show', text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        setShared(true);
+        setTimeout(() => setShared(false), 1800);
+      }
+    } catch { /* partage annulé */ }
+  };
+
   return (
     <main className="screen screen--end" aria-labelledby="end-text">
       <div className="screen__main screen__main--center">
-        <div className="sent">
-          <span className="sent__check" aria-hidden="true">
+        <div className={`sent sent--${isPodium ? 'win' : 'neutral'}`}>
+          <span className={`sent__check sent__check--${isPodium ? 'win' : 'neutral'}`} aria-hidden="true">
             <Icon name="trophy" className="icon" />
           </span>
-          <h1 className="sent__text" id="end-text">Partie terminée&nbsp;!</h1>
+          <h1 className="sent__text" id="end-text">{headline}</h1>
         </div>
 
         <div className="rank">
           <span className="rank__label">Ton rang final</span>
-          <RankValue rank={you?.rank} />
+          <RankValue rank={rank} />
         </div>
 
         <p className="points">
@@ -369,6 +442,17 @@ function EndScreen({ you, podium, playerId }) {
         </p>
 
         <Board title="Podium" rows={(podium || []).slice(0, 5)} playerId={playerId} />
+
+        <div className="endactions">
+          <button className="btn btn--primary" type="button" onClick={share}>
+            <Icon name={shared ? 'check' : 'arrow-right'} className="icon" />
+            {shared ? 'Copié !' : 'Partager mon score'}
+          </button>
+          <button className="btn btn--ghost" type="button" onClick={onReplay}>
+            <Icon name="log-in" className="icon" />
+            Rejouer
+          </button>
+        </div>
       </div>
     </main>
   );
@@ -447,7 +531,7 @@ export function PlayApp() {
 
   // Fin de partie.
   if (g.podium || room?.state === 'ended') {
-    return (<>{QuitButton}<EndScreen you={g.you} podium={g.podium || g.leaderboard} playerId={playerId} /></>);
+    return (<>{QuitButton}<EndScreen you={g.you} podium={g.podium || g.leaderboard} playerId={playerId} pseudo={displayPseudo} onReplay={handleLeave} /></>);
   }
 
   // Résultat d'une manche révélée.
@@ -461,6 +545,7 @@ export function PlayApp() {
           leaderboard={g.leaderboard}
           playerId={playerId}
           myAnswer={myAnswer}
+          current={g.current}
         />
       </>
     );

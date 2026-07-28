@@ -674,6 +674,81 @@
     font-weight: var(--font-weight-semibold);
   }
 
+  /* ---- Révélation dramatisée (score) -------------------------------------- */
+  .sent__check--win {
+    background: var(--semantic-color-status-success);
+    color: var(--semantic-color-action-on-forest);
+    box-shadow: 0 8px 34px color-mix(in oklch, var(--semantic-color-status-success) 44%, transparent);
+  }
+  .sent__check--lose {
+    background: var(--semantic-color-status-danger);
+    color: var(--semantic-color-text-primary);
+    box-shadow: 0 8px 34px color-mix(in oklch, var(--semantic-color-status-danger) 44%, transparent);
+  }
+  .sent__check--neutral {
+    background: var(--semantic-color-action-primary);
+    color: var(--component-button-text);
+    box-shadow: 0 8px 34px color-mix(in oklch, var(--semantic-color-action-primary) 44%, transparent);
+  }
+
+  /* Points gagnés — grand chiffre animé en compte à rebours. */
+  .gain {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--size-space-2);
+    padding: var(--size-space-3) var(--size-space-6);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-signature) 18%, transparent);
+    border: 1px solid color-mix(in oklch, var(--semantic-color-signature) 40%, transparent);
+    animation: play-pop var(--motion-duration-slow) var(--motion-easing-emphasized);
+  }
+  .gain__value {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-step-4);
+    line-height: 1;
+    color: var(--semantic-color-signature);
+    font-variant-numeric: tabular-nums;
+  }
+  .gain__unit {
+    font-size: var(--font-size-step-0);
+    font-weight: var(--font-weight-semibold);
+    color: var(--semantic-color-text-secondary);
+  }
+  .gain--zero {
+    background: color-mix(in oklch, var(--semantic-color-border) 40%, transparent);
+    border-color: var(--semantic-color-border);
+  }
+  .gain--zero .gain__value { color: var(--semantic-color-text-secondary); }
+
+  .rightanswer {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    padding: var(--size-space-2) var(--size-space-4);
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-status-success) 14%, transparent);
+    color: var(--semantic-color-heading);
+    font-size: var(--font-size-step-0);
+  }
+  .rightanswer .icon { width: 18px; height: 18px; font-size: 18px; color: var(--semantic-color-status-success); }
+  .rightanswer strong { font-weight: var(--font-weight-bold); }
+
+  /* Actions de fin de partie (partage / rejouer). */
+  .endactions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-space-3);
+    margin-top: var(--size-space-2);
+  }
+  .btn--ghost {
+    background: transparent;
+    color: var(--semantic-color-text-primary);
+    border: 1px solid var(--semantic-color-border);
+  }
+  .btn--ghost:hover { background: var(--semantic-color-bg-elevated); }
+
   /* ---- Mini classement (score / fin) -------------------------------------- */
   .board {
     width: 100%;

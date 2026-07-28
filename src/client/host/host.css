@@ -761,7 +761,13 @@
     background: color-mix(in oklch, var(--semantic-color-status-success) 16%, transparent);
     border: 1px solid color-mix(in oklch, var(--semantic-color-status-success) 50%, transparent);
     color: var(--semantic-color-text-primary);
+    animation: reveal-pop 0.5s var(--motion-easing-emphasized, cubic-bezier(0.22, 1, 0.36, 1)) both;
   }
+  @keyframes reveal-pop {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
   .reveal__label {
     display: flex;
     align-items: center;

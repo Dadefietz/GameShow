@@ -367,5 +367,24 @@ body.overlay-page { overflow: hidden; }
     display: block;
     color: var(--semantic-color-signature);
     filter: drop-shadow(0 0 20px color-mix(in oklch, var(--semantic-color-signature) 60%, transparent));
+    animation: crown-bounce 2.2s var(--motion-easing-standard) 1s infinite;
+  }
+
+  /* Révélation en escalade : 3e, puis 2e, puis le vainqueur en apothéose. */
+  .step--third  { animation-delay: 0.1s; }
+  .step--second { animation-delay: 0.35s; }
+  .step--first  { animation-delay: 0.65s; }
+  .step--first .step__block { animation: winner-glow 2.6s var(--motion-easing-standard) 1.1s infinite; }
+
+  @keyframes winner-glow {
+    0%, 100% { box-shadow: 0 0 60px color-mix(in oklch, var(--semantic-color-signature) 40%, transparent); }
+    50%      { box-shadow: 0 0 120px color-mix(in oklch, var(--semantic-color-signature) 72%, transparent); }
+  }
+  @keyframes crown-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-8px) rotate(-4deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .step--first .step__block, .step__crown { animation: none; }
   }
 }
