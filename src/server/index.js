@@ -131,6 +131,11 @@ io.on('connection', (socket) => {
   const room = requireRoom(socket);
   if (!room) return socket.disconnect(true);
   socket.join(room.code);
+  // L'animateur rejoint une sous-room privée : il y reçoit la répartition des réponses.
+  if (socket.data.role === 'host' && room.ownerId === socket.data.sub) {
+    socket.join(room.code + ':host');
+    socket.emit('module:distribution', engine.answerDistribution(room.currentModule));
+  }
 
   // Rattachement joueur (reconnexion sans perte de score — S5).
   if (socket.data.role === 'player' && socket.data.sub) {

@@ -1020,7 +1020,145 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .action-row { display: flex; flex-wrap: wrap; gap: var(--size-space-4); justify-content: center; }
+  .action-row { display: flex; flex-wrap: wrap; gap: var(--size-space-4); justify-content: center; align-items: center; }
+  .action-row__spacer { flex: 0 0 var(--size-space-4); }
+
+  /* ============ Menu de sortie unifié ============ */
+  .exit-menu { position: relative; display: inline-flex; }
+  .exit-menu > .button svg:last-child { width: 14px; height: 14px; opacity: 0.7; }
+  .exit-menu__pop {
+    position: absolute;
+    top: calc(100% + var(--size-space-2));
+    right: 0;
+    z-index: 40;
+    min-width: 248px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--size-space-2);
+    border-radius: var(--size-radius-md);
+    background: var(--semantic-color-bg-elevated);
+    border: 1px solid var(--semantic-color-border);
+    box-shadow: 0 24px 60px color-mix(in oklch, var(--color-neutral-950) 55%, transparent);
+    animation: exit-pop 0.14s ease-out;
+  }
+  @keyframes exit-pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .exit-menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-3);
+    width: 100%;
+    padding: var(--size-space-3) var(--size-space-4);
+    border: 0;
+    border-radius: var(--size-radius-sm);
+    background: transparent;
+    color: var(--semantic-color-text-primary);
+    font-family: var(--font-family-text);
+    font-size: var(--font-size-step-0);
+    font-weight: var(--font-weight-medium);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .exit-menu__item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .exit-menu__item:hover { background: var(--semantic-color-bg-surface); }
+  .exit-menu__item--danger { color: var(--semantic-color-status-danger); }
+  .exit-menu__item.is-armed {
+    background: color-mix(in oklch, var(--semantic-color-status-danger) 16%, transparent);
+    font-weight: var(--font-weight-semibold);
+  }
+  .exit-menu__item.is-armed:not(.exit-menu__item--danger) {
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 16%, transparent);
+  }
+  .exit-menu__hint {
+    margin: var(--size-space-2) var(--size-space-3) var(--size-space-1);
+    font-size: var(--font-size-step--1);
+    color: var(--semantic-color-text-secondary);
+  }
+
+  /* ============ Répartition des réponses (host-live) ============ */
+  .hero__dist {
+    position: relative;
+    margin: 0 0 var(--size-space-6);
+    padding: var(--size-space-5);
+    border-radius: var(--size-radius-lg);
+    background: color-mix(in oklch, var(--semantic-color-bg-elevated) 60%, transparent);
+    border: 1px solid var(--semantic-color-border);
+  }
+  .hero__dist-title {
+    display: flex;
+    align-items: center;
+    gap: var(--size-space-2);
+    margin: 0 0 var(--size-space-4);
+    font-size: var(--font-size-step--1);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--semantic-color-text-secondary);
+  }
+  .hero__dist-title svg { width: 16px; height: 16px; }
+  .hero__dist-note { text-transform: none; letter-spacing: 0; font-weight: var(--font-weight-regular); opacity: 0.8; }
+  .dist { display: flex; flex-direction: column; gap: var(--size-space-3); }
+  .dist__empty { margin: 0; color: var(--semantic-color-text-secondary); font-size: var(--font-size-step-0); }
+  .dist__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--size-space-3); }
+  .dist__key {
+    display: inline-grid; place-items: center;
+    width: 26px; height: 26px;
+    border-radius: var(--size-radius-sm);
+    background: color-mix(in oklch, var(--semantic-color-action-primary) 22%, transparent);
+    color: var(--semantic-color-action-primary);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step--1);
+  }
+  .dist__opt {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-step--1);
+  }
+  .dist__track {
+    grid-column: 2;
+    grid-row: 2;
+    height: 10px;
+    border-radius: var(--size-radius-full);
+    background: color-mix(in oklch, var(--semantic-color-border) 60%, transparent);
+    overflow: hidden;
+  }
+  .dist__fill {
+    display: block;
+    height: 100%;
+    min-width: 2px;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--semantic-color-action-primary), var(--semantic-color-signature));
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .dist__count {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-1);
+    font-variant-numeric: tabular-nums;
+    min-width: 3ch;
+  }
+  .dist__pct { font-size: var(--font-size-step--1); font-weight: var(--font-weight-medium); color: var(--semantic-color-text-secondary); }
+  .dist--numeric { flex-direction: row; justify-content: space-around; gap: var(--size-space-4); }
+  .dist__stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .dist__stat-val {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-step-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .dist__stat--hero .dist__stat-val { font-size: var(--font-size-step-4); color: var(--semantic-color-signature); }
+  .dist__stat-lbl { font-size: var(--font-size-step--1); color: var(--semantic-color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+  @media (max-width: 900px) { .dist__count { font-size: var(--font-size-step-0); } }
 
   /* ============ Connexion (bandeau discret) ============ */
   .conn-flag {

@@ -15,6 +15,7 @@ export function useGame(token) {
   const [podium, setPodium] = useState(null);
   const [answered, setAnswered] = useState(false);
   const [roomClosed, setRoomClosed] = useState(false);
+  const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
 
   useEffect(() => {
     if (!token) return;
@@ -23,7 +24,8 @@ export function useGame(token) {
     s.on('connect', () => setConnected(true));
     s.on('disconnect', () => setConnected(false));
     s.on('room:state', (st) => { setRoom(st); if (st.leaderboard) setLeaderboard(st.leaderboard); });
-    s.on('module:started', (m) => { setCurrent(m); setReveal(null); setAnswered(false); setTick({ timeLeft: Math.ceil((m.durationMs || 0) / 1000), answers: 0 }); });
+    s.on('module:started', (m) => { setCurrent(m); setReveal(null); setAnswered(false); setDistribution(null); setTick({ timeLeft: Math.ceil((m.durationMs || 0) / 1000), answers: 0 }); });
+    s.on('module:distribution', (d) => setDistribution(d));
     s.on('module:tick', (t) => setTick(t));
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
     s.on('module:closed', () => setTick((prev) => ({ ...(prev || {}), timeLeft: 0 })));
@@ -40,7 +42,7 @@ export function useGame(token) {
     socketRef.current?.emit(event, payload);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, emit };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, emit };
 }
 
 // Persistance légère (reconnexion sans perte).

@@ -180,6 +180,135 @@ function OverlayLinks({ overlayToken }) {
 }
 
 // ============================================================
+// Menu de sortie unifié — une seule action visible, actions destructives
+// regroupées derrière un menu avec confirmation en deux temps.
+// ============================================================
+function ExitMenu({ onCloseRoom, onLogout, onEndGame }) {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 'end' | 'close' | 'logout'
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setConfirm(null); }
+    };
+    const onEsc = (e) => { if (e.key === 'Escape') { setOpen(false); setConfirm(null); } };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc); };
+  }, [open]);
+
+  // Deux temps : premier clic arme la confirmation, second clic exécute.
+  const arm = (which, fn) => {
+    if (confirm === which) { fn(); setOpen(false); setConfirm(null); }
+    else setConfirm(which);
+  };
+
+  return (
+    <div className="exit-menu" ref={ref}>
+      <button
+        className="button button--ghost button--sm"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => { setOpen((v) => !v); setConfirm(null); }}
+      >
+        <Icon name="menu" />
+        Menu
+        <Icon name="chevron-down" />
+      </button>
+      {open ? (
+        <div className="exit-menu__pop" role="menu">
+          {onEndGame ? (
+            <button
+              className={`exit-menu__item exit-menu__item--danger${confirm === 'end' ? ' is-armed' : ''}`}
+              role="menuitem"
+              type="button"
+              onClick={() => arm('end', onEndGame)}
+            >
+              <Icon name={confirm === 'end' ? 'alert-triangle' : 'trophy'} />
+              {confirm === 'end' ? 'Confirmer — terminer la partie' : 'Terminer la partie'}
+            </button>
+          ) : null}
+          <button
+            className={`exit-menu__item exit-menu__item--danger${confirm === 'close' ? ' is-armed' : ''}`}
+            role="menuitem"
+            type="button"
+            onClick={() => arm('close', onCloseRoom)}
+          >
+            <Icon name={confirm === 'close' ? 'alert-triangle' : 'x'} />
+            {confirm === 'close' ? 'Confirmer — fermer le salon' : 'Fermer le salon'}
+          </button>
+          <button
+            className={`exit-menu__item${confirm === 'logout' ? ' is-armed' : ''}`}
+            role="menuitem"
+            type="button"
+            onClick={() => arm('logout', onLogout)}
+          >
+            <Icon name="log-out" />
+            {confirm === 'logout' ? 'Confirmer — déconnexion' : 'Déconnexion'}
+          </button>
+          {confirm ? (
+            <p className="exit-menu__hint">Clique à nouveau pour confirmer, ou ailleurs pour annuler.</p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================
+// Répartition des réponses EN DIRECT — visible par l'animateur seul.
+// Alimente l'espace libre de la carte question pour piloter la partie.
+// ============================================================
+function AnswerDistribution({ current, distribution, answersCount }) {
+  if (!current) return null;
+  const type = current.type;
+  const dist = distribution || {};
+  const total = dist.total || answersCount || 0;
+
+  if (type === 'estimation') {
+    if (dist.kind !== 'numeric' || !dist.total) {
+      return <p className="dist__empty">Les estimations s'afficheront ici, en direct.</p>;
+    }
+    return (
+      <div className="dist dist--numeric" aria-label="Estimations reçues">
+        <div className="dist__stat"><span className="dist__stat-val">{formatScore(dist.min)}</span><span className="dist__stat-lbl">min</span></div>
+        <div className="dist__stat dist__stat--hero"><span className="dist__stat-val">{formatScore(dist.avg)}</span><span className="dist__stat-lbl">moyenne</span></div>
+        <div className="dist__stat"><span className="dist__stat-val">{formatScore(dist.max)}</span><span className="dist__stat-lbl">max</span></div>
+      </div>
+    );
+  }
+
+  let options, showKey;
+  if (type === 'true_false') { options = ['Faux', 'Vrai']; showKey = false; }
+  else { options = current.options || []; showKey = true; }
+  if (!options.length) return null;
+  const counts = dist.counts || options.map(() => 0);
+  const maxCount = Math.max(1, ...counts);
+
+  return (
+    <div className="dist" aria-label="Répartition des réponses">
+      {options.map((opt, i) => {
+        const c = counts[i] || 0;
+        const pct = total ? Math.round((c / total) * 100) : 0;
+        return (
+          <div className="dist__row" key={i}>
+            {showKey ? <span className="dist__key">{String.fromCharCode(65 + i)}</span> : null}
+            <span className="dist__opt" title={String(opt)}>{opt}</span>
+            <span className="dist__track">
+              <span className="dist__fill" style={{ width: `${(c / maxCount) * 100}%` }} />
+            </span>
+            <span className="dist__count">{c}<span className="dist__pct">{pct}%</span></span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
 // ÉCRAN — Salon d'attente (host-lobby)
 // ============================================================
 function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
@@ -218,14 +347,7 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
             <span className="status-pill__dot" aria-hidden="true"></span>
             En attente
           </span>
-          <button className="button button--ghost button--sm" type="button" onClick={onCloseRoom}>
-            <Icon name="x" />
-            Fermer le salon
-          </button>
-          <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
-            <Icon name="log-out" />
-            Déconnexion
-          </button>
+          <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} />
         </div>
       </header>
 
@@ -347,11 +469,12 @@ function revealText(reveal, current) {
 // ============================================================
 // ÉCRAN — Pilotage en direct (host-live)
 // ============================================================
-function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom }) {
+function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const room = g.room || {};
   const current = g.current;
   const tick = g.tick;
+  const answersCount = tick && tick.answers != null ? tick.answers : 0;
   const paused = room.state === 'paused';
   const progression = room.progression || {};
   const progIndex = progression.index != null ? progression.index : 1;
@@ -389,14 +512,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom }) {
             <Icon name="bar-chart-2" />
             Épreuve {progIndex} / {progTotal}
           </span>
-          <button className="button button--ghost button--sm" type="button" onClick={onCloseRoom}>
-            <Icon name="x" />
-            Fermer le salon
-          </button>
-          <button className="button button--ghost button--sm" type="button" onClick={onLogout}>
-            <Icon name="log-out" />
-            Déconnexion
-          </button>
+          <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame} />
         </div>
       </header>
 
@@ -419,9 +535,19 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom }) {
             </div>
           ) : null}
 
+          {current ? (
+            <div className="hero__dist" aria-label="Répartition des réponses (animateur)">
+              <p className="hero__dist-title">
+                <Icon name="bar-chart-2" />
+                Répartition des réponses <span className="hero__dist-note">— visible par toi seul</span>
+              </p>
+              <AnswerDistribution current={current} distribution={g.distribution} answersCount={answersCount} />
+            </div>
+          ) : null}
+
           <div className="hero__meters">
             <div className="hero__signature">
-              <span className="hero__count">{tick && tick.answers != null ? tick.answers : 0}</span>
+              <span className="hero__count">{answersCount}</span>
               <span className="hero__count-label">réponses reçues</span>
             </div>
             <div className="timer" role="timer" aria-label={`Temps restant ${tick && tick.timeLeft != null ? tick.timeLeft : 0} secondes`}>
@@ -599,18 +725,8 @@ function ResultsScreen({ g, onNextModule, onEndGame, onBack, canBack, onLogout, 
             Module suivant
             <Icon name="arrow-right" />
           </button>
-          <button className="button button--outline-danger" type="button" onClick={onEndGame}>
-            <Icon name="x" />
-            Terminer la partie
-          </button>
-          <button className="button button--outline" type="button" onClick={onCloseRoom}>
-            <Icon name="x" />
-            Fermer le salon
-          </button>
-          <button className="button button--ghost" type="button" onClick={onLogout}>
-            <Icon name="log-out" />
-            Déconnexion
-          </button>
+          <span className="action-row__spacer" />
+          <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame} />
         </div>
       </main>
     </div>
@@ -721,7 +837,7 @@ export function HostApp() {
   if (state === 'playing' || state === 'paused' || state === 'results') {
     return (
       <>
-        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} onCloseRoom={closeRoom} />
+        <LiveScreen g={g} code={code} onShowResults={() => setShowResults(true)} onLogout={logout} onCloseRoom={closeRoom} onEndGame={endGame} />
         {connFlag}
       </>
     );

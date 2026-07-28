@@ -7,6 +7,49 @@ function toRoom(io, room) {
   return io.to(room.code);
 }
 
+// Sous-room réservée à l'animateur (distribution des réponses en direct — jamais aux joueurs).
+function toHost(io, room) {
+  return io.to(room.code + ':host');
+}
+
+// Répartition agrégée des réponses en cours, alignée sur les options (jamais le détail joueur).
+// Renvoyée UNIQUEMENT à l'animateur pour piloter la partie (relancer/révéler au bon moment).
+export function answerDistribution(rt) {
+  if (!rt) return null;
+  if (rt.type === 'quiz' || rt.type === 'vote') {
+    const counts = new Array((rt.options || []).length).fill(0);
+    for (const a of rt.answers.values()) {
+      if (Number.isInteger(a.value) && a.value >= 0 && a.value < counts.length) counts[a.value] += 1;
+    }
+    return { kind: 'options', counts, total: rt.answers.size };
+  }
+  if (rt.type === 'true_false') {
+    let t = 0, f = 0;
+    for (const a of rt.answers.values()) (a.value ? t++ : f++);
+    return { kind: 'boolean', counts: [f, t], total: rt.answers.size };
+  }
+  if (rt.type === 'estimation') {
+    // Pas de catégories : on remonte min/max/moyenne pour donner du grain à l'animateur.
+    const vals = [...rt.answers.values()].map((a) => a.value);
+    if (!vals.length) return { kind: 'numeric', total: 0 };
+    const sum = vals.reduce((s, v) => s + v, 0);
+    return {
+      kind: 'numeric',
+      total: vals.length,
+      min: Math.min(...vals),
+      max: Math.max(...vals),
+      avg: Math.round(sum / vals.length),
+    };
+  }
+  return null;
+}
+
+function emitDistribution(io, room) {
+  const rt = room.currentModule;
+  if (!rt) return;
+  toHost(io, room).emit('module:distribution', answerDistribution(rt));
+}
+
 export function publicRoomState(room) {
   return {
     code: room.code,
@@ -50,6 +93,7 @@ export function startModule(io, room, moduleType, question) {
   };
   toRoom(io, room).emit('module:started', payload);
   emitRoomState(io, room);
+  emitDistribution(io, room); // remet la répartition à zéro côté animateur
 
   // Chrono serveur : ferme la fenêtre de réponse à l'échéance (mais NE révèle PAS —
   // la révélation est déclenchée par l'animateur pour absorber le délai de diffusion).
@@ -87,6 +131,8 @@ export function submitAnswer(io, room, playerId, rawValue) {
   roomManager.touch(room);
   // Compteur agrégé (jamais le détail) vers l'animateur + overlays.
   toRoom(io, room).emit('module:answersCount', { count: rt.answers.size });
+  // Répartition détaillée par option — animateur seulement.
+  emitDistribution(io, room);
   return { ok: true };
 }
 
