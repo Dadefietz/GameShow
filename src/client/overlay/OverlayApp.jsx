@@ -60,6 +60,13 @@ function CheckIcon({ size = 34 }) {
 // ============================================================
 // S1 — Panneau de connexion, PERMANENT sur toutes les phases
 // ============================================================
+
+// Points de coupure d'un lien : après chaque point et chaque barre. Un domaine
+// d'hébergement long se scinde ainsi entre ses parties plutôt qu'au hasard.
+function decouperLien(lien) {
+  return lien.split(/(?<=[./])/).filter(Boolean);
+}
+
 function JoinPanel({ code }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
@@ -102,10 +109,14 @@ function JoinPanel({ code }) {
         <p className="join-panel__label">Sur ton téléphone</p>
         <div className="join-panel__url-capsule">
           {/* Au-delà d'une quinzaine de caractères, le lien ne tient plus sur
-              une ligne à la typo de la planche : il descend d'un cran. */}
+              une ligne à la typo de la planche : il descend d'un cran et se
+              scinde après un point ou une barre — jamais au milieu d'un mot,
+              qu'on ne relit pas de loin. */}
           <span className={`join-panel__url${lienAffiche.length > 16 ? ' join-panel__url--long' : ''}`}
             data-bind="room.joinUrl">
-            {lienAffiche}
+            {decouperLien(lienAffiche).map((bout, i, tout) => (
+              <React.Fragment key={i}>{bout}{i < tout.length - 1 ? <wbr /> : null}</React.Fragment>
+            ))}
           </span>
         </div>
       </div>
