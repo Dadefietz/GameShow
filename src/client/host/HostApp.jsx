@@ -483,10 +483,13 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
       <header className="topbar">
         <div className="topbar__brand">
           <span className="topbar__mark" aria-hidden="true"><I.flame s={20} ember /></span>
-          <span className="h-label">Project Game Show</span>
+          <span className="h-label">Pilotage</span>
+          <span className="h-cap" data-bind="room.state">
+            <span className="h-cap__dot h-cap__dot--pulse" aria-hidden="true" />Salle d'attente
+          </span>
         </div>
         <div className="topbar__end">
-          <span className="h-cap"><span className="h-cap__dot h-cap__dot--pulse" aria-hidden="true" />En attente</span>
+          <a className="button" href="/studio" data-action="goto:studio">Questionnaires</a>
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} playerCount={playerCount} />
         </div>
       </header>
@@ -496,22 +499,21 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
         <section className="pane" aria-label="Inviter les joueurs">
           <p className="h-label">Code du salon</p>
           <p className="room-code" data-bind="room.code" data-testid="room-code">{code || '—'}</p>
+          <div className="link-row">
+            <span className="link-row__url" data-bind="room.joinUrl" title={joinUrl}>{joinUrl}</span>
+            <button className="link-row__copy" type="button" data-action="copy:joinUrl"
+              onClick={() => copy('join', joinUrl)}>{copied === 'join' ? 'Copié' : 'Copier'}</button>
+          </div>
+          <p className="h-label">QR du salon</p>
           {qr ? (
             <img className="qr-plate" src={qr} data-bind="room.qr"
               alt={`QR code du salon ${code || ''}`} />
           ) : (
             <span className="qr-plate qr-plate--empty" aria-hidden="true" />
           )}
-          <p className="h-label">Lien à partager</p>
-          <div className="link-row">
-            <span className="link-row__url" data-bind="room.joinUrl" title={joinUrl}>{joinUrl}</span>
-            <button className="link-row__copy" type="button" data-action="copy:joinUrl"
-              onClick={() => copy('join', joinUrl)}>{copied === 'join' ? 'Copié' : 'Copier'}</button>
-          </div>
-
           {/* Page stream : seule source à ajouter dans OBS. */}
           <div className="private" style={{ marginTop: 'var(--sp-2)' }}>
-            <p className="private__title"><I.eye s={16} /> Page stream</p>
+            <p className="private__title"><I.eye s={16} /> Page stream — pour OBS</p>
             <div className="link-row">
               <span className="link-row__url" data-bind="room.overlayUrl" data-testid="overlay-link"
                 title={streamUrl}>{streamUrl}</span>
@@ -534,6 +536,8 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
           </div>
 
           {empty ? (
+            <>
+            <h2 className="lobby__empty-title">Personne autour du feu</h2>
             <ol className="guide" aria-label="Comment lancer une partie">
               <li className="guide__step"><span className="guide__num">1</span>
                 <span>Partage le <strong>code {code}</strong> ou le QR — tes joueurs rejoignent depuis leur téléphone.</span></li>
@@ -542,6 +546,7 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
               <li className="guide__step"><span className="guide__num">3</span>
                 <span>Clique <strong>« Lancer la partie »</strong> et choisis un module.</span></li>
             </ol>
+            </>
           ) : (
             <div className="chips" data-bind="room.players" aria-label="Joueurs présents">
               {players.slice(0, 25).map((p, i) => (
@@ -574,7 +579,6 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
               type="button" onClick={() => setPicking((v) => !v)} aria-expanded={picking}>
               Lancer la partie
             </button>
-            <a className="button button--block" href="/studio">Gérer les questionnaires</a>
           </div>
         </section>
 

@@ -385,6 +385,12 @@
     letter-spacing: 0.12em;
     color: var(--c-ink);
   }
+  .lobby__empty-title {
+    margin: 0;
+    font: 600 var(--fs-600) / var(--lh-tight) var(--f-display);
+    letter-spacing: var(--tr-display);
+    text-transform: uppercase;
+  }
   .qr-plate {
     width: 150px;
     height: 150px;
