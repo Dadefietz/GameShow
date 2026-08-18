@@ -312,8 +312,9 @@ function JoinScreen({ initialCode, onJoin, notice }) {
 // ============================================================
 function WaitScreen({ pseudo, code, playerCount }) {
   const empty = !playerCount || playerCount <= 1;
+  const overflow = pseudo && pseudo.length > 15; // Pseudo long déborde visuellement
   return (
-    <main className="screen screen--hearth" data-state={`waiting${empty ? ' empty' : ''}`} aria-labelledby="wait-title">
+    <main className="screen screen--hearth" data-state={`waiting${empty ? ' empty' : ''}${overflow ? ' overflow' : ''}`} aria-labelledby="wait-title">
       <div className="screen__main screen__main--center">
         {code ? (
           <span className="p-cap" data-bind="room.code" data-testid="room-code">
