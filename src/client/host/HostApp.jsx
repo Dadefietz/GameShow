@@ -7,6 +7,7 @@ import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
 import { getSupabase } from '../shared/supabaseClient.js';
 import { shouldPurgeHostSession } from '../shared/hostSession.js';
+import { otpErrorMessage } from '../shared/authErrors.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import './host.css';
 
@@ -68,12 +69,18 @@ function LoginScreen({ onEstablishRoom }) {
     try {
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/host` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/host`,
+          // Cet écran CONNECTE, il n'inscrit pas. Sans ce drapeau, Supabase traite la
+          // demande comme une inscription et la refuse dès que les inscriptions
+          // publiques sont fermées — y compris pour le compte de l'animateur.
+          shouldCreateUser: false,
+        },
       });
       if (otpErr) throw otpErr;
       setSent(true);
     } catch (err) {
-      setError("Envoi du lien impossible. Vérifiez l'adresse.");
+      setError(otpErrorMessage(err));
     } finally {
       setBusy(false);
     }
