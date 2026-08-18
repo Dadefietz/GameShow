@@ -31,8 +31,23 @@ Pour cibler : `| grep -E "grid-template|TEXTE|c-secret|box-shadow"`.
 
 ## 3. Comparer au rendu réel, pas au code
 
-Le CSS peut être juste et le rendu faux (voir les pièges plus bas). Servir
-l'app, puis mesurer dans le navigateur :
+Le CSS peut être juste et le rendu faux (voir les pièges plus bas). **Lire le
+code ne suffit pas** : une comparaison par `grep` de `data-state`/`data-bind`
+a déjà conclu « conforme » sur un écran qui débordait de 450 px. Il faut
+mesurer **les deux côtés** et les soustraire :
+
+1. servir les planches en statique et mesurer chaque canevas
+   (`getBoundingClientRect` sur chaque nœud porteur de dimension) ;
+2. piloter l'app jusqu'au même état — par socket plutôt que par l'interface,
+   c'est plus court et plus stable — et mesurer les mêmes nœuds ;
+3. comparer grandeur par grandeur, et **chercher les débordements** : tout
+   descendant dont `bottom`/`right` dépasse le canevas est un défaut, même si
+   la capture « a l'air » correcte.
+
+Refaire la mesure à **plusieurs tailles de fenêtre** : un écran juste à sa
+taille nominale peut être faux partout ailleurs.
+
+Servir l'app, puis mesurer dans le navigateur :
 
 ```js
 const s = getComputedStyle(document.querySelector('.mon-element'));
@@ -67,6 +82,8 @@ c'est le test qu'on aligne, pas l'inverse.
 | Classe utilisée sans règle | bouton natif gris/blanc | garde global dans le reset + vérifier chaque `className` |
 | Deux classes sur le même nœud | `.live` annulait le `100dvh` de `.page` | sélecteur combiné (`.page.live`) |
 | Tableau vide *truthy* | écran de fin qui ne se ferme pas | remettre à `null`, pas à `[]` |
+| Canevas **élastique** là où la planche est **fixe** | proportions fausses dès que la fenêtre change de taille ; tout déborde | reproduire le canevas fixe et le mettre à l'échelle (`transform: scale`), jamais l'étirer |
+| Texte d'exemple **court** dans la planche | tient en maquette, déborde avec la vraie donnée | rejouer chaque champ avec sa valeur de production (domaine, pseudo long) |
 
 ## Ce qui varie d'un écran à l'autre
 
