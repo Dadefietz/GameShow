@@ -757,7 +757,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           <span className={`antenne__chrono${urgent ? ' antenne__chrono--urgent' : ''}`} data-bind="tick.timeLeft">
             {typeof timeLeft === 'number' ? timeLeft : '—'}
           </span>
-          <span className="h-label">temps restant</span>
+          <span className="h-label">Chrono</span>
         </span>
         <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame}
           playerCount={room.playerCount} />
@@ -780,6 +780,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           ) : null}
 
           <section className="stage__card" aria-label="Question en cours">
+            <p className="h-label">Énoncé à l'antenne</p>
             <p className={`stage__question${revealed ? ' stage__question--revealed' : ''}`}
               data-bind="module.text" data-testid="question-text">
               {current && current.text ? current.text : 'En attente de la question…'}
@@ -803,13 +804,13 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
             </p>
             <AnswerDistribution current={current} distribution={g.distribution}
               answersCount={answersCount} revealed={revealed} reveal={reveal} />
-            {!revealed ? <p className="private__hint">Publique à la révélation.</p> : null}
+            {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
           </section>
         </div>
 
         <aside className="rail">
           <section className="private" aria-label="Classement en direct">
-            <p className="private__title"><I.eye s={16} /> Top 5 en direct — toi seul</p>
+            <p className="private__title"><I.eye s={16} /> Top 5 — toi seul</p>
             {top5.length === 0 ? (
               <p className="lb__empty">Aucun score pour l'instant.</p>
             ) : (

@@ -547,6 +547,10 @@
 
   /* ============================ A5 · PILOTAGE ============================ */
   .live { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  /* Quand .live EST la page, son min-height:0 annulait le 100dvh de .page :
+     la barre d'action flottait au milieu au lieu de tenir le bas de l'écran. */
+  .page.live { min-height: 100dvh; }
+  .actions { background: var(--c-canvas-2); }
   .antenne {
     display: flex;
     align-items: center;

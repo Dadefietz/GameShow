@@ -28,7 +28,7 @@ test.describe('Partie complète animateur + joueurs', () => {
 
     // ---- M10 : le dashboard animateur montre compteur de réponses + chrono ----
     await expect(host.getByTestId('answers-count')).toHaveText('1');
-    await expect(host.getByText('temps restant')).toBeVisible();
+    await expect(host.getByText('Chrono')).toBeVisible();
 
     // ---- M3/F3 : un retardataire rejoint PENDANT la question en cours ----
     const { ctx: p2Ctx, page: p2 } = await joinAsPlayer(browser, code, 'Tard');
@@ -46,7 +46,7 @@ test.describe('Partie complète animateur + joueurs', () => {
     await expect(p1.getByText('Ton rang')).toHaveCount(0); // rang masqué en cours de partie
 
     // ---- M6 : classement recalculé côté animateur ----
-    await expect(host.getByText('Top 5 en direct')).toBeVisible();
+    await expect(host.getByText('Top 5 — toi seul')).toBeVisible();
     // Le pseudo figure aussi dans le panneau Bonus/Malus : on cible le classement.
     await expect(host.getByLabel('Classement en direct').getByText('Lea')).toBeVisible();
 
