@@ -18,19 +18,22 @@
   .stream-fit {
     position: fixed;
     inset: 0;
-    display: grid;
-    place-items: center;
     overflow: hidden;
     background: var(--c-canvas);
   }
 
-  /* ---- Scène : contenu à gauche, panneau de connexion permanent à droite ---- */
+  /* ---- Scène : contenu à gauche, panneau de connexion permanent à droite ----
+     Centrée par translation, pas par une grille : une piste de grille se
+     dimensionne sur son contenu, donc un canevas plus large que la fenêtre
+     ouvre une piste de 1920 px qui déborde à droite au lieu d'être centrée. */
   .stream {
-    position: relative;
+    position: absolute;
+    top: 50%;
+    left: 50%;
     width: var(--stream-w);
     height: var(--stream-h);
     flex: none;
-    transform: scale(var(--stream-scale, 1));
+    transform: translate(-50%, -50%) scale(var(--stream-scale, 1));
     display: flex;
     overflow: hidden;
     background: var(--c-canvas);
