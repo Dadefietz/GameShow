@@ -42,7 +42,12 @@ mesurer **les deux côtés** et les soustraire :
    c'est plus court et plus stable — et mesurer les mêmes nœuds ;
 3. comparer grandeur par grandeur, et **chercher les débordements** : tout
    descendant dont `bottom`/`right` dépasse le canevas est un défaut, même si
-   la capture « a l'air » correcte.
+   la capture « a l'air » correcte ;
+4. vérifier **que le canevas lui-même tient dans la fenêtre**. Cette
+   vérification-là a manqué une fois et a coûté un aller-retour : la scène
+   était rognée de 460 px, et comme tout restait cohérent *à l'intérieur* du
+   canevas, la mesure la déclarait parfaite. Contrôler les quatre côtés
+   (`left < 0`, `right > innerWidth`, `top < 0`, `bottom > innerHeight`).
 
 Refaire la mesure à **plusieurs tailles de fenêtre** : un écran juste à sa
 taille nominale peut être faux partout ailleurs.
@@ -84,6 +89,7 @@ c'est le test qu'on aligne, pas l'inverse.
 | Tableau vide *truthy* | écran de fin qui ne se ferme pas | remettre à `null`, pas à `[]` |
 | Canevas **élastique** là où la planche est **fixe** | proportions fausses dès que la fenêtre change de taille ; tout déborde | reproduire le canevas fixe et le mettre à l'échelle (`transform: scale`), jamais l'étirer |
 | Texte d'exemple **court** dans la planche | tient en maquette, déborde avec la vraie donnée | rejouer chaque champ avec sa valeur de production (domaine, pseudo long) |
+| Piste de grille `auto` sous un contenu plus large que la fenêtre | `place-items:center` centre dans la *piste*, pas dans la fenêtre ; la scène part hors écran | centrer par `translate(-50%,-50%)` depuis le centre de la fenêtre |
 
 ## Ce qui varie d'un écran à l'autre
 
