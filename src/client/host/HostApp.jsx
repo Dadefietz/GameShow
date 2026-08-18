@@ -6,6 +6,7 @@ import { Icon } from '../shared/icons.jsx';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
 import { getSupabase } from '../shared/supabaseClient.js';
+import { shouldPurgeHostSession } from '../shared/hostSession.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import './host.css';
 
@@ -78,63 +79,10 @@ function LoginScreen({ onEstablishRoom }) {
     }
   }, [supabase, email, onEstablishRoom]);
 
+  // Page de connexion animateur : la carte d'authentification SEULE. L'argumentaire
+  // produit vit sur la page d'accueil joueur ('/') — ici, l'animateur vient se connecter.
   return (
     <main className="page page--login" role="main" aria-labelledby="auth-title">
-      <div className="login-split">
-      <section className="login-hero" aria-labelledby="hero-value-title">
-        <span className="login-hero__eyebrow">
-          <Icon name="sparkles" />
-          Plateau de jeu en livestream
-        </span>
-        <h2 className="login-hero__title" id="hero-value-title">
-          Anime ton propre jeu télévisé, en direct avec ta communauté.
-        </h2>
-        <p className="login-hero__lead">
-          Tu présentes, tes spectateurs jouent depuis leur téléphone — et tu pilotes toute la partie depuis un seul écran.
-        </p>
-        <ul className="login-hero__features">
-          <li className="login-hero__feature">
-            <span className="login-hero__feature-icon"><Icon name="users" /></span>
-            <span>Des dizaines de joueurs à la fois, <strong>sans compte ni installation</strong> : un code, un pseudo, c'est parti.</span>
-          </li>
-          <li className="login-hero__feature">
-            <span className="login-hero__feature-icon"><Icon name="eye" /></span>
-            <span>Des <strong>overlays transparents prêts pour OBS</strong> — question, classement et podium se posent sur ton live.</span>
-          </li>
-          <li className="login-hero__feature">
-            <span className="login-hero__feature-icon"><Icon name="check-square" /></span>
-            <span><strong>Quiz, Vrai/Faux, Estimation, Vote</strong> : compose tes propres questionnaires dans le Studio.</span>
-          </li>
-        </ul>
-
-        {/* D2 — vignette produit : mini-podium stylisé, dessiné en CSS (aucun asset). */}
-        <div className="hero-vignette" aria-hidden="true">
-          <div className="hero-vignette__podium">
-            <div className="hero-vignette__step hero-vignette__step--2"><span>2</span></div>
-            <div className="hero-vignette__step hero-vignette__step--1">
-              <span className="hero-vignette__crown"><Icon name="trophy" /></span>
-              <span>1</span>
-            </div>
-            <div className="hero-vignette__step hero-vignette__step--3"><span>3</span></div>
-          </div>
-          <p className="hero-vignette__caption">Le podium, en overlay transparent sur ton live</p>
-        </div>
-      </section>
-
-      <div className="login-doors">
-      {/* D1 — double porte d'entrée (pattern Contra) : le spectateur d'abord. */}
-      <section className="door-card" aria-labelledby="door-play-title">
-        <div className="door-card__body">
-          <h2 className="door-card__title" id="door-play-title">Tu viens pour jouer ?</h2>
-          <p className="door-card__sub">Un code et un pseudo suffisent — pas de compte.</p>
-        </div>
-        <a className="door-card__cta" href="/play">
-          <Icon name="log-in" />
-          Rejoindre une partie
-          <Icon name="arrow-right" />
-        </a>
-      </section>
-
       <div className="auth-card">
       <span className="auth-card__emblem" aria-hidden="true">
         <Emblem imgClass="auth-card__emblem-img" />
@@ -185,7 +133,34 @@ function LoginScreen({ onEstablishRoom }) {
       {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
       <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
       </div>
-      </div>
+    </main>
+  );
+}
+
+// ============================================================
+// ÉCRAN — Accès refusé (403 not-host). Le serveur réserve la création de salon à
+// l'animateur : un autre compte, même authentifié, doit le savoir explicitement.
+// ============================================================
+function DeniedScreen({ email, onLogout }) {
+  return (
+    <main className="page page--login" role="main" aria-labelledby="denied-title">
+      <div className="auth-card" data-testid="denied-card">
+        <span className="home-icon home-icon--warn" aria-hidden="true">
+          <Icon name="alert-triangle" />
+        </span>
+        <h1 className="auth-card__title" id="denied-title">Accès réservé à l'animateur</h1>
+        <p className="auth-card__subtitle">
+          {email ? <>Le compte <strong>{email}</strong> n'est pas celui de l'animateur.</> : "Ce compte n'est pas celui de l'animateur."}
+          {' '}La création de salon lui est réservée.
+        </p>
+        <a className="button button--primary button--block button--lg" href="/">
+          <Icon name="log-in" />
+          Rejoindre une partie en joueur
+        </a>
+        <button className="button button--ghost button--block" type="button" onClick={onLogout}>
+          <Icon name="log-out" />
+          Se déconnecter
+        </button>
       </div>
     </main>
   );
@@ -978,16 +953,26 @@ export function HostApp() {
   const [home, setHome] = useState(null);
   const [opening, setOpening] = useState(false);
   const [toast, setToast] = useState(null);
+  // Refus d'autorisation du serveur (403 not-host) : email du compte refusé, ou true.
+  const [denied, setDenied] = useState(null);
 
   const g = useGame(hostToken);
 
   // Reprise d'un salon existant : rien à faire de plus, session est chargée au montage.
-  // Création d'un salon après authentification (ou en mode dev).
-  const establishRoom = useCallback(async (accessToken) => {
+  // Création d'un salon après authentification (ou en mode dev). La session mémorisée
+  // porte l'id du compte Supabase propriétaire : elle n'est JAMAIS réutilisable par un
+  // autre compte sur le même navigateur (voir l'effet de cloisonnement ci-dessous).
+  const establishRoom = useCallback(async (accessToken, ownerId) => {
     const res = await createRoom(accessToken);
-    const next = { code: res.code, hostToken: res.hostToken, overlayToken: res.overlayToken };
+    const next = {
+      code: res.code,
+      hostToken: res.hostToken,
+      overlayToken: res.overlayToken,
+      ownerId: ownerId || null,
+    };
     store.save('host', next);
     setSession(next);
+    setDenied(null);
   }, []);
 
   // Session Supabase persistante / magic link : si l'animateur est déjà authentifié
@@ -999,20 +984,46 @@ export function HostApp() {
   // Évite le flash de l'écran de connexion pour un animateur déjà authentifié.
   const [authChecked, setAuthChecked] = useState(() => !getSupabase());
   useEffect(() => {
-    if (!supa || session || home) return;
+    if (!supa || session || home || denied) return;
     let alive = true;
-    const open = (token) => {
+    const open = (sess) => {
+      const token = sess?.access_token;
       if (!alive || !token || establishing.current) return;
       establishing.current = true;
-      establishRoom(token).catch(() => {}).finally(() => { establishing.current = false; });
+      establishRoom(token, sess?.user?.id)
+        .catch((err) => {
+          // Refus d'autorisation : on le DIT (403 not-host). Jamais d'écran muet.
+          if (alive && err && err.message === 'not-host') setDenied(sess?.user?.email || true);
+        })
+        .finally(() => { establishing.current = false; });
     };
     supa.auth.getSession().then(({ data }) => {
       if (alive) setAuthChecked(true);
-      open(data?.session?.access_token);
+      open(data?.session);
     });
-    const { data: authSub } = supa.auth.onAuthStateChange((_e, s) => open(s?.access_token));
+    const { data: authSub } = supa.auth.onAuthStateChange((_e, s) => open(s));
     return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
-  }, [supa, session, home, establishRoom]);
+  }, [supa, session, home, denied, establishRoom]);
+
+  // CLOISONNEMENT PAR COMPTE — la session animateur mémorisée dans CE navigateur
+  // n'appartient qu'au compte Supabase qui l'a ouverte. Si le compte connecté change
+  // (ou disparaît), la session locale est purgée immédiatement : un second compte ne
+  // peut JAMAIS hériter du salon — ni du jeton d'animateur — laissé par le précédent.
+  useEffect(() => {
+    if (!supa) return undefined; // mode dev sans Supabase : rien à cloisonner
+    let alive = true;
+    const reconcile = (user) => {
+      if (!alive) return;
+      if (shouldPurgeHostSession(store.load('host'), user)) {
+        store.clear('host');
+        setSession(null);
+        setShowResults(false);
+      }
+    };
+    supa.auth.getSession().then(({ data }) => reconcile(data?.session?.user || null));
+    const { data: sub } = supa.auth.onAuthStateChange((_e, s) => reconcile(s?.user || null));
+    return () => { alive = false; sub?.subscription?.unsubscribe?.(); };
+  }, [supa]);
 
   // Salon mort (redéploiement serveur, expiration) : on purge la session périmée et on
   // atterrit sur l'écran stable « salon expiré » — plus jamais d'interface figée.
@@ -1054,6 +1065,7 @@ export function HostApp() {
     setShowResults(false);
     setSession(null);
     setHome(null);
+    setDenied(null);
     if (supa) supa.auth.signOut().catch(() => {});
   }, [supa]);
 
@@ -1074,15 +1086,20 @@ export function HostApp() {
     setOpening(true);
     try {
       let token;
+      let ownerId;
+      let email;
       if (supa) {
         const { data } = await supa.auth.getSession();
         token = data?.session?.access_token;
+        ownerId = data?.session?.user?.id;
+        email = data?.session?.user?.email;
         if (!token) { setHome(null); setSession(null); setOpening(false); return; } // session expirée → login
       }
-      await establishRoom(token);
+      await establishRoom(token, ownerId);
       setHome(null);
-    } catch {
-      setToast("Impossible d'ouvrir un salon. Réessaie.");
+    } catch (err) {
+      if (err && err.message === 'not-host') { setDenied(email || true); setHome(null); }
+      else setToast("Impossible d'ouvrir un salon. Réessaie.");
     } finally {
       setOpening(false);
     }
@@ -1106,6 +1123,16 @@ export function HostApp() {
       {toast}
     </div>
   ) : null;
+
+  // --- Accès refusé par le serveur (compte non-animateur) : jamais d'écran muet ---
+  if (denied) {
+    return (
+      <>
+        <DeniedScreen email={typeof denied === 'string' ? denied : null} onLogout={logout} />
+        {toastEl}
+      </>
+    );
+  }
 
   // --- Écran stable : salon fermé / expiré ---
   if (home) {

@@ -9,8 +9,11 @@ export async function createRoom(accessToken) {
     headers: { 'content-type': 'application/json', ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}) },
     body: '{}', // corps JSON vide explicite (Fastify rejette un POST application/json sans corps)
   });
-  if (!res.ok) throw new Error('create-room-failed');
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  // Le code d'erreur du serveur est PROPAGÉ (ex. 'not-host') : l'appelant doit pouvoir
+  // distinguer un refus d'autorisation d'une simple panne réseau — jamais d'échec muet.
+  if (!res.ok) throw new Error(data.error || 'create-room-failed');
+  return data;
 }
 
 export async function joinRoom(code, pseudo) {
