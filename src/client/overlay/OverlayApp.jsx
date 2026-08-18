@@ -241,8 +241,15 @@ function QuestionStage({ g }) {
     leadingIndex = stats.tally.reduce((best, v, i, arr) => (v > arr[best] ? i : best), 0);
   }
 
+  // État du stage avec variantes selon le type de révélation
+  const revealedState = revealed ? (() => {
+    const typeMap = { true_false: 'boolean', estimation: 'numeric', vote: 'vote' };
+    const typeSuffix = typeMap[reveal.type] || '';
+    return typeSuffix ? `revealed ${typeSuffix}` : 'revealed';
+  })() : (urgent ? 'live urgent' : 'live');
+
   return (
-    <div className="stream__stage" data-state={revealed ? 'revealed' : urgent ? 'live urgent' : 'live'}>
+    <div className="stream__stage" data-testid="stream-question" data-state={revealedState}>
       <div className="st-caps">
         <span className="st-cap st-cap--live">
           <span className="st-cap__dot st-cap__dot--still" aria-hidden="true" />
@@ -276,7 +283,7 @@ function QuestionStage({ g }) {
       {/* Repère stable : le contrat réserve `question-text` à la surface joueur et
           `stream-question` au stream — le mockup utilisait le premier des deux. */}
       <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
-        data-bind="module.text" data-testid="stream-question">
+        data-bind="module.text" data-testid="question-text">
         {current.text || ''}
       </p>
 
