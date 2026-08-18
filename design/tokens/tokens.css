@@ -1,4 +1,9 @@
 /* artifact_type: tokens; app: root; version: 2; change_set: forward; produced_by: claude-design */
+
+/* Ordre des couches, déclaré une fois pour toutes. Sans lui, l'ordre dépend
+   de l'ordre de chargement des feuilles — et une règle de base pouvait
+   écraser un composant. */
+@layer reset, base, components;
 /* ============================================================================
    PROJECT GAME SHOW — SOCLE DE DESIGN
    « Camping, feu de bois, la nuit tombée, cozy »
@@ -275,25 +280,28 @@
 
 /* ============================ RESET MINIMAL ============================= */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body {
-  background: var(--c-canvas);
-  color: var(--c-ink);
-  font-family: var(--f-ui);
-  font-size: var(--fs-400);
-  line-height: var(--lh-body);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+@layer reset {
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--c-canvas);
+    color: var(--c-ink);
+    font-family: var(--f-ui);
+    font-size: var(--fs-400);
+    line-height: var(--lh-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--c-ember-bright); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--c-flame); }
+  :focus-visible {
+    outline: var(--focus-w) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--r-xs);
+  }
 }
-button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
-a { color: var(--c-ember-bright); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-a:hover { color: var(--c-flame); }
-:focus-visible {
-  outline: var(--focus-w) solid var(--focus-color);
-  outline-offset: var(--focus-offset);
-  border-radius: var(--r-xs);
-}
+
 svg { display: block; }
 ::placeholder { color: var(--c-ink-4); }
 

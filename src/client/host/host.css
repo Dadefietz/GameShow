@@ -35,38 +35,95 @@
 
   /* Carte centrée : connexion, accès refusé, accueil stable. */
   .card-screen { flex: 1; display: grid; place-items: center; padding: var(--sp-7); }
+  /* ---- A1/A2/A3 : carte d'accès. Valeurs reprises des maquettes :
+     420px, aligné à GAUCHE (pas centré), marque en haut, gap sp-6. ---- */
   .auth-card {
     width: min(var(--w-card), 100%);
     display: flex;
     flex-direction: column;
-    gap: var(--sp-4);
-    padding: var(--sp-8) var(--sp-7);
-    border-radius: var(--r-xl);
+    gap: var(--sp-6);
+    padding: var(--sp-8);
+    border-radius: var(--r-l);
     background: var(--c-surface);
     box-shadow: var(--sh-3), var(--sh-edge);
-    text-align: center;
   }
-  .auth-card__mark {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto;
-    border-radius: var(--r-m);
-    background: var(--c-canvas-2);
+  .auth-brand { display: flex; align-items: center; gap: var(--sp-3); }
+  .auth-brand__mark {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: var(--r-s);
+    background: var(--c-surface);
     box-shadow: var(--sh-edge);
     display: grid;
     place-items: center;
     color: var(--c-flame);
   }
-  .auth-card__mark--warn { color: var(--c-bad); background: var(--c-bad-wash); box-shadow: none; }
+  .auth-brand__name {
+    margin: 0;
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .auth-card__head { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+  .auth-card__head--badged { gap: var(--sp-3); }
+  /* Pastille d'issue : verte quand le lien part, rouge quand l'accès est refusé. */
+  .auth-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--r-full);
+    display: grid;
+    place-items: center;
+  }
+  .auth-badge--ok { background: var(--c-leaf-wash); color: var(--c-pine); animation: om-pop var(--mo-slow) var(--ease-out) 120ms both; }
+  .auth-badge--warn { background: var(--c-bad-wash); color: var(--c-bad); }
   .auth-card__title {
     margin: 0;
     font: 600 var(--fs-700) / var(--lh-tight) var(--f-display);
     letter-spacing: var(--tr-display);
     text-transform: uppercase;
   }
-  .auth-card__sub { margin: 0; font: 400 var(--fs-400) / var(--lh-body) var(--f-ui); color: var(--c-ink-2); text-wrap: pretty; }
+  .auth-card__sub { margin: 0; font: 400 var(--fs-300) / var(--lh-body) var(--f-ui); color: var(--c-ink-2); text-wrap: pretty; }
+  .auth-card__sub strong { font-weight: 600; color: var(--c-ink); overflow-wrap: anywhere; }
+  .auth-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .auth-field { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .auth-label {
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .auth-field--error .auth-label { color: var(--c-bad); }
+  .auth-shell {
+    display: flex;
+    align-items: center;
+    height: var(--hit);
+    padding: 0 var(--sp-4);
+    border-radius: var(--r-m);
+    background: var(--c-surface-sunk);
+    box-shadow: var(--sh-inset);
+  }
+  .auth-field--error .auth-shell { background: var(--c-bad-wash); box-shadow: inset 0 0 0 1.5px var(--c-bad); }
+  .auth-shell__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font: 400 var(--fs-400) / 1 var(--f-ui);
+    color: var(--c-ink);
+  }
   .auth-card__note { margin: 0; font: 400 var(--fs-200) / 1.35 var(--f-ui); color: var(--c-ink-3); }
-  .auth-card__error { margin: 0; font: 500 var(--fs-300) / 1.35 var(--f-ui); color: var(--c-bad); }
+  /* L'erreur reste accrochée à SON champ, avec son icône — jamais un message global. */
+  .auth-card__error {
+    margin: 0;
+    display: flex;
+    gap: var(--sp-2);
+    align-items: flex-start;
+    font: 500 var(--fs-300) / 1.35 var(--f-ui);
+    color: var(--c-bad);
+  }
+  .auth-card__error svg { flex: none; margin-top: 2px; }
   .auth-card__sunk {
     padding: var(--sp-4);
     border-radius: var(--r-m);
@@ -133,7 +190,12 @@
     background: var(--c-surface-2);
     color: var(--c-ink);
     box-shadow: var(--sh-edge);
-    font: 500 var(--fs-400) / 1 var(--f-ui);
+    /* Longhands et non le raccourci `font:` — le raccourci réinitialise
+       font-weight, et les modificateurs qui suivent perdaient leur poids. */
+    font-family: var(--f-ui);
+    font-size: var(--fs-400);
+    font-weight: 500;
+    line-height: 1;
     white-space: nowrap;
   }
   .button--primary {
@@ -146,6 +208,8 @@
   .button--quiet { background: transparent; box-shadow: none; color: var(--c-ink-3); }
   .button--block { width: 100%; }
   .button--lg { min-height: var(--hit); font-size: var(--fs-500); }
+  /* A1 : pleine hauteur mais corps normal (la maquette demande --fs-400). */
+  .button--tall { min-height: var(--hit); padding: var(--sp-4); }
   .button[disabled] { opacity: 0.55; }
 
   /* ---- Panneau réservé à l'animateur : prune + hachure (2 signaux) ---- */

@@ -5,8 +5,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Connexion animateur (/host)', () => {
   test("affiche la carte de connexion, sans l'argumentaire de la page d'accueil", async ({ page }) => {
     await page.goto('/host');
-    // La carte de connexion est là.
-    await expect(page.getByLabel("Adresse email de l'animateur")).toBeVisible();
+    // La carte de connexion est là — libellés de la maquette A1.
+    await expect(page.getByRole('heading', { name: 'Poste de pilotage' })).toBeVisible();
+    await expect(page.getByLabel('Adresse email')).toBeVisible();
     await expect(page.getByText('Un seul animateur')).toBeVisible();
     // Le bloc marketing et la porte joueur ont disparu de cette page.
     await expect(page.getByText('Anime ton propre jeu télévisé')).toHaveCount(0);

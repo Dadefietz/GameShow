@@ -34,6 +34,21 @@ const playerId = (p) => p && (p.id || p.playerId);
 
 // ---- Icônes ----------------------------------------------------------------
 const I = {
+  // Tracés repris tels quels des maquettes Claude Design (trait, jamais d'emoji).
+  mail: ({ s = 26 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 7.5h17v11h-17z" />
+      <path d="M3.5 8l8.5 6 8.5-6" />
+    </svg>
+  ),
+  arrow: ({ s = 18 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h13" />
+      <path d="M12.5 6.5L19 12l-6.5 5.5" />
+    </svg>
+  ),
   flame: ({ s = 22, ember = false }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
@@ -238,43 +253,55 @@ function LoginScreen({ onEstablishRoom }) {
   return (
     <main className="page card-screen" role="main" aria-labelledby="auth-title">
       <div className="auth-card">
-        <span className="auth-card__mark" aria-hidden="true"><I.flame s={30} ember /></span>
-        <h1 className="auth-card__title" id="auth-title">Project Game Show</h1>
+        {/* Marque en haut à gauche — la carte n'est pas centrée (maquette A1). */}
+        <div className="auth-brand">
+          <span className="auth-brand__mark" aria-hidden="true"><I.flame s={22} ember /></span>
+          <p className="auth-brand__name">Project Game Show</p>
+        </div>
 
         {sent ? (
           <>
-            <p className="auth-card__sub">
-              Un lien de connexion vient d'être envoyé à <strong>{email}</strong>.
-            </p>
-            <p className="auth-card__note">
-              Ouvre ta boîte mail et clique sur le lien pour accéder à ton plateau.
-            </p>
-            <button className="button button--block" type="button" onClick={() => setSent(false)}>
-              Utiliser une autre adresse
-            </button>
+            <div className="auth-card__head auth-card__head--badged">
+              <span className="auth-badge auth-badge--ok" aria-hidden="true"><I.mail s={26} /></span>
+              <h1 className="auth-card__title" id="auth-title">Lien envoyé</h1>
+              <p className="auth-card__sub">
+                Ouvre le message envoyé à <strong data-bind="auth.email">{email}</strong> pour
+                rejoindre ton poste de pilotage. Le lien est valable 15 minutes.
+              </p>
+            </div>
+            <button className="button" type="button" data-action="auth:changeEmail"
+              onClick={() => setSent(false)}>Utiliser une autre adresse</button>
           </>
         ) : (
           <>
-            <p className="auth-card__sub">Connecte-toi pour animer ta partie.</p>
-            <form onSubmit={requestLink} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-              <label className="h-label" htmlFor="host-email" style={{ textAlign: 'left' }}>
-                Adresse email de l'animateur
-              </label>
-              <div className={`field${error ? ' field--error' : ''}`}>
-                <input className="field__input" id="host-email" type="email" name="email"
-                  placeholder="vous@exemple.fr" autoComplete="email" value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={busy}
-                  aria-invalid={error ? true : undefined} />
+            <div className="auth-card__head">
+              <h1 className="auth-card__title" id="auth-title">Poste de pilotage</h1>
+              <p className="auth-card__sub">Un seul animateur — accès par lien email.</p>
+            </div>
+            <form className="auth-form" onSubmit={requestLink} noValidate data-action="POST /api/auth/link">
+              <div className={`auth-field${error ? ' auth-field--error' : ''}`}>
+                <label className="auth-label" htmlFor="host-email">Adresse email</label>
+                <div className="auth-shell">
+                  <input className="auth-shell__input" id="host-email" type="email" name="email"
+                    placeholder="toi@exemple.fr" autoComplete="email" value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={busy}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? 'host-email-error' : undefined} />
+                </div>
+                {error ? (
+                  <p className="auth-card__error" id="host-email-error" data-bind="auth.error" role="alert">
+                    <I.alert s={17} />{error}
+                  </p>
+                ) : null}
               </div>
-              <button className="button button--primary button--block button--lg" type="submit" disabled={busy}>
+              <button className="button button--primary button--block button--tall" type="submit"
+                data-action="POST /api/auth/link" disabled={busy}>
                 {busy ? 'Envoi…' : (supabase ? 'Recevoir mon lien' : 'Entrer (mode animateur)')}
+                {busy || !supabase ? null : <I.arrow s={18} />}
               </button>
             </form>
           </>
         )}
-
-        {error ? <p className="auth-card__error" role="alert">{error}</p> : null}
-        <p className="auth-card__note">Un seul animateur — accès par lien email.</p>
       </div>
     </main>
   );
