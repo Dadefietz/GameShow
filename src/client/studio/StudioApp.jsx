@@ -338,7 +338,7 @@ export function StudioApp() {
       <Sidebar modules={modules} selectedId={selectedId} mode={mode} loading={remoteLoading}
         onSelect={selectModule} onAdd={addModule} />
 
-      <main className="work" aria-label="Gestion des modules">
+      <main className="work" data-state={modules.length === 0 ? 'empty' : 'ready'} aria-label="Gestion des modules">
         <div className="work__head">
           <div>
             <h1 className="work__title">Questionnaires</h1>
@@ -404,8 +404,11 @@ function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
       ? { cls: ' source--off', text: 'Hors ligne' }
       : { cls: ' source--ok', text: 'Synchronisé' };
 
+  // E1 état global selon contrat maquette
+  const e1State = loading ? 'loading' : modules.length === 0 ? 'empty' : mode === 'local' ? 'offline' : 'ready';
+
   return (
-    <nav className="nav" aria-label="Navigation du studio">
+    <nav className="nav" data-state={e1State} aria-label="Navigation du studio">
       <div className="nav__brand">
         <span className="nav__mark" aria-hidden="true"><I.flame s={20} /></span>
         <span className="nav__name">Game Show<span className="nav__sub">Studio</span></span>
@@ -488,7 +491,7 @@ function EditorPanel({
     : 'Enregistrer';
 
   return (
-    <aside className="editor" aria-label={`Édition du module ${module.name}`}>
+    <aside className="editor" data-state={module.questions.length === 0 ? 'empty' : 'ready'} aria-label={`Édition du module ${module.name}`}>
       <div className="editor__head">
         <h2 className="editor__title">{module.name}</h2>
         <button className="qrow__btn" type="button" aria-label="Fermer l'éditeur" onClick={onClose}>
@@ -624,7 +627,7 @@ function EditorPanel({
 // ---------------------------------------------------------------------------
 function QuestionRow({ index, module, question, editing, invalid, errors, onToggle, onPatch, onRemove }) {
   const isNew = !String(question.prompt || '').trim();
-  const state = editing ? 'open' : invalid ? 'invalid' : isNew ? 'new' : 'collapsed';
+  const state = editing ? `expanded ${module.type}` : invalid ? 'invalid' : isNew ? 'new' : 'collapsed';
   return (
     <div>
       <div className={`qrow${editing ? ' qrow--open' : ''}${invalid ? ' qrow--invalid' : ''}`} data-state={state}>
