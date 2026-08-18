@@ -63,6 +63,7 @@ function CheckIcon({ size = 34 }) {
 function JoinPanel({ code }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
+  const lienAffiche = `${origin.replace(/^https?:\/\//, '')}/play`;
   const [qr, setQr] = useState('');
 
   useEffect(() => {
@@ -100,8 +101,11 @@ function JoinPanel({ code }) {
       <div className="join-panel__group">
         <p className="join-panel__label">Sur ton téléphone</p>
         <div className="join-panel__url-capsule">
-          <span className="join-panel__url" data-bind="room.joinUrl">
-            {origin.replace(/^https?:\/\//, '')}/play
+          {/* Au-delà d'une quinzaine de caractères, le lien ne tient plus sur
+              une ligne à la typo de la planche : il descend d'un cran. */}
+          <span className={`join-panel__url${lienAffiche.length > 16 ? ' join-panel__url--long' : ''}`}
+            data-bind="room.joinUrl">
+            {lienAffiche}
           </span>
         </div>
       </div>
