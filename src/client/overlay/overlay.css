@@ -173,21 +173,50 @@
     color: var(--c-ink-2);
   }
 
-  /* Anneau de chrono : deux tailles, seuil --urgent-threshold. */
+  /* ---- Bandeau de manche : capsules + progression à gauche, chrono à droite --
+     Le chrono partage la bande des capsules au lieu de s'empiler sous
+     l'énoncé : c'est ce qui libère la hauteur nécessaire aux quatre options. */
+  .st-band { display: flex; align-items: center; gap: var(--gap-st); }
+  .st-band__col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-5); }
+
+  /* Progression de séance : combien d'épreuves derrière, combien devant. */
+  .st-progress {
+    height: var(--bar-st);
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    overflow: hidden;
+  }
+  .st-progress__fill {
+    display: block;
+    height: 100%;
+    background: var(--c-flame);
+    animation: om-fill var(--mo-slow) var(--ease-out) both;
+  }
+
+  /* Anneau de chrono : jauge circulaire qui se vide, deux tailles de chiffre
+     au seuil --urgent-threshold. La forme porte l'état autant que la couleur. */
   .st-chrono {
     width: var(--ring-st);
     height: var(--ring-st);
     flex: none;
     border-radius: var(--r-full);
-    background: var(--c-surface);
-    box-shadow: var(--sh-edge);
+    background: conic-gradient(var(--c-flame) var(--om-ring, 100%), var(--c-surface) 0);
     display: grid;
     place-items: center;
   }
   .st-chrono--urgent {
-    background: var(--c-ember-wash);
-    box-shadow: var(--sh-glow);
+    background: conic-gradient(var(--c-ember) var(--om-ring, 0%), var(--c-surface) 0);
+    box-shadow: var(--sh-glow-st);
     animation: om-urgent 900ms var(--ease-in-out) infinite;
+  }
+  .st-chrono--over { background: var(--c-surface); }
+  .st-chrono__disc {
+    width: var(--ring-st-in);
+    height: var(--ring-st-in);
+    border-radius: var(--r-full);
+    background: var(--c-canvas);
+    display: grid;
+    place-items: center;
   }
   .st-chrono__value {
     font: 600 var(--fs-st-chrono) / 1 var(--f-mono);
@@ -218,12 +247,17 @@
     align-items: center;
     gap: var(--sp-6);
     padding: var(--sp-5) var(--sp-7);
-    border-radius: var(--r-m);
+    border-radius: var(--r-l);
     background: var(--c-surface);
     box-shadow: var(--sh-1), var(--sh-edge);
     overflow: hidden;
     animation: om-slide-in var(--mo-slow) var(--ease-out) both;
   }
+  /* À la révélation, seule la rangée mise en avant garde le relief : le reste
+     redescend d'un plan pour que l'œil aille droit au résultat. */
+  .st-stats .st-opt { box-shadow: var(--sh-edge); }
+  .st-stats .st-opt--correct,
+  .st-stats .st-opt--leading { box-shadow: var(--sh-1), var(--sh-edge); }
   /* Barre de répartition : pousse de 0 à sa valeur à la révélation. */
   .st-opt__fill {
     position: absolute;

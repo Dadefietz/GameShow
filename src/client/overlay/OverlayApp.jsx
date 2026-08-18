@@ -241,6 +241,18 @@ function QuestionStage({ g }) {
     leadingIndex = stats.tally.reduce((best, v, i, arr) => (v > arr[best] ? i : best), 0);
   }
 
+  // Progression de séance : où en est-on dans la liste des épreuves.
+  const progPct = prog?.index && prog?.total
+    ? Math.min(100, Math.round((prog.index / prog.total) * 100))
+    : null;
+
+  // Jauge du chrono : le temps restant se lit à la forme de l'anneau, pas
+  // seulement au chiffre — un état doit rester lisible sans la couleur.
+  const dureeSec = current.durationMs ? current.durationMs / 1000 : null;
+  const ringPct = dureeSec && typeof timeLeft === 'number'
+    ? Math.max(0, Math.min(100, Math.round((timeLeft / dureeSec) * 100)))
+    : null;
+
   // État du stage avec variantes selon le type de révélation
   const revealedState = revealed ? (() => {
     const typeMap = { true_false: 'boolean', estimation: 'numeric', vote: 'vote' };
@@ -250,33 +262,59 @@ function QuestionStage({ g }) {
 
   return (
     <div className="stream__stage" data-testid="stream-question" data-state={revealedState}>
-      <div className="st-caps">
-        <span className="st-cap st-cap--live">
-          <span className="st-cap__dot st-cap__dot--still" aria-hidden="true" />
-          <span className="st-cap__label st-cap__label--live">{meta?.name || 'Épreuve'}</span>
-        </span>
-        {prog?.index ? (
-          <span className="st-cap">
-            <span className="st-cap__label">Épreuve</span>
-            <span className="st-cap__value">
-              <span data-bind="module.index">{prog.index}</span>
-              {prog.total > prog.index ? (
-                <><span className="st-cap__value-dim">/</span>
-                <span className="st-cap__value-dim" data-bind="module.total">{prog.total}</span></>
-              ) : null}
+      {/* Bandeau de manche : capsules et progression de séance à gauche, jauge
+          de chrono à droite. La manche close ne garde que les capsules — plus
+          rien ne court, donc ni jauge ni barre. */}
+      <div className="st-band">
+        <div className="st-band__col">
+          <div className="st-caps">
+            <span className="st-cap st-cap--live">
+              <span className="st-cap__dot st-cap__dot--still" aria-hidden="true" />
+              <span className="st-cap__label st-cap__label--live">{meta?.name || 'Épreuve'}</span>
             </span>
-          </span>
-        ) : null}
-        <span className="st-cap">
-          <span className="st-cap__icon" aria-hidden="true"><PeopleIcon size={28} stroke="var(--c-ink-3)" /></span>
-          <span className="st-cap__value" data-bind="reveal.stats.total" data-testid="answers-count">
-            {fmt(answers)}
-          </span>
-        </span>
-        {revealed ? (
-          <span className="st-cap st-cap--closed">
-            <span className="st-cap__label st-cap__label--muted">Manche close</span>
-          </span>
+            {prog?.index ? (
+              <span className="st-cap">
+                <span className="st-cap__label">Épreuve</span>
+                <span className="st-cap__value">
+                  <span data-bind="module.index">{prog.index}</span>
+                  {prog.total > prog.index ? (
+                    <><span className="st-cap__value-dim">/</span>
+                    <span className="st-cap__value-dim" data-bind="module.total">{prog.total}</span></>
+                  ) : null}
+                </span>
+              </span>
+            ) : null}
+            <span className="st-cap">
+              <span className="st-cap__icon" aria-hidden="true"><PeopleIcon size={28} stroke="var(--c-ink-3)" /></span>
+              <span className="st-cap__value" data-bind="reveal.stats.total" data-testid="answers-count">
+                {fmt(answers)}
+              </span>
+            </span>
+            {revealed ? (
+              <span className="st-cap st-cap--closed">
+                <span className="st-cap__label st-cap__label--muted">Manche close</span>
+              </span>
+            ) : null}
+          </div>
+
+          {!revealed && progPct != null ? (
+            <div className="st-progress">
+              <span className="st-progress__fill" data-bind="room.progression"
+                style={{ '--om-to': `${progPct}%`, width: `${progPct}%` }} />
+            </div>
+          ) : null}
+        </div>
+
+        {!revealed ? (
+          <div className={`st-chrono${urgent ? ' st-chrono--urgent' : ''}${over ? ' st-chrono--over' : ''}`}
+            role="timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}
+            style={ringPct != null ? { '--om-ring': `${ringPct}%` } : undefined}>
+            <span className="st-chrono__disc">
+              <span className="st-chrono__value" data-bind="tick.timeLeft">
+                {typeof timeLeft === 'number' ? timeLeft : '—'}
+              </span>
+            </span>
+          </div>
         ) : null}
       </div>
 
@@ -287,27 +325,19 @@ function QuestionStage({ g }) {
         {current.text || ''}
       </p>
 
-      {/* Question en cours : options nues + anneau de chrono. */}
+      {/* Question en cours : les options, nues. */}
       {!revealed ? (
-        <>
-          <div className={`st-chrono${urgent ? ' st-chrono--urgent' : ''}${over ? ' st-chrono--over' : ''}`}
-            role="timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}>
-            <span className="st-chrono__value" data-bind="tick.timeLeft">
-              {typeof timeLeft === 'number' ? timeLeft : '—'}
-            </span>
+        options.length > 0 ? (
+          <div className="st-options" data-bind="module.options">
+            {options.map((opt, i) => (
+              <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
+                <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
+                <span className="st-opt__label">{opt}</span>
+                <span className="st-opt__mark" aria-hidden="true" />
+              </div>
+            ))}
           </div>
-          {options.length > 0 ? (
-            <div className="st-options" data-bind="module.options">
-              {options.map((opt, i) => (
-                <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
-                  <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
-                  <span className="st-opt__label">{opt}</span>
-                  <span className="st-opt__mark" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </>
+        ) : null
       ) : (
         /* Révélation : la répartition prend toute la place. */
         <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">

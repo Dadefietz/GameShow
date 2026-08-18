@@ -156,6 +156,8 @@
   --sh-ember: 0 8px 24px oklch(0.63 0.19 44 / 0.35);
   --sh-pine:  0 8px 24px oklch(0.60 0.11 150 / 0.28);
   --sh-glow:  0 0 0 5px oklch(0.80 0.155 72 / 0.20);
+  /* Même halo, à l'échelle de diffusion : un anneau de 5 px disparaît à 25 %. */
+  --sh-glow-st: 0 0 0 14px oklch(0.80 0.155 72 / 0.20);
   --sh-focus: 0 0 0 3px oklch(0.198 0.024 55), 0 0 0 6px var(--c-flame);
 
   /* --- 12. BORDURES & FOCUS --------------------------------------------- */
@@ -252,6 +254,7 @@
   --fs-st-chrono-urgent: 140px;
   --ring-st: 180px;    /* anneau de chrono du stream                       */
   --ring-st-in: 148px; /* disque intérieur de l'anneau                     */
+  --bar-st: 12px;      /* barre de progression de séance (bandeau S3)      */
   --row-st: 132px;     /* rangée d'option sur le stream (echo du 68 px)    */
   --dot-st: 64px;      /* lettre-repère d'option                          */
   /* Marqueur d'état d'option : mis à l'échelle comme le reste de la rangée
