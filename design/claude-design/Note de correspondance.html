@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>Note de correspondance — surface joueur</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-9) var(--sp-8) var(--sp-10);display:flex;flex-direction:column;align-items:center">
+  <div style="width:100%;max-width:940px;display:flex;flex-direction:column;gap:var(--sp-8)">
+
+    <header style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-8);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:var(--sp-3)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Project Game Show · surface joueur · écrans J1 → J6</p>
+        <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Note de correspondance</h1>
+        <p style="margin:0;max-width:66ch;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Où se trouve chaque élément du contrat, écran par écran. Les livrables sont des fichiers autonomes : <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">tokens.css</code> (socle des 4 surfaces), <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">Systeme</code> (planche du système), puis <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">J1</code> à <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">J6</code> — un fichier par écran, toutes ses variantes à l'intérieur, chacune dans un cadre 390 × 844 porteur de son <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">data-state</code>.</p>
+      </div>
+    </header>
+
+    <!-- Conventions -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Conventions d'annotation</h2>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">data-bind</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Porté par l'élément qui affiche la donnée. Sur une liste, il est sur le conteneur (<code style="font:400 var(--fs-200)/1 var(--f-mono)">module.options</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">podium</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">history</code>) ; les enfants sont des gabarits à répéter.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">data-action</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Porté par l'élément cliquable. Côté joueur : <code style="font:400 var(--fs-200)/1 var(--f-mono)">play:answer</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">POST /api/rooms/:code/join</code>, plus trois actions locales sans aller-retour serveur — <code style="font:400 var(--fs-200)/1 var(--f-mono)">leave</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">share</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">replay</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">reload</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">data-state</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sur le cadre de l'écran. Les valeurs composées se lisent comme des modificateurs cumulés : <code style="font:400 var(--fs-200)/1 var(--f-mono)">"waiting empty"</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">"open urgent"</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">"time-up empty"</code>. Une option porte aussi son propre <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-state="selected"</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">data-testid</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Conservés à l'identique : <code style="font:400 var(--fs-200)/1 var(--f-mono)">room-code</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">player-count</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">question-text</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">points-gained</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">places-delta</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">reveal-value</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">end-screen</code>. Les repères animateur et stream (<code style="font:400 var(--fs-200)/1 var(--f-mono)">answers-count</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">stats-panel</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">stream-*</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">denied-card</code>) n'apparaissent pas ici : hors périmètre joueur.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">data-screen-label</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Repère de relecture, non fonctionnel. Peut être retiré à l'intégration.</span>
+      </div>
+    </section>
+
+    <!-- J1 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J1</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Rejoindre — 7 variantes</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Ossature commune : logo + nom de produit en tête, titre, formulaire, puis bloc de bas d'écran (réassurance + action principale au pouce).</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">url.code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Rangée de 5 cases sous le label « Code du salon ». Le conteneur porte le bind, chaque case est un <code style="font:400 var(--fs-200)/1 var(--f-mono)">input maxlength="1"</code> avec <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> individuel. Variante 2 : cases pré-remplies + bandeau d'information.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Champ pseudo</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sous les cases. Compteur <code style="font:400 var(--fs-200)/1 var(--f-mono)">13/20</code> à droite dans le champ, bouton d'effacement circulaire de 32 px (au-delà du plancher tactile car doublé par la sélection du champ).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">join.notice</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 2 (bandeau braise sous le titre) et variante 7 (carte d'accueil après éjection, avec l'icône feu de camp).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">error.code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 4 — ligne <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="alert"</code> immédiatement sous les 5 cases, cases repassées en braise éteinte, label du champ en rouge. Couvre <code style="font:400 var(--fs-200)/1 var(--f-mono)">404</code> et <code style="font:400 var(--fs-200)/1 var(--f-mono)">429</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">error.pseudo</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 5 — même mécanique sous le champ pseudo. Couvre <code style="font:400 var(--fs-200)/1 var(--f-mono)">409</code> et <code style="font:400 var(--fs-200)/1 var(--f-mono)">422</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">error.general</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 6 — carte d'alerte en haut du formulaire, titre + explication. Couvre l'échec réseau et <code style="font:400 var(--fs-200)/1 var(--f-mono)">400</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">POST /api/rooms/:code/join</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sur le <code style="font:400 var(--fs-200)/1 var(--f-mono)">form</code> et sur le bouton de bas d'écran. Variante 3 : bouton <code style="font:400 var(--fs-200)/1 var(--f-mono)">disabled aria-busy</code>, spinner + « On te fait une place… », champs désactivés.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Réassurance</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Aucun compte, aucune installation. » — juste au-dessus du bouton, avec pastille de validation. Présente dans les 7 variantes.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Table des erreurs</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">En bas du fichier : chaque code serveur → son emplacement et son libellé exact.</span>
+      </div>
+    </section>
+
+    <!-- J2 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J2</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Salle d'attente — 3 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule en haut à gauche, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="room-code"</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">player.pseudo</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Carte « Tu joues sous le nom », sous le bandeau. <code style="font:400 var(--fs-200)/1 var(--f-mono)">overflow-wrap:anywhere</code> ; variante 3 : passe de 30 px à 25 px pour un pseudo de 20 caractères.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.playerCount</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Carte basse au-dessus du bouton Quitter, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="player-count"</code>. Le chiffre rejoue <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-pop</code> à chaque <code style="font:400 var(--fs-200)/1 var(--f-mono)">player:joined</code>.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Animation d'attente</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois points en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-breathe</code> décalés de 200 ms, au-dessus du titre « On attend l'animateur ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">leave</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bouton pleine largeur en pied d'écran, secondaire.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Cas limite</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 2 <code style="font:400 var(--fs-200)/1 var(--f-mono)">"waiting empty"</code> : compteur à 1, carte en fond creusé, titre « Tu allumes le feu ». Variante 3 : 148 joueurs + pseudo maximal.</span>
+      </div>
+    </section>
+
+    <!-- J3 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J3</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Question — 4 modules × 3 états</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Ossature identique aux 12 cadres : bandeau (module, score) → ligne manche + chrono → énoncé → zone de réponse en bas. Aucun bouton Quitter, conformément au contrat.</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.meta.name</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule en haut à gauche. Braise pour quiz / vrai-faux / estimation, fougère pour le vote. En <code style="font:400 var(--fs-200)/1 var(--f-mono)">time-up</code>, elle passe en fond creusé.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.score</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule en haut à droite. <strong style="color:var(--c-ember-bright);font-weight:600">Point signalé</strong> — voir « Écarts » en fin de note.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.index / module.total</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bloc « Manche 3/12 » à gauche de l'anneau de chrono.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">tick.timeLeft</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Anneau de 92 px, chiffre monospace au centre, en deux tailles : <code style="font:400 var(--fs-200)/1 var(--f-mono)">--fs-chrono</code> (40 px) au-delà de 5 s, <code style="font:400 var(--fs-200)/1 var(--f-mono)">--fs-chrono-urgent</code> (58 px) à 5 s ou moins — le basculement se fait au seuil <code style="font:400 var(--fs-200)/1 var(--f-mono)">--urgent-threshold</code>, en même temps que le passage en braise. Sous 5 s (<code style="font:400 var(--fs-200)/1 var(--f-mono)">"open urgent"</code>, cadre vrai-faux n° 1) : anneau en braise, <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-urgent</code> à 900 ms, halo, chiffre en braise claire. À 0 : taille urgente conservée, anneau vidé, chiffre en encre tertiaire.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.text</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Énoncé en display condensée 32 px, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="question-text"</code>. Grisé en <code style="font:400 var(--fs-200)/1 var(--f-mono)">time-up</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.options</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Conteneur de la zone de réponse. Quiz/vote : rangées de 68 px avec lettre-repère et marqueur ; vrai-faux : deux tuiles de 132 px côte à côte ; estimation : champ numérique de 84 px + bouton d'envoi.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">play:answer</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sur chaque option (quiz, vrai-faux, vote) et sur « Envoyer mon estimation ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">play.accepted</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bandeau <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="status"</code> en bas de la zone de réponse : « Réponse envoyée » (quiz, vrai-faux, estimation), « Ta voix est enregistrée » (vote). Les trois refus <code style="font:400 var(--fs-200)/1 var(--f-mono)">ok:false</code> réutilisent ce bandeau en braise éteinte — libellés en pied du fichier J3.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">État répondu</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Options non choisies en fond creusé et sans marqueur ; l'option choisie porte <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-state="selected"</code>, un fill de braise (fougère pour le vote), <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-commit</code> puis coche tracée.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">État temps écoulé</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Tout figé, marqueurs barrés, bandeau de clôture : « Temps écoulé — tu n'as pas répondu », « réponse prise en compte », ou « Vote clos ». Cadre estimation n° 3 : « Aucune estimation envoyée ».</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Textes longs</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Option D du quiz : libellé de 3 lignes ramené à 17 px, ellipse, marqueur aligné sur la première ligne, rangée qui grandit sans casser.</span>
+      </div>
+    </section>
+
+    <!-- J4 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J4</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Résultat de manche — 5 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.delta</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chiffre de 78 px au centre de la carte de résultat, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="points-gained"</code>. Épicéa si positif, encre tertiaire si 0.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.placesDelta</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule sous les points, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="places-delta"</code> : flèche montante + « +2 places », flèche descendante + « −1 place », ou tiret + « Position inchangée ». Jamais de rang.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.base / bonus / malus / streak</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Grille de 4 cellules sous la carte, dans cet ordre. La série s'écrit <code style="font:400 var(--fs-200)/1 var(--f-mono)">×3</code> ou « rompue ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">reveal.correct / target / leading</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bloc « Bonne réponse » en bas, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="reveal-value"</code> — présent dans les 5 variantes, y compris quand le joueur a juste. Estimation : deux cellules côte à côte (ton estimation / bonne réponse). Vote : « En tête » à la place de « Bonne réponse ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">leave</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bouton Quitter en pied d'écran, présent dans les 5 variantes.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Célébration</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 1 : lueur d'épicéa au bas du cadre, disque de 72 px, coche tracée en 420 ms, titre « Bien joué ». Aucun confetti, aucune boucle.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Cas limite</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 5 <code style="font:400 var(--fs-200)/1 var(--f-mono)">"empty"</code> : aucun <code style="font:400 var(--fs-200)/1 var(--f-mono)">play:you</code> reçu (joueur arrivé après le lancement) — score affiché « — », pas de carte de points, la bonne réponse reste montrée.</span>
+      </div>
+    </section>
+
+    <!-- J5 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J5</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Fin de partie — 4 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.rank</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chiffre de 78 px avec exposant (1<sup>er</sup>, 3<sup>e</sup>, 9<sup>e</sup>) dans la carte haute. <strong style="font-weight:600">Seul écran du parcours où le rang apparaît</strong> — le cadre porte <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="end-screen"</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">you.score</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule « points » sous le rang, dans la même carte.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">podium</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois rangées rang / pseudo / score sous la carte. La rangée du joueur est en braise ; les pseudos longs s'ellipsent sur une ligne.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">history</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bloc <code style="font:400 var(--fs-200)/1 var(--f-mono)">&lt;details&gt;</code> « Récapitulatif des 12 manches », replié par défaut : numéro, énoncé, bonne réponse en épicéa, zone défilante.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">share</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Partager mon score » — action principale en braise. Masquée dans la variante 4 (rien à montrer).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">replay</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Rejouer » — bouton secondaire juste sous le partage.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Reste connecté</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Ligne <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="status"</code> centrée au-dessus des deux boutons, dans les 4 variantes.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Cas limite</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 4 <code style="font:400 var(--fs-200)/1 var(--f-mono)">"ranked empty"</code> : personne n'a marqué — ni rang ni podium, score à 0, partage retiré. Aligné sur la règle A6 « pas de leader tant que personne n'a marqué ».</span>
+      </div>
+    </section>
+
+    <!-- J6 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">J6</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Chargement — 3 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Marque</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Tuile de 76 px, icône feu de camp en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-flicker</code>, nom du produit en display condensée sur deux lignes. Centré verticalement.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Attente</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois points en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-breathe</code> + « On approche du feu… », dans un <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="status" aria-live="polite"</code>. Aucun spinner, aucune barre de progression.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Variante 2 · au-delà de 4 s</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Ligne de réassurance ajoutée sous les points : « Le réseau prend son temps. Reste sur cette page, ça arrive. »</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">reload</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 3 · au-delà de 10 s — animation arrêtée, message d'explication, bouton « Recharger » en pied d'écran. Sortie de secours proposée par le design ; le contrat n'impose pas ce seuil.</span>
+      </div>
+    </section>
+
+    <!-- Écarts -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Écarts et points à confirmer</h2>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-4)">
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:26px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">1</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Score courant en J3, sans source.</strong> Le §5 liste le score parmi les données de l'écran Question, mais aucun événement du §2.1 ne le pousse pendant une manche : <code style="font:400 var(--fs-200)/1 var(--f-mono)">play:you</code> n'arrive qu'à la révélation. Annoté <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-bind="you.score"</code> en supposant que le client conserve le dernier score reçu. À confirmer.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:26px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">2</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">« Message d'information contextuel » en J1, sans clé.</strong> Le §5 le mentionne en <code style="font:400 var(--fs-200)/1 var(--f-mono)">[IN]</code> sans nommer sa source. Annoté <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-bind="join.notice"</code> — nom à valider, ou à remplacer par la clé réelle.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:26px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">3</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Quitter, partager, rejouer : pas d'action serveur.</strong> Le §2.2 ne liste aucune action joueur en dehors de <code style="font:400 var(--fs-200)/1 var(--f-mono)">play:answer</code>. Ces trois boutons sont exigés par le §5 : annotés <code style="font:400 var(--fs-200)/1 var(--f-mono)">leave</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">share</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">replay</code> — noms locaux, à remplacer par les vrais si le client en émet.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:26px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">4</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Vrai-faux sans réponse à l'échéance.</strong> Le cadre <code style="font:400 var(--fs-200)/1 var(--f-mono)">time-up</code> montre les deux tuiles figées sans choix. Le §2.4 impose un booléen : rien ne dit si l'absence de réponse vaut <code style="font:400 var(--fs-200)/1 var(--f-mono)">false</code> ou « pas de réponse ». Traité comme « pas de réponse ».</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+          <span style="width:26px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-pine)">5</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Rien d'inventé, rien d'omis.</strong> Six écrans, aucun de plus. Aucun classement, aucun top 5, aucune position chiffrée avant J5 ; la répartition des réponses n'apparaît sur aucun écran joueur ; aucun emoji ; aucune fonction pause.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Accessibilité -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Accessibilité — WCAG 2.2 AA</h2>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Contrastes</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Encre principale 14,4:1 · secondaire 9,1:1 · labels 5,9:1 · braise claire 7,6:1 · épicéa 9,9:1 · erreur 6,0:1. Les fills de feu et de feuille reçoivent l'encre sombre <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-ink-on-flame</code> / <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-ink-on-leaf</code> : les bornes des dégradés <code style="font:400 var(--fs-200)/1 var(--f-mono)">--g-ember</code> et <code style="font:400 var(--fs-200)/1 var(--f-mono)">--g-pine</code> sont calées pour tenir <strong style="font-weight:600">≥ 4,5:1 sur toute la course du dégradé</strong>, y compris au point le plus sombre — la lettre-repère de 15 px posée sur un fill reste donc conforme AA. <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-ink-4</code> est réservé aux filets, jamais au texte.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Cibles</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Boutons 56 px, options 68 px, tuiles vrai-faux 132 px, cases de code 62 px. Aucune cible sous 44 px.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Focus</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Contour de 3 px en flamme avec 2 px de décalage, défini une fois dans <code style="font:400 var(--fs-200)/1 var(--f-mono)">tokens.css</code> — visible sur tous les fonds sombres.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Libellés</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chaque champ a son <code style="font:400 var(--fs-200)/1 var(--f-mono)">&lt;label for&gt;</code> ; chaque case de code son <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> ; les erreurs sont liées par <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-describedby</code> + <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-invalid</code> et annoncées en <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="alert"</code>.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">État sans couleur</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chaque état change simultanément le fond, la forme du marqueur et le poids du texte : choisi, bon et figé se distinguent sans percevoir la teinte.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Motion</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Toutes les animations sont neutralisées sous <code style="font:400 var(--fs-200)/1 var(--f-mono)">prefers-reduced-motion</code>, y compris le chrono urgent.</span>
+      </div>
+    </section>
+
+    <footer style="padding:var(--sp-6) var(--sp-7);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-1),var(--sh-edge)">
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3);text-wrap:pretty">Les surfaces animateur, stream et studio réutilisent <code style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">tokens.css</code> sans y ajouter de variable : le socle contient déjà les gabarits <code style="font:400 var(--fs-200)/1 var(--f-mono)">--stream-w</code> / <code style="font:400 var(--fs-200)/1 var(--f-mono)">--stream-h</code> pour le canvas 1920 × 1080 diffusé en source navigateur.</p>
+    </footer>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

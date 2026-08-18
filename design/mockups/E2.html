@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+  <meta name="design_doc_mode" content="canvas">
+  <title>E2 · Grille des modules — Project Game Show</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:900px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface studio · écran E2</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Grille des modules</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Chaque carte porte les cinq informations du contrat : nom, type d'épreuve, durée, nombre de questions, couleur d'accent. La couleur d'accent est un filet en haut de carte — elle identifie le module partout ailleurs dans le produit (bandeau du pilotage, capsule du stream), donc elle doit se voir ici sans jamais devenir décorative.</p>
+  </header>
+
+  <!-- ══════ 1 · GRILLE REMPLIE ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · modules existants · <span style="color:var(--c-ember-bright)">data-state="ready"</span></figcaption>
+    <div data-state="ready" data-screen-label="E2 grille" style="width:var(--studio-w);height:var(--studio-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;display:flex">
+
+      <!-- E1 en place -->
+      <div style="width:var(--studio-nav);flex:none;background:var(--c-surface);box-shadow:var(--sh-edge);display:flex;flex-direction:column;border-right:var(--bw-hair) solid var(--c-line)">
+        <div style="padding:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);border-bottom:var(--bw-hair) solid var(--c-line)">
+          <div style="width:32px;height:32px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Studio · questionnaires</p>
+        </div>
+        <div data-bind="banks.source" style="margin:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--c-pine)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M4 12a8 8 0 0113.7-5.6"></path><path d="M20 12a8 8 0 01-13.7 5.6"></path><path d="M17.5 3.5v3.2h-3.2"></path><path d="M6.5 20.5v-3.2h3.2"></path></svg>
+          <span style="font:500 var(--fs-200)/1.3 var(--f-ui);color:var(--c-pine)">Synchronisé</span>
+        </div>
+        <div data-bind="banks.modules" style="flex:1;min-height:0;overflow-y:auto;padding:0 var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-2)">
+          <button type="button" data-action="studio:selectModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+            <span style="width:8px;height:8px;flex:none;border-radius:var(--r-full);background:var(--c-ember)"></span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Quiz culture</span>
+            <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">24</span>
+          </button>
+          <button type="button" data-action="studio:selectModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+            <span style="width:8px;height:8px;flex:none;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vrai ou faux</span>
+            <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">12</span>
+          </button>
+          <button type="button" data-action="studio:selectModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+            <span style="width:8px;height:8px;flex:none;border-radius:var(--r-full);background:var(--c-glow)"></span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Estimation</span>
+            <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">8</span>
+          </button>
+          <button type="button" data-action="studio:selectModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+            <span style="width:8px;height:8px;flex:none;border-radius:var(--r-full);background:var(--c-fern)"></span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vote du public</span>
+            <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">6</span>
+          </button>
+        </div>
+        <div style="padding:var(--sp-4);border-top:var(--bw-hair) solid var(--c-line)">
+          <button type="button" data-action="studio:createModule" style="width:100%;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-300)/1 var(--f-ui)">Nouveau module</button>
+        </div>
+      </div>
+
+      <!-- grille -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:var(--sp-6) var(--sp-7);display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-5);border-bottom:var(--bw-hair) solid var(--c-line)">
+          <div style="display:flex;flex-direction:column;gap:var(--sp-1)">
+            <h2 style="margin:0;font:600 var(--fs-700)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Modules</h2>
+            <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)"><span data-bind="banks.count" style="font-family:var(--f-mono)">4</span> questionnaires · <span data-bind="banks.questionCount" style="font-family:var(--f-mono)">50</span> questions au total</p>
+          </div>
+        </div>
+
+        <div data-bind="banks.modules" style="flex:1;min-height:0;overflow-y:auto;padding:var(--sp-7);display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--sp-5);align-content:start">
+
+          <article style="border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;flex-direction:column">
+            <div data-bind="module.color" style="height:6px;background:var(--c-ember)"></div>
+            <div style="padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);flex:1">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                <h3 data-bind="module.name" style="margin:0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">Quiz culture</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+                  <span data-bind="module.type" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-ember-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-ember-bright)">Quiz</span>
+                  <span data-bind="module.duration" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">20 s</span>
+                  <span data-bind="module.questionCount" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">24 questions</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="studio:editModule" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Éditer</button>
+                <button type="button" data-action="studio:deleteModule" aria-label="Supprimer le module Quiz culture" style="min-width:var(--hit-dense);min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article style="border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;flex-direction:column">
+            <div data-bind="module.color" style="height:6px;background:var(--c-flame)"></div>
+            <div style="padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);flex:1">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                <h3 data-bind="module.name" style="margin:0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">Vrai ou faux</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+                  <span data-bind="module.type" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-ember-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-ember-bright)">Vrai-Faux</span>
+                  <span data-bind="module.duration" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">15 s</span>
+                  <span data-bind="module.questionCount" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">12 questions</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="studio:editModule" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Éditer</button>
+                <button type="button" data-action="studio:deleteModule" aria-label="Supprimer le module Vrai ou faux" style="min-width:var(--hit-dense);min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article style="border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;flex-direction:column">
+            <div data-bind="module.color" style="height:6px;background:var(--c-glow)"></div>
+            <div style="padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);flex:1">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                <h3 data-bind="module.name" style="margin:0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">Estimation</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+                  <span data-bind="module.type" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-ember-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-ember-bright)">Estimation</span>
+                  <span data-bind="module.duration" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">25 s</span>
+                  <span data-bind="module.questionCount" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">8 questions</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="studio:editModule" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Éditer</button>
+                <button type="button" data-action="studio:deleteModule" aria-label="Supprimer le module Estimation" style="min-width:var(--hit-dense);min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article style="border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;flex-direction:column">
+            <div data-bind="module.color" style="height:6px;background:var(--c-fern)"></div>
+            <div style="padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);flex:1">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                <h3 data-bind="module.name" style="margin:0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">Vote du public</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+                  <span data-bind="module.type" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-leaf-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-pine)">Vote</span>
+                  <span data-bind="module.duration" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">20 s</span>
+                  <span data-bind="module.questionCount" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">6 questions</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="studio:editModule" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Éditer</button>
+                <button type="button" data-action="studio:deleteModule" aria-label="Supprimer le module Vote du public" style="min-width:var(--hit-dense);min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- module sans question -->
+          <article data-state="no-question" style="border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;flex-direction:column">
+            <div data-bind="module.color" style="height:6px;background:var(--c-ember)"></div>
+            <div style="padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);flex:1">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                <h3 data-bind="module.name" style="margin:0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">Spécial fêtes de fin d'année</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+                  <span data-bind="module.type" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-ember-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-ember-bright)">Quiz</span>
+                  <span data-bind="module.duration" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-200)/1.5 var(--f-mono);color:var(--c-ink-2)">20 s</span>
+                  <span data-bind="module.questionCount" style="padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);background:var(--c-bad-wash);font:500 var(--fs-200)/1.5 var(--f-ui);color:var(--c-bad)">Aucune question</span>
+                </div>
+              </div>
+              <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-2)">Ce module ne peut pas être lancé en partie tant qu'il est vide.</p>
+              <div style="margin-top:auto;display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="studio:editModule" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-300)/1 var(--f-ui)">Ajouter des questions</button>
+                <button type="button" data-action="studio:deleteModule" aria-label="Supprimer le module Spécial fêtes de fin d'année" style="min-width:var(--hit-dense);min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 2 · AUCUN MODULE ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · cas limite : aucun module · <span style="color:var(--c-ember-bright)">data-state="empty"</span></figcaption>
+    <div data-state="empty" data-screen-label="E2 aucun module" style="width:var(--studio-w);height:var(--studio-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;display:flex">
+      <div style="width:var(--studio-nav);flex:none;background:var(--c-surface);box-shadow:var(--sh-edge);display:flex;flex-direction:column;border-right:var(--bw-hair) solid var(--c-line)">
+        <div style="padding:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);border-bottom:var(--bw-hair) solid var(--c-line)">
+          <div style="width:32px;height:32px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Studio · questionnaires</p>
+        </div>
+        <div data-bind="banks.modules" style="flex:1;display:grid;place-items:center;padding:var(--sp-6);text-align:center">
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Aucun module</p>
+        </div>
+        <div style="padding:var(--sp-4);border-top:var(--bw-hair) solid var(--c-line)">
+          <button type="button" data-action="studio:createModule" style="width:100%;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-300)/1 var(--f-ui)">Nouveau module</button>
+        </div>
+      </div>
+
+      <div style="flex:1;display:grid;place-items:center;padding:var(--sp-8)">
+        <div style="max-width:520px;display:flex;flex-direction:column;align-items:center;gap:var(--sp-5);text-align:center;padding:var(--sp-8);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge)">
+          <span style="width:60px;height:60px;border-radius:var(--r-full);background:var(--c-surface-sunk);display:grid;place-items:center;color:var(--c-ink-3)">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4.5" width="7" height="7" rx="1.6"></rect><rect x="13" y="4.5" width="7" height="7" rx="1.6"></rect><rect x="4" y="13.5" width="7" height="7" rx="1.6"></rect><path d="M16.5 14.5v5"></path><path d="M14 17h5"></path></svg>
+          </span>
+          <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Aucun questionnaire</h2>
+          <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Un module, c'est un type d'épreuve, une durée, une couleur et des questions. Tu pourras en lancer une pendant la partie dès qu'il contiendra au moins une question.</p>
+          <button type="button" data-action="studio:createModule" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-7);display:flex;align-items:center;gap:var(--sp-3)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13"></path><path d="M5.5 12h13"></path></svg>
+            Créer mon premier module
+          </button>
+        </div>
+      </div>
+    </div>
+  </figure>
+</div>
+</body>
+</html>

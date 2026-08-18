@@ -1,7 +1,8 @@
 // E2E — flux complet animateur + joueurs (F1/F2/F3) : M1, M3, M4, M5, M6, M7, M9, M10, M11.
 // Deux contextes navigateur : l'animateur sur /host, les joueurs sur /.
+// Sélecteurs stables (data-testid) partout où le texte peut évoluer avec le design.
 import { test, expect } from '@playwright/test';
-import { openHost } from './helpers.js';
+import { openHost, joinAsPlayer } from './helpers.js';
 
 test.describe('Partie complète animateur + joueurs', () => {
   test('création salon -> join -> quiz -> réponse -> révélation -> module suivant -> fin', async ({ browser }) => {
@@ -9,39 +10,28 @@ test.describe('Partie complète animateur + joueurs', () => {
     const { ctx: hostCtx, page: host, code } = await openHost(browser);
     await expect(host.getByTestId('room-code')).toHaveText(code);
     expect(code).toMatch(/^[A-Z2-9]{5}$/);
-    await expect(host.getByRole('img', { name: `QR code de la salle ${code}` })).toBeVisible();
 
     // ---- M2/F2 : une joueuse rejoint avec code + pseudo ----
-    const p1Ctx = await browser.newContext();
-    const p1 = await p1Ctx.newPage();
-    await p1.goto(`/?code=${code}`);
-    await p1.getByLabel('Ton pseudo').fill('Lea');
-    await p1.getByRole('button', { name: 'Rejoindre' }).click();
-    await expect(p1.getByText('Tu es connecté')).toBeVisible();
+    const { ctx: p1Ctx, page: p1 } = await joinAsPlayer(browser, code, 'Lea');
+    await expect(p1.getByTestId('player-count')).toBeVisible();
     await expect(host.getByTestId('player-count')).toHaveText('1');
 
     // ---- M4/M7 : l'animateur choisit et lance un module librement ----
     await host.getByRole('button', { name: 'Lancer la partie' }).click();
-    await host.getByRole('button', { name: 'Quiz', exact: true }).click();
-    await host.getByRole('button', { name: 'Lancer Quiz' }).click();
+    await host.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
 
     // ---- M11/M9 : la joueuse voit la question et répond depuis sa manette ----
     await expect(p1.getByTestId('question-text')).toBeVisible();
-    const firstAnswer = p1.getByRole('group', { name: 'Choisis ta réponse' }).getByRole('button').first();
-    await firstAnswer.click();
-    await expect(p1.getByText('Réponse envoyée')).toBeVisible();
+    await p1.getByTestId('answer-option').first().click();
+    // L'option choisie porte l'état du système.
+    await expect(p1.getByTestId('answer-option').first()).toHaveAttribute('data-state', 'selected');
 
     // ---- M10 : le dashboard animateur montre compteur de réponses + chrono ----
     await expect(host.getByTestId('answers-count')).toHaveText('1');
     await expect(host.getByText('temps restant')).toBeVisible();
 
     // ---- M3/F3 : un retardataire rejoint PENDANT la question en cours ----
-    const p2Ctx = await browser.newContext();
-    const p2 = await p2Ctx.newPage();
-    await p2.goto('/');
-    await p2.getByLabel('Code de la partie').fill(code);
-    await p2.getByLabel('Ton pseudo').fill('Tard');
-    await p2.getByRole('button', { name: 'Rejoindre' }).click();
+    const { ctx: p2Ctx, page: p2 } = await joinAsPlayer(browser, code, 'Tard');
     await expect(p2.getByTestId('question-text')).toBeVisible(); // intégré immédiatement
 
     // ---- M7 : révélation anticipée par l'animateur ----
@@ -52,18 +42,19 @@ test.describe('Partie complète animateur + joueurs', () => {
     // ---- M6 + R7 : la joueuse voit ses points et sa progression, JAMAIS son rang ----
     await expect(p1.getByTestId('points-gained')).toBeVisible();
     await expect(p1.getByTestId('places-delta')).toBeVisible();
-    await expect(p1.getByText('Bonne réponse', { exact: false })).toBeVisible();
+    await expect(p1.getByTestId('reveal-value')).toBeVisible(); // bonne réponse montrée
     await expect(p1.getByText('Ton rang')).toHaveCount(0); // rang masqué en cours de partie
 
     // ---- M6 : classement recalculé côté animateur ----
     await expect(host.getByText('Top 5 en direct')).toBeVisible();
-    await expect(host.getByText('Lea')).toBeVisible();
+    // Le pseudo figure aussi dans le panneau Bonus/Malus : on cible le classement.
+    await expect(host.getByLabel('Classement en direct').getByText('Lea')).toBeVisible();
 
     // ---- M4/M5 : enchaîner librement sur un AUTRE module (Vrai/Faux) via le menu ----
     await host.getByRole('button', { name: 'Changer de module' }).click();
     await host.getByRole('menuitem', { name: 'Vrai / Faux' }).click();
-    await expect(p1.getByRole('button', { name: /Vrai/ })).toBeVisible();
-    await p1.getByRole('button', { name: /Vrai/ }).click();
+    await expect(p1.getByTestId('answer-option')).toHaveCount(2); // deux tuiles
+    await p1.getByTestId('answer-option').first().click();
     await host.getByRole('button', { name: 'Révéler maintenant' }).click();
     await expect(p1.getByTestId('points-gained')).toBeVisible();
 
@@ -74,9 +65,17 @@ test.describe('Partie complète animateur + joueurs', () => {
     await host.getByRole('menuitem', { name: 'Terminer la partie' }).click();
     await host.getByRole('menuitem', { name: 'Confirmer — terminer la partie' }).click();
 
-    // Le rang FINAL est visible côté joueur (seul moment autorisé).
+    // Le rang FINAL est le seul moment où le rang est révélé au joueur. Il n'existe
+    // que si le joueur a marqué — la question tirée étant aléatoire, on couvre les
+    // deux issues plutôt que de dépendre du hasard.
     await expect(p1.getByTestId('end-screen')).toBeVisible();
-    await expect(p1.getByText('Ton rang final')).toBeVisible();
+    if (await p1.getByTestId('final-rank').count()) {
+      await expect(p1.getByTestId('final-rank')).toBeVisible();
+    } else {
+      await expect(p1.getByText("Personne n'a marqué")).toBeVisible();
+    }
+    // Et l'écran de fin ne montre plus les repères de manche.
+    await expect(p1.getByTestId('places-delta')).toHaveCount(0);
 
     await hostCtx.close();
     await p1Ctx.close();

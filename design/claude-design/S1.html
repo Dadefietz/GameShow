@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <title>S1 · Panneau de connexion — Project Game Show</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:900px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface stream · élément S1 · <code style="font:400 var(--fs-200)/1 var(--f-mono)">/overlay</code></p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Panneau de connexion</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Bloc <strong style="font-weight:600">permanent</strong> de la colonne droite, identique dans les quatre phases de jeu. Il reprend pièce par pièce le vocabulaire du système, à l'échelle de diffusion : la <strong style="font-weight:600">capsule d'identité</strong> du joueur pour le salon, le <strong style="font-weight:600">champ creusé</strong> de la saisie de code (fond enfoncé, <code style="font:400 var(--fs-300)/1 var(--f-mono)">sh-inset</code>, monospace espacé) pour le code lui-même, et la marque animée en tête.</p>
+  </header>
+
+  <figure style="margin:0;display:flex;flex-wrap:wrap;gap:var(--sp-7);align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">taille réelle sur le canvas · <span style="color:var(--c-ember-bright)">data-state="always"</span></figcaption>
+      <div data-state="always" data-screen-label="S1 panneau" style="width:var(--panel-st);padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:var(--sp-5);padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-600)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Ce qui vient du système</h2>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Champ creusé</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Le code reprend exactement la pièce « saisie de code » du système : fond <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-surface-sunk</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">--sh-inset</code>, monospace espacé. Un joueur reconnaît sur le stream le champ qu'il va remplir sur son téléphone.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Capsule</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Le lien est une capsule <code style="font:400 var(--fs-200)/1 var(--f-mono)">--r-full</code> label + valeur, comme les capsules d'état du produit.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Typographie</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Display condensée en capitales pour le nom du jeu, <code style="font:400 var(--fs-200)/1 var(--f-mono)">--f-ui</code> en capitales espacées (<code style="font:400 var(--fs-200)/1 var(--f-mono)">--tr-label</code>) pour les labels, monospace pour tout ce qui est code ou chiffre. Trois rôles, jamais mélangés.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Marque</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Version <strong style="font-weight:600">animée</strong> — flamme qui respire, braise qui scintille, escarbille qui monte. La version statique n'existe qu'en favicon.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">104 px</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Taille du code : <code style="font:400 var(--fs-200)/1 var(--f-mono)">--fs-st-code</code>, calée pour que cinq caractères monospacés tiennent dans le panneau — 26 px à 25 %.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">260 px</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Le QR : 65 px à 25 %, limite basse d'un scan fiable depuis un canapé.</span>
+      </div>
+    </div>
+  </figure>
+
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">preuve : le même panneau à 50 %, 25 % et 12,5 %</figcaption>
+    <div style="display:flex;align-items:flex-start;gap:var(--sp-8);flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+        <div style="width:230px;height:390px;overflow:hidden">
+          <div style="width:var(--panel-st);transform:scale(0.5);transform-origin:top left;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-2),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+            <div role="img" aria-label="QR code du salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px"></div>
+            <div style="align-self:stretch;height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+              <p style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;color:var(--c-flame)">7KMPD</p>
+            </div>
+            <div style="align-self:stretch;display:grid;place-items:center;min-height:84px;border-radius:var(--r-full);background:var(--c-surface-2)">
+              <span style="font:600 var(--fs-st-200)/1 var(--f-mono);color:var(--c-ink)">jeu.exemple.fr</span>
+            </div>
+          </div>
+        </div>
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">50 %</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+        <div style="width:115px;height:195px;overflow:hidden">
+          <div style="width:var(--panel-st);transform:scale(0.25);transform-origin:top left;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+            <div style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px"></div>
+            <div style="align-self:stretch;height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+              <p style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;color:var(--c-flame)">7KMPD</p>
+            </div>
+            <div style="align-self:stretch;display:grid;place-items:center;min-height:84px;border-radius:var(--r-full);background:var(--c-surface-2)">
+              <span style="font:600 var(--fs-st-200)/1 var(--f-mono);color:var(--c-ink)">jeu.exemple.fr</span>
+            </div>
+          </div>
+        </div>
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">25 % — cible</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+        <div style="width:58px;height:98px;overflow:hidden">
+          <div style="width:var(--panel-st);transform:scale(0.125);transform-origin:top left;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+            <div style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px"></div>
+            <div style="align-self:stretch;height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);display:grid;place-items:center">
+              <p style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;color:var(--c-flame)">7KMPD</p>
+            </div>
+          </div>
+        </div>
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">12,5 %</p>
+      </div>
+      <p style="margin:0;flex:1 1 260px;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">À 25 %, le code et le QR restent francs. À 12,5 % le lien décroche, mais le code tient encore : c'est la raison de leur hiérarchie.</p>
+    </div>
+  </figure>
+</div>
+</x-dc>
+</body>
+</html>

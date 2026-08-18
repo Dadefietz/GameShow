@@ -1,8 +1,11 @@
-// Studio — surface admin de gestion de contenu (modules & questions).
-// Structure et classes BEM portées 1:1 depuis design/mockups/studio-modules.html.
-// CRUD 100% fonctionnel en état local ; Supabase best-effort (jamais bloquant).
+// Surface STUDIO — éditeur de questionnaires, hors antenne.
+// Design : extraction Claude Design — E1 navigation, E2 grille de modules,
+// E3 panneau d'édition, E4 questions et leurs quatre formulaires.
+//
+// Densité de saisie assumée, aucun effet : la seule animation du studio est le
+// chatoiement des squelettes de chargement. Les banques restent la source de
+// vérité du jeu — ce qu'on enregistre ici est ce que le moteur jouera.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Icon } from '../shared/icons.jsx';
 import { getSupabase } from '../shared/supabaseClient.js';
 import './studio.css';
 
@@ -129,24 +132,71 @@ function modulesToBanks(modules) {
   return banks;
 }
 
+// ---- Icônes du système (SVG au trait) --------------------------------------
+const I = {
+  flame: ({ s = 20 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
+        <g className="brand-flame">
+          <path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2" />
+        </g>
+        <path d="M3.4 18.7l17.2-3.5" /><path d="M3.4 15.2l17.2 3.5" />
+      </g>
+      <circle className="brand-spark" cx="12" cy="12.6" r="1.5" fill="currentColor" />
+    </svg>
+  ),
+  check: ({ s = 16, w = 3, dashed = false }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" {...(dashed ? { strokeDasharray: 26 } : {})} />
+    </svg>
+  ),
+  plus: ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" aria-hidden="true"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+  ),
+  trash: ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="M6 7l1 13h10l1-13" />
+    </svg>
+  ),
+  chevron: ({ s = 16, open = false }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: open ? 'rotate(90deg)' : 'none' }}><path d="M9 6l6 6-6 6" /></svg>
+  ),
+  x: ({ s = 14 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10" /><path d="M17 7L7 17" /></svg>
+  ),
+  alert: ({ s = 18 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16.2v.4" />
+    </svg>
+  ),
+};
+
 export function StudioApp() {
   const [modules, setModules] = useState(seedModules);
   const [selectedId, setSelectedId] = useState(null);
   const [editingQuestionId, setEditingQuestionId] = useState(null);
-  const [mode, setMode] = useState('local'); // 'local' | 'supabase'
-  const [authed, setAuthed] = useState(null); // null=inconnu, true/false
-  const [saveState, setSaveState] = useState('idle'); // idle|saving|saved|local|error
-  // Tant que le chargement distant n'est pas tranché, on n'affiche RIEN de rémanent :
-  // squelettes de chargement, jamais les modules de démo qui « sautent » vers les vrais.
+  const [mode, setMode] = useState('local');        // 'local' | 'server' | 'supabase'
+  const [authed, setAuthed] = useState(null);
+  const [saveState, setSaveState] = useState('idle'); // idle|saving|saved|local|error|invalid
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  // Tant que le chargement distant n'est pas tranché : squelettes, jamais des
+  // modules de démo qui « sautent » vers les vrais.
   const [remoteLoading, setRemoteLoading] = useState(() => !!getSupabase());
 
   const sb = useMemo(() => getSupabase(), []);
 
-  // Détection de session + chargement Supabase best-effort au montage.
   useEffect(() => {
     if (!sb) {
       setAuthed(false);
-      // Repli serveur local (R4) : les banques disque restent la source de vérité du jeu.
+      // Repli serveur local : les banques disque sont la source de vérité du jeu.
       let alive = true;
       (async () => {
         try {
@@ -160,8 +210,7 @@ export function StudioApp() {
       return () => { alive = false; };
     }
     let alive = true;
-    // Plafond de 4 s : si Supabase est lent ou injoignable, on bascule sur le
-    // contenu local plutôt que de laisser des squelettes indéfiniment.
+    // Plafond de 4 s : Supabase lent ou injoignable ne bloque pas l'éditeur.
     const cap = setTimeout(() => { if (alive) setRemoteLoading(false); }, 4000);
     (async () => {
       try {
@@ -172,12 +221,8 @@ export function StudioApp() {
           const mapped = data.map(normalizeModule).filter(Boolean);
           if (mapped.length) { setModules(mapped); setMode('supabase'); }
         }
-      } catch {
-        /* silencieux : on garde l'état local */
-      } finally {
-        clearTimeout(cap);
-        if (alive) setRemoteLoading(false);
-      }
+      } catch { /* silencieux : on garde l'état local */ }
+      finally { clearTimeout(cap); if (alive) setRemoteLoading(false); }
     })();
     const { data: authSub } = sb.auth.onAuthStateChange((_e, s) => { if (alive) setAuthed(!!s); });
     return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
@@ -185,7 +230,6 @@ export function StudioApp() {
 
   const selected = modules.find((m) => m.id === selectedId) || null;
 
-  // --- Mutations modules (réactives) ---
   const patchModule = (id, patch) => {
     setSaveState('idle');
     setValidationErrors([]);
@@ -202,51 +246,44 @@ export function StudioApp() {
   const removeModule = (id) => {
     setModules((prev) => prev.filter((m) => m.id !== id));
     if (selectedId === id) { setSelectedId(null); setEditingQuestionId(null); }
-    // Suppression en base (best-effort, RLS restreint à l'animateur connecté).
     if (sb) { sb.from('modules').delete().eq('id', id).then(() => {}, () => {}); }
+    setConfirmDelete(null);
   };
 
-  const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); };
+  const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); setConfirmDelete(null); };
 
-  // E2 — Validation avant enregistrement (pattern Podia : « at least one right answer »).
-  // Renvoie la liste des problèmes ; un module invalide serait silencieusement
-  // filtré en jeu (isUsable serveur) — on préfère le dire AVANT la sauvegarde.
+  // Validation avant enregistrement : un module invalide serait silencieusement
+  // filtré en jeu — on préfère le dire AVANT la sauvegarde, question par question.
   const validateModule = (m) => {
     const problems = [];
-    if (!String(m.name || '').trim()) problems.push({ qid: null, msg: 'Donne un nom au module.' });
-    if (!Number.isFinite(m.duration) || m.duration < 3) problems.push({ qid: null, msg: 'Durée minimale : 3 secondes.' });
-    if (!m.questions.length) problems.push({ qid: null, msg: 'Ajoute au moins une question.' });
+    if (!String(m.name || '').trim()) problems.push({ qid: null, tag: null, msg: 'Donne un nom au module.' });
+    if (!Number.isFinite(m.duration) || m.duration < 3) problems.push({ qid: null, tag: null, msg: 'Durée minimale : 3 secondes.' });
+    if (!m.questions.length) problems.push({ qid: null, tag: null, msg: 'Ajoute au moins une question.' });
     m.questions.forEach((q, i) => {
-      const label = `Question ${i + 1}`;
-      if (!String(q.prompt || '').trim()) problems.push({ qid: q.id, msg: `${label} : l'énoncé est vide.` });
+      const tag = `Q${i + 1}`;
+      if (!String(q.prompt || '').trim()) problems.push({ qid: q.id, tag, msg: "L'énoncé est vide." });
       if (m.type === 'quiz' || m.type === 'vote') {
         const opts = (q.options || []).map((o) => String(o || '').trim());
-        const filled = opts.filter(Boolean).length;
-        if (filled < 2) problems.push({ qid: q.id, msg: `${label} : il faut au moins 2 options remplies.` });
+        if (opts.filter(Boolean).length < 2) problems.push({ qid: q.id, tag, msg: 'Il faut au moins 2 options remplies.' });
         if (m.type === 'quiz') {
           const c = q.correct;
-          if (!Number.isInteger(c) || !opts[c]) problems.push({ qid: q.id, msg: `${label} : coche une bonne réponse (option non vide).` });
+          if (!Number.isInteger(c) || !opts[c]) problems.push({ qid: q.id, tag, msg: 'Aucune bonne réponse cochée.' });
         }
       }
       if (m.type === 'estimation' && !Number.isFinite(Number(q.target))) {
-        problems.push({ qid: q.id, msg: `${label} : la cible doit être un nombre.` });
+        problems.push({ qid: q.id, tag, msg: 'La cible doit être un nombre.' });
       }
     });
     return problems;
   };
 
-  const [validationErrors, setValidationErrors] = useState([]);
-
-  // Enregistrer : upsert vers Supabase (owner_id auto = auth.uid() via défaut DB).
-  // Retour de statut clair (saved / local / error) — plus d'échec silencieux.
-  const saveModule = async (m) => {
+  const saveModule = async () => {
+    const m = selected;
     if (!m) return;
     const problems = validateModule(m);
     setValidationErrors(problems);
     if (problems.length) { setSaveState('invalid'); return; }
     if (!sb || authed === false) {
-      // Repli serveur local (R4) : on pousse TOUTES les banques — c'est ce que le
-      // moteur lira au prochain lancement de module.
       setSaveState('saving');
       try {
         const res = await fetch('/api/banks', {
@@ -257,9 +294,8 @@ export function StudioApp() {
         if (!res.ok) throw new Error('save-failed');
         setMode('server');
         setSaveState('saved');
-      } catch {
-        setSaveState('local'); // serveur injoignable : l'état reste local à l'onglet
-      }
+        setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2000);
+      } catch { setSaveState('local'); }
       return;
     }
     setSaveState('saving');
@@ -270,12 +306,10 @@ export function StudioApp() {
       if (error) { setSaveState('error'); return; }
       setMode('supabase');
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
-    }
+      setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2000);
+    } catch { setSaveState('error'); }
   };
 
-  // --- Mutations questions (réactives) ---
   const patchQuestion = (moduleId, qid, patch) => {
     setSaveState('idle');
     setValidationErrors([]);
@@ -297,175 +331,144 @@ export function StudioApp() {
     if (editingQuestionId === qid) setEditingQuestionId(null);
   };
 
+  const invalidQids = new Set(validationErrors.filter((e) => e.qid).map((e) => e.qid));
+
   return (
-    <div className="studio">
-      <Sidebar
-        modules={modules}
-        selectedId={selectedId}
-        mode={mode}
-        loading={remoteLoading}
-        onSelect={selectModule}
-        onAdd={addModule}
-      />
+    <div className={`studio${selected ? ' studio--editing' : ''}`}>
+      <Sidebar modules={modules} selectedId={selectedId} mode={mode} loading={remoteLoading}
+        onSelect={selectModule} onAdd={addModule} />
 
-      <main className={`main${selected ? '' : ' main--single'}`} aria-label="Gestion des modules">
-        <div className="workspace">
-          <div className="page-head">
-            <div>
-              <h1 className="page-head__title">Modules</h1>
-              <p className="page-head__sub">Assemblez les mini-jeux qui rythment vos soirées.</p>
-            </div>
-            <button className="button button--primary" type="button" onClick={addModule}>
-              <Icon name="plus" className="icon icon--sm" />
-              Nouveau module
-            </button>
+      <main className="work" aria-label="Gestion des modules">
+        <div className="work__head">
+          <div>
+            <h1 className="work__title">Questionnaires</h1>
+            <p className="work__sub">Assemble les modules qui rythment tes soirées.</p>
           </div>
-
-          {!remoteLoading && authed === false && (
-            <div className="studio-banner" role="status">
-              <Icon name="log-in" className="icon icon--sm" />
-              <span className="studio-banner__text">Non connecté : tes modifications restent <strong>locales</strong>. Connecte-toi pour enregistrer tes questionnaires en ligne (ça s'ouvre dans un nouvel onglet — ton travail ici est conservé).</span>
-              <a className="studio-banner__cta" href="/host" target="_blank" rel="noopener">
-                <Icon name="log-in" className="icon icon--sm" />
-                Se connecter
-              </a>
-            </div>
-          )}
-
-          <section className="module-grid" aria-label="Liste des modules">
-            {remoteLoading ? (
-              <>
-                <div className="skeleton-card" aria-hidden="true" />
-                <div className="skeleton-card" aria-hidden="true" />
-                <div className="skeleton-card" aria-hidden="true" />
-                <div className="skeleton-card" aria-hidden="true" />
-              </>
-            ) : modules.map((m) => (
-              <ModuleCard
-                key={m.id}
-                module={m}
-                selected={m.id === selectedId}
-                onSelect={() => selectModule(m.id)}
-                onDelete={() => removeModule(m.id)}
-              />
-            ))}
-          </section>
+          <button className="button button--primary" type="button" data-action="studio:createModule"
+            onClick={addModule}><I.plus s={16} /> Nouveau module</button>
         </div>
 
-        {selected && (
-          <EditorPanel
-            module={selected}
-            editingQuestionId={editingQuestionId}
-            onPatchModule={(patch) => patchModule(selected.id, patch)}
-            onAddQuestion={() => addQuestion(selected)}
-            onEditQuestion={(qid) => setEditingQuestionId(qid === editingQuestionId ? null : qid)}
-            onPatchQuestion={(qid, patch) => patchQuestion(selected.id, qid, patch)}
-            onRemoveQuestion={(qid) => removeQuestion(selected.id, qid)}
-            onDeleteModule={() => removeModule(selected.id)}
-            onSave={() => saveModule(selected)}
-            onClose={() => selectModule(null)}
-            saveState={saveState}
-            validationErrors={validationErrors}
-          />
+        {remoteLoading ? (
+          <div className="grid" aria-hidden="true">
+            {[0, 1, 2].map((i) => <div className="skeleton" key={i} style={{ height: '180px' }} />)}
+          </div>
+        ) : modules.length === 0 ? (
+          <div className="empty-state">
+            <span style={{ color: 'var(--c-ink-3)' }} aria-hidden="true"><I.flame s={30} /></span>
+            <h2 className="work__title">Aucun module</h2>
+            <p className="work__sub">Crée ton premier questionnaire pour démarrer une partie.</p>
+            <button className="button button--primary" type="button" onClick={addModule}>
+              <I.plus s={16} /> Nouveau module
+            </button>
+          </div>
+        ) : (
+          <section className="grid" aria-label="Liste des modules">
+            {modules.map((m) => (
+              <ModuleCard key={m.id} module={m} selected={m.id === selectedId}
+                onSelect={() => selectModule(m.id)} onEdit={() => selectModule(m.id)} />
+            ))}
+          </section>
         )}
       </main>
+
+      {selected ? (
+        <EditorPanel
+          module={selected}
+          editingQuestionId={editingQuestionId}
+          invalidQids={invalidQids}
+          saveState={saveState}
+          validationErrors={validationErrors}
+          confirmDelete={confirmDelete === selected.id}
+          onArmDelete={() => setConfirmDelete(confirmDelete === selected.id ? null : selected.id)}
+          onConfirmDelete={() => removeModule(selected.id)}
+          onPatchModule={(patch) => patchModule(selected.id, patch)}
+          onAddQuestion={() => addQuestion(selected)}
+          onEditQuestion={(qid) => setEditingQuestionId(qid === editingQuestionId ? null : qid)}
+          onPatchQuestion={(qid, patch) => patchQuestion(selected.id, qid, patch)}
+          onRemoveQuestion={(qid) => removeQuestion(selected.id, qid)}
+          onSave={saveModule}
+          onClose={() => selectModule(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
+// E1 — Navigation latérale
+// ---------------------------------------------------------------------------
 function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
+  const source = loading
+    ? { cls: '', text: 'Chargement des banques…' }
+    : mode === 'local'
+      ? { cls: ' source--off', text: 'Hors ligne' }
+      : { cls: ' source--ok', text: 'Synchronisé' };
+
   return (
-    <nav className="sidebar" aria-label="Navigation du studio">
-      <div className="sidebar__brand">
-        <span className="sidebar__brand-mark" aria-hidden="true">
-          <Icon name="flame" className="icon icon--sm" />
-        </span>
-        <span>
-          <span className="sidebar__brand-name">Project Game Show</span><br />
-          <span className="sidebar__brand-sub">Studio</span>
-        </span>
+    <nav className="nav" aria-label="Navigation du studio">
+      <div className="nav__brand">
+        <span className="nav__mark" aria-hidden="true"><I.flame s={20} /></span>
+        <span className="nav__name">Game Show<span className="nav__sub">Studio</span></span>
       </div>
 
-      {/* Principe de navigation : le Studio n'est jamais un cul-de-sac. */}
-      <a className="sidebar__back" href="/host">
-        <Icon name="arrow-right" className="icon icon--sm sidebar__back-arrow" />
-        Retour au plateau
-      </a>
+      <div className={`source${source.cls}`} data-bind="banks.source" role="status">
+        <span className="source__dot" aria-hidden="true" />
+        <div>
+          {source.text}
+          {mode === 'local' && !loading ? (
+            <p className="source__hint">
+              Ta copie locale reste modifiable ; elle sera envoyée à la reconnexion.
+            </p>
+          ) : null}
+        </div>
+      </div>
 
-      <div className="nav" role="list">
-        <span className="nav__label">Modules</span>
+      <p className="flabel">Modules</p>
+      <div className="nav__list" data-bind="banks.modules">
         {loading ? (
-          <>
-            <span className="skeleton-row" aria-hidden="true" />
-            <span className="skeleton-row" aria-hidden="true" />
-            <span className="skeleton-row" aria-hidden="true" />
-          </>
-        ) : null}
-        {!loading && modules.map((m) => {
-          const t = MODULE_TYPES[m.type];
-          const active = m.id === selectedId;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              className={`nav__item${active ? ' nav__item--active' : ''}`}
-              aria-current={active ? 'page' : undefined}
-              onClick={() => onSelect(m.id)}
-            >
-              <span className="nav__item-icon" aria-hidden="true">
-                <Icon name={t.icon} className="icon icon--sm" />
-              </span>
-              {m.name}
-            </button>
-          );
-        })}
-        <button type="button" className="nav__item" onClick={onAdd}>
-          <span className="nav__item-icon" aria-hidden="true">
-            <Icon name="plus" className="icon icon--sm" />
-          </span>
-          Nouveau module
-        </button>
+          [0, 1, 2, 3].map((i) => <div className="skeleton" key={i} />)
+        ) : modules.length === 0 ? (
+          <p className="fhint">Aucun module pour l'instant.</p>
+        ) : modules.map((m) => (
+          <button key={m.id} type="button" className="nav__item" data-action="studio:selectModule"
+            aria-current={m.id === selectedId ? 'true' : undefined} onClick={() => onSelect(m.id)}>
+            <span className={`nav__swatch swatch--${m.color}`} aria-hidden="true"
+              style={{ background: `var(--c-${m.color === 'fire' ? 'ember' : m.color === 'forest' ? 'moss' : m.color === 'flame' ? 'flame' : 'fern'})` }} />
+            <span className="nav__item-name">{m.name}</span>
+            <span className="nav__item-count">{m.questions.length}</span>
+          </button>
+        ))}
       </div>
 
-      <span className="nav__spacer" />
-      <span className="meta">
-        <span className="meta__value">{loading ? 'Connexion…' : (mode === 'supabase' ? 'Supabase' : 'Mode local')}</span>
-        <span className="meta__label">{loading ? 'Synchronisation' : `Contenu ${mode === 'supabase' ? 'synchronisé' : 'hors ligne'}`}</span>
-      </span>
+      <button className="button button--primary button--block" type="button" style={{ marginTop: 'auto' }}
+        data-action="studio:createModule" onClick={onAdd}><I.plus s={16} /> Nouveau module</button>
     </nav>
   );
 }
 
 // ---------------------------------------------------------------------------
-function ModuleCard({ module, selected, onSelect, onDelete }) {
-  const t = MODULE_TYPES[module.type];
+// E2 — Carte de module
+// ---------------------------------------------------------------------------
+function ModuleCard({ module, selected, onEdit }) {
+  const t = MODULE_TYPES[module.type] || MODULE_TYPES.quiz;
+  const noQuestion = module.questions.length === 0;
   return (
-    <article
-      className={`module-card module-card--${module.color}${selected ? ' module-card--selected' : ''}`}
-      onClick={onSelect}
-    >
-      <div className="module-card__head">
-        <span className="module-card__icon" aria-hidden="true">
-          <Icon name={t.icon} className="icon icon--sm" />
-        </span>
-        <span className="module-card__titles">
-          <span className="module-card__name">{module.name}</span>
-          <span className="module-card__type">{t.subtitle}</span>
+    <article className={`mcard mcard--${module.color}${selected ? ' mcard--selected' : ''}`}
+      data-state={noQuestion ? 'no-question' : 'ready'}>
+      <h2 className="mcard__name" data-bind="module.name">{module.name}</h2>
+      <div className="mcard__caps">
+        <span className="mcard__cap" data-bind="module.type">{t.label}</span>
+        <span className="mcard__cap" data-bind="module.duration">{module.duration} s</span>
+        <span className={`mcard__cap${noQuestion ? ' mcard__cap--warn' : ''}`} data-bind="module.questionCount">
+          {noQuestion ? 'Aucune question' : `${module.questions.length} question${module.questions.length > 1 ? 's' : ''}`}
         </span>
       </div>
-      <div className="module-card__meta">
-        <span className="meta"><span className="meta__value">{module.duration} s</span><span className="meta__label">Durée</span></span>
-        <span className="meta"><span className="meta__value">{module.questions.length}</span><span className="meta__label">Questions</span></span>
-      </div>
-      <div className="module-card__actions">
-        <button className="icon-button" type="button" onClick={(e) => { e.stopPropagation(); onSelect(); }}>
-          <Icon name="pencil" className="icon icon--sm" />
-          Éditer
-        </button>
-        <button className="icon-button icon-button--danger" type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-          <Icon name="x" className="icon icon--sm" />
-          Supprimer
+      {noQuestion ? (
+        <p className="mcard__note">Ce module ne sera pas jouable tant qu'il n'a pas de question.</p>
+      ) : null}
+      <div className="mcard__actions">
+        <button className="button button--block" type="button" data-action="studio:editModule" onClick={onEdit}>
+          {noQuestion ? 'Ajouter des questions' : 'Éditer'}
         </button>
       </div>
     </article>
@@ -473,220 +476,215 @@ function ModuleCard({ module, selected, onSelect, onDelete }) {
 }
 
 // ---------------------------------------------------------------------------
-const SAVE_STATUS = {
-  saving: { text: 'Enregistrement…', cls: '' },
-  saved: { text: 'Enregistré en ligne ✓', cls: 'save-status--ok' },
-  local: { text: 'Enregistré localement — connecte-toi côté animateur pour synchroniser', cls: 'save-status--warn' },
-  error: { text: "Échec de l'enregistrement, réessaie", cls: 'save-status--err' },
-  invalid: { text: 'Corrige les points ci-dessous avant d’enregistrer :', cls: 'save-status--err' },
-};
-
+// E3 — Panneau d'édition
+// ---------------------------------------------------------------------------
 function EditorPanel({
-  module, editingQuestionId, onPatchModule, onAddQuestion, onEditQuestion,
-  onPatchQuestion, onRemoveQuestion, onDeleteModule, onSave, onClose, saveState,
-  validationErrors = [],
+  module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
+  onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
+  onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
-  const t = MODULE_TYPES[module.type];
-  const status = saveState && saveState !== 'idle' ? SAVE_STATUS[saveState] : null;
-  const invalidIds = new Set(validationErrors.map((p) => p.qid).filter(Boolean));
+  const saveLabel = saveState === 'saving' ? 'Enregistrement…'
+    : saveState === 'invalid' ? `Enregistrer — ${validationErrors.length} point${validationErrors.length > 1 ? 's' : ''} à corriger`
+    : 'Enregistrer';
+
   return (
-    <aside className="editor" aria-label="Édition du module">
+    <aside className="editor" aria-label={`Édition du module ${module.name}`}>
       <div className="editor__head">
-        <h2 className="editor__title">Éditer « {module.name} »</h2>
-        <span className="editor__badge">
-          <Icon name={t.icon} className="icon icon--sm" />
-          {t.label}
-        </span>
+        <h2 className="editor__title">{module.name}</h2>
+        <button className="qrow__btn" type="button" aria-label="Fermer l'éditeur" onClick={onClose}>
+          <I.x s={16} />
+        </button>
       </div>
 
-      <form className="form" aria-label={`Paramètres du module ${module.name}`} onSubmit={(e) => { e.preventDefault(); onSave(); }}>
-        <div className="field">
-          <label className="field__label" htmlFor={`name-${module.id}`}>Nom</label>
-          <input
-            className="input" id={`name-${module.id}`} type="text" autoComplete="off"
-            value={module.name} onChange={(e) => onPatchModule({ name: e.target.value })}
-          />
-        </div>
-
-        <div className="field__row">
-          <div className="field">
-            <label className="field__label" htmlFor={`type-${module.id}`}>Type</label>
-            <span className="select-field">
-              <select
-                className="select" id={`type-${module.id}`}
-                value={module.type} onChange={(e) => onPatchModule({ type: e.target.value })}
-              >
-                {TYPE_KEYS.map((k) => (
-                  <option key={k} value={k}>{MODULE_TYPES[k].label}</option>
-                ))}
-              </select>
-              <span className="select-field__caret" aria-hidden="true">
-                <Icon name="chevron-right" className="icon icon--sm" />
-              </span>
-            </span>
+      <div className="editor__body">
+        <div className="fields">
+          <div className="fgroup">
+            <label className="flabel" htmlFor={`name-${module.id}`}>Nom</label>
+            <input className="input" id={`name-${module.id}`} type="text" autoComplete="off"
+              value={module.name} data-bind="module.name"
+              onChange={(e) => onPatchModule({ name: e.target.value })} />
           </div>
-          <div className="field">
-            <label className="field__label" htmlFor={`dur-${module.id}`}>Durée (s)</label>
-            <input
-              className="input" id={`dur-${module.id}`} type="number" inputMode="numeric" min="1"
-              value={module.duration}
-              onChange={(e) => onPatchModule({ duration: Number(e.target.value) || 0 })}
-            />
-          </div>
-        </div>
 
-        <div className="field">
-          <span className="field__label" id={`color-${module.id}`}>Couleur d'accent</span>
-          <div className="swatches" role="radiogroup" aria-labelledby={`color-${module.id}`}>
-            {COLOR_KEYS.map((c) => {
-              const sel = module.color === c;
-              return (
-                <button
-                  key={c} type="button" role="radio" aria-checked={sel} aria-label={COLOR_LABEL[c]}
-                  className={`swatch swatch--${c}${sel ? ' swatch--selected' : ''}`}
-                  onClick={() => onPatchModule({ color: c })}
-                >
-                  <Icon name="check" className="swatch__check icon icon--sm" />
+          <div className="fgroup">
+            <span className="flabel" id={`type-${module.id}`}>Type</span>
+            <div className="seg" role="radiogroup" aria-labelledby={`type-${module.id}`} data-bind="module.type">
+              {TYPE_KEYS.map((k) => (
+                <button key={k} className="seg__btn" type="button" role="radio"
+                  aria-checked={module.type === k} onClick={() => onPatchModule({ type: k })}>
+                  {MODULE_TYPES[k].label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          <div className="frow">
+            <div className="fgroup fgroup--short">
+              <label className="flabel" htmlFor={`dur-${module.id}`}>Durée</label>
+              <span className="input-suffix">
+                <input className="input" id={`dur-${module.id}`} type="number" inputMode="numeric" min="3"
+                  value={module.duration} data-bind="module.duration"
+                  onChange={(e) => onPatchModule({ duration: Number(e.target.value) || 0 })} />
+                <span className="input-suffix__unit">s</span>
+              </span>
+              <p className="fhint">3 s minimum.</p>
+            </div>
+            <div className="fgroup">
+              <span className="flabel" id={`color-${module.id}`}>Couleur d'accent</span>
+              <div className="swatches" role="radiogroup" aria-labelledby={`color-${module.id}`} data-bind="module.color">
+                {COLOR_KEYS.map((c) => (
+                  <button key={c} className={`swatch swatch--${c}`} type="button" role="radio"
+                    aria-checked={module.color === c} aria-label={COLOR_LABEL[c]}
+                    onClick={() => onPatchModule({ color: c })} />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="field">
-          <span className="field__label">Questions ({module.questions.length})</span>
-          <div className="questions">
+        <div className="fgroup">
+          <span className="flabel">Questions ({module.questions.length})</span>
+          <div className="qlist">
             {module.questions.map((q, i) => (
-              <QuestionRow
-                key={q.id}
-                index={i + 1}
-                module={module}
-                question={q}
-                editing={editingQuestionId === q.id}
-                invalid={invalidIds.has(q.id)}
+              <QuestionRow key={q.id} index={i + 1} module={module} question={q}
+                editing={editingQuestionId === q.id} invalid={invalidQids.has(q.id)}
+                errors={validationErrors.filter((e) => e.qid === q.id)}
                 onToggle={() => onEditQuestion(q.id)}
                 onPatch={(patch) => onPatchQuestion(q.id, patch)}
-                onRemove={() => onRemoveQuestion(q.id)}
-              />
+                onRemove={() => onRemoveQuestion(q.id)} />
             ))}
-            {module.questions.length === 0 && (
-              /* E3 — empty state ACTIF : le message porte l'action. */
-              <div className="editor-empty">
-                <p className="editor-empty__text">Aucune question pour l'instant — c'est ici que ta banque démarre.</p>
-                <button className="button button--primary" type="button" onClick={onAddQuestion}>
-                  <Icon name="plus" className="icon icon--sm" />
-                  Ajouter une question
-                </button>
-              </div>
-            )}
+            {module.questions.length === 0 ? (
+              <p className="fhint">Aucune question. Ajoutes-en une pour démarrer la banque.</p>
+            ) : null}
           </div>
-          {module.questions.length > 0 && (
-            <button className="question-add" type="button" onClick={onAddQuestion}>
-              <Icon name="plus" className="icon icon--sm" />
-              Ajouter une question
+          <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}
+            style={{ marginTop: 'var(--sp-2)' }}><I.plus s={16} /> Ajouter une question</button>
+        </div>
+
+        {/* Suppression : confirmation en deux temps, comme sur la surface animateur. */}
+        <div className="fgroup">
+          {confirmDelete ? (
+            <>
+              <p className="save-state save-state--failed" role="alert">
+                Supprimer « {module.name} » retirera ses {module.questions.length} question(s). Irréversible.
+              </p>
+              <div className="frow">
+                <button className="button button--danger" type="button" onClick={onConfirmDelete}>
+                  Oui, supprimer
+                </button>
+                <button className="button" type="button" onClick={onArmDelete}>Annuler</button>
+              </div>
+            </>
+          ) : (
+            <button className="button button--quiet" type="button" data-action="studio:deleteModule"
+              onClick={onArmDelete}>
+              <I.trash s={16} /> Supprimer ce module…
             </button>
           )}
         </div>
+      </div>
 
-        <div className="editor__footer">
-          <button className="button button--primary" type="submit">
-            <Icon name="save" className="icon icon--sm" />
-            Enregistrer
-          </button>
-          <button className="button button--danger" type="button" onClick={onDeleteModule}>
-            <Icon name="x" className="icon icon--sm" />
-            Supprimer
-          </button>
-          <button className="button button--ghost" type="button" onClick={onClose}>Fermer</button>
-          {status ? <p className={`save-status ${status.cls}`} role="status">{status.text}</p> : null}
-          {saveState === 'invalid' && validationErrors.length > 0 ? (
-            <ul className="validation-list" role="alert">
-              {validationErrors.map((p, i) => <li className="validation-list__item" key={i}>{p.msg}</li>)}
+      <div className="editor__foot">
+        {saveState === 'saved' ? (
+          <p className="save-state save-state--saved" role="status">
+            <I.check s={16} dashed /> Enregistré — le jeu utilisera ces questions.
+          </p>
+        ) : null}
+        {saveState === 'error' || saveState === 'local' ? (
+          <p className="save-state save-state--failed" role="alert">
+            <I.alert s={18} />
+            {saveState === 'local'
+              ? "Serveur injoignable — ta saisie est conservée localement. Réessaie."
+              : "Enregistrement refusé — ta saisie est conservée localement. Réessaie."}
+          </p>
+        ) : null}
+        {saveState === 'invalid' && validationErrors.length ? (
+          <div className="save-state save-state--invalid" role="alert" data-bind="module.validation">
+            <span><I.alert s={18} /> À corriger avant d'enregistrer :</span>
+            <ul className="save-state__list">
+              {validationErrors.map((e, i) => (
+                <li className="save-state__item" key={i}>
+                  {e.tag ? <strong>{e.tag} · </strong> : null}{e.msg}
+                </li>
+              ))}
             </ul>
-          ) : null}
-        </div>
-      </form>
+          </div>
+        ) : null}
+        <button className="button button--primary button--block button--lg" type="button"
+          data-action="PUT /api/banks" onClick={onSave} disabled={saveState === 'saving'}
+          aria-busy={saveState === 'saving' || undefined}>
+          {saveLabel}
+        </button>
+      </div>
     </aside>
   );
 }
 
 // ---------------------------------------------------------------------------
-function QuestionRow({ index, module, question, editing, invalid, onToggle, onPatch, onRemove }) {
+// E4 — Ligne de question : repliée · nouvelle · invalide · dépliée
+// ---------------------------------------------------------------------------
+function QuestionRow({ index, module, question, editing, invalid, errors, onToggle, onPatch, onRemove }) {
+  const isNew = !String(question.prompt || '').trim();
+  const state = editing ? 'open' : invalid ? 'invalid' : isNew ? 'new' : 'collapsed';
   return (
-    <div className={`question${editing ? ' question--editing' : ''}${invalid ? ' question--invalid' : ''}`}>
-      <span className="question__index">{index}</span>
-      <span className="question__text">{question.prompt || 'Nouvelle question'}</span>
-      <span className="question__actions">
-        <button
-          className="icon-button" type="button" onClick={onToggle}
-          aria-label={editing ? 'Terminer la question' : 'Éditer la question'}
-        >
-          <Icon name={editing ? 'check' : 'pencil'} className="icon icon--sm" />
-        </button>
-        <button
-          className="icon-button icon-button--danger" type="button" onClick={onRemove}
-          aria-label="Supprimer la question"
-        >
-          <Icon name="x" className="icon icon--sm" />
-        </button>
-      </span>
-      {editing && (
-        <div className="question__fields">
-          <QuestionFields type={module.type} question={question} onPatch={onPatch} />
+    <div>
+      <div className={`qrow${editing ? ' qrow--open' : ''}${invalid ? ' qrow--invalid' : ''}`} data-state={state}>
+        <span className="qrow__num">{index}</span>
+        <span className={`qrow__text${isNew ? ' qrow__text--new' : ''}`}>
+          {isNew ? 'Nouvelle question' : question.prompt}
+        </span>
+        <button className="qrow__btn" type="button" data-action="studio:toggleQuestion"
+          aria-expanded={editing} aria-label={`${editing ? 'Replier' : 'Déplier'} la question ${index}`}
+          onClick={onToggle}><I.chevron s={16} open={editing} /></button>
+        <button className="qrow__btn qrow__btn--danger" type="button" data-action="studio:deleteQuestion"
+          aria-label={`Supprimer la question ${index}`} onClick={onRemove}><I.trash s={16} /></button>
+      </div>
+      {invalid && !editing && errors.length ? (
+        <p className="qerror" role="alert">{errors.map((e) => e.msg).join(' · ')}</p>
+      ) : null}
+      {editing ? (
+        <div className="qform">
+          <QuestionFields type={module.type} question={question} onPatch={onPatch} errors={errors} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
-// Champs d'édition d'une question, selon le type du module.
-function QuestionFields({ type, question, onPatch }) {
+// Quatre formulaires, un par type de module.
+function QuestionFields({ type, question, onPatch, errors }) {
+  const err = (needle) => (errors || []).find((e) => e.msg.toLowerCase().includes(needle));
   const prompt = (
-    <div className="field">
-      <label className="field__label">Énoncé</label>
-      <input
-        className="input" type="text" value={question.prompt || ''}
-        onChange={(e) => onPatch({ prompt: e.target.value })} placeholder="Rédigez la question…"
-      />
+    <div className="fgroup">
+      <label className="flabel">Énoncé</label>
+      <input className={`input${err('énoncé') ? ' input--invalid' : ''}`} type="text"
+        value={question.prompt || ''} placeholder="Rédige la question…"
+        aria-invalid={err('énoncé') ? true : undefined}
+        onChange={(e) => onPatch({ prompt: e.target.value })} />
     </div>
   );
 
   if (type === 'quiz') {
     const options = question.options || ['', '', '', ''];
-    // E1 — la bonne réponse se coche SUR l'option (pattern Podia/Circle),
-    // plus de menu séparé à corréler mentalement.
+    const badAnswer = err('bonne réponse');
     return (
       <>
         {prompt}
-        <div className="field">
-          <span className="field__label">Options — coche la bonne réponse</span>
-          <div className="field__options" role="radiogroup" aria-label="Bonne réponse">
-            {options.map((opt, i) => {
-              const isCorrect = (question.correct ?? 0) === i;
-              return (
-                <span className={`field__option field__option--radio${isCorrect ? ' field__option--correct' : ''}`} key={i}>
-                  <input
-                    className="option-radio"
-                    type="radio"
-                    name={`correct-${question.id}`}
-                    checked={isCorrect}
-                    aria-label={`Marquer l'option ${i + 1} comme bonne réponse`}
-                    onChange={() => onPatch({ correct: i })}
-                  />
-                  <input
-                    className="input" type="text" value={opt}
-                    aria-label={`Option ${i + 1}`} placeholder={`Option ${i + 1}`}
-                    onChange={(e) => {
-                      const next = options.slice();
-                      next[i] = e.target.value;
-                      onPatch({ options: next });
-                    }}
-                  />
-                  {isCorrect ? <span className="field__option-badge"><Icon name="check" className="icon icon--sm" /></span> : null}
-                </span>
-              );
-            })}
+        <div className="fgroup">
+          <span className="flabel">Options — coche la bonne réponse</span>
+          <div className="qopts" role="radiogroup" aria-label="Bonne réponse">
+            {options.map((opt, i) => (
+              <span className="qopt" key={i}>
+                <button className="qopt__radio" type="button" role="radio"
+                  aria-checked={question.correct === i}
+                  aria-label={`Option ${i + 1} est la bonne réponse`}
+                  onClick={() => onPatch({ correct: i })}><I.check s={14} /></button>
+                <input className="input" type="text" value={opt} placeholder={`Option ${i + 1}`}
+                  aria-label={`Option ${i + 1}`}
+                  onChange={(e) => { const next = options.slice(); next[i] = e.target.value; onPatch({ options: next }); }} />
+              </span>
+            ))}
           </div>
+          {badAnswer ? <p className="qerror" role="alert">{badAnswer.msg}</p> : null}
         </div>
       </>
     );
@@ -696,35 +694,32 @@ function QuestionFields({ type, question, onPatch }) {
     return (
       <>
         {prompt}
-        <div className="field">
-          <label className="field__label">Réponse</label>
-          <span className="select-field">
-            <select
-              className="select" value={question.answer ? 'true' : 'false'}
-              onChange={(e) => onPatch({ answer: e.target.value === 'true' })}
-            >
-              <option value="true">Vrai</option>
-              <option value="false">Faux</option>
-            </select>
-            <span className="select-field__caret" aria-hidden="true">
-              <Icon name="chevron-right" className="icon icon--sm" />
-            </span>
-          </span>
+        <div className="fgroup">
+          <span className="flabel">Réponse</span>
+          <div className="qtiles" role="radiogroup" aria-label="Réponse">
+            <button className="qtile" type="button" role="radio" aria-checked={question.answer === true}
+              onClick={() => onPatch({ answer: true })}>Vrai</button>
+            <button className="qtile" type="button" role="radio" aria-checked={question.answer === false}
+              onClick={() => onPatch({ answer: false })}>Faux</button>
+          </div>
         </div>
       </>
     );
   }
 
   if (type === 'estimation') {
+    const bad = err('cible');
     return (
       <>
         {prompt}
-        <div className="field">
-          <label className="field__label">Cible</label>
-          <input
-            className="input" type="number" inputMode="numeric" value={question.target ?? 0}
-            onChange={(e) => onPatch({ target: Number(e.target.value) || 0 })}
-          />
+        <div className="fgroup fgroup--short">
+          <label className="flabel" htmlFor={`t-${question.id}`}>Cible</label>
+          <input className={`input${bad ? ' input--invalid' : ''}`} id={`t-${question.id}`} type="number"
+            inputMode="numeric" value={question.target ?? 0}
+            aria-invalid={bad ? true : undefined} aria-describedby={bad ? `te-${question.id}` : undefined}
+            onChange={(e) => onPatch({ target: Number(e.target.value) || 0 })} />
+          {bad ? <p className="qerror" id={`te-${question.id}`} role="alert">{bad.msg}</p> : null}
+          <p className="fhint">L'unité va dans l'énoncé.</p>
         </div>
       </>
     );
@@ -734,38 +729,24 @@ function QuestionFields({ type, question, onPatch }) {
   const options = question.options || ['', ''];
   return (
     <>
+      <p className="qnote">Pas de bonne réponse : un vote choisit la suite de la soirée.</p>
       {prompt}
-      <div className="field">
-        <span className="field__label">Choix du vote</span>
-        <div className="field__options">
+      <div className="fgroup">
+        <span className="flabel">Choix proposés</span>
+        <div className="qopts">
           {options.map((opt, i) => (
-            <span className="field__option" key={i}>
-              <input
-                className="input" type="text" value={opt}
-                aria-label={`Choix ${i + 1}`} placeholder={`Choix ${i + 1}`}
-                onChange={(e) => {
-                  const next = options.slice();
-                  next[i] = e.target.value;
-                  onPatch({ options: next });
-                }}
-              />
-              <button
-                className="icon-button icon-button--danger" type="button"
+            <span className="qopt" key={i}>
+              <input className="input" type="text" value={opt} placeholder={`Choix ${i + 1}`}
+                aria-label={`Choix ${i + 1}`}
+                onChange={(e) => { const next = options.slice(); next[i] = e.target.value; onPatch({ options: next }); }} />
+              <button className="qrow__btn qrow__btn--danger" type="button"
                 aria-label={`Retirer le choix ${i + 1}`}
-                onClick={() => onPatch({ options: options.filter((_, j) => j !== i) })}
-              >
-                <Icon name="x" className="icon icon--sm" />
-              </button>
+                onClick={() => onPatch({ options: options.filter((_, j) => j !== i) })}><I.x s={14} /></button>
             </span>
           ))}
         </div>
-        <button
-          className="question-add" type="button"
-          onClick={() => onPatch({ options: [...options, ''] })}
-        >
-          <Icon name="plus" className="icon icon--sm" />
-          Ajouter un choix
-        </button>
+        <button className="qadd" type="button" style={{ marginTop: 'var(--sp-2)' }}
+          onClick={() => onPatch({ options: [...options, ''] })}><I.plus s={16} /> Ajouter un choix</button>
       </div>
     </>
   );

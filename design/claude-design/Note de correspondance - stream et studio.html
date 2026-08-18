@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>Note de correspondance — stream et studio</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-9) var(--sp-8) var(--sp-10);display:flex;flex-direction:column;align-items:center">
+  <div style="width:100%;max-width:960px;display:flex;flex-direction:column;gap:var(--sp-8)">
+
+    <header style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-8);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:var(--sp-3)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Project Game Show · surfaces stream (S1 → S4) et studio (E1 → E4)</p>
+        <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Note de correspondance</h1>
+        <p style="margin:0;max-width:68ch;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Deux surfaces opposées, un seul socle. Le stream ne fait que grossir le système — mêmes couleurs, mêmes formes, échelle multipliée par trois. Le studio ne fait que le densifier. Aucune valeur existante n'a été modifiée : deux sections ont été ajoutées à <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">tokens.css</code>, la 17 (stream) et la 18 (studio).</p>
+      </div>
+    </header>
+
+    <!-- Variables -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">17—18</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Variables ajoutées</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Vingt ajouts, aucune couleur nouvelle : la surface stream réutilise exactement la palette du joueur, seule l'échelle change.</p>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">17 · Stream — échelle de diffusion</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--fs-st-100 → 700</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">26 · 34 · 46 · 62 · 84 · 116 · 168 px. Échelle parallèle, jamais mélangée avec celle du joueur. Règle de dimensionnement : <strong style="font-weight:600">tout texte utile ≥ 32 px sur le canvas</strong>, soit ≥ 8 px quand le stream est réduit au quart — le plancher de lisibilité mesuré. C'est pourquoi le plus petit palier est 26 px et ne sert qu'aux étiquettes en capitales, plus lisibles à taille égale.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--fs-st-code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">104 px — palier dédié au code de salon : cinq caractères monospacés doivent tenir dans la largeur du panneau. Le code vit dans la <strong style="font-weight:600">pièce « champ creusé »</strong> du système (fond enfoncé, <code style="font:400 var(--fs-200)/1 var(--f-mono)">--sh-inset</code>, tracking) — le joueur reconnaît sur le stream le champ qu'il va remplir.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--fs-st-chrono · -urgent</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">96 px et 140 px — la <strong style="font-weight:600">règle des deux tailles</strong> de la surface joueur, transposée : au-delà de 5 s le chiffre informe, à 5 s ou moins il commande, l'anneau passe de la flamme à la braise, prend son halo et respire à 900 ms (<code style="font:400 var(--fs-200)/1 var(--f-mono)">om-urgent</code>). Même seuil <code style="font:400 var(--fs-200)/1 var(--f-mono)">--urgent-threshold</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--ring-st · --ring-st-in</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">180 px et 148 px — anneau de chrono et son disque intérieur, exactement la construction du joueur (conic-gradient + disque au fond de l'écran).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--row-st · --dot-st · --mark-st</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">132 px, 64 px, 22 px — rangée d'option, lettre-repère, marqueur d'état : la grammaire d'option du système (repère à gauche, libellé au centre, marqueur à droite) à l'échelle de diffusion. À la révélation, la répartition entre <em>dans</em> la rangée, comme sur le téléphone.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--pad-st · --gap-st</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">64 px et 40 px — marge du canvas et gouttière entre blocs. Généreux par nécessité : à 25 %, un espace de 16 px devient 4 px et les blocs se collent.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--panel-st · --qr-st</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">460 px et 260 px — largeur du panneau permanent et taille du QR. Le QR à 260 px reste scannable à 25 % depuis un canapé ; c'est la contrainte qui a fixé la largeur du panneau, pas l'inverse.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--bw-st</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">4 px — épaisseur de filet du stream. Un filet de 1 px disparaît totalement à l'échelle de diffusion : le système en a besoin d'un propre.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--r-st</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">28 px — rayon des blocs de scène, proportionné aux blocs de 400 px de large.</span>
+      </div>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">18 · Studio — densité de saisie</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--studio-nav · --studio-panel</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">288 px et 560 px — colonne de modules à gauche, panneau d'édition à droite. Le panneau est large parce qu'il contient des énoncés : en dessous de 520 px, une question de deux lignes en fait quatre.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--studio-w · --studio-h</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">1440 × 900 — même gabarit que le poste de pilotage, pour que les deux surfaces desktop se recouvrent exactement.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--row-form · --row-q</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">52 px et 60 px — hauteur d'un champ et d'une ligne de question repliée. Plus bas que les 56 px du joueur : sur une heure de saisie, la compacité économise du scroll ; plus haut que 44 px, pour rester confortable à la souris.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--w-field-s</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">132 px — champ court (durée, cible numérique). Un champ dimensionné à sa donnée évite de laisser croire qu'on attend une phrase.</span>
+      </div>
+    </section>
+
+    <!-- S1 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">S1</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Panneau de connexion — permanent</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Ce n'est pas un écran mais un bloc : il est <strong style="font-weight:600">répété à l'identique dans S2, S3 et S4</strong>, colonne de droite, marges identiques, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-state="always"</code>. Le fichier S1 le documente seul et prouve sa lisibilité.</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.qr</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Carré de 260 px, <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="img"</code> + <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code>. Le damier est un placeholder, le vrai QR est généré côté client. Cerné d'un filet de 4 px en <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-surface-2</code> : sans lui, un QR sombre se fond dans le panneau à petite taille.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">168 px monospace en flamme orange, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="stream-room-code"</code>. <strong style="font-weight:600">Seul élément en flamme de toute la surface stream</strong> : la couleur signale le point d'entrée et rien d'autre.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.joinUrl</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">34 px monospace sous un filet de séparation, précédé de « Sur ton téléphone ». Plancher absolu de la surface.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Marque</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Toujours la version <strong style="font-weight:600">animée</strong> — flamme qui respire, braise qui scintille. La version statique du logo n'existe qu'en favicon, sur les quatre surfaces.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Preuve de lisibilité</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Le fichier montre le panneau à 50 %, 25 % et 12,5 % par <code style="font:400 var(--fs-200)/1 var(--f-mono)">transform: scale()</code> — même markup, aucune retouche. À 12,5 % le lien décroche, le code et le QR tiennent : c'est la justification de leur hiérarchie.</span>
+      </div>
+    </section>
+
+    <!-- S2 S3 S4 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">S2 · S3 · S4</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Les trois phases de scène</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S2 · room.playerCount</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chiffre de 168 px, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="player-count"</code>, dans une carte posée au bas de la scène. <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-pop</code> à chaque arrivée. Trois variantes : joueurs présents · <code style="font:400 var(--fs-200)/1 var(--f-mono)">"waiting empty"</code> (0 joueur, trois points qui respirent, « Sois le premier autour du feu ») · <code style="font:400 var(--fs-200)/1 var(--f-mono)">"waiting between"</code> (partie lancée, entre deux épreuves, avec l'assurance qu'on peut encore rejoindre).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S2 · stream.tagline</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Message d'accroche en 116 px display condensée. <strong style="color:var(--c-ember-bright);font-weight:600">Point signalé</strong> — voir « Écarts ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S3 · bandeau de manche</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Une seule ligne : <code style="font:400 var(--fs-200)/1 var(--f-mono)">module.meta.name</code> en capsule, <code style="font:400 var(--fs-200)/1 var(--f-mono)">module.index/total</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">room.progression</code> en filet de 12 px, <code style="font:400 var(--fs-200)/1 var(--f-mono)">tick.answers</code> (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="answers-count"</code>) et l'anneau de chrono de 150 px avec <code style="font:400 var(--fs-200)/1 var(--f-mono)">tick.timeLeft</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S3 · module.text / options</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Énoncé de 84 px (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="question-text"</code>), options en grille 2 × 2, lettre-repère de 64 px. Un libellé long passe à 34 px et s'ellipse sur 2 lignes ; la grille ne se déforme pas. Le cadre porte <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="stream-question"</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S3 · reveal.*</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">À la révélation, les options disparaissent : la bonne réponse prend un bloc épicéa pleine largeur (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="reveal-value"</code>, coche tracée) et la répartition occupe le bas (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="stats-panel"</code>). Quatre formes livrées : <strong style="font-weight:600">options</strong> (barres de 64 px, la bonne en épicéa), <strong style="font-weight:600">booléen</strong> (deux colonnes Vrai/Faux), <strong style="font-weight:600">numérique</strong> (le plus proche / moyenne / médiane + histogramme), <strong style="font-weight:600">vote</strong> (« Le public a choisi » en mousse, aucune notion de bonne réponse).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">S4 · podium</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois marches (370 / 250 / 180 px), la première en braise avec la marque animée ; pseudo et score au-dessus. Montée en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-rise</code> décalée de 80 ms. Variante <code style="font:400 var(--fs-200)/1 var(--f-mono)">"podium empty"</code> : partie close sans aucun score — pas de podium, message d'attente pour la partie suivante.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Règle tenue</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Aucun point, aucune place, aucun rang d'un joueur sur les quatre écrans. Un pseudo n'apparaît que sur le podium final, et seulement pour les trois premiers.</span>
+      </div>
+    </section>
+
+    <!-- E1 E2 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">E1 · E2</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Navigation et grille</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">banks.source</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Indicateur de source en tête de colonne : « Synchronisé » en épicéa, « Chargement des banques… » avec spinner, ou « Hors ligne » en encadré rouge qui précise que la copie locale est modifiable et sera envoyée à la reconnexion.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">banks.modules</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Liste cliquable en E1 (pastille de couleur d'accent, nom tronqué, compteur de questions) et grille de cartes en E2. Le module sélectionné porte <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-current="true"</code> et un filet braise.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">studio:selectModule · studio:createModule</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sélection sur chaque ligne ; « Nouveau module » en bas de colonne, seule action en braise de la navigation.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.name / type / duration / questionCount / color</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Les cinq données de la carte E2 : titre en display, trois capsules (type, durée, nombre de questions) et la couleur d'accent en filet de 6 px au sommet de la carte.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">studio:editModule · studio:deleteModule</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Éditer » pleine largeur et une corbeille avec <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> nominatif (« Supprimer le module Quiz culture »).</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">États vides</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">E1 et E2 ont chacun leur variante <code style="font:400 var(--fs-200)/1 var(--f-mono)">"empty"</code>. E2 porte en plus la carte d'un <strong style="font-weight:600">module sans question</strong> (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-state="no-question"</code>) : capsule rouge « Aucune question », phrase d'explication, et le bouton devient « Ajouter des questions ». E1 montre aussi les squelettes de chargement en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-shimmer</code> — la seule animation du studio.</span>
+      </div>
+    </section>
+
+    <!-- E3 E4 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">E3 · E4</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Édition et questions</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Quatre réglages</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)"><code style="font:400 var(--fs-200)/1 var(--f-mono)">module.name</code> (champ), <code style="font:400 var(--fs-200)/1 var(--f-mono)">module.type</code> (4 boutons en <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="radiogroup"</code> : Quiz / Vrai-Faux / Estimation / Vote), <code style="font:400 var(--fs-200)/1 var(--f-mono)">module.duration</code> (champ court + « s », mention « 3 s minimum »), <code style="font:400 var(--fs-200)/1 var(--f-mono)">module.color</code> (4 pastilles de 40 px, sélection par double anneau — la forme, pas seulement la couleur).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">studio:addQuestion · deleteQuestion · toggleQuestion</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Liste de questions dans le panneau, bouton d'ajout en bas de liste. Chaque ligne porte plier/déplier (<code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-expanded</code>) et supprimer, avec <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> numéroté.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">PUT /api/banks</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Barre d'enregistrement collée en bas du panneau, cinq états livrés : <code style="font:400 var(--fs-200)/1 var(--f-mono)">idle</code> · <code style="font:400 var(--fs-200)/1 var(--f-mono)">saving</code> (spinner) · <code style="font:400 var(--fs-200)/1 var(--f-mono)">saved</code> (bloc épicéa, coche tracée, retour automatique après 2 s) · <code style="font:400 var(--fs-200)/1 var(--f-mono)">failed</code> (cause + « ta saisie est conservée localement » + Réessayer) · <code style="font:400 var(--fs-200)/1 var(--f-mono)">invalid</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.validation</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">L'état invalide ne se contente pas de refuser : il liste les sept cas du contrat, chacun préfixé du numéro de question concerné (« Q3 · Aucune bonne réponse cochée »), avec un bouton « Aller au premier point ». Le libellé du bouton d'enregistrement porte le compte : « Enregistrer — 6 points à corriger ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">question.error</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">E4 — l'erreur s'accroche à la ligne : fond et filet rouges sur la ligne repliée, message <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="alert"</code> juste en dessous. Sur un champ déplié, <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-invalid</code> + <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-describedby</code> (voir la cible d'estimation non numérique).</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Quatre formulaires</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)"><strong style="font-weight:600">quiz</strong> : énoncé + 4 options, la bonne cochée par un bouton radio épicéa sur la rangée. <strong style="font-weight:600">true_false</strong> : affirmation + deux tuiles Vrai/Faux. <strong style="font-weight:600">estimation</strong> : énoncé + cible numérique en champ court, l'unité va dans l'énoncé. <strong style="font-weight:600">vote</strong> : question + liste extensible (ajouter / retirer un choix), mention « Pas de bonne réponse » en tête.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Quatre états de ligne</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Repliée · nouvelle (énoncé en italique « Nouvelle question » et filet d'attente) · invalide · dépliée. La ligne dépliée passe en <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-surface-2</code> et perd son rayon bas : elle fait corps avec son formulaire.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Suppression de module</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Confirmation en deux temps, même bloc que sur la surface animateur : conséquence nommée, action rouge pleine, « Annuler ». Le libellé « Supprimer ce module… » ouvre, il ne supprime pas.</span>
+      </div>
+    </section>
+
+    <!-- Écarts -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Écarts et points à confirmer</h2>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">1</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Message d'accroche du stream, sans source.</strong> Le §5 S2 liste un « message d'accroche » en <code style="font:400 var(--fs-200)/1 var(--f-mono)">[IN]</code> qu'aucun événement du §2.1 ne transporte. Annoté <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-bind="stream.tagline"</code> ; à défaut de source serveur, ce sera une constante côté client — à trancher.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">2</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Nombre de réponses après révélation.</strong> <code style="font:400 var(--fs-200)/1 var(--f-mono)">module:tick</code> s'arrête à la clôture ; le compteur affiché après révélation vient donc de <code style="font:400 var(--fs-200)/1 var(--f-mono)">reveal.stats.total</code>, annoté comme tel. À confirmer que ce total est bien le nombre de répondants et non celui des joueurs connectés.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">3</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Chrono sur le stream.</strong> Le §5 S3 le demande, et <code style="font:400 var(--fs-200)/1 var(--f-mono)">module:tick</code> est bien diffusé à tous — mais la page stream reçoit aussi <code style="font:400 var(--fs-200)/1 var(--f-mono)">module:distribution</code>, réservé à l'animateur au §2.1. La page stream ne l'affiche <strong style="font-weight:600">jamais</strong> avant révélation : c'est un filtrage côté client, à verrouiller côté serveur si possible.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">4</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Actions du studio, hors contrat temps réel.</strong> Le §2.2 ne couvre pas l'éditeur ; seul <code style="font:400 var(--fs-200)/1 var(--f-mono)">PUT /api/banks</code> existe au §3. Les gestes locaux sont annotés en <code style="font:400 var(--fs-200)/1 var(--f-mono)">studio:*</code> (sélection, création, dépliage, ajout/retrait d'option) — noms de convention, à aligner sur le code existant.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-pine)">5</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Périmètre complet.</strong> Huit écrans, aucun de plus ; les trois overlays OBS historiques ne sont pas repris, conformément à la décision du 18 août. Aucun emoji, iconographie au trait, contrastes ≥ 4,5:1 partout, aucune information de score individuelle sur le stream.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer style="padding:var(--sp-6) var(--sp-7);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-1),var(--sh-edge)">
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3);text-wrap:pretty">Les quatre surfaces sont désormais livrées : joueur (J1 → J6), animateur (A1 → A6), stream (S1 → S4), studio (E1 → E4), toutes assises sur le même <code style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">tokens.css</code> — 18 sections, aucune valeur dupliquée, aucune couleur hors des trois familles feu / bois / feuille, plus la prune réservée à l'animateur.</p>
+    </footer>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

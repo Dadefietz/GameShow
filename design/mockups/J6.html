@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+  <meta name="design_doc_mode" content="canvas">
+  <title>J6 · Chargement — Project Game Show</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-7)">
+
+  <header style="max-width:860px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface joueur · écran J6</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Chargement</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Écran transitoire pendant la résolution de la session. Aucun spinner : la braise du logo scintille et trois points respirent — un mouvement lent, jamais anxiogène. Pas de barre de progression, parce qu'on ne sait pas combien de temps ça prend. Au-delà de 4 secondes, une ligne de réassurance apparaît sous les points ; à 10 secondes, la sortie « recharger » s'affiche.</p>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;gap:var(--sp-8) var(--sp-7)">
+
+    <!-- ══════ 1 · CHARGEMENT ══════ -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · chargement de marque · <span style="color:var(--c-ember-bright)">data-state="loading"</span></figcaption>
+      <div data-state="loading" data-screen-label="J6 chargement" style="width:var(--frame-w);height:var(--frame-h);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+        <div style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-7);padding:var(--sp-8) var(--pad-screen)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-5)">
+            <div style="width:76px;height:76px;border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)"><svg width="50" height="50" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+            <p style="margin:0;font:600 var(--fs-600)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;text-align:center">Project<br>Game Show</p>
+          </div>
+
+          <div role="status" aria-live="polite" style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+            <div style="display:flex;gap:var(--sp-2)" aria-hidden="true">
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) infinite"></span>
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) 0.2s infinite"></span>
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) 0.4s infinite"></span>
+            </div>
+            <p style="margin:0;font:400 var(--fs-400)/1 var(--f-ui);color:var(--c-ink-2)">On approche du feu…</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- ══════ 2 · ATTENTE LONGUE ══════ -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · au-delà de 4 s · <span style="color:var(--c-ember-bright)">data-state="loading slow"</span></figcaption>
+      <div data-state="loading slow" data-screen-label="J6 chargement long" style="width:var(--frame-w);height:var(--frame-h);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+        <div style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-7);padding:var(--sp-8) var(--pad-screen)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-5)">
+            <div style="width:76px;height:76px;border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)"><svg width="50" height="50" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+            <p style="margin:0;font:600 var(--fs-600)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;text-align:center">Project<br>Game Show</p>
+          </div>
+
+          <div role="status" aria-live="polite" style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+            <div style="display:flex;gap:var(--sp-2)" aria-hidden="true">
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) infinite"></span>
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) 0.2s infinite"></span>
+              <span style="width:9px;height:9px;border-radius:var(--r-full);background:var(--c-flame);animation:om-breathe 1.6s var(--ease-in-out) 0.4s infinite"></span>
+            </div>
+            <p style="margin:0;font:400 var(--fs-400)/1 var(--f-ui);color:var(--c-ink-2)">On approche du feu…</p>
+            <p style="margin:0;max-width:270px;text-align:center;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3);text-wrap:pretty;animation:om-rise var(--mo-slow) var(--ease-out) both">Le réseau prend son temps. Reste sur cette page, ça arrive.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- ══════ 3 · SORTIE DE SECOURS ══════ -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">3 · au-delà de 10 s · <span style="color:var(--c-ember-bright)">data-state="loading stuck"</span></figcaption>
+      <div data-state="loading stuck" data-screen-label="J6 chargement bloque" style="width:var(--frame-w);height:var(--frame-h);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+        <div style="position:relative;flex:1;display:flex;flex-direction:column;padding:var(--sp-8) var(--pad-screen) var(--sp-6)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-7)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-5)">
+              <div style="width:76px;height:76px;border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ember-bright)"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+              <p style="margin:0;font:600 var(--fs-600)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;text-align:center">Project<br>Game Show</p>
+            </div>
+            <p role="status" aria-live="polite" style="margin:0;max-width:280px;text-align:center;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">La session ne se résout pas. Recharge la page pour repartir de l'écran d'entrée.</p>
+          </div>
+          <button type="button" data-action="reload" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-400)/1 var(--f-ui);padding:var(--sp-4)">Recharger</button>
+        </div>
+      </div>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

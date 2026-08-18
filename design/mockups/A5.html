@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+  <meta name="design_doc_mode" content="canvas">
+  <title>A5 · Pilotage en direct — Project Game Show</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:920px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface animateur · écran A5</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Pilotage en direct</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">L'écran de l'émission. Trois zones fixes qui ne bougent jamais d'une manche à l'autre : le bandeau d'antenne en haut (module, progression, chrono, réponses), la scène au centre (énoncé puis répartition), le rail de droite (classement, bonus-malus). La barre du bas ne propose <strong style="font-weight:600">qu'une seule action dominante à la fois</strong> — révéler, puis question suivante — pour qu'on ne se trompe pas en direct.</p>
+    <div style="margin-top:var(--sp-2);display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4) var(--sp-5);border-radius:var(--r-m);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:2px"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty">Tout ce qui est <strong style="color:var(--c-secret);font-weight:600">encadré en prune et hachuré</strong> n'est visible que par l'animateur : la répartition des réponses en direct et le classement complet. La prune ne sert à rien d'autre, sur aucune des quatre surfaces.</p>
+    </div>
+  </header>
+
+  <!-- ════════════ 1 · EN DIRECT, RÉPARTITION OPTIONS ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · en direct, répartition « options » · <span style="color:var(--c-ember-bright)">data-state="live"</span></figcaption>
+    <div data-state="live" data-screen-label="A5 direct options" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <!-- bandeau d'antenne -->
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live);animation:om-flicker 2s var(--ease-in-out) infinite"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash)">
+          <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-ember-bright)"></span>
+          <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Quiz culture</span>
+        </div>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">Épreuve <span data-bind="module.index" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">3</span> / <span data-bind="module.total" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span></p>
+        <div style="flex:1;height:4px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+          <div data-bind="room.progression" style="--om-to:25%;width:25%;height:100%;background:var(--c-flame);animation:om-fill var(--mo-slow) var(--ease-out) both"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+          <span style="font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-2)"><strong data-bind="tick.answers" data-testid="answers-count" style="font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink)">31</strong> / 42 réponses</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+          <span style="font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Chrono</span>
+          <span data-bind="tick.timeLeft" style="font:600 var(--fs-chrono)/1 var(--f-mono);letter-spacing:var(--tr-tight);min-width:52px;text-align:right">12</span>
+        </div>
+        <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+        </button>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr var(--pane-rail);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+
+        <!-- scène -->
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Énoncé à l'antenne</p>
+            <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-800)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-wrap:pretty">Quel massif culmine à 4 808 mètres ?</p>
+          </div>
+
+          <div data-bind="module.distribution" data-testid="stats-panel" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)">
+              <div style="display:flex;align-items:center;gap:var(--sp-2)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+                <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Répartition en direct — visible par toi seul</p>
+              </div>
+              <span style="font:400 var(--fs-200)/1 var(--f-ui);color:var(--c-ink-3)">Publique à la révélation</span>
+            </div>
+
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">A</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le mont Blanc</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:58%;width:58%;height:100%;background:var(--g-ember);animation:om-fill var(--mo-slow) var(--ease-out) both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono)">18 · 58 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">B</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le mont Rose</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:16%;width:16%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-slow) var(--ease-out) 60ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">5 · 16 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">C</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le Cervin</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:23%;width:23%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-slow) var(--ease-out) 120ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">7 · 23 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">D</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le Grand Paradis, dans les Alpes valdôtaines</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:3%;width:3%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-slow) var(--ease-out) 180ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">1 · 3 %</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- rail droit -->
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div data-bind="leaderboard" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Top 5 — toi seul</p>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">1</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 720</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">2</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 610</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">3</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 480</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">4</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 250</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">5</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Sasha</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 100</span>
+              </div>
+            </div>
+            <a href="A6.dc.html" data-action="goto:leaderboard" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);display:flex;align-items:center;justify-content:center;text-decoration:none">Voir le classement</a>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Bonus / malus</p>
+            <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+              <button type="button" data-action="host:adjustScore:+100" aria-label="Ajouter 100 points à Lou du Palais" style="min-height:var(--hit-chip);min-width:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-leaf-wash);color:var(--c-pine);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">+100</button>
+              <button type="button" data-action="host:adjustScore:-100" aria-label="Retirer 100 points à Lou du Palais" style="min-height:var(--hit-chip);min-width:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-bad-wash);color:var(--c-bad);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">−100</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+              <button type="button" data-action="host:adjustScore:+100" aria-label="Ajouter 100 points à Tom" style="min-height:var(--hit-chip);min-width:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-leaf-wash);color:var(--c-pine);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">+100</button>
+              <button type="button" data-action="host:adjustScore:-100" aria-label="Retirer 100 points à Tom" style="min-height:var(--hit-chip);min-width:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-bad-wash);color:var(--c-bad);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">−100</button>
+            </div>
+            <button type="button" data-action="panel:adjustScore" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Tous les joueurs</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- barre d'action -->
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:reveal" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+          Révéler maintenant
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><circle cx="12" cy="12" r="2.4"></circle></svg>
+        </button>
+        <button type="button" data-action="host:startModule" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Changer de module</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ════════════ 2 · RÉSULTATS RÉVÉLÉS ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · manche révélée · <span style="color:var(--c-ember-bright)">data-state="results"</span></figcaption>
+    <div data-state="results" data-screen-label="A5 resultats" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live)"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash)">
+          <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-ember-bright)"></span>
+          <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Quiz culture</span>
+        </div>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">Épreuve <span data-bind="module.index" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">3</span> / <span data-bind="module.total" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span></p>
+        <div style="flex:1;height:4px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+          <div data-bind="room.progression" style="width:25%;height:100%;background:var(--c-flame)"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+          <span style="font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-2)"><strong data-bind="module.answers" data-testid="answers-count" style="font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink)">38</strong> / 42 réponses</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk)">
+          <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Manche close</span>
+        </div>
+        <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+        </button>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr var(--pane-rail);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--sp-6) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4)">
+            <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-700)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Quel massif culmine à 4 808 mètres ?</p>
+            <div data-bind="reveal.correct" data-testid="reveal-value" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash);animation:om-pop var(--mo-scene) var(--ease-out) both">
+              <span style="width:36px;height:36px;flex:none;border-radius:var(--r-full);background:var(--g-pine);display:grid;place-items:center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-leaf)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-dasharray="26" style="animation:om-draw 320ms var(--ease-out) 180ms both"></path></svg>
+              </span>
+              <div style="min-width:0">
+                <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-pine)">Bonne réponse — désormais publique</p>
+                <p style="margin:2px 0 0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);overflow-wrap:anywhere">A · Le mont Blanc</p>
+              </div>
+            </div>
+          </div>
+
+          <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)">
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Répartition finale</p>
+              <span style="display:flex;align-items:center;gap:var(--sp-2);font:400 var(--fs-200)/1 var(--f-ui);color:var(--c-ink-2)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><circle cx="12" cy="12" r="2.4"></circle></svg>
+                Affichée sur le stream
+              </span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-pine)">A</span>
+                <span style="width:190px;flex:none;font:600 var(--fs-400)/1.3 var(--f-ui);color:var(--c-pine);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le mont Blanc</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:61%;width:61%;height:100%;background:var(--g-pine);animation:om-fill var(--mo-scene) var(--ease-out) both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-pine)">23 · 61 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">B</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le mont Rose</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:16%;width:16%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-scene) var(--ease-out) 60ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">6 · 16 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">C</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le Cervin</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:21%;width:21%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-scene) var(--ease-out) 120ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">8 · 21 %</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4)">
+                <span style="width:26px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-2)">D</span>
+                <span style="width:190px;flex:none;font:500 var(--fs-400)/1.3 var(--f-ui);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Le Grand Paradis, dans les Alpes valdôtaines</span>
+                <div style="flex:1;height:26px;border-radius:var(--r-s);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:2%;width:2%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-scene) var(--ease-out) 180ms both"></div>
+                </div>
+                <span style="width:94px;flex:none;text-align:right;white-space:nowrap;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">1 · 2 %</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div data-bind="leaderboard" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Top 5 — toi seul</p>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface);animation:om-rise var(--mo-slow) var(--ease-out) both">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">1</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 960</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface);animation:om-rise var(--mo-slow) var(--ease-out) 40ms both">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">2</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 720</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface);animation:om-rise var(--mo-slow) var(--ease-out) 80ms both">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">3</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 610</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface);animation:om-rise var(--mo-slow) var(--ease-out) 120ms both">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">4</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 250</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface);animation:om-rise var(--mo-slow) var(--ease-out) 160ms both">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">5</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Sasha</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 100</span>
+              </div>
+            </div>
+            <a href="A6.dc.html" data-action="goto:leaderboard" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);display:flex;align-items:center;justify-content:center;text-decoration:none">Voir le classement</a>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Bonus / malus</p>
+            <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</span>
+              <button type="button" data-action="host:adjustScore:+100" aria-label="Ajouter 100 points à Camille" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-leaf-wash);color:var(--c-pine);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">+100</button>
+              <button type="button" data-action="host:adjustScore:-100" aria-label="Retirer 100 points à Camille" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-bad-wash);color:var(--c-bad);font:600 var(--fs-200)/1 var(--f-mono);padding:0 var(--sp-3)">−100</button>
+            </div>
+            <button type="button" data-action="panel:adjustScore" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui)">Tous les joueurs</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+          Question suivante
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M12.5 6.5L19 12l-6.5 5.5"></path></svg>
+        </button>
+        <button type="button" data-action="host:startModule" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Changer de module</button>
+        <button type="button" data-action="host:endGame" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:transparent;color:var(--c-ink-3);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-5)">Terminer la partie</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ════════════ 3 · RÉPARTITION NUMÉRIQUE + RECONNEXION ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">3 · répartition « numérique » + bandeau de reconnexion · <span style="color:var(--c-ember-bright)">data-state="live reconnecting"</span></figcaption>
+    <div data-state="live reconnecting" data-screen-label="A5 numerique reconnexion" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div role="alert" style="position:relative;display:flex;align-items:center;justify-content:center;gap:var(--sp-3);padding:var(--sp-3);background:var(--c-bad-wash);box-shadow:inset 0 -1px 0 var(--c-bad);animation:om-rise var(--mo-base) var(--ease-out) both">
+        <span aria-hidden="true" style="width:15px;height:15px;border-radius:var(--r-full);border:2px solid oklch(0.70 0.165 28 / 0.35);border-top-color:var(--c-bad);animation:om-spin 700ms linear infinite"></span>
+        <p style="margin:0;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">Liaison serveur interrompue — reconnexion en cours. Les réponses reçues sont conservées.</p>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live)"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash)">
+          <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-glow)"></span>
+          <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Estimation</span>
+        </div>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">Épreuve <span data-bind="module.index" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">5</span> / <span data-bind="module.total" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span></p>
+        <div style="flex:1;height:4px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+          <div data-bind="room.progression" style="width:42%;height:100%;background:var(--c-flame)"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+          <span style="font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-2)"><strong data-bind="tick.answers" data-testid="answers-count" style="font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink)">27</strong> / 42 réponses</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash);box-shadow:var(--sh-glow);animation:om-urgent 900ms var(--ease-in-out) infinite">
+          <span style="font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Chrono</span>
+          <span data-bind="tick.timeLeft" style="font:600 var(--fs-chrono-urgent)/1 var(--f-mono);letter-spacing:var(--tr-tight);min-width:52px;text-align:right;color:var(--c-ember-bright)">4</span>
+        </div>
+        <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+        </button>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr var(--pane-rail);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Énoncé à l'antenne</p>
+            <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-700)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-wrap:pretty">Combien de mètres séparent le sommet du mont Blanc de celui du Cervin, à la verticale près ?</p>
+          </div>
+
+          <div data-bind="module.distribution" data-testid="stats-panel" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-5);min-height:0">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Répartition en direct — visible par toi seul</p>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-surface)">
+                <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Minimum</span>
+                <span data-bind="distribution.min" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight)">12</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-surface);box-shadow:inset 0 0 0 1.5px var(--c-ember)">
+                <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Moyenne</span>
+                <span data-bind="distribution.avg" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright)">418</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-surface)">
+                <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Maximum</span>
+                <span data-bind="distribution.max" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight)">4 900</span>
+              </div>
+            </div>
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--sp-2)">
+              <p style="margin:0;font:400 var(--fs-200)/1 var(--f-ui);color:var(--c-ink-3)">Dispersion des <span data-bind="distribution.total" style="font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-2)">27</span> estimations reçues</p>
+              <div style="flex:1;min-height:0;border-radius:var(--r-s);background:var(--c-surface);display:flex;align-items:flex-end;gap:var(--sp-2);padding:var(--sp-4)">
+                <div style="flex:1;height:30%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:55%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:100%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--g-ember)"></div>
+                <div style="flex:1;height:72%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:40%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:22%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:12%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+                <div style="flex:1;height:8%;border-radius:var(--r-xs) var(--r-xs) 2px 2px;background:var(--c-wood)"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:var(--sp-3)">
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">418 · moyenne</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">5 000</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div data-bind="leaderboard" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Top 5 — toi seul</p>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">1</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 960</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">2</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 720</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">3</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 610</span>
+              </div>
+            </div>
+            <a href="A6.dc.html" data-action="goto:leaderboard" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);display:flex;align-items:center;justify-content:center;text-decoration:none">Voir le classement</a>
+          </div>
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Bonus / malus</p>
+            <p style="margin:0;font:400 var(--fs-200)/1.4 var(--f-ui);color:var(--c-ink-3)">Indisponible pendant la reconnexion.</p>
+            <button type="button" disabled data-action="panel:adjustScore" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-sunk);color:var(--c-ink-3);font:500 var(--fs-300)/1 var(--f-ui)">Tous les joueurs</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:reveal" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4)">Révéler maintenant</button>
+        <button type="button" data-action="host:startModule" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Changer de module</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ════════════ 4 · BOOLÉEN + ERREUR SERVEUR + FIN EN 2 TEMPS ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">4 · répartition « booléen », aucune question disponible, fin en deux temps · <span style="color:var(--c-ember-bright)">data-state="results host-error confirm-end"</span></figcaption>
+    <div data-state="results host-error confirm-end" data-screen-label="A5 erreur et fin" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live)"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash)">
+          <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+          <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ember-bright)">Vrai ou faux</span>
+        </div>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">Épreuve <span data-bind="module.index" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span> / <span data-bind="module.total" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span></p>
+        <div style="flex:1;height:4px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+          <div data-bind="room.progression" style="width:100%;height:100%;background:var(--c-flame)"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+          <span style="font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-2)"><strong data-bind="module.answers" data-testid="answers-count" style="font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink)">42</strong> / 42 réponses</span>
+        </div>
+        <div style="position:relative">
+          <button type="button" data-action="menu:exit" aria-expanded="true" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)" aria-label="Menu de sortie">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+          </button>
+          <div role="menu" aria-label="Sortie" style="position:absolute;top:calc(100% + var(--sp-3));right:0;width:330px;padding:var(--sp-3);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-2);z-index:3;animation:om-rise var(--mo-base) var(--ease-out) both">
+            <div data-state="armed" style="display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);border-radius:var(--r-m);background:var(--c-bad-wash);box-shadow:inset 0 0 0 1.5px var(--c-bad)">
+              <div style="display:flex;gap:var(--sp-3);align-items:flex-start">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-bad)" stroke-width="1.9" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 4.5l8.5 15h-17z"></path><path d="M12 10v4"></path><path d="M12 16.8v.4"></path></svg>
+                <p style="margin:0;font:400 var(--fs-300)/1.4 var(--f-ui);color:var(--c-ink)">Terminer la partie affichera le podium à l'antenne et révélera son rang à chaque joueur. Irréversible.</p>
+              </div>
+              <div style="display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="host:endGame" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-bad);color:var(--c-ink-on-flame);font:600 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Oui, terminer</button>
+                <button type="button" data-action="confirm:cancel" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Annuler</button>
+              </div>
+              <p style="margin:0;font:400 var(--fs-200)/1.35 var(--f-ui);color:var(--c-ink-2)">Sans réponse sous 4 secondes, la demande se réarme.</p>
+            </div>
+            <button type="button" data-action="host:closeRoom" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;color:var(--c-ink-2);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Fermer le salon…</button>
+            <button type="button" data-action="auth:signOut" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;color:var(--c-ink-2);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Déconnexion</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr var(--pane-rail);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div data-bind="host.error" role="alert" style="display:flex;gap:var(--sp-4);align-items:flex-start;padding:var(--sp-5);border-radius:var(--r-l);background:var(--c-bad-wash);box-shadow:inset 0 0 0 1.5px var(--c-bad);animation:om-rise var(--mo-base) var(--ease-out) both">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-bad)" stroke-width="1.9" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.2v.4"></path></svg>
+            <div style="flex:1">
+              <p style="margin:0 0 var(--sp-1);font:600 var(--fs-400)/var(--lh-snug) var(--f-ui);color:var(--c-ink)">Aucune question disponible pour ce module</p>
+              <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-2)">La banque « Vrai ou faux » est épuisée pour cette séance. Change de module, élargis la sélection dans Séance, ou termine la partie.</p>
+            </div>
+            <button type="button" data-action="notice:dismiss" aria-label="Masquer la notification" style="min-height:var(--hit-chip);min-width:var(--hit-chip);flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 8l8 8"></path><path d="M16 8l-8 8"></path></svg>
+            </button>
+          </div>
+
+          <div style="padding:var(--sp-6) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4)">
+            <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-600)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Le mont Blanc a perdu plus d'un mètre depuis 2021.</p>
+            <div data-bind="reveal.correct" data-testid="reveal-value" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+              <span style="width:36px;height:36px;flex:none;border-radius:var(--r-full);background:var(--g-pine);display:grid;place-items:center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-leaf)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              </span>
+              <div>
+                <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-pine)">Bonne réponse</p>
+                <p style="margin:2px 0 0;font:600 var(--fs-600)/1.15 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Vrai</p>
+              </div>
+            </div>
+          </div>
+
+          <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Répartition finale — Vrai / Faux</p>
+            <div style="flex:1;display:flex;gap:var(--sp-4);min-height:0">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-3);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3)">
+                  <span style="font:600 var(--fs-600)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;color:var(--c-pine)">Vrai</span>
+                  <span style="font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-pine)">29</span>
+                </div>
+                <div style="height:14px;border-radius:var(--r-full);background:var(--c-surface-sunk);overflow:hidden">
+                  <div style="--om-to:69%;width:69%;height:100%;background:var(--g-pine);animation:om-fill var(--mo-scene) var(--ease-out) both"></div>
+                </div>
+                <span style="font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-pine)">69 % · bonne réponse</span>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-3);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3)">
+                  <span style="font:600 var(--fs-600)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;color:var(--c-ink-2)">Faux</span>
+                  <span style="font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">13</span>
+                </div>
+                <div style="height:14px;border-radius:var(--r-full);background:var(--c-canvas);overflow:hidden">
+                  <div style="--om-to:31%;width:31%;height:100%;background:var(--c-wood);animation:om-fill var(--mo-scene) var(--ease-out) 80ms both"></div>
+                </div>
+                <span style="font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">31 %</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div data-bind="leaderboard" style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Top 5 — toi seul</p>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">1</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">2 340</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">2</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">2 180</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-3);border-radius:var(--r-s);background:var(--c-surface)">
+                <span style="width:20px;flex:none;font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink-3)">3</span>
+                <span style="flex:1;min-width:0;font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+                <span style="font:600 var(--fs-300)/1 var(--f-mono)">1 950</span>
+              </div>
+            </div>
+            <a href="A6.dc.html" data-action="goto:leaderboard" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);display:flex;align-items:center;justify-content:center;text-decoration:none">Voir le classement</a>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" disabled data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface-sunk);color:var(--c-ink-3);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4)">Question suivante — banque épuisée</button>
+        <button type="button" data-action="host:startModule" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Changer de module</button>
+        <button type="button" data-action="host:endGame" aria-expanded="true" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Terminer la partie</button>
+      </div>
+    </div>
+  </figure>
+</div>
+</body>
+</html>

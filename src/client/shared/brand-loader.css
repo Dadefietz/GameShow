@@ -1,0 +1,77 @@
+/* J6 — Chargement de marque. Partagé par les quatre surfaces : c'est le premier
+   écran que voit un joueur comme un animateur, il doit être identique partout. */
+
+@layer components {
+  .boot {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-4);
+    padding: var(--pad-screen);
+    background: var(--c-canvas);
+    color: var(--c-ink);
+    font-family: var(--f-ui);
+    text-align: center;
+  }
+  .boot::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: var(--g-hearth);
+    pointer-events: none;
+  }
+  .boot > * { position: relative; }
+
+  .boot__mark {
+    width: 76px;
+    height: 76px;
+    border-radius: var(--r-l);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+    display: grid;
+    place-items: center;
+    color: var(--c-flame);
+  }
+  .boot__mark--alive { animation: om-flicker 2.4s var(--ease-in-out) infinite; }
+
+  .boot__name {
+    margin: var(--sp-2) 0 0;
+    font: 600 var(--fs-700) / var(--lh-tight) var(--f-display);
+    letter-spacing: var(--tr-display);
+    text-transform: uppercase;
+  }
+
+  .boot__dots { display: flex; gap: var(--sp-2); }
+  .boot__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--r-full);
+    background: var(--c-flame);
+    animation: om-breathe 1.6s var(--ease-in-out) infinite;
+  }
+  .boot__dot:nth-child(2) { animation-delay: 0.2s; }
+  .boot__dot:nth-child(3) { animation-delay: 0.4s; }
+
+  .boot__text {
+    margin: 0;
+    max-width: 32ch;
+    font: 400 var(--fs-400) / var(--lh-body) var(--f-ui);
+    color: var(--c-ink-2);
+    text-wrap: pretty;
+  }
+  .boot__text--dim { font-size: var(--fs-300); color: var(--c-ink-3); }
+
+  .boot__reload {
+    margin-top: var(--sp-3);
+    min-height: var(--hit);
+    padding: var(--sp-4) var(--sp-7);
+    border: 0;
+    border-radius: var(--r-full);
+    background: var(--g-ember);
+    color: var(--c-ink-on-flame);
+    box-shadow: var(--sh-ember);
+    font: 600 var(--fs-400) / 1 var(--f-ui);
+  }
+}

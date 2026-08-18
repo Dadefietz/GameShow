@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>Note de correspondance — surface animateur</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-9) var(--sp-8) var(--sp-10);display:flex;flex-direction:column;align-items:center">
+  <div style="width:100%;max-width:960px;display:flex;flex-direction:column;gap:var(--sp-8)">
+
+    <header style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-8);border-radius:var(--r-2xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:var(--sp-3)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Project Game Show · surface animateur · écrans A1 → A6</p>
+        <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Note de correspondance</h1>
+        <p style="margin:0;max-width:68ch;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Le poste de pilotage prolonge le socle joueur sans le modifier : aucune valeur existante n'a changé, seule une <strong style="font-weight:600">section 16</strong> a été ajoutée à <code style="font:400 var(--fs-300)/1 var(--f-mono);color:var(--c-ember-bright)">tokens.css</code>. Même palette, même paire de familles typographiques, mêmes rayons, mêmes ombres, même motion — la densité vient de l'échelle d'espacement et des gabarits de panneaux, pas d'un nouveau langage.</p>
+      </div>
+    </header>
+
+    <!-- Variables ajoutées -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">16</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Variables ajoutées au système</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Quinze ajouts, aucune suppression, aucune redéfinition. Toutes commentées dans le fichier.</p>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">16.1 · Gabarits</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--host-w · --host-h</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">1440 × 900 — maquette du poste de pilotage, pendant desktop de <code style="font:400 var(--fs-200)/1 var(--f-mono)">--frame-w/h</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--pane-side</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">336 px — colonne latérale d'A4 (invitation à gauche, Séance à droite). Largeur identique des deux côtés pour que le centre reste centré.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--pane-rail</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">272 px — rail de droite d'A5 (top 5 + bonus-malus). Plus étroit qu'une colonne : c'est de la consultation, pas de la saisie.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--pane-gap · --pad-pane</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">20 px — gouttière entre panneaux et respiration intérieure. Une seule valeur pour les deux : les panneaux forment une grille régulière quel que soit l'écran.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--w-card</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">420 px — carte centrée d'A1, A2 et A3. Même largeur que <code style="font:400 var(--fs-200)/1 var(--f-mono)">--w-content</code> côté joueur : la carte de connexion a la même mesure de lecture que l'écran de téléphone.</span>
+      </div>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">16.2 · Densité</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--hit-dense</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">40 px — bouton de barre et ligne cliquable à la souris. WCAG 2.2 AA exige 24 px au pointeur ; 40 px garde de la marge sans écraser la densité. Le plancher de 44 px reste la règle sur la surface joueur, qui est tactile.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--hit-chip</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">32 px — case à cocher de Séance, chip de joueur, boutons ±100. Toujours doublés d'un libellé cliquable ou d'un <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> explicite.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--row-dense</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">44 px — hauteur de ligne dans une liste dense (top 5, rangs 4-8, banque de questions). Rythme constant d'un panneau à l'autre.</span>
+      </div>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">16.3 · Réservé à l'animateur — le contrepoint prune</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--c-secret</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Prune claire, 7,9:1 — libellé « visible par toi seul ». Quatrième teinte du système, introduite <strong style="font-weight:600">uniquement</strong> pour cet usage : elle n'appartient à aucune des trois familles (feu, bois, feuille) précisément pour qu'on ne puisse pas la confondre avec un état de jeu.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--c-secret-line · --c-secret-wash</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Filet et fond du cadre privé.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--tex-secret</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Hachure à 135° — <strong style="font-weight:600">second signal, non coloré</strong> : la confidentialité se lit à la texture même sans percevoir la teinte. Exigence d'accessibilité, pas décor.</span>
+      </div>
+
+      <p style="margin:var(--sp-2) 0 0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">16.4 · Antenne · 16.5 · Confirmation</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--c-live · --c-live-wash</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Rouge d'antenne du bandeau « En direct ». Distinct de <code style="font:400 var(--fs-200)/1 var(--f-mono)">--c-bad</code> : un état de diffusion n'est pas une erreur, et les deux ne doivent jamais se lire pareil dans un coup d'œil.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">--confirm-window</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">4 s — au-delà, une action destructive armée se réarme d'elle-même. Évite qu'un « Oui, fermer » reste actif sous le curseur pendant l'émission.</span>
+      </div>
+    </section>
+
+    <!-- A1 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A1</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Connexion — 5 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Carte unique</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">420 px centrée sur le foyer. Aucun argumentaire produit : logo, titre, mention « Un seul animateur — accès par lien email », champ, bouton. Conforme au « cet écran ne contient QUE la carte de connexion ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">POST /api/auth/link</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sur le <code style="font:400 var(--fs-200)/1 var(--f-mono)">form</code> et le bouton « Recevoir mon lien ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth.email</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 2 — l'adresse est répétée en gras dans la phrase de confirmation, pour qu'on repère une faute de frappe sans rouvrir le champ.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth:changeEmail</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 2 — « Utiliser une autre adresse », bouton secondaire.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth.error</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois messages distincts, chacun sa variante : n° 3 « Aucun compte animateur pour cette adresse » (sous le champ), n° 4 « Quota d'emails atteint » (bandeau haut + bouton désarmé avec délai), n° 5 « Adresse invalide » (sous le champ).</span>
+      </div>
+    </section>
+
+    <!-- A2 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A2</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Accès refusé — 2 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">denied-card</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)"><code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid</code> sur la carte elle-même, dans les deux variantes.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth.email</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bloc « Compte connecté » en fond creusé, <code style="font:400 var(--fs-200)/1 var(--f-mono)">overflow-wrap:anywhere</code>. Variante 2 : adresse de 74 caractères, corps ramené à 15 px, la carte ne s'élargit pas.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">goto:player</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Rejoindre en joueur » — action principale en braise, pointant vers J1.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth:signOut</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Se déconnecter » — secondaire, sous l'action principale.</span>
+      </div>
+    </section>
+
+    <!-- A3 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A3</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Accueil stable — 4 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.closedReason</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Titre de la carte : « Salon fermé » (variante 1, lueur de foyer, icône feu de camp) ou « Salon expiré » (variante 2, lueur de crépuscule, icône chrono). Deux causes, deux ambiances, même gabarit.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">POST /api/rooms</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Ouvrir un nouveau salon » — seule action dominante. Variante 3 <code style="font:400 var(--fs-200)/1 var(--f-mono)">"opening"</code> : spinner, titre « On allume le feu », bouton <code style="font:400 var(--fs-200)/1 var(--f-mono)">disabled aria-busy</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">goto:studio</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Gérer les questionnaires » — secondaire, sous l'action principale.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">auth:signOut</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Barre haute à droite, avec l'adresse du compte tronquée à 240 px.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.openError</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 4 — <code style="font:400 var(--fs-200)/1 var(--f-mono)">403 not-host</code> à l'ouverture : bandeau d'alerte + retour vers A1. Variante ajoutée par le design pour couvrir l'erreur listée au §3 du contrat, qui n'avait pas d'écran d'atterrissage.</span>
+      </div>
+    </section>
+
+    <!-- A4 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A4</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Salon d'attente — 3 variantes</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Trois colonnes : invitation · joueurs et lancement · Séance. Barre haute constante, barre d'action en bas de la colonne centrale.</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.code</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">68 px monospace en haut à gauche, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="room-code"</code> — dimensionné pour rester lisible quand la fenêtre est capturée dans un stream.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.qr</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Carré de 150 px sous le code, <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="img"</code> + <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code>. Le damier est un <strong style="font-weight:600">placeholder</strong> : le vrai QR est généré côté client.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.joinUrl · copy:joinUrl</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Lien de partage tronqué + bouton « Copier » en un geste.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.overlayUrl · copy:overlayUrl</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Panneau prune en bas à gauche — lien de la page stream, bouton « Copier », et le réglage OBS écrit noir sur blanc : « + Source → Navigateur, 1920 × 1080. C'est la seule source à ajouter. »</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.playerCount</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Chiffre de 32 px en tête de la colonne centrale, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="player-count"</code> ; <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-pop</code> à chaque <code style="font:400 var(--fs-200)/1 var(--f-mono)">player:joined</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">room.players</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Nuage de chips défilant. Le dernier arrivé est en braise pendant 240 ms. Pseudo long tronqué à 220 px ; au-delà de 25 chips, un chip « + 25 autres » ferme la liste (variante 3, 50 joueurs).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:startModule</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Lancer la partie » puis, dans le menu qui s'ouvre au-dessus (variante 2), une ligne par module avec nombre de questions et durée. Un seul aller-retour, jamais de sous-menu.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:sessionConfig</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bascule « Ordre aléatoire » en tête du panneau Séance (<code style="font:400 var(--fs-200)/1 var(--f-mono)">role="switch"</code> + <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-checked</code>), et chaque case cochée d'une question.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:getBank</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Sur le conteneur de questions qui apparaît au dépliage d'un module (variante 2, Quiz culture déplié).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">session.selected.&lt;module&gt;</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Compteur <code style="font:400 var(--fs-200)/1 var(--f-mono)">n/total</code> à droite de chaque module ; il passe en braise dès qu'une sélection existe.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Salon vide</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 1 : compteur à 0, guide en 3 étapes sur fond creusé grainé, bouton de lancement dégradé au rang secondaire, et l'avertissement exigé par le contrat — « Lancer maintenant enverra une épreuve dans le vide ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:closeRoom</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Menu de sortie en haut à droite, jamais dans la barre d'action. Variante 3 : étape 2 armée, compte de joueurs rappelé dans la phrase, « Oui, fermer » / « Annuler », réarmement à 4 s.</span>
+      </div>
+    </section>
+
+    <!-- A5 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A5</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Pilotage en direct — 4 variantes</h2>
+      </div>
+      <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink-3)">Bandeau d'antenne · scène · rail droit · barre d'action. Les quatre zones ne bougent jamais : sous stress, la main sait où aller.</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.meta.name</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule braise dans le bandeau, pastille colorée reprenant <code style="font:400 var(--fs-200)/1 var(--f-mono)">meta.color</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.index / total · room.progression</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Épreuve 3 / 12 » suivi du filet de progression de 4 px qui occupe l'espace libre du bandeau.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">tick.answers · module.answers</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« 31 / 42 réponses », <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="answers-count"</code>. Le dénominateur est le nombre de joueurs connectés.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">tick.timeLeft</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Capsule chrono à droite du bandeau — mêmes deux tailles que côté joueur (<code style="font:400 var(--fs-200)/1 var(--f-mono)">--fs-chrono</code> / <code style="font:400 var(--fs-200)/1 var(--f-mono)">--fs-chrono-urgent</code>) et même bascule en braise + <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-urgent</code> sous 5 s (variante 3). Largeur minimale de 52 px : le bandeau ne bouge pas quand on passe de 10 à 9.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.text</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Énoncé en display condensée, 42 px en direct puis 32 px après révélation (il cède la place à la bonne réponse). <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="question-text"</code>. Variante 3 : énoncé long, la carte grandit, la répartition garde sa place.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">module.distribution</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Panneau prune hachuré, <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="stats-panel"</code>, titré « Répartition en direct — visible par toi seul » et complété de « Publique à la révélation ». Trois formes : <strong style="font-weight:600">options</strong> (barres par choix, variante 1), <strong style="font-weight:600">numérique</strong> (min / moyenne / max + histogramme, variante 3), <strong style="font-weight:600">booléen</strong> (deux colonnes Vrai/Faux, variante 4).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">reveal.correct · reveal.stats</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variantes 2 et 4 — la bonne réponse apparaît en épicéa dans la carte d'énoncé (<code style="font:400 var(--fs-200)/1 var(--f-mono)">data-testid="reveal-value"</code>, coche tracée), et le panneau de stats <strong style="font-weight:600">perd sa hachure prune</strong> pour signaler qu'il est devenu public — mention « Affichée sur le stream ».</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">leaderboard</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Rail droit, panneau prune hachuré « Top 5 — toi seul ». Les lignes rejouent <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-rise</code> en cascade de 40 ms à chaque <code style="font:400 var(--fs-200)/1 var(--f-mono)">leaderboard:update</code>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:adjustScore:+100 / -100</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Panneau Bonus/malus sous le top 5 : une ligne par joueur, deux boutons de 32 px avec <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> nominatif (« Ajouter 100 points à Lou du Palais »). <code style="font:400 var(--fs-200)/1 var(--f-mono)">panel:adjustScore</code> ouvre la liste complète.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:reveal</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Action dominante en direct — pleine largeur, braise, 20 px. C'est le seul bouton en braise de l'écran à cet instant.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:startModule</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Devient l'action dominante après révélation (« Question suivante ») ; « Changer de module » reste à sa droite, en secondaire, dans les deux états — la position ne change pas, seul le poids visuel bascule.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host.error</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 4 — « Aucune question disponible pour ce module » en tête de scène, avec les trois issues nommées et un bouton de masquage. Le bouton « Question suivante » est désarmé et porte la raison dans son libellé.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Reconnexion</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 3 — bandeau pleine largeur au-dessus du bandeau d'antenne, <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="alert"</code>, affiché seulement après 1,2 s de coupure. Le panneau Bonus/malus se désarme pendant ce temps.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:endGame · host:closeRoom</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 4 — menu de sortie avec l'étape 2 armée : conséquence énoncée (« révélera son rang à chaque joueur. Irréversible. »), « Oui, terminer » / « Annuler », réarmement à 4 s. « Terminer la partie » figure aussi en fin de barre d'action, mais en texte discret : il ouvre le même menu à deux temps, il ne déclenche jamais directement.</span>
+      </div>
+    </section>
+
+    <!-- A6 -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <div style="display:flex;align-items:baseline;gap:var(--sp-4)">
+        <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">A6</p>
+        <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Classement et podium — 3 variantes</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">podium</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Trois marches de hauteurs distinctes (216 / 150 / 112 px), la première en braise pleine avec la flamme du produit ; pseudo et score au-dessus de chaque marche, chiffre du rang dedans. Montée en <code style="font:400 var(--fs-200)/1 var(--f-mono)">om-rise</code> décalée de 80 ms — 1<sup>er</sup>, 2<sup>e</sup>, 3<sup>e</sup>.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">leaderboard</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Panneau prune hachuré à droite, « Rangs 4 à 8 » en lignes de 44 px, plus la mention du total de joueurs. Le bandeau haut rappelle « Toi et le stream uniquement » (règle 2 du §6).</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:startModule</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Question suivante » (variante 1) ou « Relancer une partie » (variante 2, partie terminée) — action dominante.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">goto:live</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">« Retour au direct » vers A5, en secondaire.</span>
+        <code style="font:400 var(--fs-200)/1.6 var(--f-mono);color:var(--c-ember-bright)">host:endGame · host:closeRoom</code><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">En fin de barre. Les libellés suivis de « … » ouvrent le menu de confirmation en deux temps, jamais l'action.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Aucun score</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Variante 3 — le podium disparaît entièrement, remplacé par « Pas encore de podium ». Aucun joueur n'est mis en avant, même provisoirement : c'est la règle « pas de leader tant que personne n'a marqué ».</span>
+      </div>
+    </section>
+
+    <!-- Transverses + écarts -->
+    <section style="display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge)">
+      <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Éléments transverses</h2>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3) var(--sp-5)">
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Confirmation en 2 temps</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Même bloc partout : encadré rouge, conséquence en une phrase qui nomme le nombre de joueurs ou l'effet, action affirmative rouge pleine + « Annuler », mention du réarmement à 4 s. Vu armé en A4 (fermer) et A5 (terminer) ; A6 y renvoie par ses libellés en « … ».</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Menu de sortie</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bouton à trois points, toujours au même pixel en haut à droite (A4, A5, A6). Contient fermer le salon, terminer la partie, déconnexion. Aucune action destructive n'existe ailleurs.</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Notification d'erreur</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Bandeau <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="alert"</code> en tête de scène, titre + explication + issues + bouton de masquage (A5 variante 4).</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Bandeau de reconnexion</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Pleine largeur, au-dessus de tout, spinner + phrase rassurante sur les réponses conservées. Seuil 1,2 s (A5 variante 3).</span>
+        <span style="font:500 var(--fs-300)/1.6 var(--f-ui)">Accessibilité</span><span style="font:400 var(--fs-300)/1.6 var(--f-ui);color:var(--c-ink-2)">Cibles ≥ 40 px au pointeur (32 px pour les chips doublées d'un libellé), focus flamme de 3 px hérité du socle, <code style="font:400 var(--fs-200)/1 var(--f-mono)">role="switch"</code>/<code style="font:400 var(--fs-200)/1 var(--f-mono)">role="menu"</code> posés, <code style="font:400 var(--fs-200)/1 var(--f-mono)">aria-label</code> nominatif sur tous les ±100, confidentialité signalée par la texture autant que par la couleur.</span>
+      </div>
+
+      <h2 style="margin:var(--sp-4) 0 0;font:600 var(--fs-700)/var(--lh-snug) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Écarts et points à confirmer</h2>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">1</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Connexion animateur : aucune route au contrat.</strong> Le §3 ne liste pas l'envoi du lien email, alors que A1 l'exige. Annoté <code style="font:400 var(--fs-200)/1 var(--f-mono)">POST /api/auth/link</code> par déduction — route et codes d'erreur à confirmer, ainsi que le délai réel du quota (9 min affiché à titre d'exemple).</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">2</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Liste des pseudos, sans événement dédié.</strong> A4 doit afficher « la liste des pseudos qui arrivent », mais <code style="font:400 var(--fs-200)/1 var(--f-mono)">player:joined</code> ne transporte qu'un <code style="font:400 var(--fs-200)/1 var(--f-mono)">count</code> et <code style="font:400 var(--fs-200)/1 var(--f-mono)">room:state</code> qu'un <code style="font:400 var(--fs-200)/1 var(--f-mono)">playerCount</code>. Annoté <code style="font:400 var(--fs-200)/1 var(--f-mono)">data-bind="room.players"</code> : soit le payload s'enrichit, soit l'animateur ne voit que le compteur — arbitrage produit à trancher.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">3</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Top 5 en direct vs <code style="font:400 var(--fs-200)/1 var(--f-mono)">leaderboard:update</code>.</strong> L'événement livre le classement entier ; A5 n'en montre que cinq lignes et A6 huit. Découpage assumé côté design (valeur d'antenne), pas côté serveur.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-ember-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-ember-bright)">4</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">QR code et liens : pas de clé nommée.</strong> Le §5 les exige sans les rattacher à une charge utile. Annotés <code style="font:400 var(--fs-200)/1 var(--f-mono)">room.qr</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">room.joinUrl</code>, <code style="font:400 var(--fs-200)/1 var(--f-mono)">room.overlayUrl</code> ; ce dernier se dérive vraisemblablement de l'<code style="font:400 var(--fs-200)/1 var(--f-mono)">overlayToken</code> de <code style="font:400 var(--fs-200)/1 var(--f-mono)">POST /api/rooms</code>. À valider.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-4);padding:var(--sp-5);border-radius:var(--r-m);background:var(--c-leaf-wash)">
+          <span style="width:24px;flex:none;font:600 var(--fs-400)/1.3 var(--f-mono);color:var(--c-pine)">5</span>
+          <p style="margin:0;font:400 var(--fs-300)/var(--lh-body) var(--f-ui);color:var(--c-ink);text-wrap:pretty"><strong style="font-weight:600">Rien d'inventé, rien d'omis.</strong> Six écrans, aucun de plus ; aucune fonction pause ; aucun emoji ; les deux informations réservées sont marquées partout où elles apparaissent ; les deux actions destructives passent par une confirmation en deux temps.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

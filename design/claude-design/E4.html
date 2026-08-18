@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <title>E4 · Question — Project Game Show</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:900px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface studio · écran E4</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Question</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Une ligne repliée par question, un formulaire qui se déplie en dessous. Le formulaire change selon le type du module — quatre gabarits — mais la ligne, elle, ne change jamais : numéro, énoncé, plier, supprimer. Une erreur de validation s'accroche à la ligne concernée, avec son filet rouge et son message propre.</p>
+  </header>
+
+  <!-- ══════ LIGNES ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-7);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-2),var(--sh-edge);max-width:var(--studio-panel)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">la ligne repliée — 4 états</figcaption>
+
+    <div data-state="collapsed" style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+      <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">01</span>
+      <span data-bind="question.text" style="flex:1;min-width:0;font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">Quel massif culmine à 4 808 mètres ?</span>
+      <button type="button" data-action="studio:toggleQuestion" aria-expanded="false" aria-label="Déplier la question 1" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"></path></svg>
+      </button>
+      <button type="button" data-action="studio:deleteQuestion" aria-label="Supprimer la question 1" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+      </button>
+    </div>
+
+    <div data-state="collapsed new" style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk);box-shadow:inset 0 0 0 1.5px var(--c-line-strong)">
+      <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">04</span>
+      <span data-bind="question.text" style="flex:1;min-width:0;font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink-3);font-style:italic">Nouvelle question</span>
+      <button type="button" data-action="studio:toggleQuestion" aria-expanded="false" aria-label="Déplier la question 4" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"></path></svg>
+      </button>
+      <button type="button" data-action="studio:deleteQuestion" aria-label="Supprimer la question 4" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+      </button>
+    </div>
+
+    <div data-state="collapsed invalid" style="display:flex;flex-direction:column;gap:var(--sp-2)">
+      <div style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-m);background:var(--c-bad-wash);box-shadow:inset 0 0 0 1.5px var(--c-bad)">
+        <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-bad)">03</span>
+        <span data-bind="question.text" style="flex:1;min-width:0;font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">Quelle est la capitale de l'Islande ?</span>
+        <button type="button" data-action="studio:toggleQuestion" aria-expanded="false" aria-label="Déplier la question 3" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-2)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"></path></svg>
+        </button>
+        <button type="button" data-action="studio:deleteQuestion" aria-label="Supprimer la question 3" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-2)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+        </button>
+      </div>
+      <p data-bind="question.error" role="alert" style="margin:0;padding-left:var(--sp-4);display:flex;gap:var(--sp-2);align-items:flex-start;font:500 var(--fs-200)/1.4 var(--f-ui);color:var(--c-bad)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.2v.4"></path></svg>
+        Aucune bonne réponse cochée
+      </p>
+    </div>
+
+    <div data-state="expanded" style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-m) var(--r-m) 0 0;background:var(--c-surface-2);box-shadow:var(--sh-edge)">
+      <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">02</span>
+      <span data-bind="question.text" style="flex:1;min-width:0;font:600 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">Le mont Blanc a perdu plus d'un mètre depuis 2021.</span>
+      <button type="button" data-action="studio:toggleQuestion" aria-expanded="true" aria-label="Replier la question 2" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14.5l6-6 6 6"></path></svg>
+      </button>
+      <button type="button" data-action="studio:deleteQuestion" aria-label="Supprimer la question 2" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"></path><path d="M9.5 7V5h5v2"></path><path d="M6.8 7l.8 12h8.8l.8-12"></path></svg>
+      </button>
+    </div>
+  </figure>
+
+  <!-- ══════ LES 4 FORMULAIRES ══════ -->
+  <div style="display:flex;flex-wrap:wrap;gap:var(--sp-7);align-items:flex-start">
+
+    <!-- QUIZ -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">module quiz · <span style="color:var(--c-ember-bright)">data-state="expanded quiz"</span></figcaption>
+      <div data-state="expanded quiz" data-screen-label="E4 quiz" style="width:var(--studio-panel);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-2),var(--sh-edge);overflow:hidden">
+        <div style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);background:var(--c-surface-2)">
+          <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">01</span>
+          <span style="flex:1;min-width:0;font:600 var(--fs-300)/1.35 var(--f-ui)">Quel massif culmine à 4 808 mètres ?</span>
+          <button type="button" data-action="studio:toggleQuestion" aria-expanded="true" aria-label="Replier la question 1" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14.5l6-6 6 6"></path></svg>
+          </button>
+        </div>
+        <div style="padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5)">
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label for="e4q-text" style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Énoncé</label>
+            <textarea id="e4q-text" data-bind="question.text" rows="2" style="border:0;border-radius:var(--r-m);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);font:400 var(--fs-400)/1.4 var(--f-ui);padding:var(--sp-3) var(--sp-4);color:var(--c-ink);resize:vertical">Quel massif culmine à 4 808 mètres ?</textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Options — coche la bonne réponse</p>
+            <div data-bind="question.options" role="radiogroup" aria-label="Options et bonne réponse" style="display:flex;flex-direction:column;gap:var(--sp-2)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-3) 0 var(--sp-2);border-radius:var(--r-m);background:var(--c-leaf-wash);box-shadow:inset 0 0 0 1.5px var(--c-moss)">
+                <button type="button" role="radio" aria-checked="true" aria-label="Option A est la bonne réponse" style="width:32px;height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--g-pine);display:grid;place-items:center">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-leaf)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                </button>
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-pine)">A</span>
+                <input aria-label="Libellé de l'option A" value="Le mont Blanc" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-3) 0 var(--sp-2);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <button type="button" role="radio" aria-checked="false" aria-label="Marquer l'option B comme bonne réponse" style="width:32px;height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;box-shadow:inset 0 0 0 1.5px var(--c-line-strong)"></button>
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">B</span>
+                <input aria-label="Libellé de l'option B" value="Le mont Rose" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-3) 0 var(--sp-2);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <button type="button" role="radio" aria-checked="false" aria-label="Marquer l'option C comme bonne réponse" style="width:32px;height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;box-shadow:inset 0 0 0 1.5px var(--c-line-strong)"></button>
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">C</span>
+                <input aria-label="Libellé de l'option C" value="Le Cervin" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-3) 0 var(--sp-2);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <button type="button" role="radio" aria-checked="false" aria-label="Marquer l'option D comme bonne réponse" style="width:32px;height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;box-shadow:inset 0 0 0 1.5px var(--c-line-strong)"></button>
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">D</span>
+                <input aria-label="Libellé de l'option D" placeholder="Option vide — ignorée" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+              </div>
+            </div>
+            <p style="margin:0;font:400 var(--fs-200)/1.35 var(--f-ui);color:var(--c-ink-3)">4 champs, 2 remplis minimum. Les options vides ne sont pas envoyées aux joueurs.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- VRAI / FAUX -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">module true_false · <span style="color:var(--c-ember-bright)">data-state="expanded true_false"</span></figcaption>
+      <div data-state="expanded true_false" data-screen-label="E4 vrai faux" style="width:var(--studio-panel);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-2),var(--sh-edge);overflow:hidden">
+        <div style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);background:var(--c-surface-2)">
+          <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">02</span>
+          <span style="flex:1;min-width:0;font:600 var(--fs-300)/1.35 var(--f-ui)">Le mont Blanc a perdu plus d'un mètre depuis 2021.</span>
+          <button type="button" data-action="studio:toggleQuestion" aria-expanded="true" aria-label="Replier la question 2" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14.5l6-6 6 6"></path></svg>
+          </button>
+        </div>
+        <div style="padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5)">
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label for="e4tf-text" style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Affirmation</label>
+            <textarea id="e4tf-text" data-bind="question.text" rows="2" style="border:0;border-radius:var(--r-m);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);font:400 var(--fs-400)/1.4 var(--f-ui);padding:var(--sp-3) var(--sp-4);color:var(--c-ink);resize:vertical">Le mont Blanc a perdu plus d'un mètre depuis 2021.</textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Bonne réponse</p>
+            <div data-bind="question.correct" role="radiogroup" aria-label="Bonne réponse" style="display:flex;gap:var(--sp-3)">
+              <button type="button" role="radio" aria-checked="true" style="flex:1;min-height:64px;border:0;border-radius:var(--r-m);background:var(--c-leaf-wash);box-shadow:inset 0 0 0 1.5px var(--c-moss);display:flex;align-items:center;justify-content:center;gap:var(--sp-3);color:var(--c-pine)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                <span style="font:600 var(--fs-500)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Vrai</span>
+              </button>
+              <button type="button" role="radio" aria-checked="false" style="flex:1;min-height:64px;border:0;border-radius:var(--r-m);background:var(--c-surface-sunk);display:flex;align-items:center;justify-content:center;gap:var(--sp-3);color:var(--c-ink-3)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10"></path><path d="M17 7L7 17"></path></svg>
+                <span style="font:600 var(--fs-500)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Faux</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- ESTIMATION -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">module estimation · <span style="color:var(--c-ember-bright)">data-state="expanded estimation"</span></figcaption>
+      <div data-state="expanded estimation" data-screen-label="E4 estimation" style="width:var(--studio-panel);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-2),var(--sh-edge);overflow:hidden">
+        <div style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);background:var(--c-surface-2)">
+          <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">07</span>
+          <span style="flex:1;min-width:0;font:600 var(--fs-300)/1.35 var(--f-ui)">Combien de mètres séparent le mont Blanc du Cervin ?</span>
+          <button type="button" data-action="studio:toggleQuestion" aria-expanded="true" aria-label="Replier la question 7" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14.5l6-6 6 6"></path></svg>
+          </button>
+        </div>
+        <div style="padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5)">
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label for="e4es-text" style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Énoncé</label>
+            <textarea id="e4es-text" data-bind="question.text" rows="2" style="border:0;border-radius:var(--r-m);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);font:400 var(--fs-400)/1.4 var(--f-ui);padding:var(--sp-3) var(--sp-4);color:var(--c-ink);resize:vertical">Combien de mètres séparent le mont Blanc du Cervin ?</textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label for="e4es-target" style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-bad)">Valeur cible</label>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);width:220px;height:var(--row-form);padding:0 var(--sp-4);border-radius:var(--r-m);background:var(--c-bad-wash);box-shadow:inset 0 0 0 1.5px var(--c-bad)">
+              <input id="e4es-target" data-bind="question.target" value="environ 200" aria-invalid="true" aria-describedby="e4es-err" style="flex:1;min-width:0;border:0;background:transparent;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink)">
+            </div>
+            <p id="e4es-err" data-bind="question.error" role="alert" style="margin:0;display:flex;gap:var(--sp-2);align-items:flex-start;font:500 var(--fs-200)/1.4 var(--f-ui);color:var(--c-bad)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.2v.4"></path></svg>
+              Cible non numérique — saisis un nombre, sans texte ni unité.
+            </p>
+          </div>
+          <p style="margin:0;font:400 var(--fs-200)/1.4 var(--f-ui);color:var(--c-ink-3)">Le joueur envoie un nombre ; le serveur classe par écart à cette cible. L'unité se met dans l'énoncé, pas dans la cible.</p>
+        </div>
+      </div>
+    </figure>
+
+    <!-- VOTE -->
+    <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+      <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">module vote · <span style="color:var(--c-ember-bright)">data-state="expanded vote"</span></figcaption>
+      <div data-state="expanded vote" data-screen-label="E4 vote" style="width:var(--studio-panel);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-2),var(--sh-edge);overflow:hidden">
+        <div style="min-height:var(--row-q);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);background:var(--c-surface-2)">
+          <span style="width:24px;flex:none;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">03</span>
+          <span style="flex:1;min-width:0;font:600 var(--fs-300)/1.35 var(--f-ui)">Quelle épreuve pour la prochaine manche ?</span>
+          <button type="button" data-action="studio:toggleQuestion" aria-expanded="true" aria-label="Replier la question 3" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14.5l6-6 6 6"></path></svg>
+          </button>
+        </div>
+        <div style="padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5)">
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+            <label for="e4v-text" style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Question posée au public</label>
+            <textarea id="e4v-text" data-bind="question.text" rows="2" style="border:0;border-radius:var(--r-m);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);font:400 var(--fs-400)/1.4 var(--f-ui);padding:var(--sp-3) var(--sp-4);color:var(--c-ink);resize:vertical">Quelle épreuve pour la prochaine manche ?</textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-4)">
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Choix proposés</p>
+              <span style="font:400 var(--fs-200)/1 var(--f-ui);color:var(--c-ink-3)">Pas de bonne réponse</span>
+            </div>
+            <div data-bind="question.options" style="display:flex;flex-direction:column;gap:var(--sp-2)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-2) 0 var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">A</span>
+                <input aria-label="Libellé du choix A" value="Géographie" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+                <button type="button" data-action="studio:removeOption" aria-label="Retirer le choix A" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-2) 0 var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">B</span>
+                <input aria-label="Libellé du choix B" value="Cinéma" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+                <button type="button" data-action="studio:removeOption" aria-label="Retirer le choix B" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-3);height:var(--row-form);padding:0 var(--sp-2) 0 var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+                <span style="width:18px;flex:none;font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">C</span>
+                <input aria-label="Libellé du choix C" value="Musique" style="flex:1;min-width:0;border:0;background:transparent;font:500 var(--fs-300)/1 var(--f-ui);color:var(--c-ink)">
+                <button type="button" data-action="studio:removeOption" aria-label="Retirer le choix C" style="min-width:32px;min-height:32px;flex:none;border:0;border-radius:var(--r-full);background:transparent;display:grid;place-items:center;color:var(--c-ink-3)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg>
+                </button>
+              </div>
+            </div>
+            <button type="button" data-action="studio:addOption" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-m);background:transparent;box-shadow:inset 0 0 0 1.5px var(--c-line-strong);color:var(--c-ink);font:500 var(--fs-300)/1 var(--f-ui);display:flex;align-items:center;justify-content:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13"></path><path d="M5.5 12h13"></path></svg>
+              Ajouter un choix
+            </button>
+            <p style="margin:0;font:400 var(--fs-200)/1.4 var(--f-ui);color:var(--c-ink-3)">Liste extensible : autant de choix que nécessaire, 2 minimum. Un vote ne rapporte aucun point.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

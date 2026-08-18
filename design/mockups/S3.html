@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+  <meta name="design_doc_mode" content="canvas">
+  <title>S3 · Question — Project Game Show</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:940px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface stream · écran S3 · canvas 1920 × 1080</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Question</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Les pièces sont celles de l'écran joueur, agrandies sans être redessinées : <strong style="font-weight:600">anneau de chrono</strong> avec ses deux tailles et son passage en braise sous 5 secondes, <strong style="font-weight:600">rangées d'option</strong> avec lettre-repère et marqueur d'état à droite, <strong style="font-weight:600">capsules</strong> pour le module et le compteur. À la révélation, la répartition entre <em>dans</em> la rangée — exactement comme sur le téléphone. Aucun point, aucune place, aucun rang.</p>
+  </header>
+
+  <!-- ══════ 1 · EN COURS ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · en cours, chrono normal · <span style="color:var(--c-ember-bright)">data-state="live"</span></figcaption>
+    <div data-state="live" data-testid="stream-question" data-screen-label="S3 question" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--gap-st)">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--sp-5)">
+            <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+              <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-ember-wash)">
+                <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+                <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-flame)">Quiz culture</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+                <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+                <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">3</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+                <span data-bind="tick.answers" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">31</span>
+              </div>
+            </div>
+            <div style="height:12px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+              <div data-bind="room.progression" style="--om-to:25%;width:25%;height:100%;background:var(--c-flame);animation:om-fill var(--mo-slow) var(--ease-out) both"></div>
+            </div>
+          </div>
+          <div style="width:var(--ring-st);height:var(--ring-st);flex:none;border-radius:var(--r-full);background:conic-gradient(var(--c-flame) 60%, var(--c-surface) 0);display:grid;place-items:center">
+            <div style="width:var(--ring-st-in);height:var(--ring-st-in);border-radius:var(--r-full);background:var(--c-canvas);display:grid;place-items:center">
+              <span data-bind="tick.timeLeft" style="font:600 var(--fs-st-chrono)/1 var(--f-mono);letter-spacing:var(--tr-tight)">12</span>
+            </div>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-500)/0.98 var(--f-display);letter-spacing:var(--tr-display);text-wrap:pretty">Quel massif culmine à 4 808 mètres ?</p>
+
+        <div data-bind="module.options" style="flex:1;display:flex;flex-direction:column;gap:var(--sp-4);justify-content:flex-end">
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">A</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le mont Blanc</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 40ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">B</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le mont Rose</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 80ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">C</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le Cervin</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 120ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">D</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-200)/1.25 var(--f-ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Le Grand Paradis, dans les Alpes valdôtaines au sud du val d'Aoste</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 2 · CHRONO URGENT ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · chrono sous 5 s — braise, halo, 140 px · <span style="color:var(--c-ember-bright)">data-state="live urgent"</span></figcaption>
+    <div data-state="live urgent" data-testid="stream-question" data-screen-label="S3 chrono urgent" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--gap-st)">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--sp-5)">
+            <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+              <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-ember-wash)">
+                <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+                <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-flame)">Quiz culture</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+                <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+                <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">3</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+                <span data-bind="tick.answers" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">37</span>
+              </div>
+            </div>
+            <div style="height:12px;border-radius:var(--r-full);background:var(--c-surface);overflow:hidden">
+              <div data-bind="room.progression" style="width:25%;height:100%;background:var(--c-flame)"></div>
+            </div>
+          </div>
+          <div style="width:var(--ring-st);height:var(--ring-st);flex:none;border-radius:var(--r-full);background:conic-gradient(var(--c-ember) 18%, var(--c-surface) 0);display:grid;place-items:center;box-shadow:0 0 0 14px oklch(0.80 0.155 72 / 0.20);animation:om-urgent 900ms var(--ease-in-out) infinite">
+            <div style="width:var(--ring-st-in);height:var(--ring-st-in);border-radius:var(--r-full);background:var(--c-canvas);display:grid;place-items:center">
+              <span data-bind="tick.timeLeft" style="font:600 var(--fs-st-chrono-urgent)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright)">3</span>
+            </div>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-500)/0.98 var(--f-display);letter-spacing:var(--tr-display);text-wrap:pretty">Quel massif culmine à 4 808 mètres ?</p>
+
+        <div data-bind="module.options" style="flex:1;display:flex;flex-direction:column;gap:var(--sp-4);justify-content:flex-end">
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 0ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">A</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le mont Blanc</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 40ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">B</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le mont Rose</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 80ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">C</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui)">Le Cervin</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+          <div style="min-height:var(--row-st);display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);animation:om-slide-in var(--mo-slow) var(--ease-out) 120ms both">
+            <span style="width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">D</span>
+            <span style="flex:1;min-width:0;font:500 var(--fs-st-200)/1.25 var(--f-ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Le Grand Paradis, dans les Alpes valdôtaines au sud du val d'Aoste</span>
+            <span style="width:var(--mark-st);height:var(--mark-st);flex:none;border-radius:var(--r-full);box-shadow:inset 0 0 0 var(--bw-st) var(--c-line-strong)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 3 · RÉVÉLÉE — OPTIONS ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">3 · révélée, répartition dans les rangées · <span style="color:var(--c-ember-bright)">data-state="revealed"</span></figcaption>
+    <div data-state="revealed" data-testid="stream-question" data-screen-label="S3 revelee options" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+          <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-ember-wash)">
+            <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-flame)">Quiz culture</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">3</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+            <span data-bind="reveal.stats.total" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">38</span>
+          </div>
+          <div style="padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface-sunk)">
+            <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Manche close</span>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-400)/1.05 var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Quel massif culmine à 4 808 mètres ?</p>
+
+        <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;display:flex;flex-direction:column;gap:var(--sp-4);justify-content:flex-end">
+          <div data-bind="reveal.correct" data-testid="reveal-value" data-state="correct" style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);animation:om-pop var(--mo-scene) var(--ease-out) both">
+            <div style="--om-to:61%;position:absolute;left:0;top:0;bottom:0;width:61%;background:var(--c-leaf-wash);animation:om-fill var(--mo-scene) var(--ease-out) 120ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--g-pine);display:grid;place-items:center">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-leaf)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-dasharray="26" style="animation:om-draw 360ms var(--ease-out) 220ms both"></path></svg>
+            </span>
+            <span style="position:relative;flex:1;min-width:0;font:600 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-pine)">Le mont Blanc</span>
+            <span style="position:relative;font:600 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-pine)">Bonne réponse</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-pine)">61 %</span>
+          </div>
+          <div style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7)">
+            <div style="--om-to:16%;position:absolute;left:0;top:0;bottom:0;width:16%;background:var(--c-surface-2);animation:om-fill var(--mo-scene) var(--ease-out) 200ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">B</span>
+            <span style="position:relative;flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-ink-2)">Le mont Rose</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-ink-2)">16 %</span>
+          </div>
+          <div style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7)">
+            <div style="--om-to:21%;position:absolute;left:0;top:0;bottom:0;width:21%;background:var(--c-surface-2);animation:om-fill var(--mo-scene) var(--ease-out) 280ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">C</span>
+            <span style="position:relative;flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-ink-2)">Le Cervin</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-ink-2)">21 %</span>
+          </div>
+          <div style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7)">
+            <div style="--om-to:2%;position:absolute;left:0;top:0;bottom:0;width:2%;background:var(--c-surface-2);animation:om-fill var(--mo-scene) var(--ease-out) 360ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">D</span>
+            <span style="position:relative;flex:1;min-width:0;font:500 var(--fs-st-200)/1.25 var(--f-ui);color:var(--c-ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Le Grand Paradis, dans les Alpes valdôtaines au sud du val d'Aoste</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-ink-2)">2 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 4 · RÉVÉLÉE — BOOLÉEN ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">4 · révélée, booléen — paire opposée du système · <span style="color:var(--c-ember-bright)">data-state="revealed boolean"</span></figcaption>
+    <div data-state="revealed boolean" data-testid="stream-question" data-screen-label="S3 revelee booleen" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+          <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-ember-wash)">
+            <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-flame)">Vrai ou faux</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">4</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+            <span data-bind="reveal.stats.total" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">42</span>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-400)/1.05 var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Le mont Blanc a perdu plus d'un mètre depuis 2021.</p>
+
+        <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;display:flex;gap:var(--gap-st)">
+          <div data-bind="reveal.correct" data-testid="reveal-value" data-state="correct" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-6);border-radius:var(--r-st);background:var(--g-pine);box-shadow:var(--sh-pine);color:var(--c-ink-on-leaf);animation:om-pop var(--mo-scene) var(--ease-out) both">
+            <span style="width:110px;height:110px;border-radius:var(--r-full);background:oklch(0.18 0.03 150 / 0.24);display:grid;place-items:center">
+              <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-dasharray="26" style="animation:om-draw 360ms var(--ease-out) 200ms both"></path></svg>
+            </span>
+            <span style="font:600 var(--fs-st-600)/0.92 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Vrai</span>
+            <span style="font:600 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase">Bonne réponse</span>
+            <span style="font:600 var(--fs-st-400)/1 var(--f-mono);letter-spacing:var(--tr-tight)">69 %</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-6);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge)">
+            <span style="width:110px;height:110px;border-radius:var(--r-full);background:var(--c-surface-2);display:grid;place-items:center;color:var(--c-ink-3)">
+              <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10"></path><path d="M17 7L7 17"></path></svg>
+            </span>
+            <span style="font:600 var(--fs-st-600)/0.92 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase;color:var(--c-ink-2)">Faux</span>
+            <span style="font:600 var(--fs-st-400)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">31 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 5 · RÉVÉLÉE — NUMÉRIQUE ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">5 · révélée, numérique · <span style="color:var(--c-ember-bright)">data-state="revealed numeric"</span></figcaption>
+    <div data-state="revealed numeric" data-testid="stream-question" data-screen-label="S3 revelee numerique" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+          <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-ember-wash)">
+            <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-glow)"></span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-flame)">Estimation</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">5</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+            <span data-bind="reveal.stats.total" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">39</span>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-400)/1.05 var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Combien de mètres séparent le sommet du mont Blanc de celui du Cervin ?</p>
+
+        <div data-bind="reveal.target" data-testid="reveal-value" style="display:flex;align-items:center;gap:var(--gap-st);min-height:var(--row-st);padding:var(--sp-5) var(--sp-7);border-radius:var(--r-l);background:var(--g-pine);box-shadow:var(--sh-pine);color:var(--c-ink-on-leaf);animation:om-pop var(--mo-scene) var(--ease-out) both">
+          <span style="font:600 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase">Bonne réponse</span>
+          <span style="font:600 var(--fs-st-500)/0.92 var(--f-mono);letter-spacing:var(--tr-tight)">200</span>
+          <span style="font:500 var(--fs-st-300)/1 var(--f-ui)">mètres</span>
+        </div>
+
+        <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;display:flex;flex-direction:column;gap:var(--sp-5);justify-content:flex-end">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-5)">
+            <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-6);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge)">
+              <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Le plus proche</span>
+              <span data-bind="reveal.stats.closest" style="font:600 var(--fs-st-400)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-pine)">210</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-6);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge)">
+              <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Moyenne</span>
+              <span data-bind="reveal.stats.avg" style="font:600 var(--fs-st-400)/1 var(--f-mono);letter-spacing:var(--tr-tight)">418</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-6);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge)">
+              <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Médiane</span>
+              <span data-bind="reveal.stats.median" style="font:600 var(--fs-st-400)/1 var(--f-mono);letter-spacing:var(--tr-tight)">305</span>
+            </div>
+          </div>
+          <div style="flex:1;min-height:0;border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);display:flex;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-6)">
+            <div style="flex:1;height:28%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+            <div style="flex:1;height:100%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--g-pine)"></div>
+            <div style="flex:1;height:64%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+            <div style="flex:1;height:44%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+            <div style="flex:1;height:26%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+            <div style="flex:1;height:14%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+            <div style="flex:1;height:8%;border-radius:var(--r-s) var(--r-s) 4px 4px;background:var(--c-surface-2)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════ 6 · VOTE RÉVÉLÉ ══════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">6 · vote révélé — mousse, pas de bonne réponse · <span style="color:var(--c-ember-bright)">data-state="revealed vote"</span></figcaption>
+    <div data-state="revealed vote" data-testid="stream-question" data-screen-label="S3 vote revele" style="width:var(--stream-w);height:var(--stream-h);border-radius:var(--r-l);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--gap-st);padding:var(--pad-st)">
+        <div style="display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap">
+          <div data-bind="module.meta.name" style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-leaf-wash)">
+            <span style="width:18px;height:18px;border-radius:var(--r-full);background:var(--c-fern)"></span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-pine)">Vote du public</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <span style="font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Épreuve</span>
+            <span style="font:600 var(--fs-st-200)/1 var(--f-mono)"><span data-bind="module.index">6</span><span style="color:var(--c-ink-3)">/</span><span data-bind="module.total" style="color:var(--c-ink-3)">12</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"></circle><path d="M3.5 19.5c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8"></path><path d="M16 6.2a3 3 0 010 5.4"></path><path d="M17.5 15c2 .5 3.2 2 3.2 4.5"></path></svg>
+            <span data-bind="reveal.stats.total" data-testid="answers-count" style="font:600 var(--fs-st-200)/1 var(--f-mono)">44</span>
+          </div>
+        </div>
+
+        <p data-bind="module.text" data-testid="question-text" style="margin:0;font:500 var(--fs-st-400)/1.05 var(--f-display);letter-spacing:var(--tr-display);color:var(--c-ink-2);text-wrap:pretty">Quelle épreuve pour la prochaine manche ?</p>
+
+        <div data-bind="reveal.stats" data-testid="stats-panel" style="flex:1;display:flex;flex-direction:column;gap:var(--sp-4);justify-content:flex-end">
+          <div style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7)">
+            <div style="--om-to:27%;position:absolute;left:0;top:0;bottom:0;width:27%;background:var(--c-surface-2);animation:om-fill var(--mo-scene) var(--ease-out) both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">A</span>
+            <span style="position:relative;flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-ink-2)">Géographie</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-ink-2)">27 %</span>
+          </div>
+          <div data-bind="reveal.leading" data-testid="reveal-value" data-state="leading" style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7);animation:om-pop var(--mo-scene) var(--ease-out) both">
+            <div style="--om-to:52%;position:absolute;left:0;top:0;bottom:0;width:52%;background:var(--c-leaf-wash);animation:om-fill var(--mo-scene) var(--ease-out) 120ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--g-moss);color:var(--c-ink-on-leaf);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">B</span>
+            <span style="position:relative;flex:1;min-width:0;font:600 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-pine)">Cinéma</span>
+            <span style="position:relative;font:600 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-pine)">Le public a choisi</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-pine)">52 %</span>
+          </div>
+          <div style="position:relative;min-height:var(--row-st);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-edge);overflow:hidden;display:flex;align-items:center;gap:var(--sp-6);padding:var(--sp-5) var(--sp-7)">
+            <div style="--om-to:21%;position:absolute;left:0;top:0;bottom:0;width:21%;background:var(--c-surface-2);animation:om-fill var(--mo-scene) var(--ease-out) 200ms both"></div>
+            <span style="position:relative;width:var(--dot-st);height:var(--dot-st);flex:none;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);font:600 var(--fs-st-300)/var(--dot-st) var(--f-mono);text-align:center">C</span>
+            <span style="position:relative;flex:1;min-width:0;font:500 var(--fs-st-300)/1.2 var(--f-ui);color:var(--c-ink-2)">Musique</span>
+            <span style="position:relative;width:150px;flex:none;text-align:right;font:600 var(--fs-st-300)/1 var(--f-mono);color:var(--c-ink-2)">21 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div data-state="always" style="position:relative;width:var(--panel-st);flex:none;margin:var(--pad-st) var(--pad-st) var(--pad-st) 0;padding:var(--sp-8);border-radius:var(--r-st);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;align-items:center;gap:var(--gap-st)">
+        <div style="align-self:stretch;display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:56px;height:56px;flex:none;border-radius:var(--r-s);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)">
+            <svg width="37" height="37" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle></svg>
+          </div>
+          <p style="margin:0;font:600 var(--fs-st-200)/1.05 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Project<br>Game Show</p>
+        </div>
+        <div data-bind="room.qr" role="img" aria-label="QR code pour rejoindre le salon" style="width:var(--qr-st);height:var(--qr-st);border-radius:var(--r-m);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-surface) 0% 25%, transparent 0% 50%);background-size:26px 26px;box-shadow:0 0 0 var(--bw-st) var(--c-surface-2)"></div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+          <div style="height:150px;border-radius:var(--r-l);background:var(--c-surface-sunk);box-shadow:var(--sh-inset);display:grid;place-items:center">
+            <p data-bind="room.code" data-testid="stream-room-code" style="margin:0;font:600 var(--fs-st-code)/1 var(--f-mono);letter-spacing:0.07em;padding-left:0.07em;color:var(--c-flame)">7KMPD</p>
+          </div>
+        </div>
+        <div style="align-self:stretch;display:flex;flex-direction:column;gap:var(--sp-3)">
+          <p style="margin:0;font:500 var(--fs-st-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Sur ton téléphone</p>
+          <div style="min-height:84px;padding:0 var(--sp-5);border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center">
+            <span data-bind="room.joinUrl" style="font:600 var(--fs-st-200)/1 var(--f-mono);white-space:nowrap;flex:none">jeu.exemple.fr</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+</div>
+</body>
+</html>

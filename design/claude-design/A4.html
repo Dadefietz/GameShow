@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <title>A4 · Salon d'attente — Project Game Show</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+</helmet>
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:900px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface animateur · écran A4</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Salon d'attente</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Trois colonnes stables : à gauche l'invitation (code géant, QR, liens), au centre les joueurs qui arrivent et le lancement, à droite le panneau Séance. Le code est dimensionné pour être lu sur un stream. La barre du bas ne contient qu'une action à la fois — lancer — et les sorties dangereuses vivent dans le menu de droite, en deux temps.</p>
+  </header>
+
+  <!-- ══════════════════ 1 · AUCUN JOUEUR ══════════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · aucun joueur — guide en 3 étapes · <span style="color:var(--c-ember-bright)">data-state="waiting empty"</span></figcaption>
+    <div data-state="waiting empty" data-screen-label="A4 salon vide" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+
+      <!-- barre haute -->
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:30px;height:30px;border-radius:var(--r-s);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+          <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Pilotage</p>
+          <div data-bind="room.state" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface)">
+            <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-2)">Salle d'attente</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3)">
+          <a href="#" data-action="goto:studio" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-5);display:flex;align-items:center;text-decoration:none">Questionnaires</a>
+          <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:var(--pane-side) 1fr var(--pane-side);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+
+        <!-- colonne gauche : invitation -->
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+            <p data-bind="room.code" data-testid="room-code" style="margin:0;font:600 68px/1 var(--f-mono);letter-spacing:0.12em;color:var(--c-ink)">7KMPD</p>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span data-bind="room.joinUrl" style="flex:1;min-width:0;font:400 var(--fs-200)/1.3 var(--f-mono);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">jeu.exemple.fr/?code=7KMPD</span>
+              <button type="button" data-action="copy:joinUrl" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-200)/1 var(--f-ui);padding:0 var(--sp-4)">Copier</button>
+            </div>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+            <p style="margin:0;align-self:flex-start;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">QR du salon</p>
+            <div data-bind="room.qr" role="img" aria-label="QR code du salon" style="width:150px;height:150px;border-radius:var(--r-s);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-canvas) 0% 25%, transparent 0% 50%);background-size:15px 15px;box-shadow:var(--sh-edge)"></div>
+            <p style="margin:0;text-align:center;font:400 var(--fs-200)/1.4 var(--f-ui);color:var(--c-ink-3)">À afficher sur le stream : les joueurs scannent et arrivent avec le code déjà rempli.</p>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Page stream — pour OBS</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span data-bind="room.overlayUrl" style="flex:1;min-width:0;font:400 var(--fs-200)/1.3 var(--f-mono);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">jeu.exemple.fr/overlay?t=8f3a…</span>
+              <button type="button" data-action="copy:overlayUrl" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-200)/1 var(--f-ui);padding:0 var(--sp-4)">Copier</button>
+            </div>
+            <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-2)">Dans OBS : <strong style="font-weight:600">+ Source → Navigateur</strong>, colle ce lien, règle 1920 × 1080. C'est la seule source à ajouter.</p>
+          </div>
+        </div>
+
+        <!-- colonne centrale : guide -->
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="flex:1;padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-6);min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)">
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Joueurs connectés</p>
+              <span data-bind="room.playerCount" data-testid="player-count" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-3)">0</span>
+            </div>
+
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:var(--sp-5);padding:var(--sp-6);border-radius:var(--r-m);background:var(--c-surface-sunk);background-image:var(--tex-grain)">
+              <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Personne autour du feu</h2>
+              <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:var(--sp-4)">
+                <li style="display:flex;gap:var(--sp-4);align-items:flex-start">
+                  <span style="width:28px;height:28px;flex:none;border-radius:var(--r-full);background:var(--c-ember-wash);color:var(--c-ember-bright);font:600 var(--fs-300)/28px var(--f-mono);text-align:center">1</span>
+                  <p style="margin:0;font:400 var(--fs-400)/var(--lh-snug) var(--f-ui);color:var(--c-ink-2)">Ajoute la page stream dans OBS avec le lien de gauche.</p>
+                </li>
+                <li style="display:flex;gap:var(--sp-4);align-items:flex-start">
+                  <span style="width:28px;height:28px;flex:none;border-radius:var(--r-full);background:var(--c-ember-wash);color:var(--c-ember-bright);font:600 var(--fs-300)/28px var(--f-mono);text-align:center">2</span>
+                  <p style="margin:0;font:400 var(--fs-400)/var(--lh-snug) var(--f-ui);color:var(--c-ink-2)">Montre le code <strong style="font-weight:600;color:var(--c-ink)">7KMPD</strong> à l'antenne et laisse le QR visible.</p>
+                </li>
+                <li style="display:flex;gap:var(--sp-4);align-items:flex-start">
+                  <span style="width:28px;height:28px;flex:none;border-radius:var(--r-full);background:var(--c-ember-wash);color:var(--c-ember-bright);font:600 var(--fs-300)/28px var(--f-mono);text-align:center">3</span>
+                  <p style="margin:0;font:400 var(--fs-400)/var(--lh-snug) var(--f-ui);color:var(--c-ink-2)">Attends les premiers joueurs, puis lance la première épreuve.</p>
+                </li>
+              </ol>
+            </div>
+
+            <div role="alert" style="display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4);border-radius:var(--r-m);background:var(--c-bad-wash)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-bad)" stroke-width="1.9" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 4.5l8.5 15h-17z"></path><path d="M12 10v4"></path><path d="M12 16.8v.4"></path></svg>
+              <p style="margin:0;font:400 var(--fs-300)/var(--lh-snug) var(--f-ui);color:var(--c-ink)">Lancer maintenant enverra une épreuve dans le vide : aucun joueur ne pourra répondre.</p>
+            </div>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-canvas-2);box-shadow:var(--sh-edge);display:flex;align-items:center;gap:var(--sp-4)">
+            <button type="button" data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink-2);box-shadow:var(--sh-edge);font:600 var(--fs-400)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+              Lancer la partie
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5l10 6.5-10 6.5z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- colonne droite : séance -->
+        <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-5);min-height:0;overflow:hidden">
+          <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Séance</p>
+
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);min-height:var(--hit-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk);cursor:pointer">
+            <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Ordre aléatoire</span>
+            <span data-action="host:sessionConfig" role="switch" aria-checked="false" tabindex="0" style="width:46px;height:26px;flex:none;border-radius:var(--r-full);background:var(--c-line-strong);position:relative">
+              <span style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-1)"></span>
+            </span>
+          </label>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-3);min-height:0;overflow-y:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Quiz culture</span>
+              </div>
+              <span data-bind="session.selected.quiz" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/24</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vrai ou faux</span>
+              </div>
+              <span data-bind="session.selected.true_false" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/12</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Estimation</span>
+              </div>
+              <span data-bind="session.selected.estimation" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/8</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vote du public</span>
+              </div>
+              <span data-bind="session.selected.vote" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/6</span>
+            </div>
+          </div>
+
+          <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-3)">Aucune sélection : la banque entière est jouée, dans l'ordre du questionnaire.</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════════════════ 2 · JOUEURS PRÉSENTS + MENU MODULE ══════════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · joueurs présents, choix du module ouvert · <span style="color:var(--c-ember-bright)">data-state="waiting module-picker"</span></figcaption>
+    <div data-state="waiting module-picker" data-screen-label="A4 choix module" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:30px;height:30px;border-radius:var(--r-s);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+          <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Pilotage</p>
+          <div data-bind="room.state" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface)">
+            <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-2)">Salle d'attente</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--sp-3)">
+          <a href="#" data-action="goto:studio" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-5);display:flex;align-items:center;text-decoration:none">Questionnaires</a>
+          <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:var(--pane-side) 1fr var(--pane-side);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+            <p data-bind="room.code" data-testid="room-code" style="margin:0;font:600 68px/1 var(--f-mono);letter-spacing:0.12em">7KMPD</p>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span data-bind="room.joinUrl" style="flex:1;min-width:0;font:400 var(--fs-200)/1.3 var(--f-mono);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">jeu.exemple.fr/?code=7KMPD</span>
+              <button type="button" data-action="copy:joinUrl" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-200)/1 var(--f-ui);padding:0 var(--sp-4)">Copier</button>
+            </div>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+            <p style="margin:0;align-self:flex-start;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">QR du salon</p>
+            <div data-bind="room.qr" role="img" aria-label="QR code du salon" style="width:150px;height:150px;border-radius:var(--r-s);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-canvas) 0% 25%, transparent 0% 50%);background-size:15px 15px;box-shadow:var(--sh-edge)"></div>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Page stream — pour OBS</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span data-bind="room.overlayUrl" style="flex:1;min-width:0;font:400 var(--fs-200)/1.3 var(--f-mono);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">jeu.exemple.fr/overlay?t=8f3a…</span>
+              <button type="button" data-action="copy:overlayUrl" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-200)/1 var(--f-ui);padding:0 var(--sp-4)">Copier</button>
+            </div>
+            <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-2)">Source navigateur, 1920 × 1080.</p>
+          </div>
+        </div>
+
+        <!-- centre : liste + choix de module -->
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)">
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Joueurs connectés</p>
+              <span data-bind="room.playerCount" data-testid="player-count" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright);animation:om-pop var(--mo-base) var(--ease-out)">12</span>
+            </div>
+            <div data-bind="room.players" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;gap:var(--sp-2);align-content:flex-start">
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Tom</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Camille</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Sasha</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Yanis</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Inès</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Bruno</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Nour</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-ember-wash);color:var(--c-ember-bright);font:500 var(--fs-300)/1 var(--f-ui);animation:om-rise var(--mo-base) var(--ease-out)">Théo — vient d'arriver</span>
+            </div>
+          </div>
+
+          <!-- barre d'action + menu de module ouvert -->
+          <div style="position:relative;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-canvas-2);box-shadow:var(--sh-edge)">
+            <div role="menu" aria-label="Choisir le module" style="position:absolute;left:var(--pad-pane);right:var(--pad-pane);bottom:calc(100% - var(--sp-2));padding:var(--sp-3);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-2);animation:om-rise var(--mo-base) var(--ease-out) both">
+              <p style="margin:0;padding:var(--sp-2) var(--sp-3);font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Quelle épreuve pour commencer ?</p>
+              <button type="button" role="menuitem" data-action="host:startModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+                <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-ember)"></span>
+                <span style="flex:1;font:500 var(--fs-400)/1 var(--f-ui)">Quiz culture</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">24 questions · 20 s</span>
+              </button>
+              <button type="button" role="menuitem" data-action="host:startModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+                <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+                <span style="flex:1;font:500 var(--fs-400)/1 var(--f-ui)">Vrai ou faux</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">12 questions · 15 s</span>
+              </button>
+              <button type="button" role="menuitem" data-action="host:startModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+                <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-glow)"></span>
+                <span style="flex:1;font:500 var(--fs-400)/1 var(--f-ui)">Estimation</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">8 questions · 25 s</span>
+              </button>
+              <button type="button" role="menuitem" data-action="host:startModule" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4)">
+                <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-fern)"></span>
+                <span style="flex:1;font:500 var(--fs-400)/1 var(--f-ui)">Vote du public</span>
+                <span style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">6 questions · 20 s</span>
+              </button>
+            </div>
+            <button type="button" data-action="host:startModule" aria-expanded="true" style="width:100%;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-400)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+              Lancer la partie
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5l10 6.5-10 6.5z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- droite : séance dépliée -->
+        <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0;overflow:hidden">
+          <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Séance</p>
+
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);min-height:var(--hit-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-ember-wash);cursor:pointer">
+            <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Ordre aléatoire</span>
+            <span data-action="host:sessionConfig" role="switch" aria-checked="true" tabindex="0" style="width:46px;height:26px;flex:none;border-radius:var(--r-full);background:var(--c-ember);position:relative">
+              <span style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:var(--r-full);background:var(--c-ink-on-flame);box-shadow:var(--sh-1)"></span>
+            </span>
+          </label>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-3);min-height:0;overflow-y:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-2);box-shadow:var(--sh-edge)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"></path></svg>
+                <span style="font:600 var(--fs-300)/1.3 var(--f-ui)">Quiz culture</span>
+              </div>
+              <span data-bind="session.selected.quiz" style="font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">3/24</span>
+            </div>
+            <div data-action="host:getBank" style="display:flex;flex-direction:column;gap:var(--sp-1);padding-left:var(--sp-3)">
+              <label style="display:flex;align-items:flex-start;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);background:var(--c-surface-sunk);cursor:pointer">
+                <span style="width:20px;height:20px;flex:none;margin-top:1px;border-radius:var(--r-xs);background:var(--c-ember);display:grid;place-items:center">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-flame)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                </span>
+                <span style="font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">Quel massif culmine à 4 808 mètres ?</span>
+              </label>
+              <label style="display:flex;align-items:flex-start;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);background:var(--c-surface-sunk);cursor:pointer">
+                <span style="width:20px;height:20px;flex:none;margin-top:1px;border-radius:var(--r-xs);background:var(--c-ember);display:grid;place-items:center">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-flame)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                </span>
+                <span style="font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">Quelle est la capitale de l'Islande ?</span>
+              </label>
+              <label style="display:flex;align-items:flex-start;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);background:var(--c-surface-sunk);cursor:pointer">
+                <span style="width:20px;height:20px;flex:none;margin-top:1px;border-radius:var(--r-xs);background:var(--c-ember);display:grid;place-items:center">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-on-flame)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                </span>
+                <span style="font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink)">En quelle année le premier feu de camp filmé a-t-il été diffusé à la télévision norvégienne ?</span>
+              </label>
+              <label style="display:flex;align-items:flex-start;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);cursor:pointer">
+                <span style="width:20px;height:20px;flex:none;margin-top:1px;border-radius:var(--r-xs);box-shadow:inset 0 0 0 1.5px var(--c-line-strong)"></span>
+                <span style="font:400 var(--fs-300)/1.35 var(--f-ui);color:var(--c-ink-2)">Combien de cordes a une guitare classique ?</span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vrai ou faux</span>
+              </div>
+              <span data-bind="session.selected.true_false" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/12</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Estimation</span>
+              </div>
+              <span data-bind="session.selected.estimation" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/8</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <div style="display:flex;align-items:center;gap:var(--sp-3);min-width:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vote du public</span>
+              </div>
+              <span data-bind="session.selected.vote" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/6</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ══════════════════ 3 · 50 JOUEURS + MENU DE SORTIE EN 2 TEMPS ══════════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">3 · cas limite : 50 joueurs + confirmation en deux temps · <span style="color:var(--c-ember-bright)">data-state="waiting confirm-close"</span></figcaption>
+    <div data-state="waiting confirm-close" data-screen-label="A4 confirmation fermeture" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-4)">
+          <div style="width:30px;height:30px;border-radius:var(--r-s);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-flame)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><g style="transform-origin:12px 16px;animation:om-flame 1.9s var(--ease-in-out) infinite"><path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2"></path></g><path d="M3.4 18.7l17.2-3.5"></path><path d="M3.4 15.2l17.2 3.5"></path></g><circle cx="12" cy="12.6" r="1.5" fill="currentColor" style="animation:om-spark 2.6s var(--ease-in-out) infinite"></circle><circle cx="15.6" cy="6.4" r="0.9" fill="currentColor" style="animation:om-ember-rise 3.4s var(--ease-out) infinite"></circle></svg></div>
+          <p style="margin:0;font:500 var(--fs-100)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Pilotage</p>
+          <div data-bind="room.state" style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface)">
+            <span style="width:7px;height:7px;border-radius:var(--r-full);background:var(--c-flame)"></span>
+            <span style="font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-2)">Salle d'attente</span>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;align-items:center;gap:var(--sp-3)">
+          <a href="#" data-action="goto:studio" style="min-height:var(--hit-dense);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-5);display:flex;align-items:center;text-decoration:none">Questionnaires</a>
+          <button type="button" data-action="menu:exit" aria-expanded="true" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink)" aria-label="Menu de sortie">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+          </button>
+
+          <!-- menu de sortie, étape 2 armée -->
+          <div role="menu" aria-label="Sortie" style="position:absolute;top:calc(100% + var(--sp-3));right:0;width:320px;padding:var(--sp-3);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-3),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-2);animation:om-rise var(--mo-base) var(--ease-out) both;z-index:2">
+            <div data-state="armed" style="display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);border-radius:var(--r-m);background:var(--c-bad-wash);box-shadow:inset 0 0 0 1.5px var(--c-bad)">
+              <div style="display:flex;gap:var(--sp-3);align-items:flex-start">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--c-bad)" stroke-width="1.9" stroke-linecap="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 4.5l8.5 15h-17z"></path><path d="M12 10v4"></path><path d="M12 16.8v.4"></path></svg>
+                <p style="margin:0;font:400 var(--fs-300)/1.4 var(--f-ui);color:var(--c-ink)">Fermer le salon renverra les <strong style="font-weight:600">50 joueurs</strong> vers l'écran d'entrée. Cette action est immédiate.</p>
+              </div>
+              <div style="display:flex;gap:var(--sp-2)">
+                <button type="button" data-action="host:closeRoom" style="flex:1;min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-bad);color:var(--c-ink-on-flame);font:600 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Oui, fermer</button>
+                <button type="button" data-action="confirm:cancel" style="min-height:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Annuler</button>
+              </div>
+              <p style="margin:0;font:400 var(--fs-200)/1.35 var(--f-ui);color:var(--c-ink-2)">Sans réponse sous 4 secondes, la demande se réarme.</p>
+            </div>
+            <button type="button" data-action="auth:signOut" style="min-height:var(--hit-dense);text-align:left;border:0;border-radius:var(--r-m);background:transparent;color:var(--c-ink-2);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-4)">Déconnexion</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:var(--pane-side) 1fr var(--pane-side);gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Code du salon</p>
+            <p data-bind="room.code" data-testid="room-code" style="margin:0;font:600 68px/1 var(--f-mono);letter-spacing:0.12em">7KMPD</p>
+          </div>
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-3);align-items:center">
+            <p style="margin:0;align-self:flex-start;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">QR du salon</p>
+            <div data-bind="room.qr" role="img" aria-label="QR code du salon" style="width:150px;height:150px;border-radius:var(--r-s);background:var(--c-ink);background-image:repeating-conic-gradient(from 0deg at 50% 50%, var(--c-canvas) 0% 25%, transparent 0% 50%);background-size:15px 15px;box-shadow:var(--sh-edge)"></div>
+          </div>
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3)">
+            <div style="display:flex;align-items:center;gap:var(--sp-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Page stream — pour OBS</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span data-bind="room.overlayUrl" style="flex:1;min-width:0;font:400 var(--fs-200)/1.3 var(--f-mono);color:var(--c-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">jeu.exemple.fr/overlay?t=8f3a…</span>
+              <button type="button" data-action="copy:overlayUrl" style="min-height:var(--hit-chip);border:0;border-radius:var(--r-full);background:var(--c-surface-2);color:var(--c-ink);box-shadow:var(--sh-edge);font:500 var(--fs-200)/1 var(--f-ui);padding:0 var(--sp-4)">Copier</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--pane-gap);min-height:0">
+          <div style="flex:1;padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)">
+              <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Joueurs connectés</p>
+              <span data-bind="room.playerCount" data-testid="player-count" style="font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright)">50</span>
+            </div>
+            <div data-bind="room.players" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;gap:var(--sp-2);align-content:flex-start">
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Tom</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Camille</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Sasha</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Yanis</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Inès</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Bruno</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Nour</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Théo</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Alice</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Karim</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Éva</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Noé</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Jade</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Hugo</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Léa</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Antoine</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Fatou</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Rémi</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Chloé</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Malik</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Ana</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Victor</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:500 var(--fs-300)/1 var(--f-ui)">Salomé</span>
+              <span style="display:flex;align-items:center;min-height:var(--hit-chip);padding:0 var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk);font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">+ 25 autres</span>
+            </div>
+          </div>
+
+          <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-canvas-2);box-shadow:var(--sh-edge)">
+            <button type="button" data-action="host:startModule" style="width:100%;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-400)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+              Lancer la partie
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5l10 6.5-10 6.5z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;gap:var(--sp-4);min-height:0;overflow:hidden">
+          <p style="margin:0;font:500 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Séance</p>
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);min-height:var(--hit-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-ember-wash);cursor:pointer">
+            <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Ordre aléatoire</span>
+            <span data-action="host:sessionConfig" role="switch" aria-checked="true" tabindex="0" style="width:46px;height:26px;flex:none;border-radius:var(--r-full);background:var(--c-ember);position:relative">
+              <span style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:var(--r-full);background:var(--c-ink-on-flame);box-shadow:var(--sh-1)"></span>
+            </span>
+          </label>
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-3);min-height:0;overflow-y:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Quiz culture</span>
+              <span data-bind="session.selected.quiz" style="font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">12/24</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vrai ou faux</span>
+              <span data-bind="session.selected.true_false" style="font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">6/12</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Estimation</span>
+              <span data-bind="session.selected.estimation" style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">0/8</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);min-height:var(--row-dense);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-m);background:var(--c-surface-sunk)">
+              <span style="font:500 var(--fs-300)/1.3 var(--f-ui)">Vote du public</span>
+              <span data-bind="session.selected.vote" style="font:600 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">2/6</span>
+            </div>
+          </div>
+          <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-3)">20 questions retenues sur 50, tirées dans un ordre aléatoire.</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+</div>
+</x-dc>
+</body>
+</html>

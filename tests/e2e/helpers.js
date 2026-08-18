@@ -19,3 +19,16 @@ export async function openHost(browser) {
   await page.goto('/host');
   return { ctx, page, code: s.code };
 }
+
+// Parcours joueur : rejoint un salon depuis la page d'accueil (code en 5 cases).
+// Sélecteurs stables uniquement — le texte de l'interface peut changer.
+export async function joinAsPlayer(browser, code, pseudo) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto('/');
+  const boxes = page.getByTestId('join-code').getByRole('textbox');
+  for (const [i, ch] of [...code].entries()) await boxes.nth(i).fill(ch);
+  await page.getByTestId('join-pseudo').fill(pseudo);
+  await page.getByTestId('join-submit').click();
+  return { ctx, page };
+}

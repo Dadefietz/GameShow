@@ -23,3 +23,8 @@ tests/.data-unit
 tests/results/
 playwright-report/
 test-results/
+
+# Artefacts de travail hors dépôt (photos, archives, exports ponctuels)
+*.zip
+PHOTO-*.jpg
+design-board-standalone.html

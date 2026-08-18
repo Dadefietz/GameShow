@@ -11,12 +11,12 @@ version: 0.1.0
 [STACK]
 platform: render-or-railway            # serveur de jeu Node conteneur (EU) ; front statique sur CDN/CF Pages
 database: supabase                     # Postgres + Auth (EU eu-central-1), contenu durable + auth animateur
-frontend: react-vite                   # SPA statique : /host, /play, /overlay/:type, /studio
+frontend: react-vite                   # SPA statique : /host, /play, /overlay, /studio
 realtime: socketio                     # serveur de jeu AUTORITAIRE (WebSocket), rooms = salons, état en mémoire
 package_manager: pnpm
 node_version: 22
 auth: supabase-auth                    # animateur uniquement (email OTP / PKCE) ; joueurs = anonymes (playerToken JWT HS256 signé serveur)
-css: vanilla-tokens                    # BEM + tokens.css ; direction game-show TV spectaculaire
+css: vanilla-tokens                    # BEM + tokens.css ; direction camping / feu de bois (board v4)
 deployability: adapter-required        # deployer (Phase 8) = CF Workers statique + Supabase seulement ; serveur WS long-lived => STOP documenté + guide manuel (TECH-SPEC §9)
 pattern_id: interactive-stream-game-show-node-socketio-supabase-20260722
 
@@ -40,7 +40,7 @@ sql_tables: snake_case_plural
 sql_migrations: YYYYMMDD_description.sql
 rls_policies: [table]_[op]_[who]
 no_emoji: true
-icons: lucide-svg
+icons: svg-inline-stroke        # trait 1.6-2.2, jamais d'emoji
 
 [SECURITY]
 rls_on_all_tables: true                # tables de contenu durable (owner = animateur) — migrations À ÉCRIRE (F-006 ouvert)
@@ -63,34 +63,36 @@ audit_report: docs/SECURITY-AUDIT-v1.md
 pre_deploy_checklist: passed           # sous réserve F-006 (migrations RLS) si Supabase branché + env prod défini
 
 [DESIGN]
-# Renseigné par design-board (Phase 3, board v3 = feu-de-camp convivial). Le QUOI/POURQUOI visuel.
+# Design system du projet — page de référence : design/design-board.html
+# Toute nouvelle page, tout nouveau jeu DOIT s'y conformer. Le gate refuse
+# mécaniquement toute valeur de design écrite hors de tokens.css.
 scope_type: product-interface
-intent_keywords: chaleureux, convivial, accueillant, premium-doux, lisible-en-live
+design_system: design/design-board.html      # planches : palette, typo, espace/relief, pièces de base, options 5 états, marque/icônes/chrono/motion
+source: claude-design (projet cc29109f-93eb-48ca-840f-fb60118f438c)
+intent_keywords: camping, feu de bois, nuit tombee, cozy, chaleureux
 color_format: oklch
-primary_anchor_hue: 58
-primary_anchor_chroma: 0.17
-palette_poles: feu(primary H58) + chaud-neutre(neutres H80 chroma basse, SANS brun) + vert-frais(accent H150)
-signature_accent: feu oklch(0.62 0.17 58) ; grand chiffre en flamme (Fraunces)
-surfaces: dark-first (bg-deep oklch(0.20 0.014 80), surface 0.26 0.018 80, elevated 0.32 0.02 80)
-fonts: [{family: Fraunces, role: display, source: google-fonts, licence: OFL}, {family: Inter, role: text, source: google-fonts, licence: OFL}]
-icon_library: lucide
-motion_philosophy: organique-doux (variante flamme) — fast 140ms / base 240ms / slow 320ms, reveal glow <=600ms, zéro bounce
-accessibility: WCAG 2.2 AA (contrastes calculés, majorité AAA)
-touch_target_min: 44px
-focus_ring: 2px solid primary-500 (feu), offset 2px
-dark_mode: true
-imagery: feu de camp/tipi/forêt LUMINEUX et accueillants (asset-imagery Phase 4.x) ; image éclaircie mais assombrie sous le texte
-board_version: 3 (feu-de-camp convivial, sans brun ; supersedes v2 brun et v1 néon)
+families: feu(30-85) + bois(45-75) + feuille(135-160)   # TROIS familles, jamais plus
+reserved_accent: prune (--c-secret) — EXCLUSIVEMENT pour marquer ce que le public ne voit pas (animateur)
+light_principle: la nuit autour, le feu seule source ; UN seul geste lumineux par ecran (g-hearth OU g-dusk)
+fonts: display=grotesque condensee (Avenir Next Condensed/Futura/DIN) · ui=humaniste systeme · mono=chiffres et codes
+font_loading: aucune police a charger — piles substituables
+type_scales: joueur(--fs-100..900) · stream(--fs-st-*) · chrono deux tailles au seuil --urgent-threshold
+icon_library: SVG au trait inline, stroke 1.6, jamais d'emoji
+motion_philosophy: tout entre par le bas et s'apaise ; rien ne rebondit, rien ne clignote — sauf l'urgence du chrono
+motion_durations: fast 140ms / base 240ms / slow 420ms / scene 640ms
+accessibility: WCAG 2.2 AA — cibles 44px tactile / 40px pointeur, focus flamme 3px, etat lisible SANS la couleur (forme + poids)
+dark_mode: true (dark-first, unique)
+board_version: 4 (camping feu de bois ; supersedes v3 feu-de-camp convivial)
 
 [ASSETS]
-# Renseigné par design-builder. Source de vérité des chemins design (mono-app, à plat).
+# Source de verite des chemins design (mono-app, a plat).
 design_manifest: design/design-manifest.yaml
 mockups_dir: design/mockups/
-tokens_css: design/tokens/tokens.css
-tokens_json: design/tokens/tokens.json
-design_board_html: design/design-board.html
-fonts_dir: design/fonts/           # Fraunces + Inter self-hostés (woff2, OFL), aucun CDN
-coverage: 12/12 écrans (100%)
+tokens_css: design/tokens/tokens.css          # v2 — 18 sections, source UNIQUE
+design_board_html: design/design-board.html   # page Systeme = charte du projet
+claude_design_src: design/claude-design/      # extractions brutes + journal d'integration
+fonts_dir: design/fonts/
+coverage: 4 surfaces / 20 ecrans (joueur J1-J6, animateur A1-A6, stream S1-S4, studio E1-E4)
 
 [BUILD]
 src_dir: src/
@@ -99,8 +101,8 @@ client_entry: src/client/main.jsx
 output_dir: dist/
 env_example: .env.example
 security_headers: src/public/_headers
-surfaces: host (/host) · play (/play) · overlay (/overlay/:type) · studio (/studio)
-features_built: M1 salon+code+QR · M2 join sans compte · M3 join en cours · M4 modules libres · M5 4 modules (quiz/vrai-faux/estimation/vote) · M6 score+classement · M7 contrôle animateur · M8 overlays OBS · M9 temps réel Socket.IO · M10 dashboard · M11 manette · S1/S2 bonus-malus · S5 reconnexion
+surfaces: host (/host) · play (/play) · overlay (/overlay) · studio (/studio)
+features_built: M1 salon+code+QR · M2 join sans compte · M3 join en cours · M4 modules libres · M5 4 modules (quiz/vrai-faux/estimation/vote) · M6 score+classement · M7 contrôle animateur · M9 temps réel Socket.IO · M10 dashboard · M11 manette · S1/S2 bonus-malus · S5 reconnexion
 manifest_coverage: { total: 11, done: 11, deviated: 0, missing: 0, coverage_pct: 100% }
 build_verified: true (vite build OK, 183 modules ; serveur node --check OK ; boucle e2e host/join/module/reveal/score vérifiée)
 build_date: 2026-07-22
@@ -117,15 +119,16 @@ test_command: npm run test
 e2e_command: npm run test:e2e
 integration_command: npm run test:integration
 all_tests_command: npm run test:all
-last_run_passed: 66
+last_run_passed: 80
 last_run_failed: 0
 last_run_date: 2026-08-18
 test_report: docs/TEST-REPORT-v1.md
 
 [AUDIT]
 verdict: PASS
-coverage: 12/12 (100.0%)
+coverage: 20/20 (100.0%)
 violations: blocking=0 major=0 warn=0
+board: docs/DESIGN-BOARD-v4.md
 report: docs/DESIGN-AUDIT-v1.md
 machine_report: docs/DESIGN-AUDIT-v1.yaml
 remediation_cycles: 0

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+  <meta name="design_doc_mode" content="canvas">
+  <title>A6 · Classement et podium — Project Game Show</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23332114'/%3E%3Cg stroke='%23f59a3c' stroke-width='2.6' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 4.5c4 4.9 6 8.1 6 10.6a6 6 0 01-12 0c0-2.2 1.2-4.5 3.4-6.9'/%3E%3Cpath d='M4.6 25.2l22.8-4.6'/%3E%3Cpath d='M4.6 20.6l22.8 4.6'/%3E%3C/g%3E%3Ccircle cx='16' cy='17' r='2' fill='%23f59a3c'/%3E%3C/svg%3E">
+
+
+<div style="background:var(--c-canvas-2);min-height:100vh;padding:var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-8)">
+
+  <header style="max-width:920px;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <p style="margin:0;font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ember-bright)">Surface animateur · écran A6</p>
+    <h1 style="margin:0;font:600 var(--fs-900)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Classement et podium</h1>
+    <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Le podium est mis en scène — trois marches de hauteurs différentes, la première en braise pleine — puis les rangs 4 à 8 en liste dense au-dessous. C'est de la matière d'antenne : l'animateur commente en lisant. Le classement complet reste marqué comme réservé à l'animateur et au stream.</p>
+  </header>
+
+  <!-- ════════════ 1 · PODIUM ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">1 · podium et rangs 4 à 8 · <span style="color:var(--c-ember-bright)">data-state="podium"</span></figcaption>
+    <div data-state="podium" data-screen-label="A6 podium" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live);animation:om-flicker 2s var(--ease-in-out) infinite"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <p style="margin:0;font:600 var(--fs-500)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Classement</p>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">après l'épreuve <span data-bind="module.index" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">8</span> / <span data-bind="module.total" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">12</span></p>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Toi et le stream uniquement</span>
+        </div>
+        <button type="button" data-action="menu:exit" aria-expanded="false" style="min-height:var(--hit-dense);min-width:var(--hit-dense);border:0;border-radius:var(--r-full);background:var(--c-surface);box-shadow:var(--sh-edge);display:grid;place-items:center;color:var(--c-ink-2)" aria-label="Menu de sortie">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5.5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="18.5" r="1.3"></circle></svg>
+        </button>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr 380px;gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+
+        <!-- podium -->
+        <div data-bind="podium" style="padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-6);min-height:0">
+          <div style="display:flex;align-items:flex-end;gap:var(--sp-4)">
+
+            <!-- 2e -->
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);text-align:center;max-width:100%">
+                <p style="margin:0;font:600 var(--fs-500)/1.15 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</p>
+                <p style="margin:0;font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">2 180</p>
+              </div>
+              <div style="width:100%;height:150px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-4);animation:om-rise var(--mo-scene) var(--ease-out) 80ms both">
+                <span style="font:600 var(--fs-800)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-3)">2</span>
+              </div>
+            </div>
+
+            <!-- 1er -->
+            <div style="flex:1.16;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);text-align:center;max-width:100%">
+                <span style="width:34px;height:34px;border-radius:var(--r-full);background:var(--c-ember-wash);display:grid;place-items:center;color:var(--c-ember-bright);animation:om-flicker 3.2s var(--ease-in-out) infinite">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c2.6 3 4 5.2 4 7.4a4 4 0 01-8 0c0-1.5.8-3 2-4.6"></path><path d="M4.5 19.5l15-4"></path><path d="M4.5 15.5l15 4"></path></svg>
+                </span>
+                <p style="margin:0;font:600 var(--fs-600)/1.1 var(--f-display);letter-spacing:var(--tr-display);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</p>
+                <p style="margin:0;font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright)">2 340</p>
+              </div>
+              <div style="width:100%;height:216px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--g-ember);box-shadow:var(--sh-ember);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-5);animation:om-rise var(--mo-scene) var(--ease-out) both">
+                <span style="font:600 var(--fs-1000)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-on-flame)">1</span>
+              </div>
+            </div>
+
+            <!-- 3e -->
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);text-align:center;max-width:100%">
+                <p style="margin:0;font:600 var(--fs-500)/1.15 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</p>
+                <p style="margin:0;font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">1 950</p>
+              </div>
+              <div style="width:100%;height:112px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-4);animation:om-rise var(--mo-scene) var(--ease-out) 160ms both">
+                <span style="font:600 var(--fs-800)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-3)">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- rangs 4 à 8 -->
+        <div data-bind="leaderboard" style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+          <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Rangs 4 à 8</p>
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">4</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 720</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">5</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Sasha</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 610</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">6</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Yanis</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 480</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">7</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inès</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 250</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">8</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Bruno</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 100</span>
+            </div>
+          </div>
+          <p style="margin:0;font:400 var(--fs-200)/1.45 var(--f-ui);color:var(--c-ink-2)">42 joueurs au total. Les rangs au-delà de 8 ne sont pas affichés : ils n'ont pas de valeur d'antenne.</p>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4);display:flex;align-items:center;justify-content:center;gap:var(--sp-3)">
+          Question suivante
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"></path><path d="M12.5 6.5L19 12l-6.5 5.5"></path></svg>
+        </button>
+        <a href="A5.dc.html" data-action="goto:live" style="min-height:var(--hit);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6);display:flex;align-items:center;text-decoration:none">Retour au direct</a>
+        <button type="button" data-action="host:endGame" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:transparent;color:var(--c-ink-3);font:500 var(--fs-300)/1 var(--f-ui);padding:0 var(--sp-5)">Terminer la partie</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ════════════ 2 · PARTIE TERMINÉE ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">2 · partie terminée — podium final · <span style="color:var(--c-ember-bright)">data-state="ended"</span></figcaption>
+    <div data-state="ended" data-screen-label="A6 podium final" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-hearth);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-surface-sunk)">
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink-3)">Partie terminée</span>
+        </div>
+        <p style="margin:0;font:600 var(--fs-500)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Podium final</p>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">12 épreuves · <span data-bind="leaderboard.length" style="font:600 var(--fs-300)/1 var(--f-mono);color:var(--c-ink)">42</span> joueurs</p>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Toi et le stream uniquement</span>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;grid-template-columns:1fr 380px;gap:var(--pane-gap);padding:var(--pane-gap);min-height:0">
+        <div data-bind="podium" style="padding:var(--sp-7);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge);display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-6);min-height:0">
+          <div style="display:flex;align-items:flex-end;gap:var(--sp-4)">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);text-align:center;max-width:100%">
+                <p style="margin:0;font:600 var(--fs-500)/1.15 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marie-Ambroisine.42</p>
+                <p style="margin:0;font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">2 180</p>
+              </div>
+              <div style="width:100%;height:150px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-4)">
+                <span style="font:600 var(--fs-800)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-3)">2</span>
+              </div>
+            </div>
+            <div style="flex:1.16;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);text-align:center;max-width:100%">
+                <span style="width:34px;height:34px;border-radius:var(--r-full);background:var(--c-ember-wash);display:grid;place-items:center;color:var(--c-ember-bright);animation:om-flicker 3.2s var(--ease-in-out) infinite">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c2.6 3 4 5.2 4 7.4a4 4 0 01-8 0c0-1.5.8-3 2-4.6"></path><path d="M4.5 19.5l15-4"></path><path d="M4.5 15.5l15 4"></path></svg>
+                </span>
+                <p style="margin:0;font:600 var(--fs-600)/1.1 var(--f-display);letter-spacing:var(--tr-display);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Camille</p>
+                <p style="margin:0;font:600 var(--fs-700)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ember-bright)">2 340</p>
+              </div>
+              <div style="width:100%;height:216px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--g-ember);box-shadow:var(--sh-ember);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-5)">
+                <span style="font:600 var(--fs-1000)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-on-flame)">1</span>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--sp-4)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);text-align:center;max-width:100%">
+                <p style="margin:0;font:600 var(--fs-500)/1.15 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Lou du Palais</p>
+                <p style="margin:0;font:600 var(--fs-600)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-2)">1 950</p>
+              </div>
+              <div style="width:100%;height:112px;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--c-surface-2);box-shadow:var(--sh-edge);display:flex;align-items:flex-start;justify-content:center;padding-top:var(--sp-4)">
+                <span style="font:600 var(--fs-800)/1 var(--f-mono);letter-spacing:var(--tr-tight);color:var(--c-ink-3)">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-bind="leaderboard" style="padding:var(--pad-pane);border-radius:var(--r-l);background:var(--c-secret-wash);background-image:var(--tex-secret);box-shadow:inset 0 0 0 1px var(--c-secret-line);display:flex;flex-direction:column;gap:var(--sp-3);min-height:0">
+          <p style="margin:0;font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Rangs 4 à 8</p>
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--sp-2);min-height:0;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">4</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tom</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 720</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">5</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Sasha</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 610</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">6</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Yanis</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 480</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">7</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inès</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 250</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);min-height:var(--row-dense);padding:0 var(--sp-4);border-radius:var(--r-s);background:var(--c-surface)">
+              <span style="width:22px;flex:none;font:600 var(--fs-400)/1 var(--f-mono);color:var(--c-ink-3)">8</span>
+              <span style="flex:1;min-width:0;font:500 var(--fs-400)/1.3 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Bruno</span>
+              <span style="font:600 var(--fs-400)/1 var(--f-mono)">1 100</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4)">Relancer une partie</button>
+        <button type="button" data-action="host:closeRoom" style="min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6)">Fermer le salon…</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ════════════ 3 · AUCUN SCORE ════════════ -->
+  <figure style="margin:0;display:flex;flex-direction:column;gap:var(--sp-3)">
+    <figcaption style="font:400 var(--fs-200)/1 var(--f-mono);color:var(--c-ink-3)">3 · cas limite : personne n'a marqué · <span style="color:var(--c-ember-bright)">data-state="podium empty"</span></figcaption>
+    <div data-state="podium empty" data-screen-label="A6 sans score" style="width:var(--host-w);height:var(--host-h);border-radius:var(--r-xl);background:var(--c-canvas);box-shadow:var(--sh-3),var(--sh-edge);overflow:hidden;position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;inset:0;background:var(--g-dusk);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-6);border-bottom:var(--bw-hair) solid var(--c-line)">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-live-wash)">
+          <span style="width:8px;height:8px;border-radius:var(--r-full);background:var(--c-live)"></span>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-ink)">En direct</span>
+        </div>
+        <p style="margin:0;font:600 var(--fs-500)/1 var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Classement</p>
+        <p style="margin:0;font:400 var(--fs-300)/1 var(--f-ui);color:var(--c-ink-3)">aucune épreuve jouée</p>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);background:var(--c-secret-wash);box-shadow:inset 0 0 0 1px var(--c-secret-line)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-secret)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 20L20 4"></path></svg>
+          <span style="font:600 var(--fs-200)/1 var(--f-ui);letter-spacing:var(--tr-label);text-transform:uppercase;color:var(--c-secret)">Toi et le stream uniquement</span>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:grid;place-items:center;padding:var(--sp-8)">
+        <div style="width:560px;display:flex;flex-direction:column;align-items:center;gap:var(--sp-5);text-align:center;padding:var(--sp-8);border-radius:var(--r-l);background:var(--c-surface);box-shadow:var(--sh-1),var(--sh-edge)">
+          <span style="width:60px;height:60px;border-radius:var(--r-full);background:var(--c-surface-sunk);display:grid;place-items:center;color:var(--c-ink-3)">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20h14"></path><path d="M8 20v-6h8v6"></path><path d="M12 14V8"></path><path d="M9 8h6"></path></svg>
+          </span>
+          <h2 style="margin:0;font:600 var(--fs-700)/var(--lh-tight) var(--f-display);letter-spacing:var(--tr-display);text-transform:uppercase">Pas encore de podium</h2>
+          <p style="margin:0;font:400 var(--fs-400)/var(--lh-body) var(--f-ui);color:var(--c-ink-2);text-wrap:pretty">Personne n'a marqué : aucun joueur n'est mis en avant, pas même provisoirement. Lance une épreuve pour ouvrir le classement.</p>
+        </div>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);border-top:var(--bw-hair) solid var(--c-line);background:var(--c-canvas-2)">
+        <button type="button" data-action="host:startModule" style="flex:1;min-height:var(--hit);border:0;border-radius:var(--r-full);background:var(--g-ember);color:var(--c-ink-on-flame);box-shadow:var(--sh-ember);font:600 var(--fs-500)/1 var(--f-ui);padding:var(--sp-4)">Lancer une épreuve</button>
+        <a href="A5.dc.html" data-action="goto:live" style="min-height:var(--hit);border-radius:var(--r-full);background:var(--c-surface);color:var(--c-ink);box-shadow:var(--sh-1),var(--sh-edge);font:500 var(--fs-400)/1 var(--f-ui);padding:0 var(--sp-6);display:flex;align-items:center;text-decoration:none">Retour au direct</a>
+      </div>
+    </div>
+  </figure>
+</div>
+</body>
+</html>
