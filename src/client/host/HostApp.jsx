@@ -314,21 +314,31 @@ function DeniedScreen({ email, onLogout }) {
   return (
     <main className="page page--dusk card-screen" role="main" aria-labelledby="denied-title">
       <div className="auth-card" data-testid="denied-card">
-        <span className="auth-card__mark auth-card__mark--warn" aria-hidden="true"><I.lock s={26} /></span>
-        <h1 className="auth-card__title" id="denied-title">Accès réservé à l'animateur</h1>
-        <p className="auth-card__sub">La création de salon est réservée au compte de l'animateur.</p>
+        {/* Refus net mais sans dramatisation (maquette A2) : le feu reste allumé,
+            on rappelle l'adresse concernée et on propose les deux issues. */}
+        <span className="auth-badge auth-badge--warn" aria-hidden="true"><I.lock s={26} /></span>
+        <div className="auth-card__head auth-card__head--badged">
+          <h1 className="auth-card__title" id="denied-title">Accès réservé</h1>
+          <p className="auth-card__sub">
+            Le poste de pilotage n'est ouvert qu'à un seul compte animateur.
+            Le tien n'en fait pas partie.
+          </p>
+        </div>
         {email ? (
-          <div>
-            <p className="h-label" style={{ marginBottom: 'var(--sp-2)' }}>Compte connecté</p>
-            <p className="auth-card__sunk" data-bind="auth.email">{email}</p>
+          <div className="auth-account">
+            <p className="auth-account__label">Compte connecté</p>
+            <p className="auth-account__value" data-bind="auth.email">{email}</p>
           </div>
         ) : null}
-        <a className="button button--primary button--block button--lg" href="/" data-action="goto:player">
-          Rejoindre en joueur
-        </a>
-        <button className="button button--block" type="button" onClick={onLogout} data-action="auth:signOut">
-          Se déconnecter
-        </button>
+        <div className="auth-card__exits">
+          <a className="button button--primary button--block button--tall" href="/" data-action="goto:player">
+            Rejoindre en joueur
+            <I.arrow s={18} />
+          </a>
+          <button className="button" type="button" onClick={onLogout} data-action="auth:signOut">
+            Se déconnecter
+          </button>
+        </div>
       </div>
     </main>
   );
@@ -337,41 +347,64 @@ function DeniedScreen({ email, onLogout }) {
 // ============================================================
 // A3 — Accueil stable : salon fermé / expiré / ouverture / erreur
 // ============================================================
-function HomeScreen({ variant, onOpenRoom, opening, onLogout, openError }) {
+function HomeScreen({ variant, onOpenRoom, opening, onLogout, openError, email }) {
   const closed = variant === 'closed';
+  // Deux causes d'arrivée ici, distinguées par le libellé : fermeture choisie
+  // (le feu reste allumé) ou expiration subie (le ciel s'éteint). Maquette A3.
+  const dusk = !closed || !!openError;
   return (
-    <main className={`page${closed ? '' : ' page--dusk'} card-screen`} role="main" aria-labelledby="home-title">
-      <div className="auth-card">
-        <span className="auth-card__mark" aria-hidden="true">
-          {closed ? <I.flame s={30} /> : <I.clock s={26} />}
-        </span>
-        <h1 className="auth-card__title" id="home-title" data-bind="room.closedReason">
-          {opening ? 'On allume le feu' : closed ? 'Salon fermé' : 'Salon expiré'}
-        </h1>
-        <p className="auth-card__sub">
-          {opening ? 'Ton salon arrive…'
-            : closed ? 'Les joueurs ont été déconnectés. Tu restes connecté en tant qu’animateur.'
-            : 'Le serveur a redémarré ou le salon est resté inactif. Tes questionnaires sont intacts.'}
-        </p>
+    <main className={`page${dusk ? ' page--dusk' : ''}`} role="main" aria-labelledby="home-title">
+      <header className="home-bar">
+        <div className="auth-brand">
+          <span className="auth-brand__mark" aria-hidden="true"><I.flame s={21} /></span>
+          <p className="auth-brand__name">Project Game Show · pilotage</p>
+        </div>
+        <div className="home-bar__end">
+          {email ? <span className="home-bar__email" data-bind="auth.email">{email}</span> : null}
+          <button className="button" type="button" onClick={onLogout}
+            data-action="auth:signOut">Déconnexion</button>
+        </div>
+      </header>
 
-        {openError ? (
-          <div className="alert-banner" role="alert" data-bind="room.openError">
-            <span style={{ color: 'var(--c-bad)', flex: 'none' }} aria-hidden="true"><I.alert s={20} /></span>
-            <div className="alert-banner__body">
-              <p className="alert-banner__title">Ouverture refusée</p>
-              <p className="alert-banner__text">{openError}</p>
-            </div>
+      <div className="home-body">
+        <div className="home-stack">
+          <span className={`home-mark${opening ? ' home-mark--busy' : ''}`} aria-hidden="true">
+            {opening ? <span className="home-spin" /> : closed ? <I.flame s={30} /> : <I.clock s={30} />}
+          </span>
+
+          <div className="home-stack__head">
+            <h1 className="home-title" id="home-title" data-bind="room.closedReason">
+              {opening ? 'On allume le feu' : closed ? 'Salon fermé' : 'Salon expiré'}
+            </h1>
+            <p className="home-text" role={opening ? 'status' : undefined}>
+              {opening ? 'Création du salon et du code à cinq caractères…'
+                : closed ? "Tu as fermé le salon. Les joueurs ont été renvoyés vers l'écran d'entrée. Ouvre-en un nouveau quand tu veux relancer une soirée."
+                : "Le salon n'existe plus côté serveur — redémarrage ou trop longue inactivité. Rien n'est perdu : tes questionnaires sont intacts."}
+            </p>
           </div>
-        ) : null}
 
-        <button className="button button--primary button--block button--lg" type="button"
-          onClick={onOpenRoom} disabled={opening} aria-busy={opening || undefined}
-          data-action="POST /api/rooms">
-          {opening ? 'Ouverture…' : 'Ouvrir un nouveau salon'}
-        </button>
-        <a className="button button--block" href="/studio" data-action="goto:studio">Gérer les questionnaires</a>
-        <button className="button button--quiet button--block" type="button" onClick={onLogout}
-          data-action="auth:signOut">Déconnexion</button>
+          {openError ? (
+            <div className="alert-banner" role="alert" data-bind="room.openError">
+              <span style={{ color: 'var(--c-bad)', flex: 'none' }} aria-hidden="true"><I.alert s={22} /></span>
+              <div className="alert-banner__body">
+                <p className="alert-banner__title">Ouverture refusée</p>
+                <p className="alert-banner__text">{openError}</p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="home-actions">
+            <button className="button button--primary button--block button--tall" type="button"
+              onClick={onOpenRoom} disabled={opening} aria-busy={opening || undefined}
+              data-action="POST /api/rooms">
+              {opening ? 'Ouverture en cours…' : 'Ouvrir un nouveau salon'}
+              {opening ? null : <I.arrow s={18} />}
+            </button>
+            <a className="button button--block" href="/studio" data-action="goto:studio">
+              Gérer les questionnaires
+            </a>
+          </div>
+        </div>
       </div>
     </main>
   );

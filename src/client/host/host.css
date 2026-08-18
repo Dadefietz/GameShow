@@ -35,6 +35,63 @@
 
   /* Carte centrée : connexion, accès refusé, accueil stable. */
   .card-screen { flex: 1; display: grid; place-items: center; padding: var(--sp-7); }
+
+  /* ---- A3 : accueil stable. Bandeau + bloc centré de 520px (pas une carte). ---- */
+  .home-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-7);
+    border-bottom: var(--bw-hair) solid var(--c-line);
+  }
+  .home-bar__end { display: flex; align-items: center; gap: var(--sp-3); }
+  .home-bar__email {
+    font: 400 var(--fs-300) / 1 var(--f-ui);
+    color: var(--c-ink-3);
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-body { position: relative; flex: 1; display: grid; place-items: center; padding: var(--sp-8); }
+  .home-stack {
+    width: min(520px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-6);
+    text-align: center;
+  }
+  .home-stack__head { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .home-mark {
+    width: 60px;
+    height: 60px;
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+    display: grid;
+    place-items: center;
+    color: var(--c-ember-bright);
+  }
+  .home-mark--busy { background: var(--c-ember-wash); box-shadow: none; }
+  .home-spin {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-full);
+    border: 2.5px solid oklch(0.70 0.185 46 / 0.3);
+    border-top-color: var(--c-ember-bright);
+    animation: om-spin 700ms linear infinite;
+  }
+  .home-title {
+    margin: 0;
+    font: 600 var(--fs-800) / var(--lh-tight) var(--f-display);
+    letter-spacing: var(--tr-display);
+    text-transform: uppercase;
+  }
+  .home-text { margin: 0; font: 400 var(--fs-400) / var(--lh-body) var(--f-ui); color: var(--c-ink-2); text-wrap: pretty; }
+  .home-actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-3); }
   /* ---- A1/A2/A3 : carte d'accès. Valeurs reprises des maquettes :
      420px, aligné à GAUCHE (pas centré), marque en haut, gap sp-6. ---- */
   .auth-card {
@@ -68,6 +125,28 @@
   }
   .auth-card__head { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
   .auth-card__head--badged { gap: var(--sp-3); }
+  /* A2 : rappel du compte refusé, creusé dans la carte. */
+  .auth-account {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    border-radius: var(--r-m);
+    background: var(--c-surface-sunk);
+  }
+  .auth-account__label {
+    margin: 0;
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .auth-account__value {
+    margin: 0;
+    font: 500 var(--fs-400) / var(--lh-snug) var(--f-ui);
+    overflow-wrap: anywhere;
+  }
+  .auth-card__exits { display: flex; flex-direction: column; gap: var(--sp-3); }
   /* Pastille d'issue : verte quand le lien part, rouge quand l'accès est refusé. */
   .auth-badge {
     width: 52px;
@@ -294,13 +373,17 @@
   }
 
   /* Code du salon : dimensionné pour rester lisible capturé dans un stream. */
+  /* Code du salon — valeurs de la maquette A4 (68px, 0.12em, encre).
+     Le min() garde les 5 caractères dans la colonne quelle que soit sa largeur :
+     à 78px et 0.34em le code débordait et le dernier caractère était coupé. */
   .room-code {
     margin: 0;
-    font: 600 var(--fs-1000) / 1 var(--f-mono);
-    letter-spacing: var(--tr-code);
-    padding-left: var(--tr-code);
-    color: var(--c-flame);
-    text-align: center;
+    font-family: var(--f-mono);
+    font-size: clamp(40px, 4.7vw, 68px);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    color: var(--c-ink);
   }
   .qr-plate {
     width: 150px;
