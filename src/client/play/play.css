@@ -1024,3 +1024,51 @@
     .quit-btn { top: var(--size-space-5); right: var(--size-space-5); }
   }
 }
+
+/* ---- Résultat de manche : bonne réponse + gains (retours R7) ---- */
+.answer-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--size-space-1);
+  padding: var(--size-space-3) var(--size-space-5);
+  border-radius: var(--size-radius-lg);
+  background: var(--semantic-color-bg-surface);
+  border: 1px solid var(--semantic-color-border);
+}
+.answer-reveal__label {
+  font-size: var(--font-size-step--1);
+  color: var(--semantic-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.answer-reveal__value {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-step-2);
+  font-weight: var(--font-weight-bold);
+  color: var(--semantic-color-status-success);
+}
+
+.gain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--size-space-1);
+}
+.gain__label {
+  font-size: var(--font-size-step--1);
+  color: var(--semantic-color-text-secondary);
+}
+.gain__value {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-step-4);
+  font-weight: var(--font-weight-bold);
+  color: var(--semantic-color-signature);
+}
+.gain__value--neg {
+  color: var(--semantic-color-status-danger);
+}
+.gain__detail {
+  font-size: var(--font-size-step--1);
+  color: var(--semantic-color-text-secondary);
+}

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre une partie · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3,h4{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:var(--ff-text);font-size:var(--fs-0);color:inherit}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.icon--lg{width:26px;height:26px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:var(--touch-min);
+  padding:var(--sp-3) var(--sp-5);border:1px solid transparent;border-radius:var(--r-full);background:none;
+  font-size:var(--fs-0);font-weight:var(--fw-semi);line-height:var(--lh-compact);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn--primary{background:var(--action-primary);color:var(--action-on-primary);box-shadow:var(--glow-action)}
+.btn--primary:hover{background:var(--action-primary-hover)}
+.btn--secondary{background:var(--action-secondary);color:var(--action-on-primary)}
+.btn--secondary:hover{background:var(--action-secondary-hover)}
+.btn--outline{border-color:var(--border-strong);color:var(--text-primary)}
+.btn--outline:hover{background:var(--bg-elevated)}
+.btn--ghost{color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn--lg{min-height:var(--touch-cta);font-size:var(--fs-1);padding:var(--sp-4) var(--sp-6)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.4;cursor:not-allowed;box-shadow:none}
+/* ---------- Bandeau ---------- */
+.bandeau{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4);
+  border:1px solid var(--border-warning);border-radius:var(--r-md);background:var(--tint-warning);font-size:var(--fs--1)}
+.bandeau__icone{color:var(--warning)}
+/* ---------- Animations ---------- */
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .confettis{display:none!important}
+}
+/* ---------- Scène joueur (mobile d'abord) ---------- */
+.scene{min-height:100vh;display:flex;flex-direction:column;padding:var(--sp-6) var(--sp-4) var(--sp-7)}
+.scene__carte{width:100%;flex:1;display:flex;flex-direction:column}
+
+/* ===================================================================
+   PAGE — JOUEUR : REJOINDRE
+   =================================================================== */
+.rejoindre__entete{text-align:center;margin-bottom:var(--sp-6)}
+.embleme{display:grid;place-items:center;width:68px;height:68px;margin:0 auto var(--sp-4);
+  border-radius:var(--r-full);background:var(--tint-action);border:1px solid var(--border-signature);
+  color:var(--signature);box-shadow:var(--glow-signature)}
+.rejoindre__titre{font-size:var(--fs-3);font-weight:var(--fw-bold);margin-bottom:var(--sp-2)}
+.rejoindre__tagline{color:var(--text-secondary)}
+.rejoindre__bandeau{margin-bottom:var(--sp-5)}
+.rejoindre__form{display:flex;flex-direction:column;gap:var(--sp-5)}
+.champ__label{display:block;color:var(--text-secondary);margin-bottom:var(--sp-2)}
+.champ__input{width:100%;min-height:var(--touch-cta);padding:var(--sp-3) var(--sp-4);
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md);
+  color:var(--text-primary);font-weight:var(--fw-med)}
+.champ__input::placeholder{color:var(--text-secondary);opacity:.7}
+.champ__input:focus{border-color:var(--border-action)}
+.champ__input--code{min-height:80px;text-align:center;text-transform:uppercase;
+  font-size:var(--fs-4);font-weight:var(--fw-bold);letter-spacing:.22em;color:var(--signature)}
+.champ__input--code::placeholder{letter-spacing:.22em;color:var(--text-secondary);opacity:.45}
+.champ__input[aria-invalid="true"]{border-color:var(--danger)}
+.champ__erreur{display:none;align-items:center;gap:var(--sp-2);margin-top:var(--sp-2);
+  color:var(--danger);font-size:var(--fs--1);font-weight:var(--fw-med)}
+.champ__erreur[data-visible="oui"]{display:flex}
+.rejoindre__note{margin-top:var(--sp-5);text-align:center;color:var(--text-secondary);font-size:var(--fs--1)}
+.rejoindre__note span{color:var(--signature)}
+
+/* ============ DESKTOP : la carte devient une scène encadrée ============ */
+@media (min-width:900px){
+  body{background-image:
+    radial-gradient(60% 50% at 50% 0%, var(--tint-action), transparent 70%),
+    radial-gradient(50% 40% at 50% 100%, var(--tint-signature), transparent 70%)}
+  .scene{align-items:center;justify-content:center;padding:var(--sp-8) var(--sp-6)}
+  .scene__carte{flex:none;max-width:var(--maxw-scene);padding:var(--sp-7);
+    background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-xl);
+    box-shadow:var(--shadow-card)}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<main class="scene">
+  <div class="scene__carte">
+
+    <div class="rejoindre__entete">
+      <span class="embleme" aria-hidden="true">
+        <svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      </span>
+      <h1 class="rejoindre__titre">Project Game Show</h1>
+      <p class="rejoindre__tagline">Installe-toi, la partie va commencer.</p>
+    </div>
+
+    <!-- Bandeau d'information (le salon précédent a été fermé) -->
+    <p class="bandeau rejoindre__bandeau">
+      <span class="bandeau__icone" aria-hidden="true">
+        <svg class="icon icon--sm" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </span>
+      <span>L'animateur a fermé le salon — demande-lui le nouveau code pour revenir jouer.</span>
+    </p>
+
+    <form class="rejoindre__form" id="form-rejoindre" action="play-attente.html" method="get" novalidate>
+      <div class="champ">
+        <label class="eyebrow champ__label" for="code">Code de la partie</label>
+        <input class="champ__input champ__input--code" id="code" name="code" type="text"
+               inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false"
+               maxlength="5" placeholder="SM9HF" value="SM9HG"
+               aria-invalid="true" aria-describedby="code-erreur">
+        <p class="champ__erreur" id="code-erreur" data-visible="oui" role="alert">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Ce salon n'existe pas. Vérifie le code.
+        </p>
+      </div>
+
+      <div class="champ">
+        <label class="eyebrow champ__label" for="pseudo">Ton pseudo</label>
+        <input class="champ__input" id="pseudo" name="pseudo" type="text"
+               autocomplete="nickname" maxlength="20" placeholder="PixelNight">
+      </div>
+
+      <button class="btn btn--primary btn--lg btn--block" id="valider" type="submit" disabled>Rejoindre</button>
+    </form>
+
+    <p class="rejoindre__note"><span aria-hidden="true">✦</span> Aucun compte, aucune installation.</p>
+  </div>
+</main>
+
+</div>
+
+<script>
+/* Démo : validation du formulaire (code = 5 caractères + pseudo non vide) */
+(function () {
+  var code = document.getElementById('code');
+  var pseudo = document.getElementById('pseudo');
+  var valider = document.getElementById('valider');
+  var erreur = document.getElementById('code-erreur');
+
+  function verifier() {
+    var codeOk = code.value.trim().length === 5;
+    var pseudoOk = pseudo.value.trim().length > 0;
+    valider.disabled = !(codeOk && pseudoOk);
+  }
+  function effacerErreur() {
+    erreur.removeAttribute('data-visible');
+    code.setAttribute('aria-invalid', 'false');
+  }
+
+  code.addEventListener('input', function () {
+    code.value = code.value.toUpperCase();
+    effacerErreur();
+    verifier();
+  });
+  pseudo.addEventListener('input', verifier);
+  verifier();
+})();
+</script>
+</body>
+</html>

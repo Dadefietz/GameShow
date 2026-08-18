@@ -43,14 +43,24 @@ no_emoji: true
 icons: lucide-svg
 
 [SECURITY]
-rls_on_all_tables: true                # tables de contenu durable (owner = animateur)
+rls_on_all_tables: true                # tables de contenu durable (owner = animateur) — migrations À ÉCRIRE (F-006 ouvert)
 authoritative_server: true             # le client n'envoie JAMAIS de score ; réponses validées serveur
 service_role_frontend: false           # service_role + GAME_JWT_SECRET : serveur uniquement
 service_role_git: false
 user_metadata_in_policies: false
 player_auth: signed-jwt-per-room       # playerToken HS256, portée = salon, TTL = durée du salon
-room_isolation: true                   # un socket ne reçoit/agit que dans sa room
+room_isolation: true                   # un socket ne reçoit/agit que dans sa room ; classement sur canal :staff uniquement
+host_jwt_verification: jwks-or-hs256   # signature Supabase VÉRIFIÉE (F-001 fixé) ; fail-closed si HOST_EMAIL/prod
 security_advisor_before_deploy: true
+owasp_baseline: true
+secrets_scan: passed
+headers_configured: true               # _headers (CF Pages) + hook onSend Fastify (adapter-required)
+npm_audit_critical: 0
+npm_audit_high: 0
+sbom_file: audit/sbom.json
+last_audit: 2026-08-18
+audit_report: docs/SECURITY-AUDIT-v1.md
+pre_deploy_checklist: passed           # sous réserve F-006 (migrations RLS) si Supabase branché + env prod défini
 
 [DESIGN]
 # Renseigné par design-board (Phase 3, board v3 = feu-de-camp convivial). Le QUOI/POURQUOI visuel.
@@ -94,6 +104,23 @@ features_built: M1 salon+code+QR · M2 join sans compte · M3 join en cours · M
 manifest_coverage: { total: 11, done: 11, deviated: 0, missing: 0, coverage_pct: 100% }
 build_verified: true (vite build OK, 183 modules ; serveur node --check OK ; boucle e2e host/join/module/reveal/score vérifiée)
 build_date: 2026-07-22
+
+[TESTS]
+test_framework: vitest + playwright (+ suite d'intégration socket.io-client)
+test_dir: tests/
+unit_dir: tests/unit/
+e2e_dir: tests/e2e/
+integration: tests/integration/game-loop.mjs
+results_dir: tests/results/
+coverage_min: 70
+test_command: npm run test
+e2e_command: npm run test:e2e
+integration_command: npm run test:integration
+all_tests_command: npm run test:all
+last_run_passed: 66
+last_run_failed: 0
+last_run_date: 2026-08-18
+test_report: docs/TEST-REPORT-v1.md
 
 [AUDIT]
 verdict: PASS

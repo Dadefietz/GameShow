@@ -198,6 +198,9 @@ function OverlayLinks({ overlayToken }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const [copied, setCopied] = useState('');
   const links = [
+    // Page stream (R8) : scène complète qui suit l'état du salon — QR + lien + code
+    // permanents, répartition des réponses à chaque fin de chrono.
+    { key: 'stream', label: 'Page stream', url: `${origin}/overlay?token=${overlayToken}` },
     { key: 'question', label: 'Question', url: `${origin}/overlay/question?token=${overlayToken}` },
     { key: 'leaderboard', label: 'Classement', url: `${origin}/overlay/leaderboard?token=${overlayToken}` },
     { key: 'podium', label: 'Podium', url: `${origin}/overlay/podium?token=${overlayToken}` },
@@ -221,7 +224,7 @@ function OverlayLinks({ overlayToken }) {
         {links.map((l) => (
           <li className="overlay-links__row" key={l.key}>
             <span className="overlay-links__label">{l.label}</span>
-            <span className="overlay-links__url" title={l.url}>{l.url}</span>
+            <span className="overlay-links__url" data-testid={l.key === 'stream' ? 'overlay-link' : undefined} title={l.url}>{l.url}</span>
             <a className="overlay-links__open" href={`${l.url}&preview=1`} target="_blank" rel="noopener" title="Aperçu (données de démonstration)">
               <Icon name="eye" />
               <span className="overlay-links__open-label">Aperçu</span>
@@ -411,12 +414,54 @@ function AnswerDistribution({ current, distribution, answersCount }) {
 // ============================================================
 // ÉCRAN — Salon d'attente (host-lobby)
 // ============================================================
-function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
+function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
   const [qr, setQr] = useState('');
   const [picking, setPicking] = useState(false);
   const [selected, setSelected] = useState(null);
+  // Configuration de séance (R5) : ordre aléatoire + sélection manuelle des questions.
+  const [shuffle, setShuffle] = useState(true);
+  const [banks, setBanks] = useState({});          // moduleType -> [{id,text}]
+  const [checked, setChecked] = useState({});      // moduleType -> Set(ids)
+  const [openBank, setOpenBank] = useState(null);  // moduleType déplié
+
+  const pushSessionConfig = useCallback((nextShuffle, nextChecked) => {
+    const selectedIds = {};
+    for (const [t, set] of Object.entries(nextChecked)) {
+      const bank = banks[t] || [];
+      // Tout coché = pas de restriction (la sélection n'est envoyée que si partielle).
+      if (set && bank.length && set.size < bank.length) selectedIds[t] = [...set];
+    }
+    g.emit('host:sessionConfig', { shuffle: nextShuffle, selected: selectedIds });
+  }, [g, banks]);
+
+  const toggleShuffle = () => {
+    const next = !shuffle;
+    setShuffle(next);
+    pushSessionConfig(next, checked);
+  };
+
+  const toggleBank = (type) => {
+    if (openBank === type) { setOpenBank(null); return; }
+    setOpenBank(type);
+    if (!banks[type]) {
+      g.emit('host:getBank', { moduleType: type }, (list) => {
+        setBanks((prev) => ({ ...prev, [type]: list || [] }));
+        setChecked((prev) => ({ ...prev, [type]: new Set((list || []).map((q) => q.id)) }));
+      });
+    }
+  };
+
+  const toggleQuestion = (type, id) => {
+    setChecked((prev) => {
+      const set = new Set(prev[type] || []);
+      if (set.has(id)) set.delete(id); else set.add(id);
+      const next = { ...prev, [type]: set };
+      pushSessionConfig(shuffle, next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -454,7 +499,7 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
       <main className="lobby" role="main">
         <section className="join-card" aria-labelledby="join-label">
           <p className="join-card__label" id="join-label">Code de la salle</p>
-          <p className="join-card__code">{code || '—'}</p>
+          <p className="join-card__code" data-testid="room-code">{code || '—'}</p>
           <div className="qr-plate" role="img" aria-label={`QR code de la salle ${code || ''}`}>
             {qr ? (
               <img className="qr-plate__img" src={qr} alt="" />
@@ -475,7 +520,7 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
               <Icon name="users" />
             </span>
             <div>
-              <div className="count-card__value" key={playerCount}>{playerCount}</div>
+              <div className="count-card__value" data-testid="player-count" key={playerCount}>{playerCount}</div>
               <div className="count-card__label">{playerCount > 1 ? 'joueurs connectés' : 'joueur connecté'}</div>
             </div>
           </div>
@@ -505,6 +550,57 @@ function LobbyScreen({ code, playerCount, players, overlayToken, onStartModule, 
               </ul>
             </section>
           )}
+
+          <section className="session-config" aria-label="Configuration de la séance">
+            <h2 className="session-config__title">
+              <Icon name="shuffle" /> Séance
+            </h2>
+            <label className="session-config__toggle">
+              <input type="checkbox" checked={shuffle} onChange={toggleShuffle} />
+              Ordre des questions aléatoire
+            </label>
+            <div className="session-config__banks">
+              {MODULE_TYPES.map((m) => {
+                const list = banks[m.type] || [];
+                const set = checked[m.type];
+                return (
+                  <div className="session-config__bank" key={m.type}>
+                    <button
+                      className="session-config__bank-head"
+                      type="button"
+                      aria-expanded={openBank === m.type}
+                      onClick={() => toggleBank(m.type)}
+                    >
+                      <Icon name={m.icon} />
+                      {m.name}
+                      <span className="session-config__bank-count">
+                        {set ? `${set.size}/${list.length}` : 'toutes'}
+                      </span>
+                      <Icon name="chevron-right" />
+                    </button>
+                    {openBank === m.type ? (
+                      <ul className="session-config__questions">
+                        {list.length === 0 ? (
+                          <li className="session-config__empty">Chargement…</li>
+                        ) : list.map((q) => (
+                          <li key={q.id}>
+                            <label className="session-config__question">
+                              <input
+                                type="checkbox"
+                                checked={set ? set.has(q.id) : true}
+                                onChange={() => toggleQuestion(m.type, q.id)}
+                              />
+                              {q.text}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
           {picking ? (
             <section className="module-picker" aria-label="Choix du module">
@@ -581,7 +677,6 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
   const current = g.current;
   const tick = g.tick;
   const answersCount = tick && tick.answers != null ? tick.answers : 0;
-  const paused = room.state === 'paused';
   const progression = room.progression || {};
   const progIndex = progression.index != null ? progression.index : 1;
   const progTotal = progression.total || 0;
@@ -601,12 +696,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           <span className="live-header__room">Salon {code}</span>
         </nav>
         <div className="live-header__stats">
-          {paused ? (
-            <span className="stat-chip stat-chip--paused">
-              <span className="stat-chip__dot" aria-hidden="true"></span>
-              En pause
-            </span>
-          ) : room.state === 'results' ? (
+          {room.state === 'results' ? (
             <span className="stat-chip stat-chip--results">
               <span className="stat-chip__dot" aria-hidden="true"></span>
               Résultats
@@ -645,12 +735,12 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
               <span className="reveal__label">
                 <Icon name="check" /> Bonne réponse
               </span>
-              <span className="reveal__value">{rt}</span>
+              <span className="reveal__value" data-testid="reveal-value">{rt}</span>
             </div>
           ) : null}
 
           {current ? (
-            <div className="hero__dist" aria-label="Répartition des réponses (animateur)">
+            <div className="hero__dist" data-testid="stats-panel" aria-label="Répartition des réponses (animateur)">
               <p className="hero__dist-title">
                 <Icon name="bar-chart-2" />
                 Répartition des réponses <span className="hero__dist-note">— visible par toi seul</span>
@@ -661,7 +751,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
 
           <div className="hero__meters">
             <div className="hero__signature">
-              <span className="hero__count">{answersCount}</span>
+              <span className="hero__count" data-testid="answers-count">{answersCount}</span>
               <span className="hero__count-label">{answersCount > 1 ? 'réponses reçues' : 'réponse reçue'}</span>
             </div>
             <div className="timer" role="timer" aria-label={`Temps restant ${tick && tick.timeLeft != null ? tick.timeLeft : 0} secondes`}>
@@ -744,7 +834,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
       <nav className="control-bar" aria-label="Contrôles animateur">
         <button className="button button--primary" type="button" onClick={() => g.emit('host:reveal')}>
           <Icon name="eye" />
-          Afficher les résultats
+          Révéler maintenant
         </button>
         <button className="button button--forest" type="button" onClick={onNextQuestion}>
           <Icon name="skip-forward" />
@@ -765,17 +855,6 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           <Icon name="trophy" />
           Voir le classement
         </button>
-        {paused ? (
-          <button className="button button--outline" type="button" onClick={() => g.emit('host:resume')}>
-            <Icon name="play" />
-            Reprendre
-          </button>
-        ) : (
-          <button className="button button--outline" type="button" onClick={() => g.emit('host:pause')}>
-            <Icon name="pause" />
-            Pause
-          </button>
-        )}
       </nav>
     </div>
   );
@@ -1092,8 +1171,8 @@ export function HostApp() {
     );
   }
 
-  // --- En jeu / pause / résultats de module ---
-  if (state === 'playing' || state === 'paused' || state === 'results') {
+  // --- En jeu / résultats de module ---
+  if (state === 'playing' || state === 'results') {
     return (
       <>
         <LiveScreen
@@ -1116,6 +1195,7 @@ export function HostApp() {
   return (
     <>
       <LobbyScreen
+        g={g}
         code={code}
         playerCount={playerCount}
         players={players}

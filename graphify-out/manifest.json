@@ -1,0 +1,266 @@
+{
+  "AGENTS.md": {
+    "mtime": 1784971185.7436156,
+    "seen": 1786990435.316481,
+    "ast_hash": "9d0ba0aff0e1c7bdf82698a1019ac05a",
+    "semantic_hash": ""
+  },
+  "PROJECT.md": {
+    "mtime": 1784971185.357201,
+    "seen": 1786990435.3164842,
+    "ast_hash": "4a144c3a16155dd5df6904253cf4500e",
+    "semantic_hash": ""
+  },
+  "REPO-CONVENTION.md": {
+    "mtime": 1784752361.65111,
+    "seen": 1786990435.3164852,
+    "ast_hash": "a7e09677c7ef86f3974fdb79db168875",
+    "semantic_hash": ""
+  },
+  "design-board-standalone.html": {
+    "mtime": 1784835871.4653904,
+    "seen": 1786990435.316486,
+    "ast_hash": "018840166b94a3441c8132685edcdd08",
+    "semantic_hash": ""
+  },
+  "design/design-manifest.yaml": {
+    "mtime": 1784758749.597043,
+    "seen": 1786990435.3164868,
+    "ast_hash": "938dec651d7aba92d8bb551c9fb0b3e1",
+    "semantic_hash": ""
+  },
+  "design/directions/arcade-pop.html": {
+    "mtime": 1784754718.664753,
+    "seen": 1786990435.316488,
+    "ast_hash": "3e2438a9a97c85549091104bc894dacd",
+    "semantic_hash": ""
+  },
+  "design/directions/feu-de-camp-v2.html": {
+    "mtime": 1784756785.941029,
+    "seen": 1786990435.31649,
+    "ast_hash": "d48a5d81401b84771483293dfb182729",
+    "semantic_hash": ""
+  },
+  "design/directions/feu-de-camp.html": {
+    "mtime": 1784755710.9909558,
+    "seen": 1786990435.3164911,
+    "ast_hash": "d35497645237fc5b1e7bf2614c83b0c0",
+    "semantic_hash": ""
+  },
+  "design/directions/plateau-neon.html": {
+    "mtime": 1784754717.878153,
+    "seen": 1786990435.316492,
+    "ast_hash": "1900b97350a9fe42d109e7c3bc44577d",
+    "semantic_hash": ""
+  },
+  "design/directions/prime-time.html": {
+    "mtime": 1784754718.2860804,
+    "seen": 1786990435.316493,
+    "ast_hash": "7bc3955a556446058d6ef1b84b7a208e",
+    "semantic_hash": ""
+  },
+  "docs/DESIGN-AUDIT-v1.md": {
+    "mtime": 1784827317.358836,
+    "seen": 1786990435.316494,
+    "ast_hash": "e4b0aac016db080e1bc9a8182cd01719",
+    "semantic_hash": ""
+  },
+  "docs/DESIGN-BOARD-v1.md": {
+    "mtime": 1784754441.9807107,
+    "seen": 1786990435.3164952,
+    "ast_hash": "b198fdef0c6483ff34384be42b2dad18",
+    "semantic_hash": ""
+  },
+  "docs/DESIGN-BOARD-v2.md": {
+    "mtime": 1784756401.65823,
+    "seen": 1786990435.316496,
+    "ast_hash": "b9cdb2161a89c4ac1807737523842a98",
+    "semantic_hash": ""
+  },
+  "docs/DESIGN-BOARD-v3.md": {
+    "mtime": 1784757103.3332717,
+    "seen": 1786990435.3164968,
+    "ast_hash": "8a10090d981085ea7a491b706ce0adb8",
+    "semantic_hash": ""
+  },
+  "docs/DESIGN-DOMAIN-EXPLORE-v1.md": {
+    "mtime": 1784754053.0598357,
+    "seen": 1786990435.3164978,
+    "ast_hash": "c6cf24d950fd866da5431fe45c035f72",
+    "semantic_hash": ""
+  },
+  "docs/PIPELINE-INDEX.yaml": {
+    "mtime": 1784971189.6710222,
+    "seen": 1786990435.316499,
+    "ast_hash": "323e39f1be0668f2129d4bc0b8809032",
+    "semantic_hash": ""
+  },
+  "docs/TECH-SPEC-v1.md": {
+    "mtime": 1784754040.5815833,
+    "seen": 1786990435.3165,
+    "ast_hash": "4c67885bf11046a259dd6cd4b1de3500",
+    "semantic_hash": ""
+  },
+  "docs/USER-NEEDS-v1.md": {
+    "mtime": 1784752359.8469691,
+    "seen": 1786990435.316501,
+    "ast_hash": "4c912548589dd195524429a8608c4646",
+    "semantic_hash": ""
+  },
+  "docs/USER-NEEDS-v1.yaml": {
+    "mtime": 1784752360.3963914,
+    "seen": 1786990435.316502,
+    "ast_hash": "2ad70a81e7cac9ae585942e01a0af744",
+    "semantic_hash": ""
+  },
+  "maquettes/host-accueil-lien-envoye.html": {
+    "mtime": 1786910285.5560975,
+    "seen": 1786990435.316503,
+    "ast_hash": "18410597fb7383baf50df4214f0349c5",
+    "semantic_hash": ""
+  },
+  "maquettes/host-accueil.html": {
+    "mtime": 1786910281.61497,
+    "seen": 1786990435.316504,
+    "ast_hash": "f651ce6c662e0fa8d1e1bcd2e1b11718",
+    "semantic_hash": ""
+  },
+  "maquettes/host-classement.html": {
+    "mtime": 1786909383.5340488,
+    "seen": 1786990435.3165052,
+    "ast_hash": "c87677fab092c2e0c8de0cd3de6e646c",
+    "semantic_hash": ""
+  },
+  "maquettes/host-live-revelation.html": {
+    "mtime": 1786910299.4097648,
+    "seen": 1786990435.3165061,
+    "ast_hash": "b9dbf23614b483d249ba51e784c281bb",
+    "semantic_hash": ""
+  },
+  "maquettes/host-live.html": {
+    "mtime": 1786909186.2463453,
+    "seen": 1786990435.3165069,
+    "ast_hash": "8bea3051d3f044164139c7fd4a6e8dfa",
+    "semantic_hash": ""
+  },
+  "maquettes/host-lobby-joueurs.html": {
+    "mtime": 1786910292.8831592,
+    "seen": 1786990435.3165078,
+    "ast_hash": "c841c7941c4749f39a66452cc8109f11",
+    "semantic_hash": ""
+  },
+  "maquettes/host-lobby.html": {
+    "mtime": 1786910289.3885486,
+    "seen": 1786990435.316509,
+    "ast_hash": "65a2de0848dbcfb74441e27af9cb2ee0",
+    "semantic_hash": ""
+  },
+  "maquettes/host-salon-ferme.html": {
+    "mtime": 1786909422.8770816,
+    "seen": 1786990435.31651,
+    "ast_hash": "8f9beea6ad0744ad695c20d4a2ccc1e3",
+    "semantic_hash": ""
+  },
+  "maquettes/index.html": {
+    "mtime": 1786910240.414079,
+    "seen": 1786990435.316511,
+    "ast_hash": "d825b089784396e62317cf95b94e1bf6",
+    "semantic_hash": ""
+  },
+  "maquettes/overlay-podium.html": {
+    "mtime": 1786910172.8205698,
+    "seen": 1786990435.316512,
+    "ast_hash": "f3a554ef8ddb0e0f381c1548da89d37f",
+    "semantic_hash": ""
+  },
+  "maquettes/overlay-question.html": {
+    "mtime": 1786910121.7646177,
+    "seen": 1786990435.316513,
+    "ast_hash": "ca77d9556d8a3cea3d3c384250744964",
+    "semantic_hash": ""
+  },
+  "maquettes/play-attente.html": {
+    "mtime": 1786909547.8502424,
+    "seen": 1786990435.316514,
+    "ast_hash": "df3ad69e558cad0bec2beac9cd7402bf",
+    "semantic_hash": ""
+  },
+  "maquettes/play-fin.html": {
+    "mtime": 1786909910.4693315,
+    "seen": 1786990435.316515,
+    "ast_hash": "12f8b8eae9dee034058421f13ca923aa",
+    "semantic_hash": ""
+  },
+  "maquettes/play-question-estimation.html": {
+    "mtime": 1786909710.7050753,
+    "seen": 1786990435.3165162,
+    "ast_hash": "ae8ba74aadac957b37f83feefd6e2218",
+    "semantic_hash": ""
+  },
+  "maquettes/play-question-quiz.html": {
+    "mtime": 1786909610.590617,
+    "seen": 1786990435.316517,
+    "ast_hash": "af4b217143a241de3271a174deff5138",
+    "semantic_hash": ""
+  },
+  "maquettes/play-question-vraifaux.html": {
+    "mtime": 1786909665.0245214,
+    "seen": 1786990435.316522,
+    "ast_hash": "198b6e2583330ed2a2760ccdf5c90e9c",
+    "semantic_hash": ""
+  },
+  "maquettes/play-rejoindre.html": {
+    "mtime": 1786909496.7064009,
+    "seen": 1786990435.316523,
+    "ast_hash": "e96d338088a283b11c6c3e53872045fb",
+    "semantic_hash": ""
+  },
+  "maquettes/play-score-gagne.html": {
+    "mtime": 1786909787.4486272,
+    "seen": 1786990435.316524,
+    "ast_hash": "578053cc03ca8949e93f5358b8ebd6f8",
+    "semantic_hash": ""
+  },
+  "maquettes/play-score-rate.html": {
+    "mtime": 1786909833.8314424,
+    "seen": 1786990435.316525,
+    "ast_hash": "6dde502a8255c95c1e5f9635dab4451d",
+    "semantic_hash": ""
+  },
+  "maquettes/studio.html": {
+    "mtime": 1786910062.418469,
+    "seen": 1786990435.3165262,
+    "ast_hash": "8d6be0054f674637906cb6dd74eae50f",
+    "semantic_hash": ""
+  },
+  "pipeline-dag.yaml": {
+    "mtime": 1784752362.0169873,
+    "seen": 1786990435.3165271,
+    "ast_hash": "5230c55bc1456fa4f49a50b325df2b02",
+    "semantic_hash": ""
+  },
+  "PHOTO-2026-07-22-19-48-14.jpg": {
+    "mtime": 1784742505.0,
+    "seen": 1786990435.316528,
+    "ast_hash": "19ab4acaf7a0e428fbfa4383833408c8",
+    "semantic_hash": ""
+  },
+  "design/assets/avatar-emblem-tipi-v1.png": {
+    "mtime": 1784758747.2756221,
+    "seen": 1786990435.3165288,
+    "ast_hash": "df99a9eae1775886e48298d895279c4e",
+    "semantic_hash": ""
+  },
+  "design/assets/hero-ambiance-campfire-v1.png": {
+    "mtime": 1784758746.178752,
+    "seen": 1786990435.31653,
+    "ast_hash": "794385bc0482aa09b961592f55830cf3",
+    "semantic_hash": ""
+  },
+  "design/assets/social-card-join-v1.png": {
+    "mtime": 1784758749.2453935,
+    "seen": 1786990435.316531,
+    "ast_hash": "2c611010ffa5a098cfd944f417140ce6",
+    "semantic_hash": ""
+  }
+}

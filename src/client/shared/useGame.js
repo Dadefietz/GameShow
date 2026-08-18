@@ -39,7 +39,8 @@ export function useGame(token) {
     });
     s.on('room:state', (st) => { setRoom(st); if (st.leaderboard) setLeaderboard(st.leaderboard); });
     s.on('module:started', (m) => {
-      setCurrent(m); setReveal(null); setAnswered(false); setDistribution(null); setPodium(null);
+      // `answered` restauré par le serveur (reconnexion/retardataire : pas de double réponse).
+      setCurrent(m); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
       // Temps restant RÉEL (deadline serveur) — un rechargement en cours de manche
       // n'affiche plus la durée totale comme s'il restait tout le temps.
       const left = m.deadline ? Math.max(0, Math.ceil((m.deadline - Date.now()) / 1000)) : Math.ceil((m.durationMs || 0) / 1000);
@@ -59,8 +60,8 @@ export function useGame(token) {
     return () => s.close();
   }, [token]);
 
-  const emit = useCallback((event, payload) => {
-    socketRef.current?.emit(event, payload);
+  const emit = useCallback((event, payload, ack) => {
+    socketRef.current?.emit(event, payload, ack);
   }, []);
 
   return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, fatal, serverError, emit };

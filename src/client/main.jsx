@@ -6,7 +6,7 @@ import './shared/app.css';
 import { BrandLoader } from './shared/BrandLoader.jsx';
 
 // Chargement paresseux par surface : chaque route ne télécharge que son code.
-// Un joueur mobile (/play) ne charge plus Host/Studio/Overlay ni qrcode/supabase.
+// Un joueur mobile ('/') ne charge plus Host/Studio/Overlay ni qrcode/supabase.
 const HostApp = lazy(() => import('./host/HostApp.jsx').then((m) => ({ default: m.HostApp })));
 const PlayApp = lazy(() => import('./play/PlayApp.jsx').then((m) => ({ default: m.PlayApp })));
 const OverlayApp = lazy(() => import('./overlay/OverlayApp.jsx').then((m) => ({ default: m.OverlayApp })));
@@ -15,11 +15,13 @@ const StudioApp = lazy(() => import('./studio/StudioApp.jsx').then((m) => ({ def
 const path = window.location.pathname;
 const isOverlay = path.startsWith('/overlay');
 
+// Le lien du jeu ('/') mène à la page d'accueil JOUEUR (R1). La page animateur est
+// sur /host (accès restreint à l'animateur unique), le stream sur /overlay.
 function pick() {
-  if (path.startsWith('/play')) return <PlayApp />;
+  if (path.startsWith('/host')) return <HostApp />;
   if (isOverlay) return <OverlayApp />;
   if (path.startsWith('/studio')) return <StudioApp />;
-  return <HostApp />; // '/', '/host'
+  return <PlayApp />; // '/', '/play'
 }
 
 // Overlay OBS : fond transparent, aucun loader visible. Autres surfaces : loader de marque.

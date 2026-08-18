@@ -5,11 +5,10 @@ import { config } from './config.js';
 // Code de salon : 5 caractères non ambigus (ni 0/O ni 1/I).
 const codeGen = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 5);
 
-// États du salon (spec §6).
+// États du salon (spec §6). PAUSED supprimé (retour produit 2026-08-18).
 export const RoomState = {
   WAITING: 'waiting',
   PLAYING: 'playing',
-  PAUSED: 'paused',
   RESULTS: 'results',
   ENDED: 'ended',
 };
@@ -40,10 +39,14 @@ export class RoomManager {
       code,
       ownerId,
       state: RoomState.WAITING,
-      players: new Map(), // playerId -> { id, pseudo, score, connected, socketId }
+      players: new Map(), // playerId -> { id, pseudo, score, streak, connected, socketId }
       currentModule: null, // { type, question, questionId, deadline, answers:Map, revealed }
       progression: { index: 0, total: 0 },
       history: [], // [{ moduleType, question, results }]
+      // Configuration de séance (retours R5) : ordre aléatoire par défaut,
+      // sélection manuelle facultative (moduleType -> [questionIds]), et
+      // questions déjà jouées (pas de répétition tant que la banque n'est pas épuisée).
+      session: { shuffle: true, selected: {}, used: new Set() },
       createdAt: Date.now(),
       lastActivity: Date.now(),
     };
@@ -61,7 +64,7 @@ export class RoomManager {
 
   addPlayer(room, pseudo) {
     const id = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)();
-    const player = { id, pseudo, score: 0, connected: false, socketId: null };
+    const player = { id, pseudo, score: 0, streak: 0, connected: false, socketId: null };
     room.players.set(id, player);
     this.touch(room);
     return player;
@@ -83,6 +86,13 @@ export class RoomManager {
   rankOf(room, playerId) {
     const rows = this.leaderboard(room);
     return rows.find((r) => r.id === playerId) || null;
+  }
+
+  // Rang de chaque joueur (playerId -> rank), pour calculer les places gagnées/perdues.
+  rankMap(room) {
+    const map = new Map();
+    for (const r of this.leaderboard(room)) map.set(r.id, r.rank);
+    return map;
   }
 
   // Purge des salons inactifs (appelée périodiquement). Un salon ENDED reste

@@ -80,6 +80,55 @@ function normalizeModule(row) {
   };
 }
 
+// --- Repli SANS Supabase : banques disque du serveur (/api/banks, R4) -------
+// Serveur : { id, text, options?, correctIndex?, correct?, target?, durationSec? }
+// Studio  : { id, prompt, options?, correct?(index), answer?(bool), target? }
+function serverToStudioQuestion(type, q) {
+  const base = { id: String(q.id ?? uid('q')), type, prompt: q.text || '' };
+  if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
+  if (type === 'true_false') return { ...base, answer: !!q.correct };
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
+  return { ...base, options: q.options || ['', ''] }; // vote
+}
+
+function studioToServerQuestion(type, q, durationSec) {
+  const base = { id: String(q.id), text: q.prompt || '', durationSec: durationSec || undefined };
+  if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
+  if (type === 'true_false') return { ...base, correct: !!q.answer };
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
+  return { ...base, options: q.options || [] }; // vote
+}
+
+function banksToModules(banks) {
+  const out = [];
+  for (const type of TYPE_KEYS) {
+    const bank = Array.isArray(banks[type]) ? banks[type] : [];
+    if (!bank.length) continue;
+    const durations = bank.map((q) => Number(q.durationSec)).filter((n) => Number.isFinite(n) && n > 0);
+    out.push({
+      id: uid('m'),
+      type,
+      name: MODULE_TYPES[type].label,
+      duration: durations.length ? durations[0] : (type === 'true_false' ? 12 : 20),
+      color: MODULE_TYPES[type].color,
+      questions: bank.map((q) => serverToStudioQuestion(type, q)),
+    });
+  }
+  return out;
+}
+
+function modulesToBanks(modules) {
+  const banks = Object.fromEntries(TYPE_KEYS.map((t) => [t, []]));
+  for (const m of modules) {
+    if (!TYPE_KEYS.includes(m.type)) continue;
+    for (const q of m.questions) {
+      if (!(q.prompt || '').trim()) continue; // pas d'énoncé = pas envoyée
+      banks[m.type].push(studioToServerQuestion(m.type, q, m.duration));
+    }
+  }
+  return banks;
+}
+
 export function StudioApp() {
   const [modules, setModules] = useState(seedModules);
   const [selectedId, setSelectedId] = useState(null);
@@ -95,7 +144,21 @@ export function StudioApp() {
 
   // Détection de session + chargement Supabase best-effort au montage.
   useEffect(() => {
-    if (!sb) { setAuthed(false); setRemoteLoading(false); return; }
+    if (!sb) {
+      setAuthed(false);
+      // Repli serveur local (R4) : les banques disque restent la source de vérité du jeu.
+      let alive = true;
+      (async () => {
+        try {
+          const res = await fetch('/api/banks');
+          if (!alive || !res.ok) return;
+          const mapped = banksToModules(await res.json());
+          if (mapped.length) { setModules(mapped); setMode('server'); }
+        } catch { /* dev Vite pur sans serveur : on garde le seed local */ }
+        finally { if (alive) setRemoteLoading(false); }
+      })();
+      return () => { alive = false; };
+    }
     let alive = true;
     // Plafond de 4 s : si Supabase est lent ou injoignable, on bascule sur le
     // contenu local plutôt que de laisser des squelettes indéfiniment.
@@ -181,7 +244,24 @@ export function StudioApp() {
     const problems = validateModule(m);
     setValidationErrors(problems);
     if (problems.length) { setSaveState('invalid'); return; }
-    if (!sb || authed === false) { setSaveState('local'); return; }
+    if (!sb || authed === false) {
+      // Repli serveur local (R4) : on pousse TOUTES les banques — c'est ce que le
+      // moteur lira au prochain lancement de module.
+      setSaveState('saving');
+      try {
+        const res = await fetch('/api/banks', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(modulesToBanks(modules)),
+        });
+        if (!res.ok) throw new Error('save-failed');
+        setMode('server');
+        setSaveState('saved');
+      } catch {
+        setSaveState('local'); // serveur injoignable : l'état reste local à l'onglet
+      }
+      return;
+    }
     setSaveState('saving');
     try {
       const { error } = await sb.from('modules').upsert({

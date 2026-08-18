@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accueil animateur · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3,h4{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:var(--ff-text);font-size:var(--fs-0);color:inherit}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.icon--lg{width:26px;height:26px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:var(--touch-min);
+  padding:var(--sp-3) var(--sp-5);border:1px solid transparent;border-radius:var(--r-full);background:none;
+  font-size:var(--fs-0);font-weight:var(--fw-semi);line-height:var(--lh-compact);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn--primary{background:var(--action-primary);color:var(--action-on-primary);box-shadow:var(--glow-action)}
+.btn--primary:hover{background:var(--action-primary-hover)}
+.btn--secondary{background:var(--action-secondary);color:var(--action-on-primary)}
+.btn--secondary:hover{background:var(--action-secondary-hover)}
+.btn--outline{border-color:var(--border-strong);color:var(--text-primary)}
+.btn--outline:hover{background:var(--bg-elevated)}
+.btn--ghost{color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn--danger{border-color:var(--border-danger);color:var(--danger)}
+.btn--danger:hover{background:var(--tint-danger)}
+.btn--lg{min-height:var(--touch-cta);font-size:var(--fs-1);padding:var(--sp-4) var(--sp-6)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.4;cursor:not-allowed;box-shadow:none}
+/* ---------- Cartes & bandeaux ---------- */
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-5)}
+.bandeau{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4);
+  border:1px solid var(--border-warning);border-radius:var(--r-md);background:var(--tint-warning);font-size:var(--fs--1)}
+.bandeau__icone{color:var(--warning)}
+/* ---------- Animations ---------- */
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .confettis{display:none!important}
+}
+
+/* ===================================================================
+   PAGE — ACCUEIL ANIMATEUR
+   =================================================================== */
+.accueil{max-width:var(--maxw-accueil);margin:0 auto;padding:var(--sp-6) var(--sp-4) var(--sp-8)}
+.accueil__grille{display:flex;flex-direction:column;gap:var(--sp-6)}
+.accueil__portes{display:flex;flex-direction:column;gap:var(--sp-5)}
+
+/* -- Pitch -- */
+.pitch__eyebrow{display:inline-flex;align-items:center;gap:var(--sp-2);color:var(--signature);margin-bottom:var(--sp-4)}
+.pitch__titre{font-size:var(--fs-4);font-weight:var(--fw-black);color:var(--heading);margin-bottom:var(--sp-4)}
+.pitch__lead{color:var(--text-secondary);margin-bottom:var(--sp-6);max-width:46ch}
+.benefices{display:flex;flex-direction:column;gap:var(--sp-4);margin-bottom:var(--sp-6)}
+.benefice{display:flex;gap:var(--sp-4);align-items:flex-start}
+.benefice__icone{display:grid;place-items:center;width:44px;height:44px;flex:none;
+  border-radius:var(--r-sm);background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature)}
+.benefice__titre{display:block;font-family:var(--ff-text);font-size:var(--fs-0);font-weight:var(--fw-semi);margin-bottom:var(--sp-1)}
+.benefice__texte{display:block;color:var(--text-secondary);font-size:var(--fs--1)}
+
+/* -- Vignette produit (mini-podium CSS) -- */
+.vignette{display:none;margin:0;padding:var(--sp-5);background:var(--bg-surface);
+  border:1px solid var(--border);border-radius:var(--r-lg)}
+.vignette__scene{display:flex;align-items:flex-end;justify-content:center;gap:var(--sp-3);height:150px}
+.vignette__place{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);width:84px}
+.vignette__etiquette{font-size:var(--fs--1);font-weight:var(--fw-semi);white-space:nowrap}
+.vignette__marche{width:100%;border-radius:var(--r-sm) var(--r-sm) 0 0;border:1px solid var(--border);
+  border-bottom:0;background:var(--bg-elevated);display:grid;place-items:center;
+  font-family:var(--ff-display);font-weight:var(--fw-bold);color:var(--text-secondary)}
+.vignette__place--1 .vignette__marche{height:94px;background:var(--tint-action);border-color:var(--border-action);
+  color:var(--signature);box-shadow:var(--glow-signature)}
+.vignette__place--1 .vignette__etiquette{color:var(--signature)}
+.vignette__place--2 .vignette__marche{height:66px}
+.vignette__place--3 .vignette__marche{height:48px}
+.vignette__trophee{color:var(--signature);margin-bottom:var(--sp-1)}
+.vignette__legende{margin-top:var(--sp-4);text-align:center;color:var(--text-secondary);font-size:var(--fs--1)}
+
+/* -- Porte spectateur -- */
+.porte{background:var(--tint-success);border:1px solid var(--border-success);border-radius:var(--r-lg);padding:var(--sp-5)}
+.porte__titre{font-size:var(--fs-2);color:var(--heading);margin-bottom:var(--sp-2)}
+.porte__texte{color:var(--text-secondary);font-size:var(--fs--1);margin-bottom:var(--sp-5)}
+
+/* -- Carte de connexion -- */
+.connexion{text-align:center}
+.embleme{display:grid;place-items:center;width:60px;height:60px;margin:0 auto var(--sp-4);
+  border-radius:var(--r-full);background:var(--tint-action);border:1px solid var(--border-signature);
+  color:var(--signature);box-shadow:var(--glow-signature)}
+.connexion__titre{font-size:var(--fs-2);margin-bottom:var(--sp-2)}
+.connexion__sous{color:var(--text-secondary);font-size:var(--fs--1);margin-bottom:var(--sp-6)}
+.champ{text-align:left;margin-bottom:var(--sp-5)}
+.champ__label{display:block;color:var(--text-secondary);margin-bottom:var(--sp-2);font-size:var(--fs--1);font-weight:var(--fw-med)}
+.champ__input{width:100%;min-height:var(--touch-cta);padding:var(--sp-3) var(--sp-4);
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md);
+  color:var(--text-primary);font-weight:var(--fw-med)}
+.champ__input::placeholder{color:var(--text-secondary);opacity:.7}
+.champ__input:focus{border-color:var(--border-action)}
+.connexion__note{margin-top:var(--sp-4);color:var(--text-secondary);font-size:var(--fs--1)}
+
+/* -- Pied -- */
+.pied{max-width:var(--maxw-accueil);margin:0 auto;padding:0 var(--sp-4) var(--sp-6);
+  color:var(--text-secondary);font-size:var(--fs--1);text-align:center}
+
+/* ============ DESKTOP ============ */
+@media (min-width:900px){
+  .accueil{padding:var(--sp-9) var(--sp-6)}
+  .accueil__grille{display:grid;grid-template-columns:1.05fr .95fr;gap:var(--sp-8);align-items:start}
+  .vignette{display:block}
+  .accueil__portes{position:sticky;top:var(--sp-6)}
+  .pied{text-align:left}
+}
+/* ============ MOBILE : ordre imposé ============ */
+@media (max-width:899px){
+  .accueil__grille{display:flex}
+  .accueil__portes{order:1}
+  .accueil__pitch{order:2}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<main class="accueil">
+  <div class="accueil__grille">
+
+    <!-- ---------------- Colonne gauche : proposition de valeur ---------------- -->
+    <section class="accueil__pitch" aria-labelledby="titre-pitch">
+      <p class="eyebrow pitch__eyebrow">
+        <span aria-hidden="true">✦</span> Plateau de jeu en livestream
+      </p>
+      <h1 class="pitch__titre" id="titre-pitch">Anime ton propre jeu télévisé, en direct avec ta communauté.</h1>
+      <p class="pitch__lead">Ouvre un salon, partage un code à cinq caractères, et lance tes épreuves. Tes spectateurs répondent depuis leur téléphone pendant que le plateau s'affiche sur ton live.</p>
+
+      <ul class="benefices">
+        <li class="benefice">
+          <span class="benefice__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          </span>
+          <span>
+            <span class="benefice__titre">Tes joueurs entrent sans compte ni installation</span>
+            <span class="benefice__texte">Un code, un pseudo, et c'est parti — depuis n'importe quel téléphone.</span>
+          </span>
+        </li>
+        <li class="benefice">
+          <span class="benefice__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          <span>
+            <span class="benefice__titre">Trois overlays OBS à fond transparent</span>
+            <span class="benefice__texte">Question, classement et podium se posent directement sur ton live.</span>
+          </span>
+        </li>
+        <li class="benefice">
+          <span class="benefice__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <span>
+            <span class="benefice__titre">Quiz, Vrai/Faux, Estimation et Vote</span>
+            <span class="benefice__texte">Compose tes modules dans le Studio et rejoue-les quand tu veux.</span>
+          </span>
+        </li>
+      </ul>
+
+      <figure class="vignette">
+        <div class="vignette__scene" aria-hidden="true">
+          <div class="vignette__place vignette__place--2">
+            <span class="vignette__etiquette">Luna</span>
+            <span class="vignette__marche">2</span>
+          </div>
+          <div class="vignette__place vignette__place--1">
+            <svg class="icon vignette__trophee" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            <span class="vignette__etiquette">PixelNight</span>
+            <span class="vignette__marche">1</span>
+          </div>
+          <div class="vignette__place vignette__place--3">
+            <span class="vignette__etiquette">Marco</span>
+            <span class="vignette__marche">3</span>
+          </div>
+        </div>
+        <figcaption class="vignette__legende">Le podium, en overlay transparent sur ton live.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ---------------- Colonne droite : les deux portes ---------------- -->
+    <div class="accueil__portes">
+
+      <section class="porte" aria-labelledby="titre-porte">
+        <h2 class="porte__titre" id="titre-porte">Tu viens pour jouer ?</h2>
+        <p class="porte__texte">Un code et un pseudo suffisent — pas de compte.</p>
+        <a class="btn btn--secondary btn--lg btn--block" href="play-rejoindre.html">
+          Rejoindre une partie
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </section>
+
+      <section class="card connexion" aria-labelledby="titre-connexion">
+        <span class="embleme" aria-hidden="true">
+          <svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+        </span>
+        <h2 class="connexion__titre" id="titre-connexion">Project Game Show</h2>
+        <p class="connexion__sous">Connecte-toi pour ouvrir ton salon et piloter ta partie.</p>
+
+        <form action="host-accueil-lien-envoye.html" method="get">
+          <div class="champ">
+            <label class="champ__label" for="email">Adresse email de l'animateur</label>
+            <input class="champ__input" id="email" name="email" type="email" inputmode="email"
+                   autocomplete="email" placeholder="animateur@exemple.fr" required>
+          </div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">
+            Recevoir le lien de connexion
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </form>
+        <p class="connexion__note">Un seul animateur — accès par lien email.</p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<footer class="pied">Project Game Show — maquette statique, données factices.</footer>
+
+</div>
+</body>
+</html>

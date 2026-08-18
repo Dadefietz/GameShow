@@ -1,7 +1,12 @@
-// Surface OVERLAY OBS — source navigateur, fond transparent, display-only.
-// Trois types déterminés par le chemin : /overlay/question | /overlay/leaderboard | /overlay/podium.
+// Surface OVERLAY — deux modes, déterminés par le chemin :
+//  - /overlay (sans segment) : PAGE STREAM (R8) — scène opaque qui suit l'état du
+//    salon, avec QR + lien + code permanents et répartition des réponses à chaque
+//    fin de chrono. C'est la vue à diffuser telle quelle.
+//  - /overlay/question | /overlay/leaderboard | /overlay/podium : overlays OBS
+//    TRANSPARENTS (sources navigateur posées sur le live), avec mode aperçu (?preview=1).
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { useGame } from '../shared/useGame.js';
 import { Icon } from '../shared/icons.jsx';
 import './overlay.css';
@@ -12,6 +17,7 @@ const fmt = (n) => (typeof n === 'number' && Number.isFinite(n) ? nf.format(n) :
 // Type d'overlay depuis le dernier segment du chemin.
 function overlayType() {
   const seg = window.location.pathname.split('/').filter(Boolean).pop();
+  if (seg === 'overlay') return 'stream'; // /overlay sans segment = page stream (R8)
   return seg === 'leaderboard' || seg === 'podium' ? seg : 'question';
 }
 
@@ -174,12 +180,14 @@ export function OverlayApp() {
   const token = params.get('token');
   const preview = params.get('preview') === '1';
   const g = useGame(token);
+  const type = overlayType();
 
   // Fond TRANSPARENT pour OBS — appliqué UNIQUEMENT sur la page overlay (inline = priorité max),
   // pour ne jamais fuiter sur les autres surfaces (login/lobby/joueur) via le bundle CSS partagé.
   // useLayoutEffect : fond transparent + échelle appliqués AVANT le premier rendu
   // (aucun flash de canvas non mis à l'échelle en aperçu).
   useLayoutEffect(() => {
+    if (type === 'stream') return undefined; // la page stream est une scène opaque normale
     const html = document.documentElement;
     const body = document.body;
     const prevHtml = html.style.backgroundColor;
@@ -209,10 +217,208 @@ export function OverlayApp() {
   // Pas de token : rien. Déconnecté : rendu vide (transparent) SAUF en mode Aperçu,
   // où l'on montre une démo même sans partie en cours (pour vérifier le rendu).
   if (!token) return null;
+  if (type === 'stream') {
+    if (!g.connected) return null;
+    return <StreamPage g={g} />;
+  }
   if (!g.connected && !preview) return null;
 
-  const type = overlayType();
   if (type === 'leaderboard') return <LeaderboardOverlay g={g} preview={preview} />;
   if (type === 'podium') return <PodiumOverlay g={g} preview={preview} />;
   return <QuestionOverlay g={g} preview={preview} />;
+}
+
+// ============================================================
+// PAGE STREAM (R8) — identique dans l'esprit à la page joueur, avec :
+//  1. QR code + lien + code du salon affichés EN PERMANENCE ;
+//  2. à chaque fin de chrono, la répartition des réponses (stats de l'animateur)
+//     à la place du feedback points/places du joueur.
+// ============================================================
+
+// Répartition des réponses (payload reveal.stats du serveur).
+function StreamStats({ stats }) {
+  if (!stats) return null;
+  if (stats.kind === 'options') {
+    const total = Math.max(stats.total, 1);
+    return (
+      <div className="stats-panel" role="status" data-testid="stats-panel" aria-label="Répartition des réponses">
+        {(stats.options || []).map((opt, i) => {
+          const count = stats.tally?.[i] || 0;
+          const pct = Math.round((count / total) * 100);
+          return (
+            <div className="stats-panel__row" key={i}>
+              <span className="stats-panel__label">{opt}</span>
+              <span className="stats-panel__bar">
+                <span className="stats-panel__fill" style={{ width: `${pct}%` }} />
+              </span>
+              <span className="stats-panel__count">{count} · {pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  if (stats.kind === 'numeric') {
+    return (
+      <div className="stats-panel" role="status" data-testid="stats-panel" aria-label="Répartition des réponses">
+        <div className="stats-panel__facts">
+          <span className="stats-panel__fact"><strong>{stats.total}</strong> réponses</span>
+          <span className="stats-panel__fact">Moyenne <strong>{stats.avg != null ? fmt(stats.avg) : '—'}</strong></span>
+          <span className="stats-panel__fact">Médiane <strong>{stats.median != null ? fmt(stats.median) : '—'}</strong></span>
+          <span className="stats-panel__fact">Plus proche <strong>{stats.closest != null ? fmt(stats.closest) : '—'}</strong></span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// Panneau permanent : QR + lien + code du salon.
+function JoinPanel({ code }) {
+  const origin = window.location.origin;
+  const joinUrl = `${origin}/play?code=${code || ''}`;
+  const [qr, setQr] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    if (!code) { setQr(''); return undefined; }
+    QRCode.toDataURL(joinUrl, { margin: 1, width: 220 })
+      .then((url) => { if (alive) setQr(url); })
+      .catch(() => { if (alive) setQr(''); });
+    return () => { alive = false; };
+  }, [code, joinUrl]);
+
+  return (
+    <aside className="join-panel" aria-label="Rejoindre la partie">
+      {qr ? (
+        <img className="join-panel__qr" src={qr} alt={`QR code du salon ${code || ''}`} />
+      ) : (
+        <span className="join-panel__qr join-panel__qr--empty" aria-hidden="true">
+          <Icon name="qr-code" />
+        </span>
+      )}
+      <div className="join-panel__meta">
+        <span className="join-panel__url">{origin.replace(/^https?:\/\//, '')}/play</span>
+        <span className="join-panel__label">Code du salon</span>
+        <span className="join-panel__code" data-testid="stream-room-code">{code || '—'}</span>
+      </div>
+    </aside>
+  );
+}
+
+function StreamWaiting({ g }) {
+  return (
+    <div className="stage stage--waiting">
+      <span className="stage__flame" aria-hidden="true"><Icon name="flame" /></span>
+      <h1 className="stage__title">La partie va commencer</h1>
+      <p className="stage__count">
+        <Icon name="users" />
+        {fmt(g.room?.playerCount || 0)} joueurs connectés
+      </p>
+    </div>
+  );
+}
+
+function StreamQuestion({ g }) {
+  const current = g.current || {};
+  const timeLeft = g.tick?.timeLeft;
+  const answers = g.tick?.answers ?? 0;
+  const meta = current.meta;
+  const prog = g.room?.progression;
+  const answer = revealText(g.reveal, current);
+  const revealed = !!g.reveal;
+  const options = Array.isArray(current.options) ? current.options : [];
+  const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  return (
+    <div className="stage stage--question">
+      <span className="stage__tag">
+        <Icon name={meta?.icon || 'flame'} />
+        {meta?.name || 'Épreuve'}
+        {prog?.index ? ` · Épreuve ${prog.index}${prog.total > prog.index ? `/${prog.total}` : ''}` : ''}
+      </span>
+      <h1 className="stage__question" data-testid="stream-question">{current.text || ''}</h1>
+
+      {!revealed && options.length > 0 ? (
+        <ul className="stage__options">
+          {options.map((opt, i) => (
+            <li className="stage__option" key={i}>
+              <span className="stage__option-key">{keys[i] || i + 1}</span>
+              {opt}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {revealed ? (
+        <>
+          {answer != null && (
+            <p className="stage__answer">
+              <Icon name="check" />
+              <span>{answer}</span>
+            </p>
+          )}
+          <StreamStats stats={g.reveal.stats} />
+        </>
+      ) : (
+        <div className="stage__meters">
+          <span className="stage__meter">
+            <span className="stage__meter-value">{fmt(answers)}</span> réponses
+          </span>
+          <span className="stage__meter stage__meter--timer">
+            <Icon name="clock" />
+            {typeof timeLeft === 'number' ? `${timeLeft} s` : '—'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StreamPodium({ g }) {
+  const top3 = (g.podium && g.podium.length ? g.podium : g.leaderboard || []).slice(0, 3);
+  const slots = [
+    { entry: top3[1], place: 'second', rank: 2 },
+    { entry: top3[0], place: 'first', rank: 1 },
+    { entry: top3[2], place: 'third', rank: 3 },
+  ].filter((sl) => sl.entry);
+
+  return (
+    <div className="stage stage--podium">
+      <h1 className="stage__title">
+        <Icon name="flame" />
+        Podium
+      </h1>
+      <div className="podium">
+        {slots.map(({ entry, place, rank }) => (
+          <div className={`step step--${place}`} key={entry.id ?? rank}>
+            <div className="step__card">
+              {place === 'first' && <Icon name="trophy" className="step__crown" />}
+              <span className="step__name">{entry.pseudo}</span>
+              <span className="step__score">{fmt(entry.score)} pts</span>
+            </div>
+            <div className="step__block">
+              <span className="step__rank">{entry.rank ?? rank}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StreamPage({ g }) {
+  const state = g.room?.state;
+  const ended = state === 'ended' || (g.podium && g.podium.length);
+  const inRound = g.current && (state === 'playing' || state === 'results');
+
+  return (
+    <div className="stream">
+      <main className="stream__stage">
+        {ended ? <StreamPodium g={g} /> : inRound ? <StreamQuestion g={g} /> : <StreamWaiting g={g} />}
+      </main>
+      {/* QR + lien + code : permanents, quel que soit l'état du salon (R8). */}
+      <JoinPanel code={g.room?.code} />
+    </div>
+  );
 }

@@ -1,0 +1,83 @@
+---
+artifact_type: test_report
+app: root
+version: 1
+change_set: none
+produced_by: tester
+created_at: 2026-08-18
+created_by: tester
+status: validated
+completeness_score: 1.0
+---
+
+summary:
+  total_tests: 66            # 33 unitaires (Vitest) + 28 checks d'intégration (Socket.IO) + 5 E2E (Playwright)
+  passed: 66
+  failed: 0
+  skipped: 0
+  coverage_lines: 83.48      # logique serveur pure (modules/rooms/engine/store) — index/auth couverts par intégration + E2E
+  coverage_functions: 80.76
+  duration_seconds: 19       # vitest 0.1s + intégration ~14s + playwright 4.5s
+
+must_coverage:
+  - id: M1
+    description: "L'animateur peut créer un salon avec un code unique et un QR code."
+    test_file: tests/e2e/game-flow.spec.js
+    status: passed
+  - id: M2
+    description: "Le joueur peut rejoindre via code ou QR, saisir un pseudo, et jouer sans compte en moins de 10 secondes."
+    test_file: tests/e2e/player-join.spec.js
+    status: passed
+  - id: M3
+    description: "Le joueur peut rejoindre une partie déjà commencée."
+    test_file: tests/e2e/game-flow.spec.js
+    status: passed
+  - id: M4
+    description: "L'animateur peut lancer les modules librement, dans l'ordre qu'il veut, sans durée imposée."
+    test_file: tests/e2e/game-flow.spec.js
+    status: passed
+  - id: M5
+    description: "Le joueur peut jouer aux 4 modules : Quiz, Vrai/Faux, Estimation, Vote."
+    test_file: "tests/e2e/game-flow.spec.js (quiz + vrai/faux) + tests/unit/modules.test.js + tests/integration/game-loop.mjs (estimation + vote)"
+    status: passed
+  - id: M6
+    description: "Le système attribue des points par module et recalcule le classement après chaque module."
+    test_file: "tests/unit/engine.test.js + tests/e2e/game-flow.spec.js"
+    status: passed
+  - id: M7
+    description: "L'animateur peut afficher/masquer les réponses, passer au module suivant et terminer la partie."
+    test_file: tests/e2e/game-flow.spec.js
+    status: passed
+    note: "« Mettre en pause » retiré du périmètre par les retours produit du 2026-08-18 (R9 — pause/reprendre supprimés) ; déviation volontaire documentée dans PROJECT.md."
+  - id: M8
+    description: "L'animateur peut afficher des overlays OBS (page stream) comme sources navigateur."
+    test_file: tests/e2e/stream.spec.js
+    status: passed
+    note: "Les 3 overlays historiques sont remplacés par la page stream unique (retour produit R8)."
+  - id: M9
+    description: "Le système pousse les réponses et mises à jour en temps réel aux joueurs et aux overlays."
+    test_file: "tests/integration/game-loop.mjs + tests/e2e/stream.spec.js"
+    status: passed
+  - id: M10
+    description: "Dashboard animateur : joueurs, épreuve en cours, temps restant, classement live, contrôles."
+    test_file: tests/e2e/game-flow.spec.js
+    status: passed
+  - id: M11
+    description: "Interface mobile joueur minimaliste : question, réponse, chronomètre, score."
+    test_file: "tests/e2e/game-flow.spec.js + tests/e2e/player-join.spec.js"
+    status: passed
+
+failed_tests: []
+
+known_failures: []
+
+corrections_made:
+  - cycle: 1
+    description: "Sélecteur Playwright « Vrai / Faux » ambigu (strict mode : matchait aussi la banque de questions du panneau Séance) — ajout de exact: true. Classification : test_fragile. Aucun fichier src/ modifié."
+    files_modified: [tests/e2e/game-flow.spec.js]
+
+evidence:
+  vitest: "Test Files 4 passed (4) · Tests 33 passed (33) · Duration 103ms"
+  integration: "INTEGRATION: ALL CHECKS PASSED (28/28) — tests/results/integration-output.txt"
+  playwright: "5 passed (4.5s) — tests/results/playwright-output.txt"
+  coverage: "Statements 80.07% · Branches 67.37% · Functions 80.76% · Lines 83.48% (seuils 70/70/60)"

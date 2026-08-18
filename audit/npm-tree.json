@@ -1,0 +1,76 @@
+{
+  "version": "0.1.0",
+  "name": "project-game-show",
+  "dependencies": {
+    "@fastify/cors": {
+      "version": "9.0.1",
+      "resolved": "https://registry.npmjs.org/@fastify/cors/-/cors-9.0.1.tgz",
+      "overridden": false
+    },
+    "@fastify/static": {
+      "version": "7.0.4",
+      "resolved": "https://registry.npmjs.org/@fastify/static/-/static-7.0.4.tgz",
+      "overridden": false
+    },
+    "@supabase/supabase-js": {
+      "version": "2.110.8",
+      "resolved": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.110.8.tgz",
+      "overridden": false
+    },
+    "@vitejs/plugin-react": {
+      "version": "4.7.0",
+      "resolved": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-4.7.0.tgz",
+      "overridden": false
+    },
+    "fastify": {
+      "version": "4.29.1",
+      "resolved": "https://registry.npmjs.org/fastify/-/fastify-4.29.1.tgz",
+      "overridden": false
+    },
+    "jsonwebtoken": {
+      "version": "9.0.3",
+      "resolved": "https://registry.npmjs.org/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz",
+      "overridden": false
+    },
+    "nanoid": {
+      "version": "5.1.16",
+      "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-5.1.16.tgz",
+      "overridden": false
+    },
+    "qrcode": {
+      "version": "1.5.4",
+      "resolved": "https://registry.npmjs.org/qrcode/-/qrcode-1.5.4.tgz",
+      "overridden": false
+    },
+    "react-dom": {
+      "version": "18.3.1",
+      "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-18.3.1.tgz",
+      "overridden": false
+    },
+    "react": {
+      "version": "18.3.1",
+      "resolved": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+      "overridden": false
+    },
+    "socket.io-client": {
+      "version": "4.8.3",
+      "resolved": "https://registry.npmjs.org/socket.io-client/-/socket.io-client-4.8.3.tgz",
+      "overridden": false
+    },
+    "socket.io": {
+      "version": "4.8.3",
+      "resolved": "https://registry.npmjs.org/socket.io/-/socket.io-4.8.3.tgz",
+      "overridden": false
+    },
+    "vite": {
+      "version": "5.4.21",
+      "resolved": "https://registry.npmjs.org/vite/-/vite-5.4.21.tgz",
+      "overridden": false
+    },
+    "zod": {
+      "version": "3.25.76",
+      "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
+      "overridden": false
+    }
+  }
+}

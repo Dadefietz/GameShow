@@ -1,9 +1,25 @@
-.vault/
-design/assets/_candidates/
-apps/subapps/*/design/assets/_candidates/
-design/proposals/_candidates/
-apps/subapps/*/design/proposals/_candidates/
+# Secrets
+.env
+
+# Dossier aveugle du pipeline (jamais stagé/commité/poussé)
+.vault
+
+# Données locales du serveur (banques de questions)
+data/
+
+# Build & dépendances
 node_modules/
 dist/
 audit/*.png
 audit/**/*.png
+
+# macOS
+.DS_Store
+
+# Tests
+tests/.data
+tests/.data-integration
+tests/.data-unit
+tests/results/
+playwright-report/
+test-results/

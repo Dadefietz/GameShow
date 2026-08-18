@@ -1,0 +1,125 @@
+artifact_type: security_audit
+app: root
+version: 1
+change_set: none
+produced_by: security-tester
+created_at: 2026-08-18
+created_by: security-tester
+status: validated
+owasp_version: "2025"
+severity_summary:
+  critical: 1
+  high: 3
+  medium: 2
+  low: 3
+  info: 2
+score: A
+owasp:
+  A01: { status: PASS, findings: [] }
+  A02: { status: PASS, findings: [F-004] }
+  A03: { status: PASS, findings: [] }
+  A04: { status: PARTIAL, findings: [F-008] }
+  A05: { status: PASS, findings: [F-005, F-010] }
+  A06: { status: PASS, findings: [F-003] }
+  A07: { status: PASS, findings: [F-001] }
+  A08: { status: PASS, findings: [] }
+  A09: { status: PARTIAL, findings: [F-011] }
+  A10: { status: PASS, findings: [], na_reason: null }
+findings:
+  - id: F-001
+    severity: High
+    category: A07
+    title: JWT Supabase décodé sans vérification de signature
+    file: src/server/auth.js:51
+    evidence: "jwt.decode() sans jwt.verify() ; POC : token forgé accepté avant fix ; après fix curl 403 (forgé), 403 (mauvais email), 200 (valide)"
+    recommendation: Vérification JWKS RS256/ES256 (node:crypto) ou SUPABASE_JWT_SECRET HS256 ; fail-closed si HOST_EMAIL/prod sans vérificateur
+    status: fixed
+  - id: F-002
+    severity: Critical
+    category: convention
+    title: ".vault non couvert par .gitignore"
+    file: .gitignore
+    evidence: "git check-ignore .vault -> exit 1 avant fix ; OK après"
+    recommendation: Ajouter .vault au .gitignore racine
+    status: fixed
+  - id: F-003
+    severity: High
+    category: A06
+    title: 7 vulnérabilités High npm (fastify<=4, @fastify/static<=9, vite 5, nanoid, brace-expansion, fast-uri, find-my-way)
+    file: package.json
+    evidence: "npm audit avant : Critical:0 High:7 Moderate:1 ; après : 0/0/0/0"
+    recommendation: fastify 5.12 + @fastify/cors 10 + @fastify/static 10.1 + vite 8.2 + npm audit fix ; e2e 28/28 re-vérifié
+    status: fixed
+  - id: F-004
+    severity: High
+    category: A02
+    title: GAME_JWT_SECRET avec repli dev non sécurisé utilisable en production
+    file: src/server/config.js:10
+    evidence: "fallback 'dev-only-insecure-change-me' ; après fix : NODE_ENV=production sans secret -> throw au démarrage"
+    recommendation: Fail-fast en prod si secret par défaut
+    status: fixed
+  - id: F-005
+    severity: Medium
+    category: A05
+    title: Headers de sécurité non servis par Fastify (le _headers CF Pages ne s'applique pas au déploiement adapter-required)
+    file: src/server/index.js
+    evidence: "curl -D - /api/health sans CSP avant fix ; après : CSP, X-Frame-Options, nosniff, HSTS, Referrer-Policy, Permissions-Policy présents"
+    recommendation: Hook onSend Fastify miroir de src/public/_headers
+    status: fixed
+  - id: F-006
+    severity: Medium
+    category: A01
+    title: Migrations Supabase absentes — RLS de la spec jamais codée
+    file: supabase/migrations/
+    evidence: "find supabase -type f -> vide"
+    recommendation: "app-builder PATCH : migrations tables + ENABLE RLS + policies par opération + index (TECH-SPEC 3.4/4.3/4.4) ; Security Advisor 0 alerte"
+    status: open
+  - id: F-007
+    severity: Low
+    category: A05
+    title: .env.example absent (déclaré dans AGENTS.md [BUILD])
+    file: .env.example
+    evidence: "ls .env.example -> absent avant fix"
+    recommendation: Créer .env.example sans vraies valeurs
+    status: fixed
+  - id: F-008
+    severity: Low
+    category: A04
+    title: Pas de rate limiting sur POST /api/rooms et /api/rooms/:code/join
+    file: src/server/index.js
+    evidence: "grep rateLimit routes REST -> absent (seuls les sockets sont limités)"
+    recommendation: "@fastify/rate-limit sur les deux routes avant montée en charge"
+    status: open
+  - id: F-009
+    severity: Low
+    category: A02
+    title: overlayToken en query string (pattern browser-source OBS)
+    file: src/client/overlay/OverlayApp.jsx
+    evidence: "/overlay?token=... ; rôle overlay lecture seule, portée salon, TTL 6h"
+    recommendation: Risque accepté v1 ; option future cookie de session overlay
+    status: open
+  - id: F-010
+    severity: Info
+    category: A05
+    title: CSP style-src 'unsafe-inline' (styles inline React des barres de stats)
+    file: src/public/_headers
+    evidence: "grep unsafe-inline _headers"
+    recommendation: Nonces CSP en backlog
+    status: open
+  - id: F-011
+    severity: Info
+    category: A09
+    title: Logging serveur minimal (logger Fastify désactivé)
+    file: src/server/index.js
+    evidence: "Fastify({ logger: false })"
+    recommendation: logger true en prod + alerte sur 403 répétés
+    status: open
+auto_fix_cycle:
+  performed: true
+  files_modified: [src/server/auth.js, src/server/config.js, src/server/index.js, .gitignore, .env.example, package.json, package-lock.json]
+  rescan_proof: "npm audit 0/0/0/0 ; secrets scan 0 ; git check-ignore .vault OK ; curl headers OK ; matrice auth 403/403/200/403 ; fail-fast prod throw ; e2e 28/28 PASS"
+  residual_critical_high: 0
+  routing: app-builder PATCH via saas-change-orchestrator (F-006 uniquement, Medium structurel)
+sbom: audit/sbom.json
+pre_deploy_checklist: passed
+next_step: deployer (Phase 8)

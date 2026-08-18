@@ -1,6 +1,6 @@
 schema_version: 1
-updated_at: "2026-07-22T23:40:00Z"
-updated_by: "forward:app-builder (src v1, build vérifié)"
+updated_at: "2026-08-18T09:35:00Z"
+updated_by: "forward:tester (test_report v1, 66/66 PASS)"
 
 apps: [root]            # MONO-APP : une seule application web (implicite root)
 
@@ -104,4 +104,22 @@ app_artifacts:
       manifest_coverage: 100
       build_verified: true
       derived_from: { tech_spec: 1, design_manifest: 1, tokens: 1, user_needs: 1, image_assets: { hero-ambiance-campfire: 1, avatar-emblem-tipi: 1, social-card-join: 1 } }
-      updated_at: "2026-07-22T23:40:00Z"
+      updated_at: "2026-08-18T00:50:00Z"
+    test_report:
+      node: 6
+      active_version: 1
+      path: docs/TEST-REPORT-v1.yaml
+      companion_paths: [docs/TEST-REPORT-v1.md]
+      passed: 66
+      failed: 0
+      derived_from: { src: 1, tech_spec: 1, user_needs: 1 }
+      updated_at: "2026-08-18T09:35:00Z"
+    security_audit:
+      node: 7
+      active_version: 1
+      path: docs/SECURITY-AUDIT-v1.yaml
+      companion_paths: [docs/SECURITY-AUDIT-v1.md]
+      score: A
+      open_findings: [F-006]
+      derived_from: { src: 1, tech_spec: 1 }
+      updated_at: "2026-08-18T01:10:00Z"

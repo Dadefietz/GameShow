@@ -12,6 +12,7 @@ import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
 import { demoQuestions, MODULE_TYPES, modules } from './modules.js';
 import { loadQuestions } from './supabase.js';
+import * as banksStore from './store.js';
 import * as engine from './engine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,53 +30,65 @@ function cleanPseudo(raw) {
 const app = Fastify({ logger: false });
 await app.register(cors, { origin: config.corsOrigins });
 
-// En-têtes de sécurité (appliqués par le serveur — `_headers` est une convention
-// Cloudflare, ignorée par Fastify/Render). CSP permissive juste ce qu'il faut :
-// même origine + Supabase (auth) + WebSocket (Socket.IO) + images data: (QR).
-const CSP = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "frame-ancestors 'self'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "script-src 'self'",
-  "connect-src 'self' https: wss: ws:",
-].join('; ');
-app.addHook('onSend', async (req, reply) => {
-  reply.header('Content-Security-Policy', CSP);
-  reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-Frame-Options', 'SAMEORIGIN');
-  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-  reply.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+// Headers de sécurité (SECURITY-AUDIT F-005) : le fichier _headers ne s'applique que
+// sur CF Pages ; ici c'est CE serveur (Render) qui sert le front, il pose donc les
+// headers lui-même. CSP stricte : même origine + Supabase (auth) + WebSocket + QR data:.
+const SECURITY_HEADERS = {
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; " +
+    "img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws: wss:; " +
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+};
+app.addHook('onSend', (req, reply, payload, done) => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) reply.header(k, v);
+  done(null, payload);
 });
 
 // Statique : build front + assets publics.
 const distDir = path.resolve(process.cwd(), config.clientDist);
 app.register(fastifyStatic, { root: distDir, prefix: '/', decorateReply: true, wildcard: false });
 
+// ANIMATEUR UNIQUE (R1) : vérifie la session ET, si HOST_EMAIL est configuré,
+// que l'email correspond. Sans Supabase ni HOST_EMAIL : mode dev ouvert.
+async function requireHost(req, reply) {
+  const auth = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const host = await verifyHostSession(auth);
+  if (config.hostEmail) {
+    const email = (host?.email || '').trim().toLowerCase();
+    if (!host || email !== config.hostEmail) {
+      reply.code(403).send({ error: 'not-host' });
+      return null;
+    }
+  }
+  return { sub: host?.sub || 'dev-host', email: host?.email || null };
+}
+
 // --- REST minimal ---
 app.get('/api/health', async () => ({ ok: true, rooms: roomManager.rooms.size }));
 app.get('/api/config', async () => ({ modules: MODULE_TYPES }));
 
-// Création de salon — réservé à l'animateur authentifié (Supabase). Renvoie code + hostToken.
+// Création de salon — réservé à L'animateur (unique). Renvoie code + hostToken.
 app.post('/api/rooms', async (req, reply) => {
-  const auth = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  const host = await verifyHostSession(auth);
-  const ownerId = host?.sub || 'dev-host'; // en dev sans Supabase, animateur local
+  const host = await requireHost(req, reply);
+  if (!host) return;
   // Reconnexion : si l'animateur a déjà un salon ouvert, on le lui redonne (même compte).
-  let room = roomManager.getByOwner(ownerId);
+  let room = roomManager.getByOwner(host.sub);
   const reused = !!room;
-  if (!room) room = roomManager.createRoom(ownerId);
+  if (!room) room = roomManager.createRoom(host.sub);
   return {
     code: room.code,
     reused,
-    hostToken: makeHostToken(room.code, ownerId),
+    hostToken: makeHostToken(room.code, host.sub),
     overlayToken: makeOverlayToken(room.code),
   };
 });
 
-// Rejoindre — anonyme, sans compte. Accepte un salon en attente OU en cours (M3).
+// Rejoindre — anonyme, sans compte. Nécessite un salon EXISTANT (créé par l'animateur).
 app.post('/api/rooms/:code/join', async (req, reply) => {
   const schema = z.object({ pseudo: z.string() });
   const parsed = schema.safeParse(req.body || {});
@@ -94,6 +107,66 @@ app.post('/api/rooms/:code/join', async (req, reply) => {
   const player = roomManager.addPlayer(room, pseudo);
   return { playerId: player.id, pseudo, playerToken: makePlayerToken(code, player.id), state: room.state };
 });
+
+// --- Banques de questions (R4) : le Studio écrit ici, le moteur lit ici. ---
+const questionSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1),
+  options: z.array(z.string()).optional(),
+  correctIndex: z.number().int().optional(),
+  correct: z.boolean().optional(),
+  target: z.number().optional(),
+  durationSec: z.number().positive().optional(),
+}).passthrough();
+const banksSchema = z.object(Object.fromEntries(MODULE_TYPES.map((t) => [t, z.array(questionSchema).optional()])));
+
+app.get('/api/banks', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return banksStore.getBanks();
+});
+
+app.put('/api/banks', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  const parsed = banksSchema.safeParse(req.body || {});
+  if (!parsed.success) return reply.code(400).send({ error: 'bad-banks' });
+  return banksStore.setBanks(parsed.data);
+});
+
+// Réservoir de questions d'un module : banque Studio (disque) + Supabase (si
+// configuré) + seed embarqué. Dédoublonné par id — une question ajoutée dans le
+// Studio est TOUJOURS jouable en partie.
+async function poolFor(ownerId, moduleType) {
+  const fromDb = (await loadQuestions(ownerId, moduleType)) || [];
+  const fromStudio = banksStore.getBank(moduleType);
+  const seed = demoQuestions[moduleType] || [];
+  const seen = new Set();
+  const pool = [];
+  for (const q of [...fromStudio, ...fromDb, ...seed]) {
+    if (!q || q.id == null || seen.has(q.id)) continue;
+    seen.add(q.id);
+    pool.push(q);
+  }
+  return pool;
+}
+
+// Choix de la prochaine question selon la configuration de séance (R5) :
+// sélection manuelle éventuelle, pas de répétition, ordre aléatoire par défaut.
+function pickQuestion(room, moduleType, pool) {
+  const sel = room.session.selected[moduleType];
+  let candidates = Array.isArray(sel) && sel.length ? pool.filter((q) => sel.includes(q.id)) : pool;
+  if (!candidates.length) candidates = pool;
+  let fresh = candidates.filter((q) => !room.session.used.has(moduleType + ':' + q.id));
+  if (!fresh.length) {
+    // Banque épuisée pour ce module : on recommence un cycle.
+    for (const q of candidates) room.session.used.delete(moduleType + ':' + q.id);
+    fresh = candidates;
+  }
+  const q = room.session.shuffle ? fresh[Math.floor(Math.random() * fresh.length)] : fresh[0];
+  if (q) room.session.used.add(moduleType + ':' + q.id);
+  return q || null;
+}
 
 // --- Socket.IO ---
 const io = new IOServer(app.server, { cors: { origin: config.corsOrigins } });
@@ -131,10 +204,14 @@ io.on('connection', (socket) => {
   const room = requireRoom(socket);
   if (!room) return socket.disconnect(true);
   socket.join(room.code);
-  // L'animateur rejoint une sous-room privée : il y reçoit la répartition des réponses.
+  // Canal staff (classement) : animateur + stream uniquement — jamais les joueurs.
+  // L'animateur rejoint EN PLUS une sous-room privée : répartition des réponses en direct.
   if (socket.data.role === 'host' && room.ownerId === socket.data.sub) {
+    socket.join(room.code + ':staff');
     socket.join(room.code + ':host');
     socket.emit('module:distribution', engine.answerDistribution(room.currentModule));
+  } else if (socket.data.role === 'overlay') {
+    socket.join(room.code + ':staff');
   }
 
   // Rattachement joueur (reconnexion sans perte de score — S5).
@@ -142,15 +219,15 @@ io.on('connection', (socket) => {
     const p = room.players.get(socket.data.sub);
     if (p) { p.connected = true; p.socketId = socket.id; }
     io.to(room.code).emit('player:joined', { count: room.players.size });
-    engine.emitRoomState(io, room); // rafraîchit le compteur côté animateur/overlays
+    engine.emitRoomState(io, room); // rafraîchit le compteur côté animateur/stream
   }
   // État courant à la connexion.
   socket.emit('room:state', engine.publicRoomState(room));
   // Restauration complète à la (re)connexion : question en cours si la fenêtre est
-  // ouverte, OU question + révélation si la manche est déjà révélée — un rechargement
-  // de page pendant les résultats retrouve ainsi son écran, sans état fantôme.
+  // ouverte (avec le statut « déjà répondu » du joueur), OU question + révélation si
+  // la manche est déjà révélée — un rechargement retrouve son écran, sans état fantôme.
   const cur = room.currentModule;
-  if (cur && ((!cur.revealed && !cur.closed) || cur.revealed)) {
+  if (cur && (!cur.closed || cur.revealed)) {
     const mod = modules[cur.type];
     socket.emit('module:started', {
       ...mod.publicQuestion(cur),
@@ -159,6 +236,7 @@ io.on('connection', (socket) => {
       meta: mod.meta,
       index: room.progression.index,
       total: room.progression.total,
+      answered: socket.data.role === 'player' && socket.data.sub ? cur.answers.has(socket.data.sub) : false,
     });
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
   }
@@ -171,10 +249,8 @@ io.on('connection', (socket) => {
     try {
       let q = question;
       if (!q) {
-        let fromDb = null;
-        try { fromDb = await loadQuestions(r.ownerId, moduleType); } catch { fromDb = null; }
-        const pool = (fromDb && fromDb.length ? fromDb : demoQuestions[moduleType]) || [];
-        q = pool[Math.floor((r.progression.index) % Math.max(pool.length, 1))] || pool[0];
+        const pool = await poolFor(r.ownerId, moduleType);
+        q = pickQuestion(r, moduleType, pool);
       }
       if (!q) return socket.emit('host:error', { code: 'no-question' });
       engine.startModule(io, r, moduleType, q);
@@ -182,8 +258,6 @@ io.on('connection', (socket) => {
       socket.emit('host:error', { code: 'start-failed' });
     }
   });
-  socket.on('host:pause', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.pause(io, r); });
-  socket.on('host:resume', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.resume(io, r); });
   socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.reveal(io, r); });
   socket.on('host:adjustScore', ({ playerId, delta } = {}) => {
     const r = requireRoom(socket); if (isHost(socket, r)) engine.adjustScore(io, r, playerId, delta);
@@ -203,6 +277,26 @@ io.on('connection', (socket) => {
     if (r.ownerId && roomManager.ownerRooms.get(r.ownerId) === r.code) roomManager.ownerRooms.delete(r.ownerId);
   });
 
+  // Configuration de séance (R5) : ordre aléatoire on/off + sélection manuelle.
+  socket.on('host:sessionConfig', ({ shuffle, selected } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    if (typeof shuffle === 'boolean') r.session.shuffle = shuffle;
+    if (selected && typeof selected === 'object') {
+      const clean = {};
+      for (const t of MODULE_TYPES) {
+        if (Array.isArray(selected[t])) clean[t] = selected[t].map(String).slice(0, 500);
+      }
+      r.session.selected = clean;
+    }
+  });
+  // Liste des questions disponibles d'un module (id + intitulé) pour la sélection.
+  socket.on('host:getBank', async ({ moduleType } = {}, cb) => {
+    const r = requireRoom(socket);
+    if (!isHost(socket, r) || !MODULE_TYPES.includes(moduleType) || typeof cb !== 'function') return;
+    const pool = await poolFor(r.ownerId, moduleType);
+    cb(pool.map((q) => ({ id: q.id, text: q.text })));
+  });
+
   // ---- Réponse JOUEUR (validée serveur, anti-triche) ----
   socket.on('play:answer', ({ value } = {}) => {
     if (rateLimited(socket)) return;
@@ -212,7 +306,7 @@ io.on('connection', (socket) => {
     socket.emit('play:accepted', res);
   });
 
-  // Overlay : lecture seule, n'émet rien d'accepté.
+  // Stream : lecture seule, n'émet rien d'accepté.
 
   socket.on('disconnect', () => {
     const r = requireRoom(socket);

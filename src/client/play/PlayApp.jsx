@@ -245,7 +245,10 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
   const [estimate, setEstimate] = useState('');
 
   const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const disabled = answered;
+  // Verrouillage à 0 (R7) : plus aucune réponse possible dès la fin du chrono
+  // (le serveur refuse de toute façon — ceci est le retour visuel immédiat).
+  const timeUp = timeLeft != null && timeLeft <= 0;
+  const disabled = answered || timeUp;
 
   return (
     <main className="screen screen--question" aria-labelledby="q-text">
@@ -269,12 +272,17 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
           <div className={`qbar__fill${low ? ' qbar__fill--low' : ''}`} style={{ transform: `scaleX(${frac})` }} />
         </div>
 
-        <h1 className="qtext" id="q-text">{current.text}</h1>
+        <h1 className="qtext" id="q-text" data-testid="question-text">{current.text}</h1>
 
         {answered ? (
           <p className="qsent" role="status">
             <Icon name="check" className="icon" />
             Réponse envoyée
+          </p>
+        ) : timeUp ? (
+          <p className="qsent qsent--late" role="status">
+            <Icon name="clock" className="icon" />
+            Temps écoulé
           </p>
         ) : null}
 
@@ -432,31 +440,46 @@ function ScoreScreen({ you, reveal, leaderboard, playerId, myAnswer, current }) 
 
         {gained > 0 ? (
           <div className="gain" role="status" aria-label={`Plus ${gained} points`}>
-            <span className="gain__value">+{fmtNum(animatedGain)}</span>
+            <span className="gain__value" data-testid="points-gained">+{fmtNum(animatedGain)}</span>
             <span className="gain__unit">points</span>
           </div>
         ) : correct === false ? (
-          <div className="gain gain--zero"><span className="gain__value">+0</span><span className="gain__unit">point</span></div>
+          <div className="gain gain--zero">
+            <span className="gain__value" data-testid="points-gained">{gained < 0 ? fmtNum(gained) : '+0'}</span>
+            <span className="gain__unit">{gained < 0 ? 'points (malus)' : 'point'}</span>
+          </div>
+        ) : null}
+        {(you?.bonus || 0) > 0 || (you?.streak || 0) >= 2 ? (
+          <p className="gain__detail" role="status">
+            {you.bonus ? `+${fmtNum(you.bonus)} bonus` : null}
+            {you.streak >= 2 ? ` · série ×${you.streak}` : null}
+          </p>
         ) : null}
 
-        {correct === false && answerLabel != null ? (
+        {answerLabel != null ? (
           <p className="rightanswer">
             <Icon name="check" className="icon" />
             La bonne réponse : <strong>{answerLabel}</strong>
           </p>
         ) : null}
 
+        {/* R7 : jamais de rang en cours de partie — uniquement les places gagnées/perdues. */}
         <div className="rank">
-          <span className="rank__label">Ton rang</span>
-          <RankValue rank={you?.rank} />
+          <span className="rank__label">Ta progression</span>
+          <span className="rank__value" data-testid="places-delta">
+            {(you?.placesDelta || 0) > 0 ? `▲ +${you.placesDelta}` : (you?.placesDelta || 0) < 0 ? `▼ ${you.placesDelta}` : '='}
+          </span>
+          <span className="rank__delta">
+            {(you?.placesDelta || 0) > 0 ? `place${you.placesDelta > 1 ? 's' : ''} gagnée${you.placesDelta > 1 ? 's' : ''}`
+              : (you?.placesDelta || 0) < 0 ? `place${you.placesDelta < -1 ? 's' : ''} perdue${you.placesDelta < -1 ? 's' : ''}`
+              : 'position stable'}
+          </span>
         </div>
 
         <p className="points">
           <span className="points__value">{fmtNum(you?.score)}</span>
           <span className="points__unit">pts au total</span>
         </p>
-
-        <Board title="Classement" rows={(leaderboard || []).slice(0, 5)} playerId={playerId} />
 
         <p className="next" role="status" aria-live="polite">
           <Icon name="clock" className="icon" />
@@ -568,7 +591,7 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode 
   const recap = Array.isArray(history) ? history.filter((h) => h && h.text) : [];
 
   return (
-    <main className="screen screen--end" aria-labelledby="end-text">
+    <main className="screen screen--end" data-testid="end-screen" aria-labelledby="end-text">
       {isPodium ? <Confetti /> : null}
       <div className="screen__main screen__main--center">
         <div className={`sent sent--${isPodium ? 'win' : 'neutral'}`}>

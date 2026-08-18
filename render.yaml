@@ -26,3 +26,7 @@ services:
         value: "https://sajdeadrrchahtuxmqxk.supabase.co/auth/v1/.well-known/jwks.json"
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # --- Animateur unique (R1, SECURITY-AUDIT) : pour verrouiller la création de salon
+      # au seul compte de l'animateur, ajouter dans le dashboard Render (Environment) :
+      #   HOST_EMAIL = <email du compte Supabase de l'animateur>
+      # Sans cette variable, tout utilisateur authentifié Supabase peut ouvrir un salon.

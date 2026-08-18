@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salon d'attente — 3 joueurs · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3,h4{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:var(--ff-text);font-size:var(--fs-0);color:inherit}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.icon--lg{width:26px;height:26px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:var(--touch-min);
+  padding:var(--sp-3) var(--sp-5);border:1px solid transparent;border-radius:var(--r-full);background:none;
+  font-size:var(--fs-0);font-weight:var(--fw-semi);line-height:var(--lh-compact);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn--primary{background:var(--action-primary);color:var(--action-on-primary);box-shadow:var(--glow-action)}
+.btn--primary:hover{background:var(--action-primary-hover)}
+.btn--secondary{background:var(--action-secondary);color:var(--action-on-primary)}
+.btn--secondary:hover{background:var(--action-secondary-hover)}
+.btn--outline{border-color:var(--border-strong);color:var(--text-primary)}
+.btn--outline:hover{background:var(--bg-elevated)}
+.btn--ghost{color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn--danger{border-color:var(--border-danger);color:var(--danger)}
+.btn--danger:hover{background:var(--tint-danger)}
+.btn--lg{min-height:var(--touch-cta);font-size:var(--fs-1);padding:var(--sp-4) var(--sp-6)}
+.btn--sm{padding:var(--sp-2) var(--sp-4);font-size:var(--fs--1)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.4;cursor:not-allowed;box-shadow:none}
+/* ---------- Cartes & bandeaux ---------- */
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-5)}
+.bandeau{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4);
+  border:1px solid var(--border-warning);border-radius:var(--r-md);background:var(--tint-warning);font-size:var(--fs--1)}
+.bandeau__icone{color:var(--warning)}
+/* ---------- Chips d'état ---------- */
+.chip{display:inline-flex;align-items:center;gap:var(--sp-2);min-height:36px;padding:var(--sp-2) var(--sp-4);
+  border:1px solid var(--border);border-radius:var(--r-full);background:var(--bg-elevated);
+  font-size:var(--fs--1);font-weight:var(--fw-semi);color:var(--text-secondary);white-space:nowrap}
+.chip__dot{width:8px;height:8px;border-radius:var(--r-full);background:currentColor;flex:none}
+.chip--attente{color:var(--warning);border-color:var(--border-warning);background:var(--tint-warning)}
+.chip--direct{color:var(--danger);border-color:var(--border-danger);background:var(--tint-danger)}
+.chip--resultats{color:var(--heading);border-color:var(--border-success);background:var(--tint-success)}
+/* ---------- Topbar + menu ---------- */
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg-page);border-bottom:1px solid var(--border)}
+.topbar__inner{max-width:var(--maxw-page);margin:0 auto;padding:var(--sp-3) var(--sp-4);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4)}
+.marque{display:flex;align-items:center;gap:var(--sp-3);min-width:0}
+.marque__embleme{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:var(--r-full);
+  background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature)}
+.marque__nom{font-family:var(--ff-display);font-weight:var(--fw-bold);font-size:var(--fs-0)}
+.topbar__actions{display:flex;align-items:center;gap:var(--sp-3)}
+.menu{position:relative}
+.menu__panneau{position:absolute;top:calc(100% + var(--sp-2));right:0;min-width:264px;z-index:30;
+  background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--r-md);
+  box-shadow:var(--shadow-pop);padding:var(--sp-2);display:none}
+.menu__panneau[data-ouvert="oui"]{display:block;animation:pop var(--dur-base) var(--ease-pop) both}
+.menu__item{display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:var(--touch-min);
+  padding:var(--sp-2) var(--sp-3);border:0;background:none;border-radius:var(--r-sm);
+  font-size:var(--fs--1);font-weight:var(--fw-med);color:var(--text-primary);text-align:left;cursor:pointer}
+.menu__item:hover{background:var(--bg-surface)}
+.menu__item--danger{color:var(--danger)}
+.menu__item--danger[data-confirme="oui"]{background:var(--tint-danger)}
+.menu__note{display:none;padding:var(--sp-2) var(--sp-3);color:var(--text-secondary);font-size:var(--fs--1)}
+.menu__note[data-visible="oui"]{display:block}
+.menu__icone--alerte{display:none}
+[data-confirme="oui"] .menu__icone--repos{display:none}
+[data-confirme="oui"] .menu__icone--alerte{display:block}
+/* ---------- Animations ---------- */
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .confettis{display:none!important}
+}
+
+/* ===================================================================
+   PAGE — SALON D'ATTENTE ANIMATEUR (3 joueurs + sélecteur ouvert)
+   =================================================================== */
+.lobby{max-width:var(--maxw-page);margin:0 auto;padding:var(--sp-5) var(--sp-4) var(--sp-8);
+  display:flex;flex-direction:column;gap:var(--sp-5)}
+.lobby__colonne{display:flex;flex-direction:column;gap:var(--sp-5)}
+.code{text-align:center}
+.code__eyebrow{color:var(--text-secondary);margin-bottom:var(--sp-3)}
+.code__valeur{font-family:var(--ff-display);font-weight:var(--fw-black);font-size:var(--fs-5);
+  color:var(--signature);letter-spacing:.16em;line-height:var(--lh-title);text-shadow:var(--glow-signature)}
+.code__qr{width:240px;height:240px;margin:var(--sp-5) auto var(--sp-4);padding:var(--sp-3);
+  background:var(--text-primary);border-radius:var(--r-md)}
+.qr{position:relative;width:100%;height:100%;
+  background-image:repeating-conic-gradient(var(--bg-page) 0 25%, transparent 0 50%);
+  background-size:22px 22px}
+.qr__repere{position:absolute;width:56px;height:56px;border:9px solid var(--bg-page);background:var(--text-primary)}
+.qr__repere::after{content:"";position:absolute;inset:9px;background:var(--bg-page)}
+.qr__repere--tl{top:0;left:0}
+.qr__repere--tr{top:0;right:0}
+.qr__repere--bl{bottom:0;left:0}
+.code__note{color:var(--text-secondary);font-size:var(--fs--1)}
+.code__note strong{color:var(--text-primary);font-weight:var(--fw-semi)}
+.compteur{display:flex;align-items:center;gap:var(--sp-4)}
+.compteur__icone{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:var(--r-sm);
+  background:var(--tint-success);border:1px solid var(--border-success);color:var(--heading)}
+.compteur__valeur{display:block;font-family:var(--ff-display);font-size:var(--fs-1);font-weight:var(--fw-bold)}
+.compteur__sous{display:block;color:var(--text-secondary);font-size:var(--fs--1)}
+
+/* -- Joueurs connectés -- */
+.joueurs__titre{font-size:var(--fs-1);color:var(--heading);margin-bottom:var(--sp-4)}
+.joueurs__liste{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.joueur-chip{display:inline-flex;align-items:center;gap:var(--sp-2);min-height:36px;padding:var(--sp-2) var(--sp-4);
+  border:1px solid var(--border);border-radius:var(--r-full);background:var(--bg-elevated);
+  font-size:var(--fs--1);font-weight:var(--fw-med);animation:entree var(--dur-base) var(--ease-pop) both}
+.joueur-chip__dot{width:8px;height:8px;flex:none;border-radius:var(--r-full);background:var(--success)}
+@keyframes entree{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+
+/* -- Sélecteur de module -- */
+.selecteur{border-color:var(--border-strong)}
+.selecteur__titre{font-size:var(--fs-1);color:var(--heading);margin-bottom:var(--sp-4)}
+.modules{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-3);margin-bottom:var(--sp-5)}
+.module-option{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-2);
+  min-height:104px;padding:var(--sp-4);text-align:left;cursor:pointer;
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md);
+  transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease)}
+.module-option:hover{border-color:var(--border-strong)}
+.module-option[aria-pressed="true"]{border-color:var(--border-action);background:var(--tint-action)}
+.module-option__icone{color:var(--signature)}
+.module-option__nom{font-weight:var(--fw-semi);font-size:var(--fs--1)}
+.module-option__meta{color:var(--text-secondary);font-size:var(--fs--1)}
+
+/* -- Actions & overlays -- */
+.actions{display:flex;flex-direction:column;gap:var(--sp-3)}
+.obs__titre{font-size:var(--fs-1);color:var(--heading);margin-bottom:var(--sp-3)}
+.obs__aide{color:var(--text-secondary);font-size:var(--fs--1);margin-bottom:var(--sp-5)}
+.obs__liste{display:flex;flex-direction:column;gap:var(--sp-3)}
+.obs-ligne{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-4);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md)}
+.obs-ligne__texte{min-width:0}
+.obs-ligne__nom{display:flex;align-items:center;gap:var(--sp-2);font-weight:var(--fw-semi);font-size:var(--fs--1)}
+.obs-ligne__url{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--text-secondary);font-size:var(--fs--1)}
+.obs-ligne__actions{display:flex;gap:var(--sp-2);flex:none}
+
+@media (min-width:900px){
+  .lobby{display:grid;grid-template-columns:1.1fr .9fr;gap:var(--sp-6);align-items:start;
+    padding:var(--sp-6) var(--sp-6) var(--sp-9)}
+  .code__qr{width:260px;height:260px}
+}
+@media (max-width:640px){
+  .topbar__inner{flex-direction:column;align-items:stretch;gap:var(--sp-3)}
+  .topbar__actions{justify-content:space-between}
+  .obs-ligne__actions{width:100%}
+  .obs-ligne__actions .btn{flex:1}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <div class="marque">
+      <span class="marque__embleme" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      </span>
+      <span class="marque__nom">Project Game Show</span>
+    </div>
+
+    <div class="topbar__actions">
+      <p class="chip chip--attente" role="status"><span class="chip__dot" aria-hidden="true"></span> En attente</p>
+
+      <div class="menu">
+        <button class="btn btn--outline btn--sm" id="menu-bouton" type="button"
+                aria-haspopup="true" aria-expanded="true" aria-controls="menu-panneau">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          Menu
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <!-- Menu volontairement affiché ouvert dans cette maquette -->
+        <div class="menu__panneau" id="menu-panneau" data-ouvert="oui" role="menu" aria-labelledby="menu-bouton">
+          <button class="menu__item menu__item--danger" id="fermer-salon" type="button" role="menuitem">
+            <svg class="icon icon--sm menu__icone menu__icone--repos" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg class="icon icon--sm menu__icone menu__icone--alerte" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span id="fermer-salon-label">Fermer le salon</span>
+          </button>
+          <p class="menu__note" id="menu-note">Clique à nouveau pour confirmer, ou ailleurs pour annuler.</p>
+          <button class="menu__item" type="button" role="menuitem">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="lobby">
+
+  <div class="lobby__colonne">
+    <section class="card code" aria-labelledby="titre-code">
+      <h1 class="eyebrow code__eyebrow" id="titre-code">Code de la salle</h1>
+      <p class="code__valeur">SM9HF</p>
+      <div class="code__qr">
+        <div class="qr" role="img" aria-label="QR code du salon SM9HF">
+          <span class="qr__repere qr__repere--tl"></span>
+          <span class="qr__repere qr__repere--tr"></span>
+          <span class="qr__repere qr__repere--bl"></span>
+        </div>
+      </div>
+      <p class="code__note">Scannez ou entrez le code sur <strong>exemple.fr/play</strong></p>
+    </section>
+
+    <section class="card obs" aria-labelledby="titre-obs">
+      <h2 class="obs__titre" id="titre-obs">Overlays OBS</h2>
+      <p class="obs__aide">Dans OBS : ajoute chaque lien comme Source navigateur, largeur 1920, hauteur 1080. Le fond est transparent. Le Classement et le Podium restent invisibles tant qu'il n'y a pas de scores — c'est normal.</p>
+      <div class="obs__liste">
+        <div class="obs-ligne">
+          <div class="obs-ligne__texte">
+            <span class="obs-ligne__nom">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+              Question
+            </span>
+            <span class="obs-ligne__url" title="https://exemple.fr/overlay/SM9HF/question">https://exemple.fr/overlay/SM9HF/question</span>
+          </div>
+          <div class="obs-ligne__actions">
+            <a class="btn btn--outline btn--sm" href="overlay-question.html">Aperçu</a>
+            <button class="btn btn--outline btn--sm" type="button">Copier</button>
+          </div>
+        </div>
+        <div class="obs-ligne">
+          <div class="obs-ligne__texte">
+            <span class="obs-ligne__nom">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Classement
+            </span>
+            <span class="obs-ligne__url" title="https://exemple.fr/overlay/SM9HF/classement">https://exemple.fr/overlay/SM9HF/classement</span>
+          </div>
+          <div class="obs-ligne__actions">
+            <a class="btn btn--outline btn--sm" href="host-classement.html">Aperçu</a>
+            <button class="btn btn--outline btn--sm" type="button">Copier</button>
+          </div>
+        </div>
+        <div class="obs-ligne">
+          <div class="obs-ligne__texte">
+            <span class="obs-ligne__nom">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              Podium
+            </span>
+            <span class="obs-ligne__url" title="https://exemple.fr/overlay/SM9HF/podium">https://exemple.fr/overlay/SM9HF/podium</span>
+          </div>
+          <div class="obs-ligne__actions">
+            <a class="btn btn--outline btn--sm" href="overlay-podium.html">Aperçu</a>
+            <button class="btn btn--outline btn--sm" type="button">Copier</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="lobby__colonne">
+
+    <section class="card compteur" aria-live="polite">
+      <span class="compteur__icone" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      <span>
+        <span class="compteur__valeur">3 joueurs connectés</span>
+        <span class="compteur__sous">Tu peux lancer dès que tu le sens.</span>
+      </span>
+    </section>
+
+    <section class="card joueurs" aria-labelledby="titre-joueurs">
+      <h2 class="joueurs__titre" id="titre-joueurs">Ils rejoignent la partie</h2>
+      <ul class="joueurs__liste">
+        <li class="joueur-chip" style="animation-delay:0ms"><span class="joueur-chip__dot" aria-hidden="true"></span> PixelNight</li>
+        <li class="joueur-chip" style="animation-delay:80ms"><span class="joueur-chip__dot" aria-hidden="true"></span> Luna</li>
+        <li class="joueur-chip" style="animation-delay:160ms"><span class="joueur-chip__dot" aria-hidden="true"></span> Marco</li>
+      </ul>
+    </section>
+
+    <!-- Sélecteur de module, ouvert -->
+    <section class="card selecteur" aria-labelledby="titre-selecteur">
+      <h2 class="selecteur__titre" id="titre-selecteur">Quel module lancer ?</h2>
+
+      <div class="modules" role="group" aria-labelledby="titre-selecteur">
+        <button class="module-option" type="button" aria-pressed="true">
+          <span class="module-option__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          </span>
+          <span class="module-option__nom">Quiz</span>
+          <span class="module-option__meta">Culture générale · 3 questions</span>
+        </button>
+
+        <button class="module-option" type="button" aria-pressed="false">
+          <span class="module-option__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </span>
+          <span class="module-option__nom">Vrai/Faux</span>
+          <span class="module-option__meta">Vrai ou Faux · 2 questions</span>
+        </button>
+
+        <button class="module-option" type="button" aria-pressed="false">
+          <span class="module-option__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </span>
+          <span class="module-option__nom">Estimation</span>
+          <span class="module-option__meta">À vue de nez · 2 questions</span>
+        </button>
+
+        <button class="module-option" type="button" aria-pressed="false">
+          <span class="module-option__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <span class="module-option__nom">Vote</span>
+          <span class="module-option__meta">Le grand vote · 2 questions</span>
+        </button>
+      </div>
+
+      <a class="btn btn--primary btn--lg btn--block" href="host-live.html">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Lancer le module
+      </a>
+    </section>
+
+    <div class="actions">
+      <a class="btn btn--secondary btn--block" href="studio.html">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Gérer mes questionnaires
+      </a>
+    </div>
+
+  </div>
+</main>
+
+</div>
+
+<script>
+/* Démo : menu (confirmation en deux temps) + sélection de module */
+(function () {
+  var bouton = document.getElementById('menu-bouton');
+  var panneau = document.getElementById('menu-panneau');
+  var fermer = document.getElementById('fermer-salon');
+  var label = document.getElementById('fermer-salon-label');
+  var note = document.getElementById('menu-note');
+
+  function reinitialiser() {
+    fermer.removeAttribute('data-confirme');
+    label.textContent = 'Fermer le salon';
+    note.removeAttribute('data-visible');
+  }
+  function fermerMenu() {
+    panneau.removeAttribute('data-ouvert');
+    bouton.setAttribute('aria-expanded', 'false');
+    reinitialiser();
+  }
+
+  bouton.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (panneau.getAttribute('data-ouvert') === 'oui') { fermerMenu(); return; }
+    panneau.setAttribute('data-ouvert', 'oui');
+    bouton.setAttribute('aria-expanded', 'true');
+  });
+  panneau.addEventListener('click', function (e) { e.stopPropagation(); });
+  fermer.addEventListener('click', function () {
+    if (fermer.getAttribute('data-confirme') === 'oui') {
+      window.location.href = 'host-salon-ferme.html';
+      return;
+    }
+    fermer.setAttribute('data-confirme', 'oui');
+    label.textContent = 'Confirmer — fermer le salon';
+    note.setAttribute('data-visible', 'oui');
+  });
+  document.addEventListener('click', fermerMenu);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fermerMenu(); });
+
+  var options = document.querySelectorAll('.module-option');
+  Array.prototype.forEach.call(options, function (option) {
+    option.addEventListener('click', function () {
+      Array.prototype.forEach.call(options, function (autre) {
+        autre.setAttribute('aria-pressed', autre === option ? 'true' : 'false');
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

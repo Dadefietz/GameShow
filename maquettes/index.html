@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sommaire des maquettes · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+}
+
+/* ===================================================================
+   PAGE — SOMMAIRE
+   =================================================================== */
+.sommaire{max-width:var(--maxw-page);margin:0 auto;padding:var(--sp-6) var(--sp-4) var(--sp-8)}
+.sommaire__entete{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-5)}
+.embleme{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:var(--r-full);
+  background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature);
+  box-shadow:var(--glow-signature)}
+.sommaire__titre{font-size:var(--fs-3);font-weight:var(--fw-black);color:var(--heading)}
+.sommaire__sous{color:var(--text-secondary);font-size:var(--fs--1)}
+.sommaire__note{padding:var(--sp-4);margin-bottom:var(--sp-6);
+  background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);
+  color:var(--text-secondary);font-size:var(--fs--1)}
+.groupe{margin-bottom:var(--sp-6)}
+.groupe__titre{display:flex;align-items:center;gap:var(--sp-2);color:var(--heading);
+  font-size:var(--fs-1);margin-bottom:var(--sp-4)}
+.liens{display:grid;grid-template-columns:1fr;gap:var(--sp-3)}
+.lien{display:flex;align-items:center;gap:var(--sp-4);min-height:var(--touch-cta);padding:var(--sp-4);
+  background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);
+  transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease)}
+.lien:hover{border-color:var(--border-action);background:var(--bg-elevated)}
+.lien__numero{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--r-full);
+  background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature);
+  font-family:var(--ff-display);font-weight:var(--fw-bold);font-size:var(--fs--1)}
+.lien__corps{flex:1;min-width:0}
+.lien__nom{display:block;font-weight:var(--fw-semi)}
+.lien__fichier{display:block;color:var(--text-secondary);font-size:var(--fs--1)}
+.lien__fleche{color:var(--text-secondary)}
+
+@media (min-width:900px){
+  .sommaire{padding:var(--sp-8) var(--sp-6)}
+  .liens{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<main class="sommaire">
+
+  <header class="sommaire__entete">
+    <span class="embleme" aria-hidden="true">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+    </span>
+    <div>
+      <h1 class="sommaire__titre">Project Game Show — maquettes</h1>
+      <p class="sommaire__sous">19 pages HTML autonomes · données factices · design system partagé</p>
+    </div>
+  </header>
+
+  <p class="sommaire__note">Chaque fichier s'ouvre en double-clic, sans serveur. Vérifie chaque page à 1440 × 900 (desktop) et 390 × 844 (mobile) : la mise en page est pensée séparément pour chaque support. Les deux overlays sont des canvas fixes 1920 × 1080 à fond transparent — retire la classe <code>demo-bg</code> du <code>&lt;body&gt;</code> pour supprimer le damier de prévisualisation.</p>
+
+  <section class="groupe" aria-labelledby="groupe-animateur">
+    <h2 class="groupe__titre" id="groupe-animateur">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Animateur
+    </h2>
+    <ul class="liens">
+      <li><a class="lien" href="host-accueil.html"><span class="lien__numero">1</span><span class="lien__corps"><span class="lien__nom">Accueil / connexion animateur</span><span class="lien__fichier">host-accueil.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-accueil-lien-envoye.html"><span class="lien__numero">2</span><span class="lien__corps"><span class="lien__nom">Lien magique envoyé</span><span class="lien__fichier">host-accueil-lien-envoye.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-lobby.html"><span class="lien__numero">3</span><span class="lien__corps"><span class="lien__nom">Salon d'attente — 0 joueur, guide 3 étapes</span><span class="lien__fichier">host-lobby.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-lobby-joueurs.html"><span class="lien__numero">4</span><span class="lien__corps"><span class="lien__nom">Salon d'attente — joueurs + sélecteur de module</span><span class="lien__fichier">host-lobby-joueurs.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-live.html"><span class="lien__numero">5</span><span class="lien__corps"><span class="lien__nom">Régie en direct</span><span class="lien__fichier">host-live.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-live-revelation.html"><span class="lien__numero">6</span><span class="lien__corps"><span class="lien__nom">Régie après révélation</span><span class="lien__fichier">host-live-revelation.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-classement.html"><span class="lien__numero">7</span><span class="lien__corps"><span class="lien__nom">Classement / podium</span><span class="lien__fichier">host-classement.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="host-salon-ferme.html"><span class="lien__numero">8</span><span class="lien__corps"><span class="lien__nom">Salon fermé</span><span class="lien__fichier">host-salon-ferme.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+    </ul>
+  </section>
+
+  <section class="groupe" aria-labelledby="groupe-joueur">
+    <h2 class="groupe__titre" id="groupe-joueur">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Joueur
+    </h2>
+    <ul class="liens">
+      <li><a class="lien" href="play-rejoindre.html"><span class="lien__numero">9</span><span class="lien__corps"><span class="lien__nom">Rejoindre — avec état d'erreur</span><span class="lien__fichier">play-rejoindre.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-attente.html"><span class="lien__numero">10</span><span class="lien__corps"><span class="lien__nom">Salle d'attente</span><span class="lien__fichier">play-attente.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-question-quiz.html"><span class="lien__numero">11</span><span class="lien__corps"><span class="lien__nom">Question Quiz — option verrouillée</span><span class="lien__fichier">play-question-quiz.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-question-vraifaux.html"><span class="lien__numero">12</span><span class="lien__corps"><span class="lien__nom">Question Vrai/Faux</span><span class="lien__fichier">play-question-vraifaux.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-question-estimation.html"><span class="lien__numero">13</span><span class="lien__corps"><span class="lien__nom">Question Estimation — réponse envoyée</span><span class="lien__fichier">play-question-estimation.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-score-gagne.html"><span class="lien__numero">14</span><span class="lien__corps"><span class="lien__nom">Bonne réponse ! — confettis</span><span class="lien__fichier">play-score-gagne.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-score-rate.html"><span class="lien__numero">15</span><span class="lien__corps"><span class="lien__nom">Raté… — bonne réponse affichée</span><span class="lien__fichier">play-score-rate.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="play-fin.html"><span class="lien__numero">16</span><span class="lien__corps"><span class="lien__nom">Fin de partie — podium et récap</span><span class="lien__fichier">play-fin.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+    </ul>
+  </section>
+
+  <section class="groupe" aria-labelledby="groupe-studio">
+    <h2 class="groupe__titre" id="groupe-studio">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      Studio &amp; overlays OBS
+    </h2>
+    <ul class="liens">
+      <li><a class="lien" href="studio.html"><span class="lien__numero">17</span><span class="lien__corps"><span class="lien__nom">Studio — liste des modules + éditeur</span><span class="lien__fichier">studio.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="overlay-question.html"><span class="lien__numero">18</span><span class="lien__corps"><span class="lien__nom">Overlay Question — 1920 × 1080</span><span class="lien__fichier">overlay-question.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      <li><a class="lien" href="overlay-podium.html"><span class="lien__numero">19</span><span class="lien__corps"><span class="lien__nom">Overlay Podium — 1920 × 1080</span><span class="lien__fichier">overlay-podium.html</span></span><svg class="icon icon--sm lien__fleche" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+    </ul>
+  </section>
+
+</main>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overlay OBS — Podium · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Fond de plaque overlay (82 % du fond de page) */
+  --plaque:rgba(24,22,18,.82);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+  /* Canvas OBS */
+  --canvas-l:1920px; --canvas-h:1080px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+/* FOND RÉELLEMENT TRANSPARENT — c'est un overlay OBS */
+html,body{background:transparent}
+body{margin:0;color:var(--text-primary);font-family:var(--ff-text);font-size:var(--fs-0);
+  line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ol{margin:0;padding:0;list-style:none}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes lueur{0%,100%{box-shadow:var(--glow-signature)}50%{box-shadow:0 0 64px rgba(255,167,70,.6)}}
+@keyframes couronne{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+}
+
+/* ===================================================================
+   AIDE À LA PRÉVISUALISATION — supprime la classe « demo-bg »
+   sur <body> pour retrouver le fond transparent d'origine.
+   =================================================================== */
+.demo-bg{display:grid;place-items:center;min-height:100vh;
+  background-color:var(--bg-elevated);
+  background-image:
+    linear-gradient(45deg, rgba(0,0,0,.35) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.35) 75%),
+    linear-gradient(45deg, rgba(0,0,0,.35) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.35) 75%);
+  background-size:48px 48px;background-position:0 0, 24px 24px}
+.demo-bg .canvas{transform-origin:center}
+@media (max-width:1900px){.demo-bg .canvas{transform:scale(.66)}}
+@media (max-width:1260px){.demo-bg .canvas{transform:scale(.5)}}
+@media (max-width:960px){.demo-bg .canvas{transform:scale(.34)}}
+
+/* ===================================================================
+   CANVAS OBS — 1920 × 1080, fond transparent
+   =================================================================== */
+.canvas{position:relative;width:var(--canvas-l);height:var(--canvas-h);flex:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  padding:var(--sp-8) var(--sp-8) var(--sp-9)}
+
+.apercu{position:absolute;top:var(--sp-6);left:var(--sp-6);
+  display:inline-flex;align-items:center;padding:var(--sp-2) var(--sp-5);border-radius:var(--r-full);
+  background:var(--action-primary);color:var(--action-on-primary);
+  font-size:var(--fs-0);font-weight:var(--fw-bold);letter-spacing:.08em;text-transform:uppercase}
+
+.titre{display:inline-flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-8);
+  padding:var(--sp-3) var(--sp-7);border-radius:var(--r-full);
+  background:var(--plaque);border:1px solid var(--border-signature);color:var(--signature);
+  font-family:var(--ff-display);font-size:var(--fs-3);font-weight:var(--fw-black);
+  letter-spacing:.12em;text-transform:uppercase;backdrop-filter:blur(14px)}
+.titre .icon{width:40px;height:40px}
+
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:var(--sp-6)}
+.place{display:flex;flex-direction:column;align-items:center;gap:var(--sp-4);width:360px;
+  animation:pop var(--dur-pop) var(--ease-pop) both}
+.place--2{animation-delay:120ms}
+.place--3{animation-delay:240ms}
+.place__couronne{color:var(--signature);animation:couronne 2.6s var(--ease) infinite}
+.place__couronne .icon{width:64px;height:64px}
+.place__carte{width:100%;padding:var(--sp-5);text-align:center;border-radius:var(--r-lg);
+  background:var(--plaque);border:1px solid var(--border-strong);backdrop-filter:blur(14px)}
+.place--1 .place__carte{border-color:var(--border-action)}
+.place__pseudo{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--ff-display);font-size:var(--fs-2);font-weight:var(--fw-black)}
+.place__pts{display:block;color:var(--text-secondary);font-size:var(--fs-1)}
+.place--1 .place__pts{color:var(--signature)}
+.place__marche{width:100%;display:grid;place-items:center;border-radius:var(--r-lg) var(--r-lg) 0 0;
+  background:var(--plaque);border:1px solid var(--border-strong);border-bottom:0;backdrop-filter:blur(14px);
+  font-family:var(--ff-display);font-size:var(--fs-6);font-weight:var(--fw-black);color:var(--text-secondary)}
+.place--1 .place__marche{height:420px;background:var(--tint-action);border-color:var(--border-action);
+  color:var(--signature);animation:lueur 2.8s var(--ease) infinite}
+.place--2 .place__marche{height:300px}
+.place--3 .place__marche{height:230px}
+</style>
+</head>
+<!-- Retire la classe « demo-bg » pour obtenir le rendu OBS (fond transparent). -->
+<body class="demo-bg">
+
+<main class="canvas">
+
+  <p class="apercu">Aperçu</p>
+
+  <h1 class="titre">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+    Podium
+  </h1>
+
+  <ol class="podium">
+    <li class="place place--2">
+      <div class="place__carte">
+        <span class="place__pseudo" title="Luna">Luna</span>
+        <span class="place__pts">1 110 pts</span>
+      </div>
+      <span class="place__marche" aria-hidden="true">2</span>
+      <span class="sr-only">2ᵉ place</span>
+    </li>
+
+    <li class="place place--1">
+      <span class="place__couronne" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+      </span>
+      <div class="place__carte">
+        <span class="place__pseudo" title="PixelNight">PixelNight</span>
+        <span class="place__pts">1 240 pts</span>
+      </div>
+      <span class="place__marche" aria-hidden="true">1</span>
+      <span class="sr-only">1ʳᵉ place</span>
+    </li>
+
+    <li class="place place--3">
+      <div class="place__carte">
+        <span class="place__pseudo" title="Marco">Marco</span>
+        <span class="place__pts">980 pts</span>
+      </div>
+      <span class="place__marche" aria-hidden="true">3</span>
+      <span class="sr-only">3ᵉ place</span>
+    </li>
+  </ol>
+
+</main>
+
+</body>
+</html>

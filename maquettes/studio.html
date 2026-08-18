@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3,h4{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:var(--ff-text);font-size:var(--fs-0);color:inherit}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:var(--touch-min);
+  padding:var(--sp-3) var(--sp-5);border:1px solid transparent;border-radius:var(--r-full);background:none;
+  font-size:var(--fs-0);font-weight:var(--fw-semi);line-height:var(--lh-compact);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn--primary{background:var(--action-primary);color:var(--action-on-primary);box-shadow:var(--glow-action)}
+.btn--primary:hover{background:var(--action-primary-hover)}
+.btn--outline{border-color:var(--border-strong);color:var(--text-primary)}
+.btn--outline:hover{background:var(--bg-elevated)}
+.btn--ghost{color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn--danger{border-color:var(--border-danger);color:var(--danger)}
+.btn--danger:hover{background:var(--tint-danger)}
+.btn--sm{padding:var(--sp-2) var(--sp-4);font-size:var(--fs--1)}
+.btn--block{width:100%}
+/* ---------- Bandeau ---------- */
+.bandeau{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-4);
+  border:1px solid var(--border-warning);border-radius:var(--r-md);background:var(--tint-warning);font-size:var(--fs--1)}
+.bandeau__icone{color:var(--warning)}
+.bandeau__corps{flex:1}
+/* ---------- Animations ---------- */
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes chatoiement{from{background-position:-200% 0}to{background-position:200% 0}}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .confettis{display:none!important}
+}
+
+/* ===================================================================
+   PAGE — STUDIO
+   =================================================================== */
+.studio{display:flex;flex-direction:column;min-height:100vh}
+
+/* -- En-tête compact (mobile) -- */
+.studio__entete{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+  padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;
+  background:var(--bg-page)}
+.marque{display:flex;align-items:center;gap:var(--sp-3);min-width:0}
+.marque__embleme{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:var(--r-full);
+  background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature)}
+.marque__nom{display:block;font-family:var(--ff-display);font-weight:var(--fw-bold);font-size:var(--fs--1)}
+.marque__sous{display:block;color:var(--heading);font-size:var(--fs--1)}
+
+/* -- Sidebar (desktop) -- */
+.sidebar{display:none;flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4);
+  border-right:1px solid var(--border);background:var(--bg-page)}
+.sidebar__nav{display:flex;flex-direction:column;gap:var(--sp-2)}
+.sidebar__titre{color:var(--text-secondary);margin-bottom:var(--sp-2)}
+.nav-item{display:flex;align-items:center;gap:var(--sp-3);min-height:var(--touch-min);
+  padding:var(--sp-2) var(--sp-3);border-radius:var(--r-sm);border:1px solid transparent;
+  font-size:var(--fs--1);font-weight:var(--fw-med);color:var(--text-secondary);cursor:pointer;width:100%;
+  background:none;text-align:left}
+.nav-item:hover{background:var(--bg-surface);color:var(--text-primary)}
+.nav-item--actif{background:var(--tint-action);border-color:var(--border-action);color:var(--text-primary)}
+.nav-item__icone{color:var(--signature)}
+.nav-item__libelle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar__meta{margin-top:auto;padding-top:var(--sp-5);border-top:1px solid var(--border);
+  color:var(--text-secondary);font-size:var(--fs--1)}
+.sidebar__meta strong{display:block;color:var(--text-primary);font-weight:var(--fw-semi)}
+
+/* -- Zone centrale -- */
+.studio__corps{flex:1;display:flex;flex-direction:column}
+.central{padding:var(--sp-5) var(--sp-4) var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5)}
+.central__entete{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap}
+.central__titre{font-size:var(--fs-3);color:var(--heading)}
+.central__sous{color:var(--text-secondary);font-size:var(--fs--1)}
+.modules{display:grid;grid-template-columns:1fr;gap:var(--sp-4)}
+.module{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-5);
+  background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg)}
+.module--actif{border-color:var(--border-action)}
+.module__icone{display:grid;place-items:center;width:44px;height:44px;border-radius:var(--r-sm);
+  background:var(--tint-action);border:1px solid var(--border-signature);color:var(--signature)}
+.module__nom{font-family:var(--ff-display);font-size:var(--fs-1);font-weight:var(--fw-bold)}
+.module__type{color:var(--text-secondary);font-size:var(--fs--1)}
+.module__stats{display:flex;gap:var(--sp-3)}
+.stat{flex:1;padding:var(--sp-3);text-align:center;background:var(--bg-elevated);
+  border:1px solid var(--border);border-radius:var(--r-sm)}
+.stat__valeur{display:block;font-family:var(--ff-display);font-weight:var(--fw-bold)}
+.stat__label{display:block;color:var(--text-secondary);font-size:var(--fs--1)}
+.module__actions{display:flex;gap:var(--sp-2);margin-top:var(--sp-1)}
+
+/* -- Panneau éditeur -- */
+.editeur{display:flex;flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4) var(--sp-8);
+  border-top:1px solid var(--border);background:var(--bg-page)}
+.editeur__entete{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap}
+.editeur__titre{font-size:var(--fs-1)}
+.badge-type{display:inline-flex;align-items:center;min-height:32px;padding:var(--sp-1) var(--sp-4);
+  border-radius:var(--r-full);background:var(--tint-action);border:1px solid var(--border-signature);
+  color:var(--signature);font-size:var(--fs--1);font-weight:var(--fw-semi)}
+.champ__label{display:block;color:var(--text-secondary);margin-bottom:var(--sp-2)}
+.champ__input,.champ__select{width:100%;min-height:var(--touch-min);padding:var(--sp-2) var(--sp-4);
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-sm);
+  color:var(--text-primary);font-weight:var(--fw-med)}
+.champ__input:focus,.champ__select:focus{border-color:var(--border-action)}
+.champs{display:flex;flex-direction:column;gap:var(--sp-4)}
+.teintes{display:flex;gap:var(--sp-3)}
+.teinte{width:var(--touch-min);height:var(--touch-min);border-radius:var(--r-full);cursor:pointer;
+  border:2px solid transparent;background-clip:padding-box}
+.teinte__pastille{display:block;width:100%;height:100%;border-radius:var(--r-full)}
+.teinte--signature .teinte__pastille{background:var(--signature)}
+.teinte--vert .teinte__pastille{background:var(--action-secondary)}
+.teinte--bleu .teinte__pastille{background:var(--info)}
+.teinte--jaune .teinte__pastille{background:var(--warning)}
+.teinte[aria-pressed="true"]{border-color:var(--text-primary);outline:2px solid var(--border-strong);outline-offset:2px}
+
+/* -- Erreurs de validation -- */
+.erreurs{padding:var(--sp-4);border:1px solid var(--border-danger);border-radius:var(--r-md);
+  background:var(--tint-danger);font-size:var(--fs--1)}
+.erreurs__titre{display:flex;align-items:center;gap:var(--sp-2);color:var(--danger);
+  font-family:var(--ff-text);font-weight:var(--fw-semi);margin-bottom:var(--sp-2)}
+.erreurs__liste{display:flex;flex-direction:column;gap:var(--sp-1);color:var(--text-primary)}
+
+/* -- Questions -- */
+.questions__titre{font-size:var(--fs-1);color:var(--heading);margin-bottom:var(--sp-3)}
+.questions__liste{display:flex;flex-direction:column;gap:var(--sp-3)}
+.question{padding:var(--sp-4);background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md)}
+.question--erreur{border-color:var(--border-danger);background:var(--tint-danger)}
+.question__entete{display:flex;align-items:flex-start;gap:var(--sp-3)}
+.question__numero{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:var(--r-full);
+  background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);
+  font-family:var(--ff-display);font-weight:var(--fw-bold);font-size:var(--fs--1)}
+.question__enonce{flex:1;font-weight:var(--fw-med)}
+.question__bascule{display:grid;place-items:center;width:var(--touch-min);height:var(--touch-min);flex:none;
+  border:0;background:none;border-radius:var(--r-full);color:var(--text-secondary);cursor:pointer}
+.question__bascule:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.question__corps{margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:var(--sp-4)}
+.options{display:flex;flex-direction:column;gap:var(--sp-2)}
+.option{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3);
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-sm)}
+.option--bonne{background:var(--tint-success);border-color:var(--border-success)}
+.option__radio{width:20px;height:20px;flex:none;accent-color:var(--action-secondary)}
+.option__texte{flex:1;min-width:0;min-height:var(--touch-min);padding:var(--sp-2) var(--sp-3);
+  background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-primary)}
+.option__badge{display:none;flex:none;padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);
+  background:var(--action-secondary);color:var(--action-on-primary);font-size:var(--fs--1);font-weight:var(--fw-bold)}
+.option--bonne .option__badge{display:inline-flex;align-items:center;gap:var(--sp-1)}
+.ajouter{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);width:100%;min-height:var(--touch-min);
+  padding:var(--sp-3);border:1px dashed var(--border-strong);border-radius:var(--r-md);background:none;
+  color:var(--text-secondary);font-size:var(--fs--1);font-weight:var(--fw-semi);cursor:pointer}
+.ajouter:hover{background:var(--bg-surface);color:var(--text-primary)}
+.ajouter--espace{margin-top:var(--sp-3)}
+
+/* -- Pied de l'éditeur -- */
+.editeur__pied{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-3);
+  padding-top:var(--sp-4);border-top:1px solid var(--border)}
+.editeur__statut{display:flex;align-items:center;gap:var(--sp-2);color:var(--heading);
+  font-size:var(--fs--1);font-weight:var(--fw-semi);margin-left:auto}
+
+/* -- Squelette de chargement (optionnel) -- */
+.squelette{height:64px;border-radius:var(--r-md);background:var(--bg-surface);
+  background-image:linear-gradient(100deg,transparent 20%,var(--bg-elevated) 50%,transparent 80%);
+  background-size:200% 100%;animation:chatoiement 1.4s linear infinite}
+
+/* ============ DESKTOP ============ */
+@media (min-width:900px){
+  .studio{display:grid;grid-template-columns:264px minmax(0,1fr) clamp(380px,30vw,460px);min-height:100vh}
+  .studio__entete{display:none}
+  .sidebar{display:flex;position:sticky;top:0;height:100vh;overflow:auto}
+  .studio__corps{display:contents}
+  .central{padding:var(--sp-6);overflow:auto}
+  .modules{grid-template-columns:1fr 1fr}
+  .editeur{border-top:0;border-left:1px solid var(--border);position:sticky;top:0;height:100vh;overflow:auto;
+    padding:var(--sp-6)}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="studio">
+
+  <!-- ---------- En-tête compact (mobile uniquement) ---------- -->
+  <header class="studio__entete">
+    <div class="marque">
+      <span class="marque__embleme" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      </span>
+      <span>
+        <span class="marque__nom">Project Game Show</span>
+        <span class="marque__sous">Studio</span>
+      </span>
+    </div>
+    <a class="btn btn--ghost btn--sm" href="host-lobby.html">Retour au plateau</a>
+  </header>
+
+  <!-- ---------- Sidebar (desktop) ---------- -->
+  <aside class="sidebar">
+    <div class="marque">
+      <span class="marque__embleme" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      </span>
+      <span>
+        <span class="marque__nom">Project Game Show</span>
+        <span class="marque__sous">Studio</span>
+      </span>
+    </div>
+
+    <a class="btn btn--outline btn--sm btn--block" href="host-lobby.html">
+      <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Retour au plateau
+    </a>
+
+    <nav class="sidebar__nav" aria-label="Modules">
+      <p class="eyebrow sidebar__titre">Modules</p>
+      <button class="nav-item nav-item--actif" type="button" aria-current="true">
+        <span class="nav-item__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </span>
+        <span class="nav-item__libelle" title="Culture générale">Culture générale</span>
+      </button>
+      <button class="nav-item" type="button">
+        <span class="nav-item__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </span>
+        <span class="nav-item__libelle" title="Vrai ou Faux">Vrai ou Faux</span>
+      </button>
+      <button class="nav-item" type="button">
+        <span class="nav-item__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </span>
+        <span class="nav-item__libelle" title="À vue de nez">À vue de nez</span>
+      </button>
+      <button class="nav-item" type="button">
+        <span class="nav-item__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        <span class="nav-item__libelle" title="Le grand vote">Le grand vote</span>
+      </button>
+      <button class="nav-item" type="button">
+        <span class="nav-item__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </span>
+        <span class="nav-item__libelle">Nouveau module</span>
+      </button>
+    </nav>
+
+    <p class="sidebar__meta">
+      <strong>Supabase</strong>
+      Contenu synchronisé
+    </p>
+  </aside>
+
+  <div class="studio__corps">
+
+    <!-- ---------- Zone centrale ---------- -->
+    <main class="central">
+      <div class="central__entete">
+        <div>
+          <h1 class="central__titre">Modules</h1>
+          <p class="central__sous">Assemblez les mini-jeux qui rythment vos soirées.</p>
+        </div>
+        <button class="btn btn--primary" type="button">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nouveau module
+        </button>
+      </div>
+
+      <p class="bandeau">
+        <span class="bandeau__icone" aria-hidden="true">
+          <svg class="icon icon--sm" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </span>
+        <span class="bandeau__corps">Non connecté : tes modifications restent <strong>locales</strong> et disparaîtront si tu changes de navigateur.</span>
+        <a class="btn btn--primary btn--sm" href="host-accueil.html">Se connecter</a>
+      </p>
+
+      <div class="modules">
+        <article class="module module--actif" aria-labelledby="module-1">
+          <span class="module__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          </span>
+          <div>
+            <h2 class="module__nom" id="module-1">Culture générale</h2>
+            <p class="module__type">Quiz</p>
+          </div>
+          <div class="module__stats">
+            <p class="stat"><span class="stat__valeur">20 s</span><span class="stat__label">Durée</span></p>
+            <p class="stat"><span class="stat__valeur">3</span><span class="stat__label">Questions</span></p>
+          </div>
+          <div class="module__actions">
+            <button class="btn btn--outline btn--sm" type="button">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Éditer
+            </button>
+            <button class="btn btn--danger btn--sm" type="button">Supprimer</button>
+          </div>
+        </article>
+
+        <article class="module" aria-labelledby="module-2">
+          <span class="module__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </span>
+          <div>
+            <h2 class="module__nom" id="module-2">Vrai ou Faux</h2>
+            <p class="module__type">Vrai/Faux</p>
+          </div>
+          <div class="module__stats">
+            <p class="stat"><span class="stat__valeur">10 s</span><span class="stat__label">Durée</span></p>
+            <p class="stat"><span class="stat__valeur">2</span><span class="stat__label">Questions</span></p>
+          </div>
+          <div class="module__actions">
+            <button class="btn btn--outline btn--sm" type="button">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Éditer
+            </button>
+            <button class="btn btn--danger btn--sm" type="button">Supprimer</button>
+          </div>
+        </article>
+
+        <article class="module" aria-labelledby="module-3">
+          <span class="module__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </span>
+          <div>
+            <h2 class="module__nom" id="module-3">À vue de nez</h2>
+            <p class="module__type">Estimation</p>
+          </div>
+          <div class="module__stats">
+            <p class="stat"><span class="stat__valeur">30 s</span><span class="stat__label">Durée</span></p>
+            <p class="stat"><span class="stat__valeur">2</span><span class="stat__label">Questions</span></p>
+          </div>
+          <div class="module__actions">
+            <button class="btn btn--outline btn--sm" type="button">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Éditer
+            </button>
+            <button class="btn btn--danger btn--sm" type="button">Supprimer</button>
+          </div>
+        </article>
+
+        <article class="module" aria-labelledby="module-4">
+          <span class="module__icone" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <div>
+            <h2 class="module__nom" id="module-4">Le grand vote</h2>
+            <p class="module__type">Vote</p>
+          </div>
+          <div class="module__stats">
+            <p class="stat"><span class="stat__valeur">15 s</span><span class="stat__label">Durée</span></p>
+            <p class="stat"><span class="stat__valeur">2</span><span class="stat__label">Questions</span></p>
+          </div>
+          <div class="module__actions">
+            <button class="btn btn--outline btn--sm" type="button">
+              <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Éditer
+            </button>
+            <button class="btn btn--danger btn--sm" type="button">Supprimer</button>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- ---------- Panneau éditeur ---------- -->
+    <section class="editeur" aria-labelledby="titre-editeur">
+      <div class="editeur__entete">
+        <h2 class="editeur__titre" id="titre-editeur">Éditer « Culture générale »</h2>
+        <p class="badge-type">Quiz</p>
+      </div>
+
+      <div class="champs">
+        <div class="champ">
+          <label class="eyebrow champ__label" for="nom">Nom</label>
+          <input class="champ__input" id="nom" type="text" value="Culture générale">
+        </div>
+        <div class="champ">
+          <label class="eyebrow champ__label" for="type">Type</label>
+          <select class="champ__select" id="type">
+            <option selected>Quiz</option>
+            <option>Vrai/Faux</option>
+            <option>Estimation</option>
+            <option>Vote</option>
+          </select>
+        </div>
+        <div class="champ">
+          <label class="eyebrow champ__label" for="duree">Durée (secondes)</label>
+          <input class="champ__input" id="duree" type="number" min="5" step="1" value="20">
+        </div>
+        <div class="champ">
+          <p class="eyebrow champ__label" id="label-teinte">Couleur d'accent</p>
+          <div class="teintes" role="group" aria-labelledby="label-teinte">
+            <button class="teinte teinte--signature" type="button" aria-pressed="true" aria-label="Orange flamme"><span class="teinte__pastille" aria-hidden="true"></span></button>
+            <button class="teinte teinte--vert" type="button" aria-pressed="false" aria-label="Vert forêt"><span class="teinte__pastille" aria-hidden="true"></span></button>
+            <button class="teinte teinte--bleu" type="button" aria-pressed="false" aria-label="Bleu"><span class="teinte__pastille" aria-hidden="true"></span></button>
+            <button class="teinte teinte--jaune" type="button" aria-pressed="false" aria-label="Jaune"><span class="teinte__pastille" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="erreurs" role="alert">
+        <p class="erreurs__titre">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Impossible d'enregistrer
+        </p>
+        <div class="erreurs__liste">
+          <p>Question 2 : coche une bonne réponse (option non vide).</p>
+        </div>
+      </div>
+
+      <div class="questions">
+        <h3 class="questions__titre">Questions (3)</h3>
+        <div class="questions__liste">
+
+          <!-- Question 1 — dépliée -->
+          <article class="question">
+            <div class="question__entete">
+              <span class="question__numero" aria-hidden="true">1</span>
+              <p class="question__enonce">Quel est le plus grand océan ?</p>
+              <button class="question__bascule" type="button" aria-expanded="true" aria-label="Replier la question 1">
+                <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+              </button>
+            </div>
+
+            <div class="question__corps">
+              <div class="champ">
+                <label class="eyebrow champ__label" for="enonce-1">Énoncé</label>
+                <input class="champ__input" id="enonce-1" type="text" value="Quel est le plus grand océan ?">
+              </div>
+
+              <div class="champ">
+                <p class="eyebrow champ__label" id="label-options-1">Options — coche la bonne réponse</p>
+                <div class="options" role="group" aria-labelledby="label-options-1">
+                  <div class="option">
+                    <input class="option__radio" type="radio" name="bonne-1" id="bonne-1a" aria-label="Atlantique est la bonne réponse">
+                    <input class="option__texte" type="text" value="Atlantique" aria-label="Option A">
+                  </div>
+                  <div class="option">
+                    <input class="option__radio" type="radio" name="bonne-1" id="bonne-1b" aria-label="Indien est la bonne réponse">
+                    <input class="option__texte" type="text" value="Indien" aria-label="Option B">
+                  </div>
+                  <div class="option option--bonne">
+                    <input class="option__radio" type="radio" name="bonne-1" id="bonne-1c" checked aria-label="Pacifique est la bonne réponse">
+                    <input class="option__texte" type="text" value="Pacifique" aria-label="Option C">
+                    <span class="option__badge">
+                      <svg class="icon icon--sm" viewBox="0 0 24 24" stroke-width="2.6" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                  </div>
+                  <div class="option">
+                    <input class="option__radio" type="radio" name="bonne-1" id="bonne-1d" aria-label="Arctique est la bonne réponse">
+                    <input class="option__texte" type="text" value="Arctique" aria-label="Option D">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Question 2 — repliée, en erreur -->
+          <article class="question question--erreur">
+            <div class="question__entete">
+              <span class="question__numero" aria-hidden="true">2</span>
+              <p class="question__enonce">Quel monarque français a régné le plus longtemps ?</p>
+              <button class="question__bascule" type="button" aria-expanded="false" aria-label="Déplier la question 2">
+                <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
+          </article>
+
+          <!-- Question 3 — repliée -->
+          <article class="question">
+            <div class="question__entete">
+              <span class="question__numero" aria-hidden="true">3</span>
+              <p class="question__enonce">La Tour Eiffel mesure plus de 300 mètres.</p>
+              <button class="question__bascule" type="button" aria-expanded="false" aria-label="Déplier la question 3">
+                <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
+          </article>
+
+        </div>
+
+        <button class="ajouter ajouter--espace" type="button">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter une question
+        </button>
+      </div>
+
+      <div class="editeur__pied">
+        <button class="btn btn--primary" type="button">
+          <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Enregistrer
+        </button>
+        <button class="btn btn--danger" type="button">Supprimer</button>
+        <button class="btn btn--ghost" type="button">Fermer</button>
+        <p class="editeur__statut" role="status">
+          Enregistré en ligne
+          <svg class="icon icon--sm" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+</div>
+
+<script>
+/* Démo : sélection de la couleur d'accent + repli/dépli des questions */
+(function () {
+  var teintes = document.querySelectorAll('.teinte');
+  Array.prototype.forEach.call(teintes, function (teinte) {
+    teinte.addEventListener('click', function () {
+      Array.prototype.forEach.call(teintes, function (autre) {
+        autre.setAttribute('aria-pressed', autre === teinte ? 'true' : 'false');
+      });
+    });
+  });
+
+  var bascules = document.querySelectorAll('.question__bascule');
+  Array.prototype.forEach.call(bascules, function (bascule) {
+    bascule.addEventListener('click', function () {
+      var question = bascule.closest('.question');
+      var corps = question.querySelector('.question__corps');
+      var ouvert = bascule.getAttribute('aria-expanded') === 'true';
+      if (corps) { corps.hidden = ouvert; }
+      bascule.setAttribute('aria-expanded', ouvert ? 'false' : 'true');
+    });
+  });
+
+  /* La bonne réponse se coche directement sur l'option */
+  var options = document.querySelectorAll('.option__radio');
+  Array.prototype.forEach.call(options, function (radio) {
+    radio.addEventListener('change', function () {
+      var groupe = radio.closest('.options');
+      Array.prototype.forEach.call(groupe.querySelectorAll('.option'), function (option) {
+        option.classList.toggle('option--bonne', option.contains(radio));
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

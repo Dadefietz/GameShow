@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partie terminée · Project Game Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================================================================
+   PROJECT GAME SHOW — DESIGN SYSTEM (bloc :root identique partout)
+   =================================================================== */
+:root{
+  /* Fonds */
+  --bg-page:#181612; --bg-surface:#29231a; --bg-elevated:#383227;
+  /* Textes */
+  --text-primary:#f0eeeb; --text-secondary:#cbc7bf; --heading:#7cd591;
+  /* Actions */
+  --action-primary:#ce6500; --action-primary-hover:#e38328; --action-on-primary:#25170d;
+  --action-secondary:#54b66e; --action-secondary-hover:#69c682; --signature:#ffa746;
+  /* Statuts */
+  --success:#3eab5e; --warning:#efbd24; --danger:#f84c41; --info:#4d9cc7;
+  /* Bordures */
+  --border:rgba(91,84,73,.55); --border-strong:rgba(91,84,73,.95);
+  --border-action:rgba(206,101,0,.8); --border-signature:rgba(255,167,70,.45);
+  --border-success:rgba(84,182,110,.5); --border-warning:rgba(239,189,36,.45);
+  --border-danger:rgba(248,76,65,.55);
+  /* Teintes translucides (14–22 %) */
+  --tint-action:rgba(206,101,0,.18); --tint-signature:rgba(255,167,70,.16);
+  --tint-success:rgba(84,182,110,.16); --tint-warning:rgba(239,189,36,.14);
+  --tint-danger:rgba(248,76,65,.16); --tint-heading:rgba(124,213,145,.14);
+  --tint-info:rgba(77,156,199,.16);
+  /* Espacements */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+  /* Rayons */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-full:9999px;
+  /* Tactile */
+  --touch-min:44px; --touch-cta:56px;
+  /* Motion */
+  --dur-fast:140ms; --dur-base:240ms; --dur-slow:320ms; --dur-pop:500ms; --dur-reveal:600ms;
+  --ease:cubic-bezier(0.4,0,0.2,1); --ease-out:cubic-bezier(0,0,0.2,1); --ease-pop:cubic-bezier(0.2,0,0,1);
+  /* Typographie */
+  --ff-display:"Fraunces",Georgia,serif; --ff-text:"Inter",system-ui,sans-serif;
+  --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700; --fw-black:900;
+  --lh-title:1.15; --lh-compact:1.3; --lh-body:1.55;
+  --fs--1:clamp(0.833rem, 0.807rem + 0.116vw, 0.9rem);
+  --fs-0: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --fs-1: clamp(1.2rem, 1.119rem + 0.359vw, 1.406rem);
+  --fs-2: clamp(1.44rem, 1.316rem + 0.553vw, 1.758rem);
+  --fs-3: clamp(1.728rem, 1.544rem + 0.816vw, 2.197rem);
+  --fs-4: clamp(2.074rem, 1.810rem + 1.170vw, 2.747rem);
+  --fs-5: clamp(2.488rem, 2.119rem + 1.643vw, 3.433rem);
+  --fs-6: clamp(2.986rem, 2.475rem + 2.271vw, 4.292rem);
+  --fs-hero: clamp(6.375rem, 4.174rem + 9.783vw, 12rem);
+  /* Ombres & lueurs */
+  --shadow-card:0 24px 60px rgba(0,0,0,.45); --shadow-pop:0 18px 44px rgba(0,0,0,.55);
+  --glow-signature:0 0 28px rgba(255,167,70,.35); --glow-action:0 6px 22px rgba(206,101,0,.32);
+  /* Gabarits */
+  --maxw-page:1180px; --maxw-accueil:1040px; --maxw-scene:580px; --maxw-card:440px;
+}
+/* ============================ BASE ============================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:#181612}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font-family:var(--ff-text);
+  font-size:var(--fs-0);line-height:var(--lh-body);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+h1,h2,h3,h4{font-family:var(--ff-display);line-height:var(--lh-title);margin:0;font-weight:var(--fw-semi)}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+a{color:inherit;text-decoration:none}
+button,input{font-family:var(--ff-text);font-size:var(--fs-0);color:inherit}
+:focus-visible{outline:2px solid var(--action-primary);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.icon--sm{width:16px;height:16px}
+.icon--lg{width:26px;height:26px}
+.eyebrow{font-size:var(--fs--1);font-weight:var(--fw-semi);letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-compact)}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:var(--touch-min);
+  padding:var(--sp-3) var(--sp-5);border:1px solid transparent;border-radius:var(--r-full);background:none;
+  font-size:var(--fs-0);font-weight:var(--fw-semi);line-height:var(--lh-compact);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+.btn--primary{background:var(--action-primary);color:var(--action-on-primary);box-shadow:var(--glow-action)}
+.btn--primary:hover{background:var(--action-primary-hover)}
+.btn--ghost{color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.btn--lg{min-height:var(--touch-cta);font-size:var(--fs-1);padding:var(--sp-4) var(--sp-6)}
+.btn--block{width:100%}
+/* ---------- Animations ---------- */
+@keyframes fondu{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes chute{
+  0%{opacity:0;transform:translate3d(0,0,0) rotate(0deg)}
+  10%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--derive),110vh,0) rotate(720deg)}
+}
+.page{animation:fondu var(--dur-fast) var(--ease-out) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .confettis{display:none!important}
+}
+.confettis{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:5}
+.confettis span{position:absolute;top:-8%;left:var(--x);width:9px;height:14px;border-radius:2px;
+  background:var(--c);opacity:0;animation:chute var(--d) var(--ease-out) var(--delai) forwards}
+/* ---------- Scène joueur ---------- */
+.scene{min-height:100vh;display:flex;flex-direction:column;padding:var(--sp-6) var(--sp-4) var(--sp-7)}
+.scene__carte{width:100%;flex:1;display:flex;flex-direction:column;align-items:center;text-align:center}
+
+/* ===================================================================
+   PAGE — JOUEUR : FIN DE PARTIE
+   =================================================================== */
+.trophee{display:grid;place-items:center;width:80px;height:80px;margin-bottom:var(--sp-4);
+  border-radius:var(--r-full);background:var(--action-secondary);color:var(--action-on-primary);
+  animation:pop var(--dur-pop) var(--ease-pop) both}
+.trophee .icon{width:38px;height:38px}
+.fin__titre{font-size:var(--fs-2);font-weight:var(--fw-bold);color:var(--heading);margin-bottom:var(--sp-5)}
+.rang-final{margin-bottom:var(--sp-6)}
+.rang-final__label{display:block;color:var(--text-secondary);margin-bottom:var(--sp-2)}
+.rang-final__valeur{display:block;font-family:var(--ff-display);font-size:var(--fs-hero);font-weight:var(--fw-black);
+  color:var(--signature);line-height:var(--lh-title);text-shadow:var(--glow-signature)}
+.rang-final__total{display:block;color:var(--text-secondary);font-size:var(--fs--1)}
+.bloc{width:100%;max-width:var(--maxw-card);text-align:left;margin-bottom:var(--sp-5)}
+.bloc__titre{color:var(--text-secondary);margin-bottom:var(--sp-3)}
+.podium__liste{display:flex;flex-direction:column;gap:var(--sp-2)}
+.rang{display:grid;grid-template-columns:26px 1fr auto;gap:var(--sp-3);align-items:center;
+  padding:var(--sp-3) var(--sp-4);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md)}
+.rang--toi{border-color:var(--border-action);background:var(--tint-action)}
+.rang__num{font-family:var(--ff-display);font-weight:var(--fw-bold);color:var(--text-secondary);font-size:var(--fs--1)}
+.rang--toi .rang__num{color:var(--signature)}
+.rang__pseudo{display:flex;align-items:center;gap:var(--sp-2);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:var(--fw-med)}
+.rang__trophee{color:var(--signature)}
+.rang__score{font-family:var(--ff-display);font-weight:var(--fw-bold);font-size:var(--fs--1)}
+.rang--toi .rang__score{color:var(--signature)}
+
+/* -- Accordéon « Revoir les questions » -- */
+.revoir{width:100%;max-width:var(--maxw-card);text-align:left;margin-bottom:var(--sp-6);
+  background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.revoir__resume{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+  min-height:var(--touch-cta);padding:var(--sp-4);cursor:pointer;font-weight:var(--fw-semi);list-style:none}
+.revoir__resume::-webkit-details-marker{display:none}
+.revoir__resume:hover{background:var(--bg-elevated)}
+.revoir[open] .revoir__chevron{transform:rotate(180deg)}
+.revoir__chevron{color:var(--text-secondary);transition:transform var(--dur-base) var(--ease)}
+.revoir__liste{display:flex;flex-direction:column;gap:var(--sp-3);padding:0 var(--sp-4) var(--sp-4)}
+.revoir-item{padding:var(--sp-4);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-md)}
+.revoir-item__numero{display:block;color:var(--text-secondary);margin-bottom:var(--sp-2)}
+.revoir-item__question{display:block;font-weight:var(--fw-med);margin-bottom:var(--sp-3)}
+.revoir-item__reponse{display:flex;align-items:center;gap:var(--sp-2);color:var(--heading);
+  font-size:var(--fs--1);font-weight:var(--fw-semi)}
+
+.fin__actions{display:flex;flex-direction:column;gap:var(--sp-3);width:100%;max-width:var(--maxw-card);
+  margin-bottom:var(--sp-5)}
+.fin__note{display:flex;align-items:flex-start;gap:var(--sp-2);max-width:var(--maxw-card);
+  color:var(--text-secondary);font-size:var(--fs--1);text-align:left}
+.fin__note strong{color:var(--signature);font-weight:var(--fw-semi);letter-spacing:.08em}
+
+@media (min-width:900px){
+  body{background-image:
+    radial-gradient(60% 50% at 50% 0%, var(--tint-action), transparent 70%),
+    radial-gradient(50% 40% at 50% 100%, var(--tint-signature), transparent 70%)}
+  .scene{align-items:center;justify-content:center;padding:var(--sp-8) var(--sp-6)}
+  .scene__carte{flex:none;max-width:var(--maxw-scene);padding:var(--sp-7);
+    background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-xl);
+    box-shadow:var(--shadow-card)}
+  .bloc,.revoir,.fin__actions,.fin__note{max-width:100%}
+  .fin__actions{flex-direction:row}
+  .fin__actions .btn{flex:1}
+  .revoir{background:var(--bg-page)}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- 26 confettis (podium) -->
+<div class="confettis" aria-hidden="true">
+  <span style="--x:3%;--d:1.9s;--delai:0s;--derive:30px;--c:var(--signature)"></span>
+  <span style="--x:9%;--d:2.1s;--delai:.12s;--derive:-20px;--c:var(--success)"></span>
+  <span style="--x:14%;--d:1.7s;--delai:.05s;--derive:40px;--c:var(--action-primary)"></span>
+  <span style="--x:19%;--d:2s;--delai:.25s;--derive:-35px;--c:var(--text-primary)"></span>
+  <span style="--x:24%;--d:1.8s;--delai:.1s;--derive:25px;--c:var(--signature)"></span>
+  <span style="--x:29%;--d:2.2s;--delai:.3s;--derive:-15px;--c:var(--success)"></span>
+  <span style="--x:34%;--d:1.6s;--delai:.18s;--derive:45px;--c:var(--action-primary)"></span>
+  <span style="--x:39%;--d:2s;--delai:.05s;--derive:-28px;--c:var(--text-primary)"></span>
+  <span style="--x:44%;--d:1.9s;--delai:.35s;--derive:18px;--c:var(--signature)"></span>
+  <span style="--x:49%;--d:2.1s;--delai:.15s;--derive:-40px;--c:var(--success)"></span>
+  <span style="--x:54%;--d:1.7s;--delai:.28s;--derive:33px;--c:var(--action-primary)"></span>
+  <span style="--x:59%;--d:2.2s;--delai:.08s;--derive:-22px;--c:var(--text-primary)"></span>
+  <span style="--x:64%;--d:1.8s;--delai:.4s;--derive:27px;--c:var(--signature)"></span>
+  <span style="--x:69%;--d:2s;--delai:.2s;--derive:-30px;--c:var(--success)"></span>
+  <span style="--x:74%;--d:1.6s;--delai:.1s;--derive:38px;--c:var(--action-primary)"></span>
+  <span style="--x:79%;--d:2.1s;--delai:.32s;--derive:-18px;--c:var(--text-primary)"></span>
+  <span style="--x:84%;--d:1.9s;--delai:.22s;--derive:22px;--c:var(--signature)"></span>
+  <span style="--x:89%;--d:2.2s;--delai:.06s;--derive:-36px;--c:var(--success)"></span>
+  <span style="--x:94%;--d:1.7s;--delai:.38s;--derive:29px;--c:var(--action-primary)"></span>
+  <span style="--x:6%;--d:2s;--delai:.45s;--derive:-25px;--c:var(--text-primary)"></span>
+  <span style="--x:17%;--d:1.8s;--delai:.5s;--derive:34px;--c:var(--signature)"></span>
+  <span style="--x:31%;--d:2.1s;--delai:.42s;--derive:-32px;--c:var(--success)"></span>
+  <span style="--x:47%;--d:1.9s;--delai:.55s;--derive:20px;--c:var(--action-primary)"></span>
+  <span style="--x:62%;--d:2.2s;--delai:.48s;--derive:-26px;--c:var(--text-primary)"></span>
+  <span style="--x:77%;--d:1.7s;--delai:.6s;--derive:36px;--c:var(--signature)"></span>
+  <span style="--x:91%;--d:2s;--delai:.52s;--derive:-21px;--c:var(--success)"></span>
+</div>
+
+<main class="scene">
+  <div class="scene__carte">
+
+    <span class="trophee" aria-hidden="true">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </span>
+    <h1 class="fin__titre">Victoire !</h1>
+
+    <p class="rang-final">
+      <span class="eyebrow rang-final__label">Ton rang</span>
+      <span class="rang-final__valeur">1ʳᵉ</span>
+      <span class="rang-final__total">1 240 pts au total</span>
+    </p>
+
+    <section class="bloc" aria-labelledby="titre-podium">
+      <h2 class="eyebrow bloc__titre" id="titre-podium">Podium</h2>
+      <ol class="podium__liste">
+        <li class="rang rang--toi">
+          <span class="rang__num">1</span>
+          <span class="rang__pseudo" title="Toi">
+            <svg class="icon icon--sm rang__trophee" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            Toi
+          </span>
+          <span class="rang__score">1 240</span>
+        </li>
+        <li class="rang"><span class="rang__num">2</span><span class="rang__pseudo" title="Luna">Luna</span><span class="rang__score">1 110</span></li>
+        <li class="rang"><span class="rang__num">3</span><span class="rang__pseudo" title="Marco">Marco</span><span class="rang__score">980</span></li>
+        <li class="rang"><span class="rang__num">4</span><span class="rang__pseudo" title="Zoé">Zoé</span><span class="rang__score">870</span></li>
+        <li class="rang"><span class="rang__num">5</span><span class="rang__pseudo" title="Sam">Sam</span><span class="rang__score">640</span></li>
+      </ol>
+    </section>
+
+    <details class="revoir" open>
+      <summary class="revoir__resume">
+        Revoir les questions (3)
+        <svg class="icon revoir__chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <ol class="revoir__liste">
+        <li class="revoir-item">
+          <span class="eyebrow revoir-item__numero">Question 1</span>
+          <span class="revoir-item__question">Quel monarque français a régné le plus longtemps ?</span>
+          <span class="revoir-item__reponse">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Louis XIV, le Roi-Soleil
+          </span>
+        </li>
+        <li class="revoir-item">
+          <span class="eyebrow revoir-item__numero">Question 2</span>
+          <span class="revoir-item__question">Quel est le plus grand océan ?</span>
+          <span class="revoir-item__reponse">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Pacifique
+          </span>
+        </li>
+        <li class="revoir-item">
+          <span class="eyebrow revoir-item__numero">Question 3</span>
+          <span class="revoir-item__question">La Tour Eiffel mesure plus de 300 mètres.</span>
+          <span class="revoir-item__reponse">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Vrai
+          </span>
+        </li>
+      </ol>
+    </details>
+
+    <div class="fin__actions">
+      <button class="btn btn--primary btn--lg btn--block" type="button">Partager mon score</button>
+      <a class="btn btn--ghost btn--lg btn--block" href="play-rejoindre.html">Rejouer</a>
+    </div>
+
+    <p class="fin__note">
+      <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Reste connecté — si l'animateur relance une partie dans le salon <strong>SM9HF</strong>, tu y seras automatiquement.</span>
+    </p>
+
+  </div>
+</main>
+
+</div>
+</body>
+</html>
