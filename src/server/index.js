@@ -267,6 +267,8 @@ io.on('connection', (socket) => {
     r.state = RoomState.WAITING; r.currentModule = null; engine.emitRoomState(io, r);
   });
   socket.on('host:endGame', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.endGame(io, r); });
+  // Retour au salon d'attente après le podium, sans fermer le salon.
+  socket.on('host:backToLobby', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.backToLobby(io, r); });
   // Fermer le salon : le supprime (mémoire + mapping propriétaire), notifie les joueurs.
   // L'animateur reste authentifié et pourra rouvrir un salon neuf.
   socket.on('host:closeRoom', () => {

@@ -5,36 +5,59 @@
   body {
     margin: 0;
     min-height: 100%;
-    font-family: var(--font-family-text);
-    font-size: var(--font-size-step-0);
-    line-height: var(--font-line-height-normal);
-    color: var(--semantic-color-text-primary);
-    background: var(--semantic-color-bg-page);
+    font-family: var(--f-ui);
+    font-size: var(--fs-400);
+    line-height: var(--lh-body);
+    color: var(--c-ink);
+    background: var(--c-canvas);
     -webkit-font-smoothing: antialiased;
   }
-  button { font: inherit; cursor: pointer; }
+  /* Neutralisation du chrome natif : un <button> sans règle de composant doit
+     rester invisible, jamais retomber sur le gris système (buttonface). C'est ce
+     qui faisait apparaître des boutons blancs quand une classe n'était pas stylée. */
+  button, [type="button"], [type="submit"], [type="reset"] {
+    font: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    text-align: inherit;
+  }
+  button[disabled] { cursor: default; }
   a { color: inherit; }
   /* Les liens stylés en bouton ne doivent jamais porter le soulignement d'un lien. */
   a.button, a[class*="button--"] { text-decoration: none; }
-  :focus-visible { outline: 2px solid var(--semantic-color-action-primary); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--c-flame); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
 }
 /* Fond de sécurité HORS cascade layers (priorité max) : garantit qu'aucune bande
    blanche n'apparaisse (overscroll mobile, marges, avant hydratation). Repli en dur. */
-html, body { background-color: var(--semantic-color-bg-page, oklch(0.20 0.008 80)); }
+html, body { background-color: var(--c-canvas); }
 
 @layer base {
   /* Fondu d'apparition des surfaces : les transitions loader→écran et écran→écran
      deviennent des fondus courts au lieu de coupes sèches (jamais sur l'overlay OBS). */
-  .page, .screen, .studio { animation: surface-in 140ms var(--motion-easing-decelerate) both; }
+  .page, .screen, .studio { animation: surface-in 140ms var(--ease-out) both; }
   @keyframes surface-in { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .page, .screen, .studio { animation: none; } }
 
   .icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; flex: 0 0 auto; }
-  .icon--sm { font-size: var(--font-size-step-0); }
-  .icon--md { font-size: var(--font-size-step-2); }
-  .icon--lg { font-size: var(--font-size-step-4); }
+  .icon--sm { font-size: var(--fs-400); }
+  .icon--md { font-size: var(--fs-500); }
+  .icon--lg { font-size: var(--fs-700); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+@layer components {
+  /* Marque animée — commune aux 4 surfaces (joueur, animateur, stream, studio).
+     Elles vivaient dans play.css : le logo n'était donc animé que côté joueur. */
+  .brand-flame { transform-origin: 12px 16px; animation: om-flame 1.9s var(--ease-in-out) infinite; }
+  .brand-spark { animation: om-spark 2.6s var(--ease-in-out) infinite; }
+  .brand-ember { animation: om-ember-rise 3.4s var(--ease-out) infinite; }
 }

@@ -82,3 +82,37 @@ test.describe('Partie complète animateur + joueurs', () => {
     await p2Ctx.close();
   });
 });
+
+test.describe('Après la fin de partie', () => {
+  // Régression : une fois la partie terminée, le menu proposait encore
+  // « Terminer la partie » (sans objet) et aucune sortie non destructrice
+  // n'existait — il fallait fermer le salon pour repartir.
+  test('le menu ne propose plus de terminer, et un clic ramène au salon', async ({ browser }) => {
+    const { ctx: hostCtx, page: host, code } = await openHost(browser);
+    const { ctx: pCtx, page: p } = await joinAsPlayer(browser, code, 'Lea');
+
+    await host.getByRole('button', { name: 'Lancer la partie' }).click();
+    await host.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await p.getByTestId('answer-option').first().click();
+    await host.getByRole('button', { name: 'Révéler maintenant' }).click();
+
+    await host.getByRole('button', { name: 'Voir le classement' }).click();
+    await host.getByRole('button', { name: 'Menu' }).click();
+    await host.getByRole('menuitem', { name: 'Terminer la partie' }).click();
+    await host.getByRole('menuitem', { name: 'Confirmer — terminer la partie' }).click();
+
+    // L'option devenue sans objet a disparu du menu.
+    await host.getByRole('button', { name: 'Menu' }).click();
+    await expect(host.getByRole('menuitem', { name: 'Terminer la partie' })).toHaveCount(0);
+    await host.keyboard.press('Escape');
+
+    // Un seul clic ramène au salon d'attente : le code est de nouveau affiché.
+    await host.getByTestId('back-to-lobby').click();
+    await expect(host.getByTestId('room-code')).toHaveText(code);
+    // Le joueur quitte son podium et retrouve l'attente.
+    await expect(p.getByTestId('end-screen')).toHaveCount(0);
+
+    await hostCtx.close();
+    await pCtx.close();
+  });
+});

@@ -56,6 +56,14 @@ export function useGame(token) {
     s.on('play:you', (y) => setYou(y));
     s.on('play:accepted', (res) => { if (res && (res.ok || res.reason === 'already')) setAnswered(true); });
     s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); setHistory(d.history || []); });
+    // Retour au salon d'attente : on efface tout le résiduel de la partie précédente,
+    // sinon le joueur resterait sur son podium et l'animateur sur son classement.
+    s.on('game:lobby', () => {
+      // podium à null, pas à [] : la surface joueur teste sa simple présence
+      // pour afficher l'écran de fin, et un tableau vide reste « vrai ».
+      setPodium(null); setLeaderboard([]); setHistory([]);
+      setReveal(null); setTick(null); setYou(null); setAnswered(false);
+    });
     s.on('room:closed', () => setRoomClosed(true));
     return () => s.close();
   }, [token]);

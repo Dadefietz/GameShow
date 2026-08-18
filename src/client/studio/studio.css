@@ -9,6 +9,52 @@
 
 @layer components {
 
+  /* ====================== BOUTONS (E1-E4) ======================
+     Valeurs reprises des maquettes Claude Design : base = surface secondaire
+     avec liseré, primaire = braise, danger = rouge plein, quiet = discret.
+     StudioApp utilise .button + modificateurs ; sans ces règles les boutons
+     retombaient sur le rendu natif du navigateur. */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    min-height: var(--hit-dense);
+    padding: 0 var(--sp-5);
+    border-radius: var(--r-full);
+    background: var(--c-surface-2);
+    color: var(--c-ink);
+    box-shadow: var(--sh-edge);
+    font: 500 var(--fs-300) / 1 var(--f-ui);
+    white-space: nowrap;
+  }
+  .button--primary {
+    background: var(--g-ember);
+    color: var(--c-ink-on-flame);
+    box-shadow: var(--sh-ember);
+    font-weight: 600;
+  }
+  .button--danger {
+    background: var(--c-bad);
+    color: var(--c-ink-on-flame);
+    box-shadow: none;
+    font-weight: 600;
+  }
+  /* Sortie destructrice en retrait : pas de fond, la couleur porte l'avertissement. */
+  .button--quiet {
+    background: transparent;
+    box-shadow: none;
+    color: var(--c-bad);
+    padding: 0 var(--sp-3);
+  }
+  .button--block { width: 100%; }
+  .button--lg { min-height: var(--hit); font-size: var(--fs-400); }
+  .button[disabled] {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink-3);
+    box-shadow: none;
+  }
+
   .studio {
     min-height: 100dvh;
     display: grid;

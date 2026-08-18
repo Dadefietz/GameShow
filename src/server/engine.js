@@ -246,6 +246,23 @@ export function adjustScore(io, room, playerId, delta) {
 }
 
 // pause/resume supprimés (retour produit R9 du 2026-08-18).
+// Retour au salon d'attente après une partie terminée. Le salon reste ouvert
+// (même code, mêmes joueurs connectés) mais la séance repart à zéro : sans ça,
+// l'animateur n'avait aucun moyen de relancer une soirée sans fermer le salon.
+export function backToLobby(io, room) {
+  if (room._timer) clearTimeout(room._timer);
+  if (room._tick) clearInterval(room._tick);
+  room.state = RoomState.WAITING;
+  room.currentModule = null;
+  room.history = [];
+  room.progression = { index: 0, total: 0 };
+  room.session.used = new Set();
+  for (const p of room.players.values()) { p.score = 0; p.streak = 0; }
+  toRoom(io, room).emit('game:lobby');
+  emitRoomState(io, room);
+  roomManager.touch(room);
+}
+
 export function endGame(io, room) {
   room.state = RoomState.ENDED;
   if (room._timer) clearTimeout(room._timer);

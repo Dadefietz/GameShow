@@ -811,7 +811,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
 // ============================================================
 // A6 — Classement et podium
 // ============================================================
-function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom }) {
+function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom, onBackToLobby }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
   const scored = rows.filter((p) => (p.score || 0) > 0);
   const top3 = scored.slice(0, 3);
@@ -881,6 +881,12 @@ function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canB
           data-action="host:startModule" onClick={onNextModule}>{continueLabel || 'Question suivante'}</button>
         {canBack ? (
           <button className="button" type="button" data-action="goto:live" onClick={onBack}>Retour au direct</button>
+        ) : null}
+        {/* Partie terminée : la seule autre sortie utile est le salon d'attente.
+            Sans ce bouton, il fallait fermer le salon pour repartir d'une soirée neuve. */}
+        {onBackToLobby ? (
+          <button className="button" type="button" data-action="host:backToLobby"
+            data-testid="back-to-lobby" onClick={onBackToLobby}>Retour au salon</button>
         ) : null}
         <span className="actions__spacer" />
       </nav>
@@ -995,6 +1001,10 @@ export function HostApp() {
   }, [g]);
 
   const endGame = useCallback(() => { g.emit('host:endGame'); }, [g]);
+  // Retour au salon d'attente après le podium : le salon reste ouvert (même code,
+  // mêmes joueurs), la séance repart à zéro. Une fois la partie terminée, c'est la
+  // seule sortie non destructrice — sinon il fallait fermer le salon.
+  const backToLobby = useCallback(() => { setShowResults(false); g.emit('host:backToLobby'); }, [g]);
 
   const logout = useCallback(() => {
     store.clear('host');
@@ -1086,7 +1096,8 @@ export function HostApp() {
           g={g}
           onNextModule={() => { setShowResults(false); startModule(lastType); }}
           continueLabel={state === 'ended' ? 'Relancer une partie' : 'Question suivante'}
-          onEndGame={endGame}
+          onEndGame={state === 'ended' ? undefined : endGame}
+          onBackToLobby={state === 'ended' ? backToLobby : undefined}
           onBack={() => setShowResults(false)}
           canBack={state !== 'ended'}
           onLogout={logout}

@@ -119,9 +119,7 @@
     color: var(--c-flame);
   }
   .p-brand__mark--lg { width: 76px; height: 76px; border-radius: var(--r-l); }
-  .brand-flame { transform-origin: 12px 16px; animation: om-flame 1.9s var(--ease-in-out) infinite; }
-  .brand-spark { animation: om-spark 2.6s var(--ease-in-out) infinite; }
-  .brand-ember { animation: om-ember-rise 3.4s var(--ease-out) infinite; }
+  /* Animations de marque : partagées, définies dans shared/app.css. */
 
   /* Points qui respirent (attente, chargement) */
   .p-dots { display: flex; gap: var(--sp-2); justify-content: center; }
