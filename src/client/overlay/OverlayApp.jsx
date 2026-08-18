@@ -421,9 +421,32 @@ function PodiumStage({ g }) {
 }
 
 // ============================================================
+// La source navigateur d'OBS n'est pas toujours réglée sur le canevas nominal.
+// La scène garde donc ses dimensions de planche et c'est le facteur d'échelle
+// qui absorbe l'écart — une homothétie, jamais un étirement.
+function useStreamScale() {
+  useEffect(() => {
+    const racine = document.documentElement;
+    const ajuster = () => {
+      const cs = getComputedStyle(racine);
+      const l = parseFloat(cs.getPropertyValue('--stream-w'));
+      const h = parseFloat(cs.getPropertyValue('--stream-h'));
+      if (!l || !h) return;
+      racine.style.setProperty('--stream-scale', String(Math.min(window.innerWidth / l, window.innerHeight / h)));
+    };
+    ajuster();
+    window.addEventListener('resize', ajuster);
+    return () => {
+      window.removeEventListener('resize', ajuster);
+      racine.style.removeProperty('--stream-scale');
+    };
+  }, []);
+}
+
 export function OverlayApp() {
   const token = new URLSearchParams(window.location.search).get('token');
   const g = useGame(token);
+  useStreamScale();
 
   if (!token || !g.connected) return null;
 
@@ -432,10 +455,12 @@ export function OverlayApp() {
   const inRound = g.current && (state === 'playing' || state === 'results');
 
   return (
-    <div className={`stream${inRound && !ended ? ' stream--question' : ''}`}>
-      {ended ? <PodiumStage g={g} /> : inRound ? <QuestionStage g={g} /> : <WaitingStage g={g} />}
-      {/* QR + lien + code : permanents, quelle que soit la phase (contrat R8). */}
-      <JoinPanel code={g.room?.code} />
+    <div className="stream-fit">
+      <div className={`stream${inRound && !ended ? ' stream--question' : ''}`}>
+        {ended ? <PodiumStage g={g} /> : inRound ? <QuestionStage g={g} /> : <WaitingStage g={g} />}
+        {/* QR + lien + code : permanents, quelle que soit la phase (contrat R8). */}
+        <JoinPanel code={g.room?.code} />
+      </div>
     </div>
   );
 }

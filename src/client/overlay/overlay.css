@@ -8,11 +8,29 @@
 
 @layer components {
 
+  /* ---- Cadre de diffusion ----------------------------------------------
+     La planche est un canevas FIXE de --stream-w × --stream-h, et toutes les
+     tailles du stream (--fs-st-*, --row-st, --pad-st, --panel-st) sont des
+     pixels absolus calibrés sur lui. Une source navigateur réglée autrement
+     qu'en 1920 × 1080 ne doit donc pas étirer la scène — elle la met à
+     l'échelle. Sinon l'énoncé reste à 84 px dans une boîte rétrécie et les
+     proportions de la planche sont perdues. */
+  .stream-fit {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: var(--c-canvas);
+  }
+
   /* ---- Scène : contenu à gauche, panneau de connexion permanent à droite ---- */
   .stream {
     position: relative;
-    width: 100vw;
-    height: 100vh;
+    width: var(--stream-w);
+    height: var(--stream-h);
+    flex: none;
+    transform: scale(var(--stream-scale, 1));
     display: flex;
     overflow: hidden;
     background: var(--c-canvas);
