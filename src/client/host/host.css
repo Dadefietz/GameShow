@@ -738,6 +738,7 @@
   /* ============================ A6 · PODIUM ============================ */
   .results { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) var(--pane-rail); gap: var(--pane-gap); padding: var(--pane-gap) var(--sp-7); align-items: start; }
   .podium { display: flex; align-items: flex-end; gap: var(--sp-5); padding-top: var(--sp-7); }
+  .results__step { margin: 0; font: 400 var(--fs-300) / 1 var(--f-ui); color: var(--c-ink-3); }
   .podium__slot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
   .podium__name {
     margin: 0;

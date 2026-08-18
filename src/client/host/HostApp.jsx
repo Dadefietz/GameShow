@@ -878,6 +878,9 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
 // ============================================================
 function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom, onBackToLobby }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
+  const ended = !!onBackToLobby;
+  const progIndex = g.room?.progression?.index || 0;
+  const progTotal = g.room?.progression?.total || 0;
   const scored = rows.filter((p) => (p.score || 0) > 0);
   const top3 = scored.slice(0, 3);
   const rest = scored.slice(3, 8);
@@ -895,8 +898,27 @@ function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canB
     <div className="page">
       <header className="topbar">
         <div className="topbar__brand">
-          <span className="topbar__mark" aria-hidden="true"><I.flame s={20} /></span>
-          <h1 className="pane__title">Classement</h1>
+          {/* Planche A6 : capsule d'antenne, titre, puis le repère d'épreuve. */}
+          {ended ? (
+            <span className="h-cap"><span className="h-cap__value">Partie terminée</span></span>
+          ) : (
+            <span className="h-cap h-cap--live">
+              <span className="h-cap__dot h-cap__dot--pulse" aria-hidden="true" />En direct
+            </span>
+          )}
+          <h1 className="pane__title">{ended ? 'Podium final' : 'Classement'}</h1>
+          <p className="results__step">
+            {ended ? (
+              <>
+                <span data-bind="leaderboard.length">{rows.length}</span> joueur{rows.length > 1 ? 's' : ''}
+              </>
+            ) : (
+              <>
+                après l'épreuve <span className="h-cap__value" data-bind="module.index">{progIndex}</span>
+                {progTotal > progIndex ? <> / <span className="h-cap__value" data-bind="module.total">{progTotal}</span></> : null}
+              </>
+            )}
+          </p>
         </div>
         <div className="topbar__end">
           <span className="h-cap"><I.eye s={16} /> Toi et le stream uniquement</span>

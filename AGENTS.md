@@ -91,8 +91,11 @@ mockups_dir: design/mockups/
 tokens_css: design/tokens/tokens.css          # v2 — 18 sections, source UNIQUE
 design_board_html: design/design-board.html   # page Systeme = charte du projet
 claude_design_src: design/claude-design/      # extractions brutes + journal d'integration
+design_method: design/claude-design/METHODE.md   # comment aligner une surface sur sa planche
+spec_extractor: design/claude-design/spec.py     # sort le contrat d'un canevas de maquette
 fonts_dir: design/fonts/
 coverage: 4 surfaces / 20 ecrans (joueur J1-J6, animateur A1-A6, stream S1-S4, studio E1-E4)
+pixel_parity: A1-A6 faits ; S1-S4, E1-E4, J2-J6 restants (voir METHODE.md)
 
 [BUILD]
 src_dir: src/
