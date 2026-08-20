@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
-import { dire, momentDePlateau } from '../shared/voix.js';
+import { useVoixDePlateau } from '../shared/voix-hooks.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -492,31 +492,6 @@ function PodiumStage({ g }) {
 
 // VOIX DE PLATEAU — le stream ne parle QUE sur le remarquable.
 //
-// Commenter la répartition est le métier de l'animateur. Si l'écran le dit avant
-// lui, il se retrouve à répéter ce que tout le monde a déjà lu. Le silence est
-// donc une fonctionnalité : l'écran ne s'exprime que sur l'unanimité, l'échec
-// collectif, le piège, l'égalité parfaite — et jamais deux manches d'affilée.
-//
-// Il parle du GROUPE, jamais d'un joueur nommé : le stream affiche les pseudos
-// devant toute l'audience, et personne ne doit s'y faire chambrer par une machine.
-function useVoixDePlateau(reveal, stats, roundId) {
-  const [dit, setDit] = useState(null);
-  const dernierCommente = useRef(null);
-
-  useEffect(() => {
-    if (!reveal || !stats || roundId == null) { setDit(null); return; }
-    // Jamais deux manches commentées de suite : ça garantit la respiration sans
-    // étouffer un moment vraiment rare.
-    if (dernierCommente.current != null && roundId === dernierCommente.current + 1) { setDit(null); return; }
-    const moment = momentDePlateau(reveal.type, stats, reveal);
-    if (!moment) { setDit(null); return; }
-    dernierCommente.current = roundId;
-    setDit(dire(moment));
-  }, [reveal, stats, roundId]);
-
-  return dit;
-}
-
 // ============================================================
 // S5 — Classement complet, au podium UNIQUEMENT (action 3)
 //

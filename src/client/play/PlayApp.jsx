@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGame, store } from '../shared/useGame.js';
 import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
-import { dire } from '../shared/voix.js';
+import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import './play.css';
 
@@ -39,21 +39,6 @@ function useCountUp(target, duration = 900) {
     return () => cancelAnimationFrame(raf);
   }, [target, duration]);
   return val;
-}
-
-// Phrase qui tourne pendant les longues attentes. Le TITRE, lui, ne bouge pas :
-// c'est lui qui donne son nom accessible à la page, et le faire changer en boucle
-// rendrait l'écran instable pour un lecteur d'écran. La ligne rotative est donc
-// explicitement retirée des annonces vocales — sinon un lecteur réciterait une
-// nouvelle phrase toutes les six secondes par-dessus le reste.
-function usePhraseQuiTourne(momentId, intervalle = 6000) {
-  const [phrase, setPhrase] = useState(() => dire(momentId));
-  useEffect(() => {
-    setPhrase(dire(momentId));
-    const t = setInterval(() => setPhrase(dire(momentId)), intervalle);
-    return () => clearInterval(t);
-  }, [momentId, intervalle]);
-  return phrase;
 }
 
 // ---- Icônes du système (SVG au trait, jamais d'emoji) -----------------------
@@ -609,9 +594,15 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
     if (correct === false) return 'faux';
     return null;
   })();
-  const phraseVoix = momentVoix
-    ? dire(momentVoix, { serie: monResultat?.streak, places: Math.abs(monResultat?.placesDelta || 0) })
-    : null;
+  // Une phrase par manche, figée sur l'identifiant de manche (décision 1) : elle
+  // change à chaque nouvelle question, jamais pendant. La figer sur le MOMENT
+  // ferait dire la même chose à deux manches consécutives de même résultat.
+  const phraseVoix = usePhraseDeManche(
+    momentVoix,
+    current?.roundId ?? null,
+    monResultat?.streak,
+    Math.abs(monResultat?.placesDelta || 0),
+  );
 
   const gained = typeof monResultat?.delta === 'number' ? monResultat.delta : 0;
   const animatedGain = useCountUp(gained);
