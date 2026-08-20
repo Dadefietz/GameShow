@@ -42,6 +42,28 @@ rls_policies: [table]_[op]_[who]
 no_emoji: true
 icons: svg-inline-stroke        # trait 1.6-2.2, jamais d'emoji
 
+[VOIX]
+# La voix du jeu — tout ce que le produit dit au-delà des faits bruts.
+# Registre unique : src/client/shared/voix.js
+# Contrôle bloquant : tests/unit/voix.test.js (échoue si la convention est violée)
+registry: src/client/shared/voix.js
+regle_maitresse: taquiner en privé, jamais en public — l'écran du joueur n'est vu
+                 que par lui ; le stream affiche les noms devant l'audience et ne
+                 commente donc QUE le groupe (sauf au podium, pour célébrer)
+condition_obligatoire: chaque moment déclare la condition RÉELLE qui le déclenche.
+                 Une phrase ne doit jamais contredire les chiffres affichés à côté.
+longueur_max: 120 caractères — un écran de résultat dure quelques secondes
+no_emoji: true                # comme partout ailleurs dans le projet
+plateau_silencieux: le stream ne parle que sur le remarquable, et jamais deux
+                 manches d'affilée. Commenter la répartition est le métier de
+                 l'animateur : le silence est une fonctionnalité.
+# OBLIGATION POUR TOUTE ÉVOLUTION :
+#   - un NOUVEAU TYPE DE JEU déclare ses moments de résultat ;
+#   - une NOUVELLE ROUTE déclare sa surface dans SURFACES.
+# Le contrôle exige une déclaration, pas une œuvre : une phrase de repli suffit
+# à passer. Il garantit qu'une déclaration existe, jamais qu'elle est bonne —
+# la qualité reste affaire de relecture.
+
 [SECURITY]
 rls_on_all_tables: true                # tables de contenu durable (owner = animateur) — migrations À ÉCRIRE (F-006 ouvert)
 authoritative_server: true             # le client n'envoie JAMAIS de score ; réponses validées serveur

@@ -14,20 +14,35 @@ import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
 import { getSupabase } from '../shared/supabaseClient.js';
 import { shouldPurgeHostSession } from '../shared/hostSession.js';
-import { otpErrorMessage } from '../shared/authErrors.js';
+import { passwordErrorMessage, resetErrorMessage, masquerEmail } from '../shared/authErrors.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
+import { NOM_DU_JEU } from '../shared/marque.js';
 import './host.css';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
 const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-// Types = noms SERVEUR.
-const MODULE_TYPES = [
+// Repli quand la bibliothèque n'est pas encore arrivée : les quatre types, sous
+// leur nom générique. L'animateur lance normalement ses JEUX NOMMÉS — c'est la
+// bibliothèque du serveur qui les fournit (action 2).
+const TYPES_DE_REPLI = [
   { type: 'quiz', name: 'Quiz' },
   { type: 'true_false', name: 'Vrai / Faux' },
   { type: 'estimation', name: 'Estimation' },
   { type: 'vote', name: 'Vote' },
 ];
+
+// Bibliothèque de l'animateur, demandée au serveur dès que le salon est ouvert.
+function useBibliotheque(g) {
+  const [jeux, setJeux] = useState(null);
+  useEffect(() => {
+    if (!g.connected) return undefined;
+    let vivant = true;
+    g.emit('host:modules', {}, (liste) => { if (vivant && Array.isArray(liste)) setJeux(liste); });
+    return () => { vivant = false; };
+  }, [g.connected, g.emit]);
+  return jeux && jeux.length ? jeux : TYPES_DE_REPLI;
+}
 
 const playerName = (p, fb = 'Joueur') => (p && (p.name || p.pseudo)) || fb;
 const playerId = (p) => p && (p.id || p.playerId);
@@ -181,7 +196,7 @@ function ExitMenu({ onCloseRoom, onLogout, onEndGame, playerCount }) {
 }
 
 // Menu de changement de module — un seul aller-retour, jamais de sous-menu.
-function ModuleMenu({ currentType, onPick, label = 'Changer de module' }) {
+function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -191,7 +206,10 @@ function ModuleMenu({ currentType, onPick, label = 'Changer de module' }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
   return (
-    <div className="exit-menu" ref={ref}>
+    // --up : ce menu vit dans la barre d'actions, tout en bas de l'écran. Ouvert
+    // vers le bas, il sortait du champ visible et obligeait l'animateur à faire
+    // défiler sa page en plein direct.
+    <div className="exit-menu exit-menu--up" ref={ref}>
       <button className="button" type="button" aria-haspopup="menu" aria-expanded={open}
         onClick={() => setOpen((v) => !v)}>
         {label}
@@ -199,10 +217,13 @@ function ModuleMenu({ currentType, onPick, label = 'Changer de module' }) {
       </button>
       {open ? (
         <div className="exit-menu__pop" role="menu">
-          {MODULE_TYPES.map((m) => (
-            <button key={m.type} className="exit-menu__item" role="menuitem" type="button"
-              onClick={() => { setOpen(false); onPick(m.type); }}>
-              {m.name}{m.type === currentType ? ' — en cours' : ''}
+          {(jeux || TYPES_DE_REPLI).map((m) => (
+            <button key={m.id || m.type} className="exit-menu__item" role="menuitem" type="button"
+              onClick={() => { setOpen(false); onPick(m); }}>
+              {m.name}{(m.id && m.id === currentId) ? ' — en cours' : ''}
+              {/* Un jeu vide se signale AVANT le lancement : le découvrir en
+                  direct, sur un refus du serveur, serait le pire moment. */}
+              {m.questions === 0 ? ' — aucune question' : ''}
             </button>
           ))}
         </div>
@@ -212,16 +233,161 @@ function ModuleMenu({ currentType, onPick, label = 'Changer de module' }) {
 }
 
 // ============================================================
+// FILE D'ATTENTE DU JEU EN COURS (action 6)
+//
+// L'animateur ne savait pas ce qui venait : il cliquait « question suivante » et
+// découvrait la question en même temps que les joueurs. Impossible d'enchaîner
+// une difficile sur une facile, de garder la meilleure pour la fin, ou d'écarter
+// une question qui tombe mal.
+//
+// GLISSER-DÉPOSER MAISON, sans nouvelle dépendance : le projet tient sur douze
+// bibliothèques, toutes essentielles, et un réordonnancement de liste est une
+// interaction bien délimitée. Il fonctionne à la souris comme au doigt.
+//
+// BOUTONS MONTER/DESCENDRE À CÔTÉ, et pas seulement pour l'accessibilité : en
+// direct, sous pression, un bouton ne rate jamais sa cible là où un glisser peut
+// déraper.
+function FileAttente({ g, moduleId, nomJeu }) {
+  const [file, setFile] = useState([]);
+  const [pris, setPris] = useState(null);   // index en cours de déplacement
+  const depart = useRef(null);              // position du pointeur à la prise
+
+  const rafraichir = useCallback(() => {
+    if (!moduleId) return;
+    g.emit('host:getQueue', { moduleId }, (r) => setFile((r && r.queue) || []));
+  }, [g, moduleId]);
+
+  useEffect(() => { rafraichir(); }, [rafraichir]);
+  useEffect(() => {
+    const onQueue = (d) => { if (d && d.moduleId === moduleId) setFile(d.queue || []); };
+    g.on('host:queue', onQueue);
+    return () => g.off('host:queue', onQueue);
+  }, [g, moduleId]);
+
+  const envoyerOrdre = (suivante) => {
+    setFile(suivante);
+    g.emit('host:reorderQueue', { moduleId, order: suivante.map((q) => q.id) });
+  };
+
+  const deplacer = (de, vers) => {
+    if (vers < 0 || vers >= file.length) return;
+    const suivante = file.slice();
+    const [x] = suivante.splice(de, 1);
+    suivante.splice(vers, 0, x);
+    envoyerOrdre(suivante);
+  };
+
+  const retirer = (id) => {
+    setFile((f) => f.filter((q) => q.id !== id));
+    g.emit('host:removeFromQueue', { moduleId, questionId: id });
+  };
+
+  // Le glisser ne part QUE de la poignée, et un seuil de déplacement fait qu'un
+  // clic reste un clic : en plein direct, l'animateur vise « question suivante »,
+  // pas un déplacement involontaire.
+  const prendre = (i) => (e) => {
+    depart.current = { y: e.clientY, i };
+    setPris(i);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const glisser = (e) => {
+    if (pris == null || !depart.current) return;
+    const dy = e.clientY - depart.current.y;
+    const SEUIL = 28; // hauteur approximative d'une ligne
+    if (Math.abs(dy) < SEUIL) return;
+    const pas = dy > 0 ? 1 : -1;
+    const vers = pris + pas;
+    if (vers < 0 || vers >= file.length) return;
+    depart.current = { y: e.clientY, i: vers };
+    deplacer(pris, vers);
+    setPris(vers);
+  };
+  const lacher = () => { setPris(null); depart.current = null; };
+
+  if (!moduleId) return null;
+
+  return (
+    <section className="private" aria-label="File des questions" data-testid="file-attente">
+      <p className="private__title">
+        <I.eye s={16} /> À venir dans {nomJeu || 'ce jeu'}
+        <span className="private__count">{file.length}</span>
+      </p>
+      {/* La LONGUEUR de la file est l'indicateur de questions fraîches restantes :
+          il n'y a rien de plus à construire. Et comme une question posée ne
+          revient jamais dans un salon, voir la file fondre est le seul moyen de
+          ne pas se retrouver à sec en plein direct. */}
+      {file.length === 0 ? (
+        <p className="lb__empty" data-testid="file-vide">
+          Plus aucune question fraîche dans ce jeu. Lance-en un autre, ou ajoute des
+          questions au Studio.
+        </p>
+      ) : (
+        <ol className="file" onPointerMove={glisser} onPointerUp={lacher} onPointerCancel={lacher}>
+          {file.map((q, i) => (
+            <li className={`file__row${pris === i ? ' file__row--pris' : ''}`} key={q.id} data-testid="file-row">
+              <button className="file__grip" type="button" aria-label={`Déplacer ${q.text}`}
+                onPointerDown={prendre(i)}><I.dots s={16} /></button>
+              <span className="file__pos">{i + 1}</span>
+              <span className="file__text" title={q.text}>{q.text}</span>
+              <span className="file__actions">
+                <button className="file__btn" type="button" disabled={i === 0}
+                  aria-label={`Monter ${q.text}`} onClick={() => deplacer(i, i - 1)}>↑</button>
+                <button className="file__btn" type="button" disabled={i === file.length - 1}
+                  aria-label={`Descendre ${q.text}`} onClick={() => deplacer(i, i + 1)}>↓</button>
+                <button className="file__btn file__btn--danger" type="button"
+                  aria-label={`Retirer ${q.text}`} onClick={() => retirer(q.id)}>×</button>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// ============================================================
+// Adresse de l'animateur — MASQUÉE par défaut, dévoilée à la demande.
+//
+// Ce que ça protège n'est pas la curiosité d'un voisin : c'est le passage à
+// l'antenne. L'animateur partage son écran, bascule une fenêtre, et son adresse
+// personnelle se retrouve devant l'audience — une fuite qu'on ne rattrape pas.
+// Elle reste dévoilable, parce qu'il doit pouvoir vérifier sous quel compte il
+// est connecté, et le dévoilement se referme tout seul.
+// ============================================================
+function EmailMasque({ email }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!visible) return undefined;
+    const t = setTimeout(() => setVisible(false), 6000);
+    return () => clearTimeout(t);
+  }, [visible]);
+  return (
+    <span className="home-bar__account">
+      <span className="home-bar__email" data-bind="auth.email" data-testid="host-email"
+        data-state={visible ? 'visible' : 'masque'}>
+        {visible ? email : masquerEmail(email)}
+      </span>
+      <button className="button button--quiet" type="button" data-action="auth:revealEmail"
+        aria-pressed={visible} aria-label={visible ? "Masquer l'adresse" : "Afficher l'adresse"}
+        onClick={() => setVisible((v) => !v)}>
+        <I.eye s={16} />
+      </button>
+    </span>
+  );
+}
+
+// ============================================================
 // A1 — Connexion animateur : la carte SEULE.
 // ============================================================
 function LoginScreen({ onEstablishRoom }) {
   const supabase = useMemo(() => getSupabase(), []);
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [motDePasse, setMotDePasse] = useState('');
+  const [sent, setSent] = useState(false);       // mail de réinitialisation envoyé
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const requestLink = useCallback(async (e) => {
+  const seConnecter = useCallback(async (e) => {
     e.preventDefault();
     setError('');
     if (!supabase) { // repli dev (Supabase non configuré) : entrée directe
@@ -231,24 +397,40 @@ function LoginScreen({ onEstablishRoom }) {
       return;
     }
     if (!email) { setError('Entrez votre adresse email.'); return; }
+    if (!motDePasse) { setError('Entrez votre mot de passe.'); return; }
     setBusy(true);
     try {
-      const { error: otpErr } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/host`,
-          // Cet écran CONNECTE, il n'inscrit pas.
-          shouldCreateUser: false,
-        },
-      });
-      if (otpErr) throw otpErr;
-      setSent(true);
+      // Aucune INSCRIPTION ici, jamais : les comptes animateur sont créés à la
+      // main dans Supabase, et l'inscription publique y est fermée.
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
+      if (err) throw err;
+      // La session est posée : la reprise habituelle prend le relais.
     } catch (err) {
-      setError(otpErrorMessage(err));
+      setError(passwordErrorMessage(err));
     } finally {
       setBusy(false);
     }
-  }, [supabase, email, onEstablishRoom]);
+  }, [supabase, email, motDePasse, onEstablishRoom]);
+
+  // Seul chemin qui passe encore par un envoi de mail, et il ne sert qu'en cas
+  // d'oubli — plus à chaque connexion, comme l'ancien lien.
+  const reinitialiser = useCallback(async () => {
+    setError('');
+    if (!supabase) return;
+    if (!email) { setError("Entrez votre adresse email, puis demandez la réinitialisation."); return; }
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/host`,
+      });
+      if (err) throw err;
+      setSent(true);
+    } catch (err) {
+      setError(resetErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [supabase, email]);
 
   return (
     <main className="page card-screen" role="main" aria-labelledby="auth-title">
@@ -256,49 +438,68 @@ function LoginScreen({ onEstablishRoom }) {
         {/* Marque en haut à gauche — la carte n'est pas centrée (maquette A1). */}
         <div className="auth-brand">
           <span className="auth-brand__mark" aria-hidden="true"><I.flame s={22} ember /></span>
-          <p className="auth-brand__name">Project Game Show</p>
+          <p className="auth-brand__name">{NOM_DU_JEU}</p>
         </div>
 
         {sent ? (
           <>
             <div className="auth-card__head auth-card__head--badged">
               <span className="auth-badge auth-badge--ok" aria-hidden="true"><I.mail s={26} /></span>
-              <h1 className="auth-card__title" id="auth-title">Lien envoyé</h1>
+              <h1 className="auth-card__title" id="auth-title">Message envoyé</h1>
               <p className="auth-card__sub">
-                Ouvre le message envoyé à <strong data-bind="auth.email">{email}</strong> pour
-                rejoindre ton poste de pilotage. Le lien est valable 15 minutes.
+                Ouvre le message reçu à <strong data-bind="auth.email">{masquerEmail(email)}</strong> pour
+                choisir un nouveau mot de passe.
               </p>
             </div>
-            <button className="button" type="button" data-action="auth:changeEmail"
-              onClick={() => setSent(false)}>Utiliser une autre adresse</button>
+            <button className="button" type="button" data-action="auth:back"
+              onClick={() => setSent(false)}>Revenir à la connexion</button>
           </>
         ) : (
           <>
             <div className="auth-card__head">
               <h1 className="auth-card__title" id="auth-title">Poste de pilotage</h1>
-              <p className="auth-card__sub">Un seul animateur — accès par lien email.</p>
+              <p className="auth-card__sub">Accès réservé aux comptes animateur.</p>
             </div>
-            <form className="auth-form" onSubmit={requestLink} noValidate data-action="POST /api/auth/link">
-              <div className={`auth-field${error ? ' auth-field--error' : ''}`}>
+            <form className="auth-form" onSubmit={seConnecter} noValidate data-action="auth:signIn">
+              <div className="auth-field">
                 <label className="auth-label" htmlFor="host-email">Adresse email</label>
                 <div className="auth-shell">
                   <input className="auth-shell__input" id="host-email" type="email" name="email"
                     placeholder="toi@exemple.fr" autoComplete="email" value={email}
-                    onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={busy}
-                    aria-invalid={error ? true : undefined}
-                    aria-describedby={error ? 'host-email-error' : undefined} />
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }} disabled={busy} />
                 </div>
-                {error ? (
-                  <p className="auth-card__error" id="host-email-error" data-bind="auth.error" role="alert">
-                    <I.alert s={17} />{error}
-                  </p>
-                ) : null}
               </div>
+
+              {supabase ? (
+                <div className={`auth-field${error ? ' auth-field--error' : ''}`}>
+                  <label className="auth-label" htmlFor="host-password">Mot de passe</label>
+                  <div className="auth-shell">
+                    <input className="auth-shell__input" id="host-password" type="password" name="password"
+                      autoComplete="current-password" value={motDePasse}
+                      onChange={(e) => { setMotDePasse(e.target.value); setError(''); }} disabled={busy}
+                      aria-invalid={error ? true : undefined}
+                      aria-describedby={error ? 'host-auth-error' : undefined} />
+                  </div>
+                  {error ? (
+                    <p className="auth-card__error" id="host-auth-error" data-bind="auth.error" role="alert">
+                      <I.alert s={17} />{error}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               <button className="button button--primary button--block button--tall" type="submit"
-                data-action="POST /api/auth/link" disabled={busy}>
-                {busy ? 'Envoi…' : (supabase ? 'Recevoir mon lien' : 'Entrer (mode animateur)')}
-                {busy || !supabase ? null : <I.arrow s={18} />}
+                data-action="auth:signIn" disabled={busy}>
+                {busy ? 'Connexion…' : (supabase ? 'Entrer' : 'Entrer (mode animateur)')}
+                {busy ? null : <I.arrow s={18} />}
               </button>
+
+              {supabase ? (
+                <button className="button button--quiet button--block" type="button"
+                  data-action="auth:reset" onClick={reinitialiser} disabled={busy}>
+                  Mot de passe oublié
+                </button>
+              ) : null}
             </form>
           </>
         )}
@@ -315,13 +516,22 @@ function DeniedScreen({ email, onLogout }) {
     <main className="page page--dusk card-screen" role="main" aria-labelledby="denied-title">
       <div className="auth-card" data-testid="denied-card">
         {/* Refus net mais sans dramatisation (maquette A2) : le feu reste allumé,
-            on rappelle l'adresse concernée et on propose les deux issues. */}
+            on rappelle l'adresse concernée et on propose les deux issues.
+
+            TEXTE REVU (action 10) : depuis que l'inscription publique est fermée
+            et que la connexion se fait par mot de passe, cet écran ne peut plus
+            signaler un intrus — aucun compte non autorisé ne peut exister. Il ne
+            reste qu'un seul cas : un compte bel et bien créé, mais absent de la
+            liste que connaît le serveur. Autrement dit un oubli de configuration,
+            pas une intrusion. L'écran doit donc nommer la cause probable et dire
+            quoi faire, au lieu de se contenter de refuser. */}
         <span className="auth-badge auth-badge--warn" aria-hidden="true"><I.lock s={26} /></span>
         <div className="auth-card__head auth-card__head--badged">
-          <h1 className="auth-card__title" id="denied-title">Accès réservé</h1>
+          <h1 className="auth-card__title" id="denied-title">Compte non autorisé</h1>
           <p className="auth-card__sub">
-            Le poste de pilotage n'est ouvert qu'à un seul compte animateur.
-            Le tien n'en fait pas partie.
+            Ce compte existe, mais il ne figure pas dans la liste des animateurs
+            autorisée par le serveur. C'est presque toujours un compte créé sans
+            avoir été ajouté à la configuration.
           </p>
         </div>
         {email ? (
@@ -357,10 +567,10 @@ function HomeScreen({ variant, onOpenRoom, opening, onLogout, openError, email }
       <header className="home-bar">
         <div className="auth-brand">
           <span className="auth-brand__mark" aria-hidden="true"><I.flame s={21} /></span>
-          <p className="auth-brand__name">Project Game Show · pilotage</p>
+          <p className="auth-brand__name">{NOM_DU_JEU} · pilotage</p>
         </div>
         <div className="home-bar__end">
-          {email ? <span className="home-bar__email" data-bind="auth.email">{email}</span> : null}
+          {email ? <EmailMasque email={email} /> : null}
           <button className="button" type="button" onClick={onLogout}
             data-action="auth:signOut">Déconnexion</button>
         </div>
@@ -414,6 +624,7 @@ function HomeScreen({ variant, onOpenRoom, opening, onLogout, openError, email }
 // A4 — Salon d'attente : invitation · joueurs et lancement · Séance
 // ============================================================
 function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
+  const jeux = useBibliotheque(g);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
   const streamUrl = `${origin}/overlay?token=${overlayToken}`;
@@ -455,13 +666,14 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
 
   const toggleShuffle = () => { const n = !shuffle; setShuffle(n); pushSessionConfig(n, checked); };
 
-  const toggleBank = (type) => {
-    if (openBank === type) { setOpenBank(null); return; }
-    setOpenBank(type);
-    if (!banks[type]) {
-      g.emit('host:getBank', { moduleType: type }, (list) => {
-        setBanks((prev) => ({ ...prev, [type]: list || [] }));
-        setChecked((prev) => ({ ...prev, [type]: new Set((list || []).map((q) => q.id)) }));
+  const toggleBank = (jeu) => {
+    const cle = jeu.id || jeu.type;
+    if (openBank === cle) { setOpenBank(null); return; }
+    setOpenBank(cle);
+    if (!banks[cle]) {
+      g.emit('host:getBank', { moduleId: jeu.id, moduleType: jeu.type }, (list) => {
+        setBanks((prev) => ({ ...prev, [cle]: list || [] }));
+        setChecked((prev) => ({ ...prev, [cle]: new Set((list || []).map((q) => q.id)) }));
       });
     }
   };
@@ -567,10 +779,14 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
             {picking ? (
               <div role="menu" aria-label="Choix du module"
                 style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-                {MODULE_TYPES.map((m) => (
-                  <button key={m.type} className="button button--block" type="button" role="menuitem"
-                    data-action="host:startModule" onClick={() => onStartModule(m.type)}>
+                {jeux.map((m) => (
+                  <button key={m.id || m.type} className="button button--block" type="button" role="menuitem"
+                    data-action="host:startModule" onClick={() => onStartModule(m)}
+                    disabled={m.questions === 0}>
                     Lancer {m.name}
+                    {/* Un jeu vide se signale AVANT le lancement, pas par un refus
+                        du serveur découvert en plein direct. */}
+                    {m.questions === 0 ? ' — aucune question' : ''}
                   </button>
                 ))}
               </div>
@@ -591,22 +807,23 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
             <span className="switch__label">Ordre des questions aléatoire</span>
           </button>
 
-          {MODULE_TYPES.map((m) => {
-            const list = banks[m.type] || [];
-            const set = checked[m.type];
+          {jeux.map((m) => {
+            const cle = m.id || m.type;
+            const list = banks[cle] || [];
+            const set = checked[cle];
             const partial = set && list.length && set.size < list.length;
             return (
-              <div className="bank" key={m.type}>
-                <button className="bank__head" type="button" aria-expanded={openBank === m.type}
-                  onClick={() => toggleBank(m.type)}>
-                  <I.chevron s={16} open={openBank === m.type} />
+              <div className="bank" key={cle}>
+                <button className="bank__head" type="button" aria-expanded={openBank === cle}
+                  onClick={() => toggleBank(m)}>
+                  <I.chevron s={16} open={openBank === cle} />
                   {m.name}
                   <span className={`bank__count${partial ? ' bank__count--partial' : ''}`}
-                    data-bind={`session.selected.${m.type}`}>
+                    data-bind={`session.selected.${cle}`}>
                     {set ? `${set.size}/${list.length}` : 'toutes'}
                   </span>
                 </button>
-                {openBank === m.type ? (
+                {openBank === cle ? (
                   <ul className="bank__list" data-action="host:getBank">
                     {list.length === 0 ? (
                       <li className="private__hint">Chargement…</li>
@@ -614,7 +831,7 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
                       <li key={q.id}>
                         <label className="bank__q">
                           <input type="checkbox" checked={set ? set.has(q.id) : true}
-                            onChange={() => toggleQuestion(m.type, q.id)} />
+                            onChange={() => toggleQuestion(cle, q.id)} />
                           {q.text}
                         </label>
                       </li>
@@ -648,14 +865,43 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     const cells = stats?.kind === 'numeric'
       ? [['Le plus proche', stats.closest], ['Moyenne', stats.avg], ['Médiane', stats.median]]
       : [['Min', dist.min], ['Moyenne', dist.avg], ['Max', dist.max]];
+    // L'histogramme de dispersion, spécifié par la maquette A5 et jamais
+    // construit : trois chiffres disent où est le groupe, mais pas s'il est
+    // groupé ou éparpillé — et c'est cette forme-là que l'animateur lit d'un
+    // coup d'œil pour décider quand révéler.
+    const histo = stats?.histogramme || dist.histogramme || null;
+    const hautMax = histo ? Math.max(1, ...histo.counts) : 1;
     return (
-      <div className="dist__facts">
-        {cells.map(([label, v]) => (
-          <div className="dist__fact" key={label}>
-            <span className="h-label">{label}</span>
-            <span className="dist__fact-value">{v != null ? fmt(v) : '—'}</span>
+      <div className="dist__numeric">
+        {histo ? (
+          <div className="histo" data-testid="histogramme">
+            <p className="histo__legend">
+              Dispersion des <span className="histo__legend-num">{fmt(total)}</span> estimation{total > 1 ? 's' : ''}
+            </p>
+            <div className="histo__plot">
+              {histo.counts.map((c, i) => (
+                <span
+                  key={i}
+                  className={`histo__bar${i === histo.cibleIndex ? ' histo__bar--cible' : ''}`}
+                  style={{ height: `${Math.round((c / hautMax) * 100)}%` }}
+                  title={`${c} estimation${c > 1 ? 's' : ''}`}
+                  data-count={c}
+                />
+              ))}
+            </div>
+            {/* La cible est repérée dans le graphique : on voit où tombe la
+                vérité par rapport au groupe, pas seulement où est le groupe. */}
+            <p className="histo__target">Bonne réponse repérée en couleur</p>
           </div>
-        ))}
+        ) : null}
+        <div className="dist__facts">
+          {cells.map(([label, v]) => (
+            <div className="dist__fact" key={label}>
+              <span className="h-label">{label}</span>
+              <span className="dist__fact-value">{v != null ? fmt(v) : '—'}</span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -675,18 +921,25 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     ? (reveal?.type === 'quiz' ? reveal.correctIndex
       : reveal?.type === 'true_false' ? (reveal.correct ? 1 : 0) : -1)
     : -1;
-  const max = Math.max(1, ...counts);
-
   return (
     <div className="dist">
       {options.map((opt, i) => {
         const c = counts[i] || 0;
+        // Part du TOTAL, jamais de l'option en tête : la barre et l'étiquette
+        // chiffrée posée juste à côté doivent raconter la même chose. Cadrer sur
+        // le maximum mettait l'option de tête à 100 % quoi qu'il arrive, à côté
+        // d'une étiquette qui affichait « 75 % ».
         const pct = total ? Math.round((c / total) * 100) : 0;
         return (
           <div className={`dist__row${i === correctIndex ? ' dist__row--correct' : ''}`} key={i}>
             {showKey ? <span className="dist__key" aria-hidden="true">{KEYS[i] || i + 1}</span> : <span />}
             <span className="dist__track">
-              <span className="dist__fill" style={{ width: `${(c / max) * 100}%` }} aria-hidden="true" />
+              {/* --om-to est le CONTRAT du système de design (tokens.css:324) :
+                  l'animation pousse la barre de 0 jusqu'à cette valeur et y reste,
+                  et la règle CSS lit la même valeur pour la largeur. Sans elle,
+                  l'animation retombait sur sa valeur par défaut (100 %) et écrasait
+                  la largeur — toutes les barres finissaient pleines. */}
+              <span className="dist__fill" style={{ '--om-to': `${pct}%` }} aria-hidden="true" />
               <span className="dist__opt" title={String(opt)}>{opt}</span>
             </span>
             <span className="dist__count">{c} · {pct}%</span>
@@ -701,6 +954,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // A5 — Pilotage en direct
 // ============================================================
 function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+  const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
   const tick = g.tick;
@@ -712,8 +966,12 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
   const prog = room.progression || {};
   const progIndex = prog.index != null ? prog.index : 1;
   const progTotal = prog.total || 0;
-  const top5 = (g.leaderboard || []).slice(0, 5);
-  const hasScores = top5.some((p) => (p.score || 0) > 0);
+  // Classement COMPLET, plus une vue tronquée (action 3). La liste étant triée,
+  // le premier reste en tête : le coup d'œil en direct ne coûte rien, et le reste
+  // est à portée de défilement. Le onzième joueur n'existait pas jusqu'ici, ni
+  // ici ni sur le stream.
+  const classement = g.leaderboard || [];
+  const hasScores = classement.some((p) => (p.score || 0) > 0);
   const moduleName = (current && current.meta && current.meta.name) || 'Épreuve';
 
   const revealLabel = revealed ? (() => {
@@ -809,13 +1067,20 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
         </div>
 
         <aside className="rail">
+          {/* La file apparaît AU LANCEMENT du jeu, pas dans le salon d'attente :
+              c'est en direct qu'elle sert, quand l'animateur décide de la suite. */}
+          <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name} />
+
           <section className="private" aria-label="Classement en direct">
-            <p className="private__title"><I.eye s={16} /> Top 5 — toi seul</p>
-            {top5.length === 0 ? (
+            <p className="private__title">
+              <I.eye s={16} /> Classement — toi seul
+              {classement.length ? <span className="private__count">{fmt(classement.length)}</span> : null}
+            </p>
+            {classement.length === 0 ? (
               <p className="lb__empty">Aucun score pour l'instant.</p>
             ) : (
-              <div className="lb" data-bind="leaderboard">
-                {top5.map((p, i) => (
+              <div className="lb lb--scroll" data-bind="leaderboard" data-testid="host-leaderboard">
+                {classement.map((p, i) => (
                   <div className={`lb__row${i === 0 && hasScores ? ' lb__row--lead' : ''}`}
                     key={playerId(p) || i} style={{ animationDelay: `${i * 40}ms` }}>
                     <span className="lb__rank">{i + 1}</span>
@@ -827,28 +1092,13 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
             )}
           </section>
 
-          <section className="pane" aria-label="Bonus et malus">
-            <p className="h-label">Bonus / Malus</p>
-            {(g.leaderboard || []).length === 0 ? (
-              <p className="lb__empty">Aucun joueur à ajuster.</p>
-            ) : (
-              <div className="adjust">
-                {(g.leaderboard || []).map((p, i) => (
-                  <div className="adjust__row" key={playerId(p) || i}>
-                    <span className="adjust__name" title={playerName(p)}>{playerName(p)}</span>
-                    <button className="adjust__btn adjust__btn--minus" type="button" disabled={connLost}
-                      data-action="host:adjustScore:-100"
-                      aria-label={`Retirer 100 points à ${playerName(p)}`}
-                      onClick={() => g.emit('host:adjustScore', { playerId: playerId(p), delta: -100 })}>−</button>
-                    <button className="adjust__btn adjust__btn--plus" type="button" disabled={connLost}
-                      data-action="host:adjustScore:+100"
-                      aria-label={`Ajouter 100 points à ${playerName(p)}`}
-                      onClick={() => g.emit('host:adjustScore', { playerId: playerId(p), delta: 100 })}>+</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          {/* Le panneau « Bonus / Malus » a été SUPPRIMÉ (action 8). Il proposait
+              d'ajouter ou retirer 100 points à n'importe quel joueur, sans règle,
+              sans trace et sans retour arrière. C'était le seul objet du projet à
+              porter ce nom en titre — et le seul à n'avoir effectivement aucune
+              règle, d'où le malaise en réunion de test. Les vrais bonus, eux,
+              étaient automatiques et parfaitement définis : ils sont conservés et
+              désormais énoncés au joueur. */}
         </aside>
       </main>
 
@@ -857,13 +1107,13 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           <>
             <button className="button button--primary button--lg" type="button"
               data-action="host:startModule" onClick={onNextQuestion}>Question suivante</button>
-            <ModuleMenu currentType={current && current.type} onPick={onChangeModule} />
+            <ModuleMenu jeux={jeux} currentId={current && current.moduleId} onPick={onChangeModule} />
           </>
         ) : (
           <>
             <button className="button button--primary button--lg" type="button"
               data-action="host:reveal" onClick={() => g.emit('host:reveal')}>Révéler maintenant</button>
-            <ModuleMenu currentType={current && current.type} onPick={onChangeModule} />
+            <ModuleMenu jeux={jeux} currentId={current && current.moduleId} onPick={onChangeModule} />
           </>
         )}
         <span className="actions__spacer" />
@@ -883,7 +1133,10 @@ function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canB
   const progTotal = g.room?.progression?.total || 0;
   const scored = rows.filter((p) => (p.score || 0) > 0);
   const top3 = scored.slice(0, 3);
-  const rest = scored.slice(3, 8);
+  // Le reste du classement, ENTIER : il s'arrêtait au huitième, ce qui laissait
+  // les joueurs suivants hors de portée de l'animateur au moment même où il
+  // commente les résultats.
+  const rest = scored.slice(3);
 
   const Slot = ({ p, rank, mod, crown }) => (
     <div className={`podium__slot podium__slot--${mod}`}>
@@ -1081,10 +1334,12 @@ export function HostApp() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const startModule = useCallback((moduleType) => {
+  // Reçoit un JEU de la bibliothèque ({ id, type, name }) — ou, en repli, un objet
+  // ne portant qu'un type quand la bibliothèque n'est pas encore arrivée.
+  const startModule = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
-    g.emit('host:startModule', { moduleType });
+    g.emit('host:startModule', { moduleId: jeu?.id, moduleType: jeu?.type });
   }, [g]);
 
   const endGame = useCallback(() => { g.emit('host:endGame'); }, [g]);
@@ -1173,7 +1428,10 @@ export function HostApp() {
   const code = (room && room.code) || session.code;
   const playerCount = room && room.playerCount != null ? room.playerCount : 0;
   const players = (room && room.players) || g.leaderboard || [];
-  const lastType = (g.current && g.current.type) || 'quiz';
+  // Le jeu en cours, pour que « question suivante » reste dans CE jeu.
+  const jeuEnCours = g.current
+    ? { id: g.current.moduleId, type: g.current.type, name: g.current.meta?.name }
+    : { type: 'quiz' };
 
   // --- Partie terminée OU classement demandé ---
   if (state === 'ended' || showResults) {
@@ -1181,7 +1439,7 @@ export function HostApp() {
       <>
         <ResultsScreen
           g={g}
-          onNextModule={() => { setShowResults(false); startModule(lastType); }}
+          onNextModule={() => { setShowResults(false); startModule(jeuEnCours); }}
           continueLabel={state === 'ended' ? 'Relancer une partie' : 'Question suivante'}
           onEndGame={state === 'ended' ? undefined : endGame}
           onBackToLobby={state === 'ended' ? backToLobby : undefined}
@@ -1206,7 +1464,7 @@ export function HostApp() {
           onLogout={logout}
           onCloseRoom={closeRoom}
           onEndGame={endGame}
-          onNextQuestion={() => startModule(lastType)}
+          onNextQuestion={() => startModule(jeuEnCours)}
           onChangeModule={(t) => startModule(t)}
           connLost={connLost}
           hostError={hostError}

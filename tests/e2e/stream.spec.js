@@ -1,16 +1,22 @@
-// E2E — M8/M9 : page stream (source navigateur OBS) — QR/lien/code permanents,
-// question en temps réel, stats de répartition à la révélation.
+// E2E — M8/M9 : page stream (source navigateur OBS) — moyen de rejoindre pendant
+// la partie, question en temps réel, stats de répartition à la révélation.
+//
+// CONTRAT RÉÉCRIT (actions 3, 4 et 5) : le QR n'est plus permanent. Il est présent
+// pendant l'accueil et la partie — pour que les retardataires puissent rejoindre —
+// et disparaît au podium, où la place sert au classement complet. Le CODE, lui,
+// reste affiché en toute phase : le salon demeure ouvert cinq minutes après le
+// podium, et un code seul suffit à revenir.
 import { test, expect } from '@playwright/test';
 import { openHost, joinAsPlayer } from './helpers.js';
 
 test.describe('Page stream (M8)', () => {
-  test('QR + code permanents, question live, stats à la révélation', async ({ browser }) => {
+  test('moyen de rejoindre pendant la partie, question live, stats à la révélation', async ({ browser }) => {
     // L'animateur crée un salon et récupère le lien stream.
     const { ctx: hostCtx, page: host, code } = await openHost(browser);
     const streamUrl = (await host.getByTestId('overlay-link').textContent())?.trim();
     expect(streamUrl).toContain('/overlay?token=');
 
-    // La page stream affiche EN PERMANENCE le QR, le lien et le code du salon.
+    // Pendant l'accueil : QR, code et adresse, dans la pastille.
     const streamCtx = await browser.newContext();
     const stream = await streamCtx.newPage();
     await stream.goto(streamUrl);
@@ -41,7 +47,9 @@ test.describe('Page stream (M8)', () => {
     await host.getByRole('menuitem', { name: 'Terminer la partie' }).click();
     await host.getByRole('menuitem', { name: 'Confirmer — terminer la partie' }).click();
     await expect(stream.getByTestId('stream-podium')).toBeVisible();
-    await expect(stream.getByTestId('stream-room-code')).toHaveText(code); // toujours permanent
+    // AU PODIUM : plus de QR — mais le code reste, pour une éventuelle relance.
+    await expect(stream.getByTestId('stream-qr')).toHaveCount(0);
+    await expect(stream.getByTestId('stream-room-code')).toHaveText(code);
 
     await hostCtx.close();
     await streamCtx.close();

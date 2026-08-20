@@ -12,6 +12,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGame, store } from '../shared/useGame.js';
 import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
+import { dire } from '../shared/voix.js';
+import { NOM_DU_JEU } from '../shared/marque.js';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -37,6 +39,21 @@ function useCountUp(target, duration = 900) {
     return () => cancelAnimationFrame(raf);
   }, [target, duration]);
   return val;
+}
+
+// Phrase qui tourne pendant les longues attentes. Le TITRE, lui, ne bouge pas :
+// c'est lui qui donne son nom accessible à la page, et le faire changer en boucle
+// rendrait l'écran instable pour un lecteur d'écran. La ligne rotative est donc
+// explicitement retirée des annonces vocales — sinon un lecteur réciterait une
+// nouvelle phrase toutes les six secondes par-dessus le reste.
+function usePhraseQuiTourne(momentId, intervalle = 6000) {
+  const [phrase, setPhrase] = useState(() => dire(momentId));
+  useEffect(() => {
+    setPhrase(dire(momentId));
+    const t = setInterval(() => setPhrase(dire(momentId)), intervalle);
+    return () => clearInterval(t);
+  }, [momentId, intervalle]);
+  return phrase;
 }
 
 // ---- Icônes du système (SVG au trait, jamais d'emoji) -----------------------
@@ -88,12 +105,6 @@ const Ico = {
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 5v13" /><path d="M6.5 12.5L12 18l5.5-5.5" />
-    </svg>
-  ),
-  exit: ({ s = 18 }) => (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 5H6v14h8" /><path d="M12 12h8" /><path d="M17 8.5l3.5 3.5L17 15.5" />
     </svg>
   ),
   arrow: ({ s = 18 }) => (
@@ -208,7 +219,7 @@ function JoinScreen({ initialCode, onJoin, notice }) {
       <div className="screen__main">
         <div className="p-brand">
           <span className="p-brand__mark" aria-hidden="true"><Ico.flame s={22} ember /></span>
-          <p className="p-label">Project Game Show</p>
+          <p className="p-label">{NOM_DU_JEU}</p>
         </div>
 
         <h1 className="p-title" id="join-title" style={{ marginTop: 'var(--sp-7)' }}>Rejoins<br />la partie</h1>
@@ -312,6 +323,7 @@ function JoinScreen({ initialCode, onJoin, notice }) {
 // ============================================================
 function WaitScreen({ pseudo, code, playerCount }) {
   const empty = !playerCount || playerCount <= 1;
+  const phrase = usePhraseQuiTourne(empty ? 'attente.seul' : 'attente.accompagne');
   const overflow = pseudo && pseudo.length > 15; // Pseudo long déborde visuellement
   return (
     <main className="screen screen--hearth" data-state={`waiting${empty ? ' empty' : ''}${overflow ? ' overflow' : ''}`} aria-labelledby="wait-title">
@@ -334,6 +346,11 @@ function WaitScreen({ pseudo, code, playerCount }) {
         <h1 className="p-title p-title--sm" id="wait-title">
           {empty ? 'Tu allumes le feu' : "On attend l'animateur"}
         </h1>
+        {/* aria-hidden : la phrase change toutes les six secondes. Annoncée, elle
+            couvrirait tout le reste pour un joueur qui écoute son écran. */}
+        {phrase ? (
+          <p className="p-lead voix" aria-hidden="true" data-testid="voix-attente" key={phrase}>{phrase}</p>
+        ) : null}
 
         <div className={`wait__count${empty ? ' wait__count--empty' : ''}`} role="status" aria-live="polite">
           <span aria-hidden="true" style={{ color: 'var(--c-ink-3)' }}><Ico.people s={22} /></span>
@@ -341,6 +358,36 @@ function WaitScreen({ pseudo, code, playerCount }) {
             key={playerCount}>{fmtNum(playerCount || 0)}</span>
           <span className="wait__count-label">{(playerCount || 0) > 1 ? 'joueurs prêts' : 'joueur prêt'}</span>
         </div>
+
+        {/* LE BARÈME, ENFIN ÉNONCÉ (action 8). Il existait, ses règles étaient
+            parfaitement définies — mais elles n'étaient écrites nulle part. Le
+            joueur voyait « bonus vitesse : +150 » sans avoir jamais su qu'un tel
+            bonus existait, d'où l'impression d'arbitraire relevée en test.
+            Replié par défaut : l'écran reste épuré, et l'information est là au
+            moment précis où le joueur n'a rien d'autre à faire. */}
+        <details className="rules" data-testid="scoring-rules">
+          <summary className="rules__summary">Comment on marque des points</summary>
+          <ul className="rules__list">
+            <li>Une bonne réponse vaut <strong>700 points</strong>.</li>
+            <li>Plus tu réponds vite, plus tu ajoutes : <strong>jusqu'à 300 points</strong> de complément.</li>
+            <li>La réponse juste la plus rapide de la manche prend <strong>150 points</strong> de plus.</li>
+            {/* L'énoncé doit couvrir les QUATRE jeux, pas seulement le quiz :
+                l'estimation et le vote ont leurs propres règles, et un barème
+                incomplet est aussi trompeur qu'un barème absent. */}
+            <li>
+              En <strong>estimation</strong>, seule la justesse compte — la vitesse n'y joue
+              aucun rôle. Plus tu es près, plus tu marques : <strong>1000</strong> dans le mille,
+              puis 750, 500 et 250 à mesure que tu t'éloignes.
+            </li>
+            <li>Au <strong>vote</strong>, tu marques si tu es dans la majorité. En cas d'égalité, les deux camps gagnent.</li>
+            <li>Une mauvaise réponse ne rapporte rien — et ne coûte rien. Aucun jeu ne retire de points.</li>
+            <li>
+              Tes bonnes réponses d'affilée sont comptées, pour l'honneur : elles ne donnent
+              pas de points. La série se rompt sur une mauvaise réponse, une manche sans
+              réponse, ou un vote minoritaire.
+            </li>
+          </ul>
+        </details>
       </div>
     </main>
   );
@@ -513,23 +560,62 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
 // ============================================================
 // J4 — Résultat de manche (aucun rang, jamais)
 // ============================================================
-function ScoreScreen({ you, reveal, myAnswer, current, index, total }) {
+function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered }) {
   const rv = reveal || {};
   const isVote = (rv.type || current?.type) === 'vote';
+  // Un vote est désormais un JEU par défaut : la majorité marque (action 18).
+  // Il peut rester un SONDAGE, question par question — auquel cas personne ne
+  // gagne et l'écran ne doit surtout pas annoncer de points.
+  const isSondage = isVote && rv.poll === true;
   const isEstimation = (rv.type || current?.type) === 'estimation';
+
+  // TROIS situations, pas deux (R12). L'absence de résultat ne signifie pas
+  // « tu n'étais pas là » : elle peut aussi vouloir dire « pas encore révélé »,
+  // ou « tu viens de te reconnecter ». Seul `answered`, calculé par le serveur,
+  // dit si le joueur a participé. Et le résultat n'est le sien que s'il porte
+  // l'identité de la manche affichée — sinon c'est un souvenir d'une manche
+  // précédente, qui affichait jusqu'ici des bonus et malus fantômes.
+  const monResultat = you && current?.roundId != null && you.roundId === current.roundId ? you : null;
+  const hasData = !!monResultat;
+  const absent = answered === false;
 
   // Bon / mauvais quand la révélation le permet.
   let correct = null;
   if (!isVote) {
     if (typeof rv.correct === 'boolean' && typeof myAnswer === 'boolean') correct = myAnswer === rv.correct;
     else if (typeof rv.correctIndex === 'number' && typeof myAnswer === 'number') correct = myAnswer === rv.correctIndex;
-    else if (rv.target != null && myAnswer != null) correct = (you?.base || 0) > 0;
+    else if (rv.target != null && myAnswer != null) correct = (monResultat?.base || 0) > 0;
+  } else if (!isSondage && Array.isArray(rv.winners) && typeof myAnswer === 'number') {
+    correct = rv.winners.includes(myAnswer);
   }
 
-  const hasData = !!you;
-  const gained = typeof you?.delta === 'number' ? you.delta : 0;
+  // Quel moment de voix ce résultat mérite-t-il ? Chaque branche est adossée à un
+  // fait vérifié : le palier renvoyé par le serveur, le supplément de rapidité
+  // réellement versé, la série réellement atteinte. Une phrase ne peut donc pas
+  // célébrer un réflexe qui n'a pas eu lieu.
+  const momentVoix = (() => {
+    // Les deux cas limites ont eux aussi leur phrase : « jamais d'écran muet »
+    // vaut aussi — et surtout — pour le joueur qui arrive en cours de partie.
+    if (absent) return 'manche.sans-toi';
+    if (!hasData) return 'resultat.attente';
+    if (isSondage) return 'vote.sondage';
+    if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
+    if (isEstimation && monResultat.palier) return `estimation.${monResultat.palier}`;
+    if (correct === true) {
+      if (monResultat.speed >= 150) return 'juste.plus-rapide';
+      if (monResultat.streak >= 2) return 'juste.serie';
+      return 'juste.simple';
+    }
+    if (correct === false) return 'faux';
+    return null;
+  })();
+  const phraseVoix = momentVoix
+    ? dire(momentVoix, { serie: monResultat?.streak, places: Math.abs(monResultat?.placesDelta || 0) })
+    : null;
+
+  const gained = typeof monResultat?.delta === 'number' ? monResultat.delta : 0;
   const animatedGain = useCountUp(gained);
-  const places = you?.placesDelta ?? 0;
+  const places = monResultat?.placesDelta ?? 0;
   const answerLabel = correctAnswerLabel(rv, current);
   const tone = correct === true ? 'correct' : correct === false ? 'wrong' : isVote ? 'vote' : 'empty';
 
@@ -547,20 +633,38 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total }) {
           </p>
           <span className="p-cap">
             <span className="p-cap__label">Score</span>
-            <span className="p-cap__value" data-bind="you.score">{hasData ? fmtNum(you.score) : '—'}</span>
+            {/* Score CUMULÉ : il reste vrai même quand le résultat de la manche
+                n'est pas (encore) là — c'est son décalage qui déroutait le joueur. */}
+            <span className="p-cap__value" data-bind="you.score">{you ? fmtNum(you.score) : '—'}</span>
           </span>
         </div>
 
-        {/* Cas limite : aucun play:you reçu (arrivé après le lancement). */}
-        {!hasData ? (
+        {/* Situation 3 : le joueur n'a pas participé à cette manche.
+            Le test est `absent` SEUL, pas « absent et sans résultat » : le serveur
+            envoie un relevé à zéro à tous les joueurs connectés, y compris à ceux
+            qui n'ont pas répondu. Se fier à la présence du relevé faisait donc
+            afficher « 0 point » à un retardataire, là où la décision 5 de
+            l'action 12 exige qu'on lui DISE qu'il n'était pas là. */}
+        {absent ? (
           <div className="screen__main--center" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
               style={{ color: 'var(--c-ink-3)' }}><Ico.clock s={30} /></span>
             <h1 className="p-title p-title--sm" id="verdict">Manche jouée<br />sans toi</h1>
             <p className="p-lead" role="status">
               Tu es arrivé après le lancement : aucun point pour cette manche.
-              Tu joues à partir de la prochaine.
             </p>
+            {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
+          </div>
+        ) : !hasData ? (
+          /* Situation 2 : le joueur a bien répondu, son résultat n'est pas encore
+             arrivé — reconnexion en cours, ou manche pas encore révélée. On ne lui
+             dit SURTOUT pas qu'il n'était pas là. */
+          <div className="screen__main--center" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
+              style={{ color: 'var(--c-fern)' }}><Ico.checkCircle s={30} /></span>
+            <h1 className="p-title p-title--sm" id="verdict">Ta réponse<br />est bien partie</h1>
+            <p className="p-lead" role="status">Ton score est à jour.</p>
+            {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
           </div>
         ) : (
           <>
@@ -573,15 +677,20 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total }) {
                   : <Ico.checkCircle s={34} />}
               </span>
               <h1 className={`verdict__title${correct === true ? ' verdict__title--good' : ''}`} id="verdict">
-                {correct === true ? 'Bien joué' : correct === false ? 'Raté' : isVote ? 'Voix comptée' : 'Manche close'}
+                {/* Sur un vote, être minoritaire n'est pas un échec : c'est un
+                    pari perdu. Le mot « Raté » serait faux et inutilement dur. */}
+                {isVote
+                  ? (isSondage ? 'Voix comptée' : correct === true ? 'Avec la majorité' : correct === false ? 'À contre-courant' : 'Voix comptée')
+                  : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
-              {correct === false ? <p className="p-lead">Ça se rattrape à la manche suivante.</p> : null}
-              {isVote ? (
-                <p className="p-lead">Un vote ne rapporte pas de points : il choisit la suite de la soirée.</p>
-              ) : null}
+              {/* La voix du jeu remplace les commentaires figés : « Ça se
+                  rattrape » disait la même chose à tout le monde, à chaque fois. */}
+              {phraseVoix ? <p className="p-lead voix" role="status" data-testid="voix-resultat">{phraseVoix}</p> : null}
+
+
             </div>
 
-            {!isVote ? (
+            {!isSondage ? (
               <div className="gain">
                 <p className="p-label">Points gagnés</p>
                 <p className={`gain__value${gainClass}`} data-bind="you.delta" data-testid="points-gained">{gainText}</p>
@@ -617,30 +726,41 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total }) {
               </div>
             ) : null}
 
-            {!isVote ? (
+            {/* Le détail des points se lit en DEUX lignes, et elles disent la
+                vérité. Avant, une case « Bonus vitesse » contenait aussi le bonus
+                de série : un joueur en série de trois y lisait « +100 » sans avoir
+                été rapide, pendant que la case « Série » affichait « ×3 » sans le
+                moindre point en face. Plus de case « Malus » non plus : aucune
+                pénalité n'existe dans aucun jeu.
+                Chaque ligne ne s'affiche que si elle vaut quelque chose — un écran
+                de résultat n'a pas à aligner des zéros. */}
+            {!isVote && (monResultat.base || monResultat.speed) ? (
               <div className="breakdown">
-                <div className="breakdown__cell">
-                  <span className="p-label p-label--tiny">Base</span>
-                  <span className={`breakdown__value${you.base ? '' : ' breakdown__value--dim'}`} data-bind="you.base">
-                    {fmtNum(you.base)}
-                  </span>
-                </div>
-                <div className="breakdown__cell">
-                  <span className="p-label p-label--tiny">Bonus vitesse</span>
-                  <span className={`breakdown__value${you.bonus ? ' breakdown__value--accent' : ' breakdown__value--dim'}`}
-                    data-bind="you.bonus">{you.bonus ? `+${fmtNum(you.bonus)}` : '0'}</span>
-                </div>
-                <div className="breakdown__cell">
-                  <span className="p-label p-label--tiny">Malus</span>
-                  <span className={`breakdown__value${you.malus ? ' breakdown__value--bad' : ' breakdown__value--dim'}`}
-                    data-bind="you.malus">{you.malus ? fmtNum(you.malus) : '0'}</span>
-                </div>
-                <div className="breakdown__cell">
-                  <span className="p-label p-label--tiny">Série</span>
-                  <span className={`breakdown__value${you.streak >= 2 ? ' breakdown__value--accent' : ' breakdown__value--dim'}`}
-                    data-bind="you.streak">{you.streak >= 1 ? `×${you.streak}` : 'rompue'}</span>
-                </div>
+                {monResultat.base ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Base</span>
+                    <span className="breakdown__value" data-bind="you.base" data-testid="points-base">
+                      {fmtNum(monResultat.base)}
+                    </span>
+                  </div>
+                ) : null}
+                {monResultat.speed ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Complément de vitesse</span>
+                    <span className="breakdown__value breakdown__value--accent"
+                      data-bind="you.speed" data-testid="points-speed">+{fmtNum(monResultat.speed)}</span>
+                  </div>
+                ) : null}
               </div>
+            ) : null}
+
+            {/* La série est une INFORMATION, plus une source de points : elle se
+                lit comme un compte de bonnes réponses d'affilée, sans la notation
+                « ×N » qui laissait croire à une multiplication. */}
+            {!isVote && monResultat.streak >= 2 ? (
+              <p className="p-lead" data-bind="you.streak" data-testid="streak-count">
+                {monResultat.streak} bonnes réponses d'affilée.
+              </p>
             ) : null}
           </>
         )}
@@ -751,7 +871,7 @@ function historyAnswer(h) {
   return null;
 }
 
-function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode }) {
+function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
   const rank = you?.rank;
   const scored = (podium || []).filter((p) => (p.score || 0) > 0);
   const ranked = rank != null && scored.length > 0;
@@ -760,7 +880,7 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode 
 
   const share = async () => {
     const rankTxt = rank != null ? `${rank}${rank === 1 ? 're' : 'e'} place` : 'la partie';
-    const text = `J'ai terminé ${rankTxt} avec ${fmtNum(you?.score)} pts sur Project Game Show !`;
+    const text = `J'ai terminé ${rankTxt} avec ${fmtNum(you?.score)} pts sur ${NOM_DU_JEU} !`;
     const url = typeof window !== 'undefined' ? window.location.origin : '';
     try {
       if (navigator.share) {
@@ -773,8 +893,8 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode 
           }
         } catch { /* canvas indisponible : repli texte */ }
         await navigator.share(filesPayload
-          ? { title: 'Project Game Show', text, files: filesPayload }
-          : { title: 'Project Game Show', text, url });
+          ? { title: NOM_DU_JEU, text, files: filesPayload }
+          : { title: NOM_DU_JEU, text, url });
       } else {
         await navigator.clipboard.writeText(`${text} ${url}`);
         setShared(true);
@@ -864,10 +984,16 @@ function EndScreen({ you, podium, playerId, pseudo, onReplay, history, roomCode 
               {shared ? 'Copié !' : 'Partager mon score'}
             </button>
           ) : null}
-          <button className="p-btn p-btn--ghost" type="button" data-action="replay" onClick={onReplay}>
-            Rejouer
-          </button>
         </div>
+        {/* Plus de bouton « Rejouer » : il effaçait la session locale sans prévenir
+            le serveur, si bien que le joueur perdait son identité et se voyait
+            refuser son propre pseudo s'il tentait de revenir. Le bouton qui
+            promettait de rejouer était celui qui l'en empêchait.
+            Rien à cliquer : quand l'animateur relance, le serveur ramène tout le
+            monde au salon d'attente. */}
+        <p className="p-lead" role="status" data-bind="end.replayHint">
+          Reste là : si l'animateur relance une partie, tu y seras ramené sans rien faire.
+        </p>
       </div>
     </main>
   );
@@ -933,14 +1059,6 @@ export function PlayApp() {
     g.emit('play:answer', { value });
   }
 
-  // Quitter : efface la session locale, coupe le socket, revient à « rejoindre ».
-  function handleLeave() {
-    if (code) store.clear('play:' + code);
-    setPlayerToken(null);
-    setPlayerId(null);
-    setMyAnswer(null);
-  }
-
   if (!playerToken) {
     return <JoinScreen initialCode={urlCode} onJoin={handleJoin} notice={notice} />;
   }
@@ -952,13 +1070,13 @@ export function PlayApp() {
   const roomCode = room?.code || code;
   const displayPseudo = g.you?.pseudo || pseudo;
 
-  const QuitButton = (
-    <button className="quit-btn" type="button" data-action="leave" onClick={handleLeave}
-      aria-label="Quitter le salon">
-      <Ico.exit s={16} />
-      Quitter
-    </button>
-  );
+  // PLUS DE BOUTON « QUITTER ». Il n'effaçait que la session LOCALE sans prévenir
+  // le serveur : le joueur restait inscrit dans le salon avec son pseudo et son
+  // score, mais perdait le jeton qui lui permettait d'y revenir. Rejoindre avec le
+  // même pseudo lui était alors refusé — par lui-même.
+  // Et il n'avait aucun usage légitime : la session est rattachée à UN salon, donc
+  // rejoindre une autre partie ne demande pas de quitter la première ; fermer
+  // l'onglet suffit ; une session périmée est purgée toute seule.
 
   // Repli si play:you n'a pas (encore) été reçu — typiquement après un rechargement.
   const deriveYou = (rows) => {
@@ -975,9 +1093,8 @@ export function PlayApp() {
   if (g.podium || room?.state === 'ended') {
     return (
       <>
-        {QuitButton}
         <EndScreen you={effectiveYou} podium={podiumRows} playerId={playerId}
-          pseudo={displayPseudo} onReplay={handleLeave} history={g.history} roomCode={roomCode} />
+          pseudo={displayPseudo} history={g.history} roomCode={roomCode} />
       </>
     );
   }
@@ -986,9 +1103,9 @@ export function PlayApp() {
   if (g.reveal) {
     return (
       <>
-        {QuitButton}
         <ScoreScreen you={g.you} reveal={g.reveal} myAnswer={myAnswer} current={g.current}
-          index={room?.progression?.index} total={room?.progression?.total} />
+          index={room?.progression?.index} total={room?.progression?.total}
+          answered={g.answered} />
       </>
     );
   }
@@ -1010,7 +1127,6 @@ export function PlayApp() {
   // Attente du lancement.
   return (
     <>
-      {QuitButton}
       <WaitScreen pseudo={displayPseudo} code={roomCode} playerCount={room?.playerCount} />
     </>
   );

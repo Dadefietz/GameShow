@@ -43,10 +43,35 @@ export class RoomManager {
       currentModule: null, // { type, question, questionId, deadline, answers:Map, revealed }
       progression: { index: 0, total: 0 },
       history: [], // [{ moduleType, question, results }]
+      // Identité de manche, MONOTONE et jamais remise à zéro (pas même par
+      // backToLobby) : elle permet de savoir si un résultat mémorisé appartient
+      // à la manche en cours ou à un souvenir périmé (restitution, R12).
+      roundSeq: 0,
       // Configuration de séance (retours R5) : ordre aléatoire par défaut,
       // sélection manuelle facultative (moduleType -> [questionIds]), et
       // questions déjà jouées (pas de répétition tant que la banque n'est pas épuisée).
-      session: { shuffle: true, selected: {}, used: new Set() },
+      session: {
+        shuffle: true,
+        selected: {},
+        // Questions déjà posées DANS CE SALON. Indexées sur l'identifiant de
+        // question SEUL : une question posée ne ressort dans aucun autre jeu de
+        // la soirée — personne ne veut réentendre une question sous prétexte
+        // qu'elle vient d'un autre questionnaire.
+        // Cette liste SURVIT aux relances de partie et n'est vidée qu'à la
+        // fermeture du salon : sur une soirée où l'animateur enchaîne deux ou
+        // trois parties avec le même public, reposer les mêmes questions se
+        // remarque tout de suite.
+        used: new Set(),
+        // Dernière question posée : sert à interdire la répétition IMMÉDIATE au
+        // changement de cycle, le pire des doublons — deux fois la même question
+        // coup sur coup.
+        lastQuestionId: null,
+        // File d'attente ordonnée, PAR JEU : { [moduleId]: [questionId, ...] }.
+        // L'ordre existe désormais À L'AVANCE, ce qui permet à l'animateur de le
+        // voir et de le réarranger. Auparavant il était tiré au dernier moment,
+        // à l'aveugle.
+        queues: {},
+      },
       createdAt: Date.now(),
       lastActivity: Date.now(),
     };

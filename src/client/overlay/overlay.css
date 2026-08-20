@@ -62,6 +62,142 @@
   }
   .stream__stage--centered { justify-content: center; }
 
+
+  /* PASTILLE POUR REJOINDRE — ancrée en bas à GAUCHE.
+     Pourquoi ce coin : le système impose UN SEUL geste lumineux par écran, et il
+     change de place selon la phase — le foyer est en bas pendant l'attente, le
+     ciel s'éteint en haut pendant la question. Le haut est donc occupé pendant
+     les questions, le bas-centre pris par la lueur du foyer. Le bas-gauche est le
+     seul coin calme dans les deux cas — et celui que les streamers laissent
+     libre, la caméra allant traditionnellement à droite. */
+  .rejoindre {
+    position: absolute;
+    left: var(--pad-st);
+    bottom: var(--pad-st);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+    /* La pastille est dimensionnée par le QR, pas par l'adresse : c'est le QR qui
+       a une taille fonctionnelle incompressible. Une adresse longue se replie sur
+       deux lignes plutôt que d'élargir tout le bloc — sinon un domaine à rallonge
+       ramènerait insensiblement l'encombrement du panneau qu'on vient de retirer. */
+    max-width: calc(var(--qr-st) + var(--sp-4) * 2 + var(--sp-5));
+  }
+  .rejoindre__qr {
+    width: var(--qr-st);
+    height: var(--qr-st);
+    border-radius: var(--r-s);
+    display: block;
+  }
+  .rejoindre__qr--vide { background: var(--c-surface-sunk); }
+  /* Code du salon : identité conservée de l'ancien panneau — chiffres en mono,
+     couleur flamme — simplement transposée à l'échelle de la pastille. */
+  .rejoindre__code {
+    margin: 0;
+    font: 600 var(--fs-st-400) / 1 var(--f-mono);
+    letter-spacing: 0.07em;
+    color: var(--c-flame);
+  }
+  /* L'adresse commande la largeur de la pastille — c'est le plus long des trois
+     éléments. À l'échelle d'étiquette technique, elle tient sous la barre des
+     300 px de canevas, ce qui garde la pastille bien en deçà du panneau de
+     460 px pleine hauteur qu'elle remplace. */
+  .rejoindre__lien {
+    margin: 0;
+    max-width: 100%;
+    font: 500 var(--fs-st-200) / 1.2 var(--f-mono);
+    color: var(--c-ink-3);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* AU PODIUM : plus de QR, mais le code reste — une seule ligne, discrète.
+     L'adresse l'accompagne : un code seul ne dirait pas où le taper. */
+  .rejoindre--mince { padding: var(--sp-3) var(--sp-4); }
+  .rejoindre__ligne {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    font: 500 var(--fs-st-200) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+  }
+  .rejoindre--mince .rejoindre__code { font: 600 var(--fs-st-200) / 1 var(--f-mono); }
+
+  /* ZONE RÉSERVÉE : la scène ne dessine JAMAIS sous la pastille. Contrainte de
+     mise en page, pas espoir de non-recouvrement. */
+  .stream[data-state="live"] .stream__stage { padding-bottom: calc(var(--pad-st) + var(--qr-st) + 190px); }
+  /* La scène récupère toute la largeur pendant la partie : 1792 px utiles au lieu
+     de 1332. Mais la largeur du CONTENU reste plafonnée — un énoncé étalé sur
+     toute la scène devient inconfortable à lire, l'œil ne retrouvant plus le
+     début de la ligne suivante. Le gain d'espace doit servir la respiration. */
+  .stream[data-state="live"] .stream__stage > * { max-width: 1400px; }
+
+  /* CLASSEMENT COMPLET, au podium seulement. Une colonne, défilement automatique
+     et bouclé quand la liste déborde — personne ne fait défiler une source OBS. */
+  .st-rank {
+    position: relative;
+    width: var(--panel-st);
+    flex: none;
+    margin: var(--pad-st) var(--pad-st) var(--pad-st) 0;
+    padding: var(--sp-6);
+    border-radius: var(--r-st);
+    background: var(--c-surface);
+    box-shadow: var(--sh-3), var(--sh-edge);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    min-height: 0;
+  }
+  .st-rank__title {
+    margin: 0;
+    font: 600 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  /* La fenêtre masque ; c'est la liste qui bouge, par DÉPLACEMENT GRAPHIQUE —
+     jamais par la position de défilement, qui coûterait cher dans OBS. */
+  .st-rank__view { flex: 1; min-height: 0; overflow: hidden; }
+  .st-rank__list { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .st-rank__list[data-state="defile"] { animation: om-rank-scroll linear infinite; }
+  .st-rank__row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-sunk);
+  }
+  .st-rank__pos { min-width: 2ch; font: 600 var(--fs-st-200) / 1 var(--f-mono); color: var(--c-ink-3); }
+  /* Un pseudo à rallonge est tronqué proprement : la colonne est étroite, et une
+     ligne qui déborde casserait la grille en pleine diffusion. */
+  .st-rank__name {
+    font: 500 var(--fs-st-200) / 1.2 var(--f-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-rank__score { font: 600 var(--fs-st-200) / 1 var(--f-mono); color: var(--c-flame); }
+
+  /* Voix de plateau : une seule ligne, à l'échelle de diffusion. Elle n'apparaît
+     que sur les répartitions remarquables — le reste du temps, l'écran se tait. */
+  .st-voix {
+    margin: 0;
+    font: 600 var(--fs-st-400) / 1.1 var(--f-display);
+    letter-spacing: var(--tr-display);
+    color: var(--c-flame);
+    text-wrap: balance;
+    animation: om-slide-in var(--mo-scene) var(--ease-out) both;
+  }
+
   /* ---- Capsules d'état (pièce du système, à l'échelle de diffusion) ---- */
   .st-caps {
     display: flex;
@@ -343,6 +479,36 @@
     font: 600 var(--fs-st-500) / 0.92 var(--f-mono);
     letter-spacing: var(--tr-tight);
   }
+  /* Dispersion des estimations à l'échelle de diffusion. Le stream montrait déjà
+     des barres pour les modules à options ; l'estimation n'avait que des
+     chiffres. Barres verticales, tranche de la bonne réponse en braise. */
+  .st-histo { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .st-histo__plot {
+    height: 180px;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-3);
+    padding: var(--sp-5);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+  }
+  .st-histo__bar {
+    flex: 1;
+    min-height: 3px;
+    border-radius: var(--r-s) var(--r-s) 2px 2px;
+    background: var(--c-surface-2);
+    animation: om-rise var(--mo-scene) var(--ease-out) both;
+  }
+  .st-histo__bar--cible { background: var(--g-ember); }
+  .st-histo__legend {
+    margin: 0;
+    font: 500 var(--fs-st-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+
   .st-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-5); }
   .st-fact {
     display: flex;
@@ -426,91 +592,6 @@
   .st-step--first .st-step__rank { font-size: var(--fs-st-700); line-height: 0.86; color: var(--c-ink-on-flame); }
 
   /* ---- Panneau de connexion permanent (S1) ---- */
-  .join-panel {
-    position: relative;
-    width: var(--panel-st);
-    flex: none;
-    margin: var(--pad-st) var(--pad-st) var(--pad-st) 0;
-    padding: var(--sp-8);
-    border-radius: var(--r-st);
-    background: var(--c-surface);
-    box-shadow: var(--sh-3), var(--sh-edge);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--gap-st);
-  }
-  .join-panel__brand { align-self: stretch; display: flex; align-items: center; gap: var(--sp-4); }
-  .join-panel__mark {
-    width: 56px;
-    height: 56px;
-    flex: none;
-    border-radius: var(--r-s);
-    background: var(--c-canvas-2);
-    box-shadow: var(--sh-edge);
-    display: grid;
-    place-items: center;
-    color: var(--c-flame);
-  }
-  .join-panel__name {
-    margin: 0;
-    font: 600 var(--fs-st-200) / 1.05 var(--f-display);
-    letter-spacing: var(--tr-display);
-    text-transform: uppercase;
-  }
-  .join-panel__qr {
-    width: var(--qr-st);
-    height: var(--qr-st);
-    border-radius: var(--r-m);
-    background: var(--c-ink);
-    box-shadow: 0 0 0 var(--bw-st) var(--c-surface-2);
-  }
-  .join-panel__qr--empty { display: grid; place-items: center; color: var(--c-ink-3); background: var(--c-surface-sunk); }
-  .join-panel__group { align-self: stretch; display: flex; flex-direction: column; gap: var(--sp-3); }
-  .join-panel__label {
-    margin: 0;
-    font: 500 var(--fs-st-100) / 1 var(--f-ui);
-    letter-spacing: var(--tr-label);
-    text-transform: uppercase;
-    color: var(--c-ink-3);
-  }
-  /* Champ creusé : la pièce « saisie de code » du système, à l'échelle stream.
-     Le joueur reconnaît sur le stream le champ qu'il va remplir sur son mobile. */
-  .join-panel__code-field {
-    height: 150px;
-    border-radius: var(--r-l);
-    background: var(--c-surface-sunk);
-    box-shadow: var(--sh-inset);
-    display: grid;
-    place-items: center;
-  }
-  .join-panel__code {
-    margin: 0;
-    font: 600 var(--fs-st-code) / 1 var(--f-mono);
-    letter-spacing: 0.07em;
-    padding-left: 0.07em;
-    color: var(--c-flame);
-  }
-  .join-panel__url-capsule {
-    min-height: 84px;
-    padding: var(--sp-3) var(--sp-5);
-    border-radius: var(--r-full);
-    background: var(--c-surface-2);
-    box-shadow: var(--sh-edge);
-    display: grid;
-    place-items: center;
-  }
-  .join-panel__url {
-    max-width: 100%;
-    font: 600 var(--fs-st-200) / 1 var(--f-mono);
-    text-align: center;
-    overflow-wrap: break-word;
-  }
-  /* La planche montre un domaine court. Un domaine d'hébergement réel dépasse
-     la capsule : on descend d'un cran de typo et on autorise le repli plutôt
-     que de laisser le lien sortir du panneau — il doit rester lisible en
-     permanence (contrat R8). */
-  .join-panel__url--long { font-size: var(--fs-st-100); line-height: 1.25; }
 
   /* ---- Marque animée : la flamme respire, la braise scintille ---- */
   .brand-flame { transform-origin: 12px 16px; animation: om-flame 1.9s var(--ease-in-out) infinite; }

@@ -47,6 +47,62 @@
     border-bottom: var(--bw-hair) solid var(--c-line);
   }
   .home-bar__end { display: flex; align-items: center; gap: var(--sp-3); }
+  /* Adresse masquée + son bouton de dévoilement, groupés comme un seul objet. */
+  .home-bar__account { display: flex; align-items: center; gap: var(--sp-2); }
+  /* Classement complet : il défile DANS son panneau, jamais la page entière.
+     L'animateur est sur un vrai écran avec une vraie souris — c'est le seul
+     endroit du produit où le défilement manuel est le bon geste. */
+  .lb--scroll { max-height: 46vh; overflow-y: auto; }
+
+  /* FILE D'ATTENTE — réordonnable au glisser ou au bouton. */
+  .file { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); max-height: 34vh; overflow-y: auto; }
+  .file__row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-sunk);
+  }
+  .file__row--pris { background: var(--c-secret-wash); }
+  /* La poignée est le SEUL point de prise : ailleurs, un clic reste un clic. */
+  .file__grip {
+    border: 0;
+    background: transparent;
+    color: var(--c-ink-3);
+    cursor: grab;
+    touch-action: none;
+    min-height: var(--hit-min);
+    display: grid;
+    place-items: center;
+  }
+  .file__row--pris .file__grip { cursor: grabbing; }
+  .file__pos { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); min-width: 2ch; }
+  .file__text {
+    font: 400 var(--fs-300) / 1.25 var(--f-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file__actions { display: flex; gap: 2px; }
+  .file__btn {
+    min-width: var(--hit-min);
+    min-height: var(--hit-min);
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--c-ink-2);
+    font: 500 var(--fs-300) / 1 var(--f-ui);
+    cursor: pointer;
+  }
+  .file__btn:disabled { color: var(--c-ink-3); opacity: 0.4; cursor: default; }
+  .file__btn--danger { color: var(--c-bad); }
+  .private__count {
+    margin-left: auto;
+    font: 600 var(--fs-200) / 1 var(--f-mono);
+    color: var(--c-secret);
+  }
   .home-bar__email {
     font: 400 var(--fs-300) / 1 var(--f-ui);
     color: var(--c-ink-3);
@@ -80,7 +136,7 @@
     width: 24px;
     height: 24px;
     border-radius: var(--r-full);
-    border: 2.5px solid oklch(0.70 0.185 46 / 0.3);
+    border: 2.5px solid var(--c-ember-ring);
     border-top-color: var(--c-ember-bright);
     animation: om-spin 700ms linear infinite;
   }
@@ -642,9 +698,16 @@
     display: flex;
     align-items: center;
   }
+  /* La largeur est LUE depuis --om-to, jamais posée à côté : c'est le motif
+     déjà employé par les barres du stream (overlay.css .st-opt__fill), et le
+     seul qui résiste à l'oubli. Une largeur en ligne se fait écraser par l'état
+     final de l'animation, qui retombe alors sur 100 % — la barre paraît pleine
+     quel que soit le décompte. Le repli à 0 % rend l'oubli visible plutôt que
+     trompeur : une barre absente se remarque, une barre pleine ment. */
   .dist__fill {
     position: absolute;
     left: 0; top: 0; bottom: 0;
+    width: var(--om-to, 0%);
     background: var(--c-secret-wash);
     animation: om-fill var(--mo-base) var(--ease-out) both;
   }
@@ -659,6 +722,33 @@
     white-space: nowrap;
   }
   .dist__count { font: 600 var(--fs-300) / 1 var(--f-mono); color: var(--c-ink-2); }
+  /* Histogramme de dispersion des estimations — repris de la maquette A5, qui le
+     spécifiait depuis le début sans qu'il ait jamais été construit. Barres
+     verticales, la tranche qui contient la bonne réponse en braise. */
+  .dist__numeric { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .histo { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; }
+  .histo__legend { margin: 0; font: 400 var(--fs-200) / 1 var(--f-ui); color: var(--c-ink-3); }
+  .histo__legend-num { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-2); }
+  .histo__plot {
+    min-height: 96px;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    border-radius: var(--r-s);
+    background: var(--c-surface);
+  }
+  .histo__bar {
+    flex: 1;
+    /* Plancher visible : une tranche vide doit se lire comme vide, pas comme
+       absente — sans pour autant prétendre à des réponses qu'elle n'a pas. */
+    min-height: 2px;
+    border-radius: var(--r-xs) var(--r-xs) 2px 2px;
+    background: var(--c-wood);
+  }
+  .histo__bar--cible { background: var(--g-ember); }
+  .histo__target { margin: 0; font: 400 var(--fs-100) / 1 var(--f-ui); color: var(--c-ink-3); }
+
   .dist__facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
   .dist__fact {
     display: flex;
@@ -787,12 +877,29 @@
   /* Menu de sortie : toujours au même pixel, seul endroit où vivent les
      actions destructives. Confirmation en DEUX temps. */
   .exit-menu { position: relative; }
+  /* Le sens d'ouverture dépend de la barre qui porte le bouton, et les deux
+     menus de l'animateur ne sont pas au même endroit : le menu de sortie vit
+     dans la barre du HAUT (il s'ouvre donc vers le bas), le menu de modules dans
+     la barre d'actions du BAS — s'ouvrir vers le bas l'envoyait sous le pied de
+     la page et forçait à faire défiler l'écran. D'où cette variante, plutôt
+     qu'un renversement de la classe partagée qui aurait cassé l'autre. */
+  .exit-menu--up .exit-menu__pop {
+    top: auto;
+    bottom: calc(100% + var(--sp-2));
+  }
   .exit-menu__pop {
     position: absolute;
     top: calc(100% + var(--sp-2));
     right: 0;
     z-index: 20;
     min-width: 260px;
+    /* Hauteur bornée, défilement À L'INTÉRIEUR du menu. Faire défiler une liste
+       dans un menu est normal ; faire défiler la page entière ne l'est pas. La
+       borne n'est pas un multiple de la hauteur d'une entrée : la dernière est
+       coupée, ce qui fait comprendre qu'il y a une suite. Indispensable dès que
+       le menu listera les jeux nommés (action 2) au lieu de quatre types. */
+    max-height: min(360px, 48vh);
+    overflow-y: auto;
     padding: var(--sp-2);
     border-radius: var(--r-m);
     background: var(--c-surface-2);

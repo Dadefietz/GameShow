@@ -7,6 +7,7 @@
 // barre de progression — la flamme scintille, les points respirent.
 import React, { useEffect, useState } from 'react';
 import './brand-loader.css';
+import { NOM_DU_JEU } from './marque.js';
 
 export function BrandLoader() {
   const [phase, setPhase] = useState('loading'); // loading | slow | stuck
@@ -21,7 +22,7 @@ export function BrandLoader() {
 
   return (
     <div className="boot" data-state={phase} role="status" aria-live="polite"
-      aria-label="Chargement de Project Game Show">
+      aria-label={`Chargement de ${NOM_DU_JEU}`}>
       <span className={`boot__mark${stuck ? '' : ' boot__mark--alive'}`} aria-hidden="true">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
           <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">

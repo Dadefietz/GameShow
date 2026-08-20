@@ -137,6 +137,7 @@
 
   /* ============================ E2 · GRILLE ============================ */
   .work { padding: var(--sp-7); overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-6); }
+  .work__actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
   .work__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-5); }
   .work__title { margin: 0; font: 600 var(--fs-700) / var(--lh-snug) var(--f-display); letter-spacing: var(--tr-display); text-transform: uppercase; }
   .work__sub { margin: var(--sp-1) 0 0; font: 400 var(--fs-300) / var(--lh-body) var(--f-ui); color: var(--c-ink-2); }

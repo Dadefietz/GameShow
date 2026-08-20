@@ -1,37 +1,74 @@
-// Tests unitaires — messages d'erreur de connexion animateur.
+// Tests unitaires — messages d'authentification et masquage de l'adresse.
+//
+// Un « Vérifiez l'adresse » générique envoie chercher au mauvais endroit : chaque
+// cas doit dire ce qui se passe RÉELLEMENT. Depuis le passage au mot de passe
+// (action 9), le mail ne sert plus qu'à la réinitialisation — c'est donc le seul
+// chemin qui puisse encore buter sur le quota d'envoi de l'hébergeur.
 import { describe, it, expect } from 'vitest';
-import { otpErrorMessage } from '../../src/client/shared/authErrors.js';
+import { passwordErrorMessage, resetErrorMessage, masquerEmail } from '../../src/client/shared/authErrors.js';
 
-describe('otpErrorMessage', () => {
-  it("explique qu'aucun compte ne correspond quand les inscriptions sont fermées", () => {
-    // Cas réel rencontré en production le 2026-08-18 (inscriptions publiques désactivées).
-    expect(otpErrorMessage({ code: 'signup_disabled', message: 'Signups not allowed for this instance' }))
-      .toMatch(/Aucun compte animateur/);
-    expect(otpErrorMessage({ code: 'otp_disabled', message: 'Signups not allowed for otp' }))
-      .toMatch(/Aucun compte animateur/);
-    // Certaines versions du SDK exposent error_code au lieu de code.
-    expect(otpErrorMessage({ error_code: 'otp_disabled', message: '' }))
-      .toMatch(/Aucun compte animateur/);
+describe('passwordErrorMessage', () => {
+  it('ne distingue pas le compte inconnu du mauvais mot de passe', () => {
+    // DÉLIBÉRÉ : dire « ce compte n'existe pas » révélerait quelles adresses sont
+    // des comptes animateur. Le message reste le même dans les deux cas.
+    expect(passwordErrorMessage({ code: 'invalid_credentials' }))
+      .toBe('Adresse ou mot de passe incorrect.');
+    expect(passwordErrorMessage({ message: 'Invalid login credentials' }))
+      .toBe('Adresse ou mot de passe incorrect.');
   });
 
-  it('distingue le quota d\'emails atteint', () => {
-    expect(otpErrorMessage({ code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' }))
-      .toMatch(/Patientez/);
+  it('signale un compte non confirmé, qui se règle autrement', () => {
+    expect(passwordErrorMessage({ code: 'email_not_confirmed' }))
+      .toMatch(/pas encore confirmé/);
   });
 
-  it('signale une adresse invalide', () => {
-    expect(otpErrorMessage({ message: 'Unable to validate email address: invalid format' }))
-      .toMatch(/pas valide/);
+  it('explique un mot de passe devenu trop faible, et la sortie', () => {
+    // Cas contre-intuitif : le mot de passe est le bon, mais les exigences ont
+    // été durcies depuis. Le message doit dire quoi faire, pas « réessayez ».
+    const m = passwordErrorMessage({ code: 'weak_password' });
+    expect(m).toMatch(/exigences de sécurité/);
+    expect(m).toMatch(/Mot de passe oublié/);
+  });
+
+  it('distingue la limitation des tentatives, qui est une protection', () => {
+    expect(passwordErrorMessage({ code: 'over_request_rate_limit' }))
+      .toMatch(/Trop de tentatives/);
   });
 
   it('reste générique mais non trompeur sur une erreur inconnue', () => {
-    const m = otpErrorMessage({ message: 'network down' });
-    expect(m).toMatch(/Réessayez/);
-    expect(m).not.toMatch(/Vérifiez l'adresse/); // ne renvoie plus vers une fausse piste
+    expect(passwordErrorMessage({ message: 'boom' })).toBe('Connexion impossible. Réessayez dans un instant.');
   });
 
   it('ne casse pas sur une erreur vide', () => {
-    expect(typeof otpErrorMessage(null)).toBe('string');
-    expect(typeof otpErrorMessage(undefined)).toBe('string');
+    expect(typeof passwordErrorMessage(null)).toBe('string');
+    expect(typeof passwordErrorMessage(undefined)).toBe('string');
+  });
+});
+
+describe('resetErrorMessage', () => {
+  it('explique le quota d\'envoi, seul chemin qui passe encore par un mail', () => {
+    expect(resetErrorMessage({ code: 'over_email_send_rate_limit' })).toMatch(/Patientez/);
+  });
+});
+
+describe('masquerEmail', () => {
+  // Ce que ça protège : l'écran animateur qui passe à l'antenne lors d'un partage
+  // d'écran. On garde de quoi RECONNAÎTRE le compte, pas de quoi le recopier.
+  it('laisse reconnaître le compte sans le livrer', () => {
+    const masque = masquerEmail('theodore@exemple.fr');
+    expect(masque.startsWith('t')).toBe(true);
+    expect(masque).toContain('.fr');
+    expect(masque).not.toContain('heodore');
+    expect(masque).not.toContain('exemple');
+  });
+
+  it('ne laisse pas fuiter le domaine', () => {
+    expect(masquerEmail('a@gmail.com')).not.toContain('gmail');
+  });
+
+  it('ne casse pas sur une entrée absente ou malformée', () => {
+    expect(masquerEmail('')).toBe('');
+    expect(masquerEmail(null)).toBe('');
+    expect(masquerEmail('sans-arobase')).toBe('•••');
   });
 });

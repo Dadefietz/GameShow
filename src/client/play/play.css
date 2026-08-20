@@ -244,6 +244,41 @@
   .wait__count--empty .wait__count-value { color: var(--c-ink-3); animation: none; }
   .wait__count-label { font: 400 var(--fs-300) / 1 var(--f-ui); color: var(--c-ink-2); }
 
+  /* Énoncé du barème (action 8) — replié, discret, atteignable pendant l'attente.
+     Aucune valeur en dur : tout vient du système, comme le reste de l'écran. */
+  /* La voix du jeu : une ligne, jamais plus. Fondu doux à chaque changement,
+     supprimé si le téléphone signale une préférence pour moins d'animation. */
+  .voix { animation: om-slide-in var(--mo-base) var(--ease-out) both; text-wrap: pretty; }
+  @media (prefers-reduced-motion: reduce) { .voix { animation: none; } }
+
+  .rules { width: 100%; margin-top: var(--sp-4); }
+  .rules__summary {
+    cursor: pointer;
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-m);
+    background: var(--c-surface-sunk);
+    box-shadow: var(--sh-inset);
+    font: 500 var(--fs-300) / 1.2 var(--f-ui);
+    color: var(--c-ink-2);
+    text-align: center;
+    min-height: var(--hit-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rules__list {
+    margin: var(--sp-3) 0 0;
+    padding-left: var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    font: 400 var(--fs-300) / var(--lh-body) var(--f-ui);
+    color: var(--c-ink-2);
+    text-align: left;
+    text-wrap: pretty;
+  }
+  .rules__list strong { font-weight: 600; color: var(--c-ink); }
+
   /* ============================ J3 · QUESTION ============================ */
   .q-hud { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
   .q-meta {
@@ -353,7 +388,7 @@
     color: var(--c-ink-on-flame);
     animation: om-commit var(--mo-base) var(--ease-out), om-halo 1.6s var(--ease-in-out) 2;
   }
-  .opt--selected .opt__key { background: oklch(0.19 0.03 50 / 0.22); color: var(--c-ink-on-flame); }
+  .opt--selected .opt__key { background: var(--c-veil-on-flame); color: var(--c-ink-on-flame); }
   .opt--selected .opt__label { font-weight: 600; }
   .opt--selected .opt__mark {
     background: var(--c-ink-on-flame);
@@ -362,7 +397,7 @@
   }
   /* Vote choisi : mousse, pas de braise (ni bon ni mauvais). */
   .opt--voted { background: var(--g-moss); box-shadow: var(--sh-pine); color: var(--c-ink-on-leaf); }
-  .opt--voted .opt__key { background: oklch(0.18 0.03 150 / 0.22); color: var(--c-ink-on-leaf); }
+  .opt--voted .opt__key { background: var(--c-veil-on-leaf); color: var(--c-ink-on-leaf); }
   .opt--voted .opt__mark { background: var(--c-ink-on-leaf); box-shadow: none; }
   .opt__check path { stroke-dasharray: 26; animation: om-draw 300ms var(--ease-out) 160ms both; }
 
@@ -677,21 +712,4 @@
   .loader__mark { color: var(--c-flame); animation: om-flicker 2.4s var(--ease-in-out) infinite; }
 
   /* ---- Bouton Quitter flottant (absent de l'écran Question) ---- */
-  .quit-btn {
-    position: fixed;
-    top: var(--sp-4);
-    right: var(--sp-4);
-    z-index: 5;
-    min-height: var(--hit-min);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-2);
-    padding: var(--sp-2) var(--sp-4);
-    border: 0;
-    border-radius: var(--r-full);
-    background: var(--c-surface);
-    color: var(--c-ink-2);
-    box-shadow: var(--sh-1), var(--sh-edge);
-    font: 500 var(--fs-300) / 1 var(--f-ui);
-  }
 }

@@ -72,7 +72,17 @@ export function useGame(token) {
     socketRef.current?.emit(event, payload, ack);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, fatal, serverError, emit };
+  // Abonnement PONCTUEL à un événement, pour les données qui n'appartiennent
+  // qu'à une surface — la file d'attente, par exemple, qui ne concerne que
+  // l'animateur et n'a rien à faire dans l'état partagé de toutes les surfaces.
+  const on = useCallback((event, handler) => {
+    socketRef.current?.on(event, handler);
+  }, []);
+  const off = useCallback((event, handler) => {
+    socketRef.current?.off(event, handler);
+  }, []);
+
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, fatal, serverError, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

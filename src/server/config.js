@@ -12,9 +12,15 @@ export const config = {
   supabaseJwtSecret: process.env.SUPABASE_JWT_SECRET || '',
   // Secret de signature des tokens de jeu (host/player/overlay). Jamais côté front.
   gameJwtSecret: process.env.GAME_JWT_SECRET || 'dev-only-insecure-change-me',
-  // ANIMATEUR UNIQUE : seule cette adresse email (session Supabase) peut créer un
-  // salon et gérer les banques. Vide = mode dev ouvert (sans Supabase).
-  hostEmail: (process.env.HOST_EMAIL || '').trim().toLowerCase(),
+  // ANIMATEURS AUTORISÉS : seules ces adresses (session Supabase) peuvent créer
+  // un salon et gérer les banques. Plusieurs adresses séparées par des virgules.
+  // Le NOM de la variable est conservé : une adresse seule reste une liste d'un
+  // élément, donc aucune configuration de déploiement existante ne casse.
+  // Vide = mode dev ouvert (sans Supabase).
+  hostEmails: (process.env.HOST_EMAIL || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
   // Origines autorisées (CORS / Socket.IO). En prod, on ajoute automatiquement l'URL publique
   // fournie par l'hébergeur (Render : RENDER_EXTERNAL_URL) pour accepter la connexion same-origin
   // du front sans connaître le domaine à l'avance.

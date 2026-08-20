@@ -2,25 +2,126 @@
 // Interface commune :
 //   meta: { type, name, icon, color, scored, malus }
 //     scored: le module alimente points/série (false = participation seule, ex. vote)
-//     malus:  une mauvaise réponse coûte des points (quiz, vrai/faux)
+//     malus:  HÉRITÉ, PLUS UTILISÉ — plus aucune pénalité dans aucun jeu (T1).
+//     vitesse: la rapidité est-elle récompensée sur ce module ?
+//             VRAI pour le quiz et le vrai/faux, où répondre vite prouve qu'on
+//             savait. FAUX pour l'estimation, dont la précision est le seul sujet
+//             et où récompenser la vitesse rouvrirait le défaut corrigé en
+//             action 13 ; FAUX pour le vote, où l'on ne devine pas plus vite ce
+//             que pense la salle — et où la prime pousserait à cliquer avant
+//             d'avoir lu.
 //   buildRound(question) -> runtime
 //   publicQuestion(runtime) -> payload envoyé aux joueurs / stream (jamais la bonne réponse)
 //   validateAnswer(runtime, value) -> valeur normalisée ou null si invalide
-//   score(runtime) -> { results: Map<playerId, { base, correct }>, reveal: {...} }
+//   score(runtime) -> { results: Map<playerId, { base, speed, correct }>, reveal: {...} }
+//     base  : points de la bonne réponse, indépendants de la rapidité
+//     speed : complément de vitesse, 0 si la réponse est fausse
 //     reveal contient la bonne réponse ET stats (répartition des réponses, diffusée
 //     à l'animateur + page stream à la fin du chrono).
 // Le SERVEUR est autoritaire : il ne reçoit que des réponses, jamais des scores.
 
 const BASE_POINTS = 1000;
 
-// Prime de vitesse MODÉRÉE : une réponse immédiate vaut 1000, une réponse à la
-// dernière seconde vaut 700 (dégressif linéaire). Récompense la rapidité sans
-// écraser l'exactitude.
-function speedPoints(runtime, answeredAt) {
+// GRAMMAIRE DE SCORE, commune aux quatre modules (PLAN-CHANTIER T2) :
+//   points = BASE + COMPLÉMENT DE VITESSE
+// Rien d'autre. Aucune pénalité nulle part (T1), et la série ne rapporte plus
+// rien : elle est suivie et affichée, mais comme une information (T3).
+//
+// Les totaux du quiz et du vrai/faux sont EXACTEMENT ceux d'avant : la formule
+// valait déjà 700 + 300 × rapidité, mais présentait le tout comme une seule
+// « base », si bien que l'écran du joueur annonçait un « bonus vitesse » alors
+// que la vitesse agissait déjà, invisible, dans la ligne du dessus. On ne change
+// pas le calcul, on cesse de le cacher.
+const BASE_BONNE_REPONSE = 700;
+const COMPLEMENT_VITESSE_MAX = 300;
+
+// Part de la durée restant au moment de la réponse : 1 (immédiate) -> 0 (dernière seconde).
+function fractionRestante(runtime, answeredAt) {
   const total = runtime.durationMs;
   const elapsed = Math.min(Math.max(answeredAt - runtime.startedAt, 0), total);
-  const frac = total > 0 ? 1 - elapsed / total : 1; // 1 (tôt) -> 0 (tard)
-  return Math.round(BASE_POINTS * (0.7 + 0.3 * frac));
+  return total > 0 ? 1 - elapsed / total : 1;
+}
+
+// Complément de vitesse d'une bonne réponse : 0 à 300 points selon la rapidité.
+function complementVitesse(runtime, answeredAt) {
+  return Math.round(COMPLEMENT_VITESSE_MAX * fractionRestante(runtime, answeredAt));
+}
+
+// PALIERS DE PRÉCISION DE L'ESTIMATION (action 13).
+//
+// L'ancienne échelle était linéaire et plate : sur une cible de 100, répondre
+// exactement rapportait à peine 11 % de plus que répondre 90. Pire, la vitesse
+// pesait plus lourd que la justesse — une réponse exacte mais tardive valait 850
+// quand une réponse à 10 % près mais immédiate en valait 900. Le plus juste
+// perdait contre le plus rapide, l'inverse de ce que le module prétend mesurer.
+// Et l'écart étant relatif à la cible, tout le monde se tassait au maximum sur
+// les grands nombres : c'est la « base bloquée » constatée en test.
+//
+// Désormais : des valeurs FIXES par palier, et AUCUNE composante de rapidité.
+// Se presser ne prouve rien sur une estimation ; seule la justesse décide.
+// Les paliers étant discrets, aucune réponse d'un palier inférieur ne peut
+// approcher un palier supérieur — propriété vérifiée par les tests.
+const PALIERS_ESTIMATION = [
+  { nom: 'mille',    ecartMax: 0.02, points: 1000 },
+  { nom: 'proche',   ecartMax: 0.10, points: 750 },
+  { nom: 'correct',  ecartMax: 0.20, points: 500 },
+  { nom: 'loin',     ecartMax: 0.30, points: 250 },
+];
+// Tolérance ABSOLUE, en plus de la tolérance relative : sur une cible de 3, dix
+// pour cent valent trois dixièmes, si bien que seul le nombre exact entrerait
+// dans le premier palier et que répondre 4 tomberait déjà à 33 % d'écart. Être à
+// une unité près compte donc comme le meilleur palier, sans rien changer aux
+// grands nombres.
+const TOLERANCE_ABSOLUE = 1;
+
+function palierEstimation(valeur, cible) {
+  const ecartAbsolu = Math.abs(valeur - cible);
+  if (ecartAbsolu <= TOLERANCE_ABSOLUE) return PALIERS_ESTIMATION[0];
+  const ecart = ecartAbsolu / Math.max(Math.abs(cible), 1);
+  return PALIERS_ESTIMATION.find((p) => ecart <= p.ecartMax) || { nom: 'hors', ecartMax: Infinity, points: 0 };
+}
+
+// Histogramme de répartition numérique, en 8 tranches (maquette A5).
+//
+// Les bornes écartent les valeurs extrêmes dès que l'effectif le permet : sans
+// ça, un joueur qui tape un nombre absurde étire l'échelle et écrase tout le
+// monde dans une seule barre. Les aberrantes ne disparaissent pas pour autant —
+// elles sont RAMENÉES dans la barre d'extrémité, donc toujours comptées.
+// La cible est incluse dans les bornes, pour qu'on voie toujours où tombe la
+// vérité par rapport au groupe.
+const TRANCHES = 8;
+
+export function histogrammeNumerique(values, cible, tranches = TRANCHES) {
+  if (!values.length) return null;
+  const tries = [...values].sort((a, b) => a - b);
+
+  // Bornes par ÉCART INTERQUARTILE plutôt que par centiles : avec six réponses,
+  // écarter « les 10 % du haut » n'écarte personne, et l'aberrante reste dans
+  // l'échelle. La règle des quartiles, elle, tient sur un petit effectif — ce qui
+  // est le cas courant d'une soirée autour du feu.
+  let bas = tries[0];
+  let haut = tries[tries.length - 1];
+  if (tries.length >= 4) {
+    const quartile = (p) => tries[Math.min(tries.length - 1, Math.floor(p * (tries.length - 1)))];
+    const q1 = quartile(0.25);
+    const q3 = quartile(0.75);
+    const interquartile = q3 - q1;
+    const limiteBasse = q1 - 1.5 * interquartile;
+    const limiteHaute = q3 + 1.5 * interquartile;
+    const dedans = tries.filter((v) => v >= limiteBasse && v <= limiteHaute);
+    if (dedans.length) { bas = dedans[0]; haut = dedans[dedans.length - 1]; }
+  }
+
+  let min = Math.min(bas, cible);
+  let max = Math.max(haut, cible);
+  if (min === max) { min -= 1; max += 1; } // tout le monde d'accord : une échelle quand même
+  const pas = (max - min) / tranches;
+
+  const indice = (v) => Math.min(tranches - 1, Math.max(0, Math.floor((v - min) / pas)));
+  const counts = new Array(tranches).fill(0);
+  for (const v of values) counts[indice(v)] += 1;
+
+  return { min, max, pas, counts, cibleIndex: indice(cible) };
 }
 
 // Répartition des réponses sur des options indexées (quiz, vote) ou binaires (vrai/faux).
@@ -32,7 +133,7 @@ function tallyOptions(runtime, size) {
 
 export const modules = {
   quiz: {
-    meta: { type: 'quiz', name: 'Quiz', icon: 'help-circle', color: 'primary', scored: true, malus: true },
+    meta: { type: 'quiz', name: 'Quiz', icon: 'help-circle', color: 'primary', scored: true, malus: true, vitesse: true },
     buildRound(q) {
       return {
         type: 'quiz',
@@ -54,7 +155,11 @@ export const modules = {
       const results = new Map();
       for (const [pid, a] of rt.answers) {
         const correct = a.value === rt.correctIndex;
-        results.set(pid, { base: correct ? speedPoints(rt, a.at) : 0, correct });
+        results.set(pid, {
+          base: correct ? BASE_BONNE_REPONSE : 0,
+          speed: correct ? complementVitesse(rt, a.at) : 0,
+          correct,
+        });
       }
       const stats = { kind: 'options', options: rt.options, tally: tallyOptions(rt, rt.options.length), total: rt.answers.size };
       return { results, reveal: { correctIndex: rt.correctIndex, text: rt.text, options: rt.options, stats } };
@@ -62,7 +167,7 @@ export const modules = {
   },
 
   true_false: {
-    meta: { type: 'true_false', name: 'Vrai / Faux', icon: 'check-square', color: 'forest', scored: true, malus: true },
+    meta: { type: 'true_false', name: 'Vrai / Faux', icon: 'check-square', color: 'forest', scored: true, malus: true, vitesse: true },
     buildRound(q) {
       return {
         type: 'true_false',
@@ -86,7 +191,11 @@ export const modules = {
       for (const [pid, a] of rt.answers) {
         if (a.value === true) vrai += 1;
         const correct = a.value === rt.correct;
-        results.set(pid, { base: correct ? speedPoints(rt, a.at) : 0, correct });
+        results.set(pid, {
+          base: correct ? BASE_BONNE_REPONSE : 0,
+          speed: correct ? complementVitesse(rt, a.at) : 0,
+          correct,
+        });
       }
       const stats = { kind: 'options', options: ['Vrai', 'Faux'], tally: [vrai, rt.answers.size - vrai], total: rt.answers.size };
       return { results, reveal: { correct: rt.correct, text: rt.text, stats } };
@@ -94,7 +203,7 @@ export const modules = {
   },
 
   estimation: {
-    meta: { type: 'estimation', name: 'Estimation', icon: 'target', color: 'flame', scored: true, malus: false },
+    meta: { type: 'estimation', name: 'Estimation', icon: 'target', color: 'flame', scored: true, malus: false, vitesse: false },
     buildRound(q) {
       return {
         type: 'estimation',
@@ -112,22 +221,22 @@ export const modules = {
       return Number.isFinite(n) ? n : null;
     },
     score(rt) {
-      // Points selon la proximité relative à la cible, pondérés légèrement par la
-      // vitesse (85 %..100 %). « Correct » (pour la série) = à moins de 10 % de la cible.
+      // Points par PALIER de précision, valeur fixe, aucune composante de vitesse.
+      // « Correct » (pour la série) = les deux meilleurs paliers, soit à moins de
+      // 10 % de la cible — le seuil d'avant, inchangé.
       const results = new Map();
-      const spread = Math.max(Math.abs(rt.target), 1);
       const values = [];
       let closest = null;
       for (const [pid, a] of rt.answers) {
         values.push(a.value);
-        const err = Math.abs(a.value - rt.target) / spread; // 0 = exact
-        const acc = Math.max(0, 1 - Math.min(err, 1));
-        const total = rt.durationMs;
-        const elapsed = Math.min(Math.max(a.at - rt.startedAt, 0), total);
-        const frac = total > 0 ? 1 - elapsed / total : 1;
-        const base = Math.round(BASE_POINTS * acc * (0.85 + 0.15 * frac));
-        results.set(pid, { base, correct: err <= 0.1 });
-        if (!closest || Math.abs(a.value - rt.target) < Math.abs(closest - rt.target)) closest = a.value;
+        const palier = palierEstimation(a.value, rt.target);
+        results.set(pid, {
+          base: palier.points,
+          speed: 0,
+          correct: palier.ecartMax <= 0.10,
+          palier: palier.nom, // sert à l'affichage et aux messages (action 7)
+        });
+        if (closest === null || Math.abs(a.value - rt.target) < Math.abs(closest - rt.target)) closest = a.value;
       }
       values.sort((a, b) => a - b);
       const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
@@ -139,19 +248,29 @@ export const modules = {
         median,
         closest,
         target: rt.target,
+        histogramme: histogrammeNumerique(values, rt.target),
       };
       return { results, reveal: { target: rt.target, text: rt.text, stats } };
     },
   },
 
   vote: {
-    meta: { type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info', scored: false, malus: false },
+    // `scored` par défaut : un vote est désormais un JEU (action 18) — faire
+    // partie de la majorité rapporte des points. Chaque question peut néanmoins
+    // repasser en sondage (`poll: true`), et c'est le runtime qui tranche.
+    meta: { type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info', scored: true, malus: false, vitesse: false },
     buildRound(q) {
       return {
         type: 'vote',
         questionId: q.id,
         text: q.text,
         options: q.options,
+        // SONDAGE ou JEU, question par question. Un vote noté n'est plus un
+        // sondage : le joueur ne répond plus ce qu'il pense mais ce qu'il croit
+        // que les autres vont répondre. L'interrupteur préserve les deux usages —
+        // demander sincèrement à la salle, ou en faire un pari collectif.
+        poll: !!q.poll,
+        scored: !q.poll,
         durationMs: (q.durationSec || 15) * 1000,
       };
     },
@@ -163,12 +282,31 @@ export const modules = {
       return Number.isInteger(i) && i >= 0 && i < rt.options.length ? i : null;
     },
     score(rt) {
-      // Sondage d'opinion : pas de bonne réponse. Participation = petits points fixes.
       const results = new Map();
-      for (const [pid] of rt.answers) results.set(pid, { base: 100, correct: null });
       const tally = tallyOptions(rt, rt.options.length);
       const stats = { kind: 'options', options: rt.options, tally, total: rt.answers.size };
-      return { results, reveal: { tally, options: rt.options, text: rt.text, stats } };
+
+      if (rt.poll) {
+        // SONDAGE : pas de bonne réponse, pas de gagnant. Participation seule, et
+        // la série n'est ni nourrie ni rompue (le runtime n'est pas noté).
+        for (const [pid] of rt.answers) results.set(pid, { base: 100, speed: 0, correct: null });
+        return { results, reveal: { tally, options: rt.options, text: rt.text, poll: true, stats } };
+      }
+
+      // JEU : la majorité l'emporte. En cas d'ÉGALITÉ entre deux options de tête,
+      // les deux camps gagnent — sinon une égalité parfaite ne produirait aucun
+      // vainqueur, ce qui serait arbitraire et frustrant.
+      const meilleur = Math.max(0, ...tally);
+      const gagnantes = tally.map((n, i) => (n === meilleur && n > 0 ? i : -1)).filter((i) => i >= 0);
+      for (const [pid, a] of rt.answers) {
+        const gagne = gagnantes.includes(a.value);
+        // Base fixe, aucun complément de vitesse : on ne devine pas plus vite ce
+        // que pense la salle, et récompenser la rapidité pousserait à cliquer
+        // avant d'avoir lu. Aucune pénalité pour les minoritaires : être minoritaire
+        // n'est pas une faute, c'est un pari perdu.
+        results.set(pid, { base: gagne ? BASE_BONNE_REPONSE : 0, speed: 0, correct: gagne });
+      }
+      return { results, reveal: { tally, options: rt.options, text: rt.text, winners: gagnantes, stats } };
     },
   },
 };

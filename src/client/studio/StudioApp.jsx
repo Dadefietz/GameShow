@@ -5,7 +5,7 @@
 // Densité de saisie assumée, aucun effet : la seule animation du studio est le
 // chatoiement des squelettes de chargement. Les banques restent la source de
 // vérité du jeu — ce qu'on enregistre ici est ce que le moteur jouera.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '../shared/supabaseClient.js';
 import './studio.css';
 
@@ -91,7 +91,7 @@ function serverToStudioQuestion(type, q) {
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
-  return { ...base, options: q.options || ['', ''] }; // vote
+  return { ...base, options: q.options || ['', ''], poll: !!q.poll }; // vote
 }
 
 function studioToServerQuestion(type, q, durationSec) {
@@ -99,38 +99,38 @@ function studioToServerQuestion(type, q, durationSec) {
   if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
   if (type === 'true_false') return { ...base, correct: !!q.answer };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
-  return { ...base, options: q.options || [] }; // vote
+  return { ...base, options: q.options || [], poll: !!q.poll }; // vote
 }
 
-function banksToModules(banks) {
-  const out = [];
-  for (const type of TYPE_KEYS) {
-    const bank = Array.isArray(banks[type]) ? banks[type] : [];
-    if (!bank.length) continue;
-    const durations = bank.map((q) => Number(q.durationSec)).filter((n) => Number.isFinite(n) && n > 0);
-    out.push({
-      id: uid('m'),
-      type,
-      name: MODULE_TYPES[type].label,
-      duration: durations.length ? durations[0] : (type === 'true_false' ? 12 : 20),
-      color: MODULE_TYPES[type].color,
-      questions: bank.map((q) => serverToStudioQuestion(type, q)),
-    });
-  }
-  return out;
+// Le module du serveur a la MÊME forme que celui du Studio, au format des
+// questions près. Le nom et l'identifiant traversent donc intacts — c'est
+// précisément ce que l'ancien aplatissement par type détruisait.
+function serveurVersStudio(m) {
+  if (!m || typeof m !== 'object') return null;
+  const type = TYPE_KEYS.includes(m.type) ? m.type : 'quiz';
+  return {
+    id: String(m.id),
+    type,
+    name: typeof m.name === 'string' && m.name ? m.name : MODULE_TYPES[type].label,
+    duration: Number.isFinite(Number(m.duration)) ? Number(m.duration) : 20,
+    color: COLOR_KEYS.includes(m.color) ? m.color : MODULE_TYPES[type].color,
+    questions: (Array.isArray(m.questions) ? m.questions : []).map((q) => serverToStudioQuestion(type, q)),
+  };
 }
 
-function modulesToBanks(modules) {
-  const banks = Object.fromEntries(TYPE_KEYS.map((t) => [t, []]));
-  for (const m of modules) {
-    if (!TYPE_KEYS.includes(m.type)) continue;
-    for (const q of m.questions) {
-      if (!(q.prompt || '').trim()) continue; // pas d'énoncé = pas envoyée
-      banks[m.type].push(studioToServerQuestion(m.type, q, m.duration));
-    }
-  }
-  return banks;
+function studioVersServeur(m) {
+  return {
+    id: String(m.id),
+    type: m.type,
+    name: m.name,
+    duration: Number(m.duration) || 20,
+    color: m.color,
+    questions: (m.questions || [])
+      .filter((q) => (q.prompt || '').trim())
+      .map((q) => studioToServerQuestion(m.type, q, m.duration)),
+  };
 }
+
 
 // ---- Icônes du système (SVG au trait) --------------------------------------
 const I = {
@@ -193,40 +193,59 @@ export function StudioApp() {
 
   const sb = useMemo(() => getSupabase(), []);
 
-  useEffect(() => {
-    if (!sb) {
-      setAuthed(false);
-      // Repli serveur local : les banques disque sont la source de vérité du jeu.
-      let alive = true;
-      (async () => {
-        try {
-          const res = await fetch('/api/banks');
-          if (!alive || !res.ok) return;
-          const mapped = banksToModules(await res.json());
-          if (mapped.length) { setModules(mapped); setMode('server'); }
-        } catch { /* dev Vite pur sans serveur : on garde le seed local */ }
-        finally { if (alive) setRemoteLoading(false); }
-      })();
-      return () => { alive = false; };
+  // En-têtes d'autorisation pour /api/banks. LE DÉFAUT CORRIGÉ : le Studio
+  // appelait cette route SANS aucun en-tête. En développement, `requireHost` est
+  // ouvert et ça passait ; en production, où HOST_EMAIL est configuré, le serveur
+  // répondait 403 et l'enregistrement échouait silencieusement — le Studio
+  // basculait en « local » sans que rien n'explique pourquoi. C'est l'une des deux
+  // causes des questions du Studio qui n'arrivaient jamais en partie.
+  const entetesHote = useCallback(async () => {
+    const base = { 'content-type': 'application/json' };
+    if (!sb) return base;
+    try {
+      const { data } = await sb.auth.getSession();
+      const jeton = data?.session?.access_token;
+      return jeton ? { ...base, authorization: `Bearer ${jeton}` } : base;
+    } catch {
+      return base;
     }
+  }, [sb]);
+
+  // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
+  //
+  // Auparavant il avait deux chemins — Supabase depuis le navigateur si une
+  // session existait, le serveur sinon — et deux défauts en découlaient :
+  //   - le chemin serveur n'était emprunté que si le client Supabase était
+  //     TOTALEMENT absent, ce qui n'arrive jamais (URL et clé sont intégrées au
+  //     build). Le Studio gardait donc sa graine locale de démonstration et
+  //     l'écrasait par-dessus la vraie bibliothèque au premier enregistrement ;
+  //   - deux chemins d'écriture, donc deux vérités possibles pour un même compte.
+  //
+  // Désormais le serveur est seul propriétaire de la persistance : il écrit sur
+  // disque, et c'est lui — et lui seul — qui consulte Supabase pour alimenter les
+  // parties. Un seul chemin, donc une seule vérité.
+  useEffect(() => {
     let alive = true;
-    // Plafond de 4 s : Supabase lent ou injoignable ne bloque pas l'éditeur.
-    const cap = setTimeout(() => { if (alive) setRemoteLoading(false); }, 4000);
     (async () => {
       try {
-        const { data: sess } = await sb.auth.getSession();
-        if (alive) setAuthed(!!sess?.session);
-        const { data, error } = await sb.from('modules').select();
-        if (alive && !error && Array.isArray(data) && data.length > 0) {
-          const mapped = data.map(normalizeModule).filter(Boolean);
-          if (mapped.length) { setModules(mapped); setMode('supabase'); }
+        const res = await fetch('/api/modules', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) {
+          const { modules: recus } = await res.json();
+          const mapped = (recus || []).map(serveurVersStudio).filter(Boolean);
+          if (mapped.length) { setModules(mapped); setMode('server'); }
+        } else if (res.status === 403) {
+          // Refus d'autorisation : l'animateur n'est pas connecté sur cette page.
+          // On le DIT plutôt que de basculer en local sans rien expliquer — c'est
+          // exactement ce silence qui masquait le défaut en production.
+          setAuthed(false);
+          setSaveState('unauthorized');
         }
-      } catch { /* silencieux : on garde l'état local */ }
-      finally { clearTimeout(cap); if (alive) setRemoteLoading(false); }
+      } catch { /* dev Vite pur sans serveur : on garde la graine locale */ }
+      finally { if (alive) { setRemoteLoading(false); setAuthed((a) => (a === null ? true : a)); } }
     })();
-    const { data: authSub } = sb.auth.onAuthStateChange((_e, s) => { if (alive) setAuthed(!!s); });
-    return () => { alive = false; authSub?.subscription?.unsubscribe?.(); };
-  }, [sb]);
+    return () => { alive = false; };
+  }, [entetesHote]);
 
   const selected = modules.find((m) => m.id === selectedId) || null;
 
@@ -246,7 +265,6 @@ export function StudioApp() {
   const removeModule = (id) => {
     setModules((prev) => prev.filter((m) => m.id !== id));
     if (selectedId === id) { setSelectedId(null); setEditingQuestionId(null); }
-    if (sb) { sb.from('modules').delete().eq('id', id).then(() => {}, () => {}); }
     setConfirmDelete(null);
   };
 
@@ -277,38 +295,48 @@ export function StudioApp() {
     return problems;
   };
 
+  // RESTAURER LES JEUX DE BASE (action 2, décision 6). Les questions d'exemple
+  // sont désormais de la donnée ordinaire, donc supprimables — et une suppression
+  // massive doit rester rattrapable. La restauration N'ÉCRASE RIEN : elle ne
+  // rajoute que les jeux livrés d'office qui manquent.
+  const restaurerBase = async () => {
+    setSaveState('saving');
+    try {
+      const res = await fetch('/api/modules/restore', { method: 'POST', headers: await entetesHote() });
+      if (res.status === 403) { setSaveState('unauthorized'); return; }
+      if (!res.ok) throw new Error('restore-failed-' + res.status);
+      const { modules: recus } = await res.json();
+      setModules((recus || []).map(serveurVersStudio).filter(Boolean));
+      setMode('server');
+      setSaveState('saved');
+      setTimeout(() => setSaveState((st) => (st === 'saved' ? 'idle' : st)), 2000);
+    } catch { setSaveState('error'); }
+  };
+
   const saveModule = async () => {
     const m = selected;
     if (!m) return;
     const problems = validateModule(m);
     setValidationErrors(problems);
     if (problems.length) { setSaveState('invalid'); return; }
-    if (!sb || authed === false) {
-      setSaveState('saving');
-      try {
-        const res = await fetch('/api/banks', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(modulesToBanks(modules)),
-        });
-        if (!res.ok) throw new Error('save-failed');
-        setMode('server');
-        setSaveState('saved');
-        setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2000);
-      } catch { setSaveState('local'); }
-      return;
-    }
     setSaveState('saving');
     try {
-      const { error } = await sb.from('modules').upsert({
-        id: m.id, type: m.type, name: m.name, duration: m.duration, color: m.color, questions: m.questions,
+      const res = await fetch('/api/modules', {
+        method: 'PUT',
+        headers: await entetesHote(),
+        body: JSON.stringify({ modules: modules.map(studioVersServeur) }),
       });
-      if (error) { setSaveState('error'); return; }
-      setMode('supabase');
+      // Un 403 n'est pas une panne réseau : c'est un refus d'autorisation, et il
+      // doit se lire comme tel. Le basculement muet en « local » a laissé croire
+      // pendant des mois que le Studio enregistrait.
+      if (res.status === 403) { setSaveState('unauthorized'); return; }
+      if (!res.ok) throw new Error('save-failed-' + res.status);
+      setMode('server');
       setSaveState('saved');
-      setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2000);
+      setTimeout(() => setSaveState((st) => (st === 'saved' ? 'idle' : st)), 2000);
     } catch { setSaveState('error'); }
   };
+
 
   const patchQuestion = (moduleId, qid, patch) => {
     setSaveState('idle');
@@ -344,8 +372,14 @@ export function StudioApp() {
             <h1 className="work__title">Questionnaires</h1>
             <p className="work__sub">Assemble les modules qui rythment tes soirées.</p>
           </div>
-          <button className="button button--primary" type="button" data-action="studio:createModule"
-            onClick={addModule}><I.plus s={16} /> Nouveau module</button>
+          <div className="work__actions">
+            <button className="button" type="button" data-action="studio:restore"
+              onClick={restaurerBase} title="Remet les jeux livrés d'office qui manquent, sans toucher aux tiens">
+              Restaurer les questions de base
+            </button>
+            <button className="button button--primary" type="button" data-action="studio:createModule"
+              onClick={addModule}><I.plus s={16} /> Nouveau module</button>
+          </div>
         </div>
 
         {remoteLoading ? (
@@ -592,12 +626,17 @@ function EditorPanel({
             <I.check s={16} dashed /> Enregistré — le jeu utilisera ces questions.
           </p>
         ) : null}
-        {saveState === 'error' || saveState === 'local' ? (
-          <p className="save-state save-state--failed" role="alert">
+        {saveState === 'error' || saveState === 'local' || saveState === 'unauthorized' ? (
+          <p className="save-state save-state--failed" role="alert" data-testid="save-failed">
             <I.alert s={18} />
-            {saveState === 'local'
-              ? "Serveur injoignable — ta saisie est conservée localement. Réessaie."
-              : "Enregistrement refusé — ta saisie est conservée localement. Réessaie."}
+            {/* Un refus d'AUTORISATION doit se distinguer d'une panne : c'est le
+                cas qui bloquait tout en production, et le message générique
+                envoyait chercher au mauvais endroit. */}
+            {saveState === 'unauthorized'
+              ? "Enregistrement refusé : connecte-toi d'abord au poste de pilotage (/host) avec ton compte animateur."
+              : saveState === 'local'
+                ? "Serveur injoignable — ta saisie est conservée localement. Réessaie."
+                : "Enregistrement refusé — ta saisie est conservée localement. Réessaie."}
           </p>
         ) : null}
         {saveState === 'invalid' && validationErrors.length ? (
@@ -732,7 +771,24 @@ function QuestionFields({ type, question, onPatch, errors }) {
   const options = question.options || ['', ''];
   return (
     <>
-      <p className="qnote">Pas de bonne réponse : un vote choisit la suite de la soirée.</p>
+      {/* JEU ou SONDAGE, question par question (action 18). Un vote noté n'est
+          plus un sondage : le joueur ne répond plus ce qu'il pense mais ce qu'il
+          croit que les autres vont répondre. L'interrupteur garde les deux
+          usages — demander sincèrement à la salle, ou en faire un pari. */}
+      <div className="fgroup">
+        <span className="flabel">Ce vote</span>
+        <div className="qtiles" role="radiogroup" aria-label="Nature du vote">
+          <button className="qtile" type="button" role="radio" aria-checked={!question.poll}
+            onClick={() => onPatch({ poll: false })}>Rapporte des points</button>
+          <button className="qtile" type="button" role="radio" aria-checked={!!question.poll}
+            onClick={() => onPatch({ poll: true })}>Sondage sans points</button>
+        </div>
+        <p className="fhint">
+          {question.poll
+            ? "Personne ne gagne : chacun répond ce qu'il pense vraiment."
+            : 'La majorité gagne. En cas d\'égalité, les deux camps gagnent.'}
+        </p>
+      </div>
       {prompt}
       <div className="fgroup">
         <span className="flabel">Choix proposés</span>

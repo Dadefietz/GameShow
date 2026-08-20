@@ -8,7 +8,9 @@ test.describe('Connexion animateur (/host)', () => {
     // La carte de connexion est là — libellés de la maquette A1.
     await expect(page.getByRole('heading', { name: 'Poste de pilotage' })).toBeVisible();
     await expect(page.getByLabel('Adresse email')).toBeVisible();
-    await expect(page.getByText('Un seul animateur')).toBeVisible();
+    // Le sous-titre a changé avec le passage au mot de passe : la connexion n'est
+    // plus « par lien email », et le poste n'est plus réservé à UN seul compte.
+    await expect(page.getByText('Accès réservé aux comptes animateur')).toBeVisible();
     // Le bloc marketing et la porte joueur ont disparu de cette page.
     await expect(page.getByText('Anime ton propre jeu télévisé')).toHaveCount(0);
     await expect(page.getByText('Tu viens pour jouer ?')).toHaveCount(0);

@@ -34,7 +34,8 @@ export function makeOverlayToken(roomCode) {
 //  1. Supabase auth.getUser (service client) — validation côté Supabase, la plus forte ;
 //  2. JWKS (RS256/ES256) si SUPABASE_JWKS_URL est configurée — clés publiques Supabase ;
 //  3. secret JWT du projet (HS256) si SUPABASE_JWT_SECRET est configuré ;
-//  4. sinon : mode dev UNIQUEMENT — refusé si HOST_EMAIL est défini ou en production
+//  4. sinon : mode dev UNIQUEMENT — refusé si HOST_EMAIL est défini (une adresse
+//     ou plusieurs) ou en production
 //     (fail-closed : jamais de décodage sans vérification quand le verrou animateur est actif).
 let jwksCache = null;
 let jwksFetchedAt = 0;
@@ -92,7 +93,7 @@ export async function verifyHostSession(accessToken) {
 
     // 4. Aucun vérificateur configuré : accepté en DEV seulement, jamais quand le
     // verrou animateur unique est actif ni en production.
-    if (config.hostEmail || isProd) return null;
+    if (config.hostEmails.length || isProd) return null;
     const { sub, email, exp } = decoded.payload;
     if (exp && Date.now() / 1000 > exp) return null;
     return { sub, email: email || null };

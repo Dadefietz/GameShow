@@ -10,9 +10,10 @@
 //   2. à la révélation, le stream montre la RÉPARTITION des réponses — jamais
 //      les points ni les places d'un joueur.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { useGame } from '../shared/useGame.js';
+import { dire, momentDePlateau } from '../shared/voix.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -61,13 +62,20 @@ function CheckIcon({ size = 34 }) {
 // S1 — Panneau de connexion, PERMANENT sur toutes les phases
 // ============================================================
 
-// Points de coupure d'un lien : après chaque point et chaque barre. Un domaine
-// d'hébergement long se scinde ainsi entre ses parties plutôt qu'au hasard.
-function decouperLien(lien) {
-  return lien.split(/(?<=[./])/).filter(Boolean);
-}
 
-function JoinPanel({ code }) {
+// La PASTILLE pour rejoindre — QR, code, adresse — remplace le panneau latéral
+// de 460 px qui occupait un quart de l'écran en permanence.
+//
+// TAILLE DU QR : 180 px, et pas moins. Un QR n'a pas une taille esthétique mais
+// FONCTIONNELLE — un téléphone le lit jusqu'à environ dix fois son côté physique.
+// À 180 px sur un canevas de 1920, il fait ~5 cm sur un écran d'ordinateur, donc
+// lisible à distance de bureau. Le réduire de moitié le rendrait décoratif : les
+// gens n'arriveraient pas à le scanner et n'en diraient rien, ils abandonneraient.
+// Le gain de discrétion ne vient donc pas du QR mais de la disparition du panneau.
+//
+// L'ADRESSE ET LE CODE comptent autant que le QR : un spectateur qui regarde le
+// stream SUR SON TÉLÉPHONE ne peut pas le scanner avec ce même téléphone.
+function PastilleRejoindre({ code, podium }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const joinUrl = `${origin}/play?code=${code || ''}`;
   const lienAffiche = `${origin.replace(/^https?:\/\//, '')}/play`;
@@ -75,51 +83,37 @@ function JoinPanel({ code }) {
 
   useEffect(() => {
     let alive = true;
-    if (!code) { setQr(''); return undefined; }
+    if (!code || podium) { setQr(''); return undefined; }
     QRCode.toDataURL(joinUrl, { margin: 1, width: 520 })
       .then((url) => { if (alive) setQr(url); })
       .catch(() => { if (alive) setQr(''); });
     return () => { alive = false; };
-  }, [code, joinUrl]);
+  }, [code, joinUrl, podium]);
+
+  // AU PODIUM : une seule ligne, discrète. Le QR partirait sinon avec le moyen de
+  // revenir, alors que le salon reste ouvert cinq minutes pour une relance.
+  if (podium) {
+    return (
+      <aside className="rejoindre rejoindre--mince" data-state="podium" aria-label="Rejoindre la partie">
+        <p className="rejoindre__ligne">
+          <span className="rejoindre__lien">{lienAffiche}</span>
+          <span className="rejoindre__sep" aria-hidden="true">·</span>
+          <span className="rejoindre__code" data-bind="room.code" data-testid="stream-room-code">{code || '—'}</span>
+        </p>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="join-panel" data-state="always" aria-label="Rejoindre la partie">
-      <div className="join-panel__brand">
-        <span className="join-panel__mark" aria-hidden="true"><BrandMark /></span>
-        <p className="join-panel__name">Project<br />Game Show</p>
-      </div>
-
+    <aside className="rejoindre" data-state="always" aria-label="Rejoindre la partie">
       {qr ? (
-        <img className="join-panel__qr" data-bind="room.qr" data-testid="stream-qr" src={qr}
+        <img className="rejoindre__qr" data-bind="room.qr" data-testid="stream-qr" src={qr}
           alt={`QR code pour rejoindre le salon ${code || ''}`} />
       ) : (
-        <span className="join-panel__qr join-panel__qr--empty" aria-hidden="true" />
+        <span className="rejoindre__qr rejoindre__qr--vide" aria-hidden="true" />
       )}
-
-      <div className="join-panel__group">
-        <p className="join-panel__label">Code du salon</p>
-        <div className="join-panel__code-field">
-          <p className="join-panel__code" data-bind="room.code" data-testid="stream-room-code">
-            {code || '—'}
-          </p>
-        </div>
-      </div>
-
-      <div className="join-panel__group">
-        <p className="join-panel__label">Sur ton téléphone</p>
-        <div className="join-panel__url-capsule">
-          {/* Au-delà d'une quinzaine de caractères, le lien ne tient plus sur
-              une ligne à la typo de la planche : il descend d'un cran et se
-              scinde après un point ou une barre — jamais au milieu d'un mot,
-              qu'on ne relit pas de loin. */}
-          <span className={`join-panel__url${lienAffiche.length > 16 ? ' join-panel__url--long' : ''}`}
-            data-bind="room.joinUrl">
-            {decouperLien(lienAffiche).map((bout, i, tout) => (
-              <React.Fragment key={i}>{bout}{i < tout.length - 1 ? <wbr /> : null}</React.Fragment>
-            ))}
-          </span>
-        </div>
-      </div>
+      <p className="rejoindre__code" data-bind="room.code" data-testid="stream-room-code">{code || '—'}</p>
+      <p className="rejoindre__lien" data-bind="room.joinUrl">{lienAffiche}</p>
     </aside>
   );
 }
@@ -206,9 +200,30 @@ function revealText(reveal, current) {
   }
 }
 
+// Dispersion des estimations, en 8 tranches — la tranche qui contient la bonne
+// réponse est mise en couleur. Les hauteurs sont relatives à la tranche la plus
+// fournie : un histogramme montre une FORME, pas des parts d'un total.
+function StreamHistogram({ histo, total }) {
+  if (!histo || !total) return null;
+  const haut = Math.max(1, ...histo.counts);
+  return (
+    <div className="st-histo" data-bind="reveal.stats.histogramme" data-testid="stream-histogramme">
+      <div className="st-histo__plot">
+        {histo.counts.map((c, i) => (
+          <span key={i}
+            className={`st-histo__bar${i === histo.cibleIndex ? ' st-histo__bar--cible' : ''}`}
+            style={{ height: `${Math.round((c / haut) * 100)}%`, animationDelay: `${i * 40}ms` }}
+            data-count={c} />
+        ))}
+      </div>
+      <p className="st-histo__legend">Dispersion des {fmt(total)} estimation{total > 1 ? 's' : ''}</p>
+    </div>
+  );
+}
+
 // Répartition par options (quiz, vrai/faux, vote) : une rangée par choix,
 // barre de remplissage proportionnelle, décompte à droite.
-function OptionBreakdown({ stats, correctIndex, leadingIndex }) {
+function OptionBreakdown({ stats, correctIndex, leadingIndexes = [] }) {
   const total = Math.max(stats.total || 0, 1);
   return (
     <>
@@ -216,7 +231,7 @@ function OptionBreakdown({ stats, correctIndex, leadingIndex }) {
         const count = stats.tally?.[i] || 0;
         const pct = Math.round((count / total) * 100);
         const isCorrect = correctIndex === i;
-        const isLeading = leadingIndex === i;
+        const isLeading = leadingIndexes.includes(i);
         return (
           <div key={i}
             className={`st-opt${isCorrect ? ' st-opt--correct' : ''}${isLeading ? ' st-opt--leading' : ''}`}
@@ -248,12 +263,24 @@ function QuestionStage({ g }) {
   const over = !revealed && timeLeft === 0;
   const options = Array.isArray(current.options) ? current.options : [];
   const stats = reveal?.stats;
+  const voix = useVoixDePlateau(revealed ? reveal : null, stats, g.current?.roundId);
   const answer = revealText(reveal, current);
 
-  // Option en tête d'un vote (aucune bonne réponse) : mise en avant en mousse.
-  let leadingIndex = -1;
+  // Option(s) gagnante(s) d'un vote. Le serveur les DÉSIGNE désormais (action 18) :
+  // faire partie de la majorité rapporte des points, et une égalité parfaite fait
+  // deux camps gagnants — que le client ne saurait pas deviner en prenant « la
+  // plus haute », qui n'en retiendrait qu'une. Le repli sur le calcul local sert
+  // les sondages non notés, où personne ne gagne mais où l'on montre qui mène.
+  let leadingIndexes = [];
   if (revealed && reveal.type === 'vote' && Array.isArray(stats?.tally)) {
-    leadingIndex = stats.tally.reduce((best, v, i, arr) => (v > arr[best] ? i : best), 0);
+    if (Array.isArray(reveal.winners) && reveal.winners.length) {
+      leadingIndexes = reveal.winners; // égalité comprise : deux camps gagnants
+    } else {
+      const meilleur = Math.max(0, ...stats.tally);
+      leadingIndexes = meilleur > 0
+        ? stats.tally.map((v, i) => (v === meilleur ? i : -1)).filter((i) => i >= 0)
+        : [];
+    }
   }
 
   // Progression de séance : où en est-on dans la liste des épreuves.
@@ -356,12 +383,19 @@ function QuestionStage({ g }) {
       ) : (
         /* Révélation : la répartition prend toute la place. */
         <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">
+          {/* Une phrase, seulement quand la répartition le mérite. */}
+          {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
           {stats?.kind === 'numeric' ? (
             <>
               <div className="st-answer" data-bind="reveal.target" data-testid="reveal-value">
                 <span className="st-answer__label">Bonne réponse</span>
                 <span className="st-answer__value">{fmt(reveal.target)}</span>
               </div>
+              {/* La dispersion du groupe, en image : le stream montrait des barres
+                  pour les modules à options, mais trois chiffres seulement pour
+                  l'estimation — impossible d'y voir si la salle était groupée ou
+                  éparpillée autour de la vérité. */}
+              <StreamHistogram histo={stats.histogramme} total={stats.total} />
               <div className="st-facts">
                 <div className="st-fact">
                   <span className="st-fact__label">Le plus proche</span>
@@ -384,7 +418,7 @@ function QuestionStage({ g }) {
               stats={stats}
               correctIndex={reveal.type === 'quiz' ? reveal.correctIndex
                 : reveal.type === 'true_false' ? (reveal.correct ? 0 : 1) : -1}
-              leadingIndex={leadingIndex}
+              leadingIndexes={leadingIndexes}
             />
           ) : answer != null ? (
             <div className="st-answer" data-testid="reveal-value">
@@ -465,6 +499,97 @@ function PodiumStage({ g }) {
   );
 }
 
+// VOIX DE PLATEAU — le stream ne parle QUE sur le remarquable.
+//
+// Commenter la répartition est le métier de l'animateur. Si l'écran le dit avant
+// lui, il se retrouve à répéter ce que tout le monde a déjà lu. Le silence est
+// donc une fonctionnalité : l'écran ne s'exprime que sur l'unanimité, l'échec
+// collectif, le piège, l'égalité parfaite — et jamais deux manches d'affilée.
+//
+// Il parle du GROUPE, jamais d'un joueur nommé : le stream affiche les pseudos
+// devant toute l'audience, et personne ne doit s'y faire chambrer par une machine.
+function useVoixDePlateau(reveal, stats, roundId) {
+  const [dit, setDit] = useState(null);
+  const dernierCommente = useRef(null);
+
+  useEffect(() => {
+    if (!reveal || !stats || roundId == null) { setDit(null); return; }
+    // Jamais deux manches commentées de suite : ça garantit la respiration sans
+    // étouffer un moment vraiment rare.
+    if (dernierCommente.current != null && roundId === dernierCommente.current + 1) { setDit(null); return; }
+    const moment = momentDePlateau(reveal.type, stats, reveal);
+    if (!moment) { setDit(null); return; }
+    dernierCommente.current = roundId;
+    setDit(dire(moment));
+  }, [reveal, stats, roundId]);
+
+  return dit;
+}
+
+// ============================================================
+// S5 — Classement complet, au podium UNIQUEMENT (action 3)
+//
+// Le classement circulait déjà jusqu'ici — le stream est destinataire du canal
+// réservé à l'animateur — mais l'écran n'en dessinait que les trois premiers. Un
+// joueur classé quinzième avait joué toute la partie sans que son nom paraisse
+// jamais.
+//
+// DÉFILEMENT AUTOMATIQUE, jamais manuel : personne ne fait défiler une source
+// navigateur dans OBS, et l'animateur est en train d'animer. Il ne se déclenche
+// que si la liste déborde, et il boucle — l'écran ne se vide jamais pendant les
+// cinq minutes où le salon reste ouvert après le podium.
+//
+// UNE SEULE COLONNE, dimensionnée à la hauteur de ligne : deux colonnes auraient
+// divisé la hauteur de texte, donc la lisibilité, pour un gain de place que le
+// défilement apporte déjà.
+function ClassementDefilant({ rows }) {
+  const piste = React.useRef(null);
+  const [defile, setDefile] = useState(0);
+
+  useEffect(() => {
+    const el = piste.current;
+    if (!el) return undefined;
+    // On ne fait défiler que ce qui dépasse : une liste courte reste immobile,
+    // ce qui est plus lisible et plus calme à l'antenne.
+    const trop = el.scrollHeight - el.clientHeight;
+    setDefile(trop > 4 ? trop : 0);
+  }, [rows]);
+
+  if (!rows || !rows.length) return null;
+
+  // Vitesse calée sur le temps de lecture d'une ligne, pas sur une durée fixe :
+  // une liste deux fois plus longue défile deux fois plus longtemps, à la même
+  // allure de lecture.
+  const duree = Math.max(12, Math.round(rows.length * 2.4));
+
+  return (
+    <aside className="st-rank" data-testid="stream-leaderboard" aria-label="Classement complet">
+      <p className="st-rank__title">Classement</p>
+      <div className="st-rank__view" ref={piste}>
+        <div className="st-rank__list"
+          style={defile ? { '--defile': `-${defile}px`, animationDuration: `${duree}s` } : undefined}
+          data-state={defile ? 'defile' : 'fixe'}>
+          {rows.map((p, i) => (
+            <div className="st-rank__row" key={p.id ?? i}>
+              <span className="st-rank__pos">{p.rank ?? i + 1}</span>
+              <span className="st-rank__name">{p.pseudo}</span>
+              <span className="st-rank__score">{fmt(p.score)}</span>
+            </div>
+          ))}
+          {/* Le début répété en queue : la boucle se referme sans coupure nette. */}
+          {defile ? rows.map((p, i) => (
+            <div className="st-rank__row" key={`bis-${p.id ?? i}`} aria-hidden="true">
+              <span className="st-rank__pos">{p.rank ?? i + 1}</span>
+              <span className="st-rank__name">{p.pseudo}</span>
+              <span className="st-rank__score">{fmt(p.score)}</span>
+            </div>
+          )) : null}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 // ============================================================
 // La source navigateur d'OBS n'est pas toujours réglée sur le canevas nominal.
 // La scène garde donc ses dimensions de planche et c'est le facteur d'échelle
@@ -499,12 +624,36 @@ export function OverlayApp() {
   const ended = state === 'ended' || (g.podium && g.podium.length);
   const inRound = g.current && (state === 'playing' || state === 'results');
 
+  // Classement COMPLET : on n'écarte pas les joueurs à zéro. Le but de cette
+  // colonne est précisément que tout le monde existe à l'écran — écarter les
+  // zéros reproduirait, en plus discret, le défaut qu'on corrige.
+  const classement = g.leaderboard || [];
+
   return (
     <div className="stream-fit">
-      <div className={`stream${inRound && !ended ? ' stream--question' : ''}`}>
+      <div className={`stream${inRound && !ended ? ' stream--question' : ''}`} data-state={ended ? 'ended' : 'live'}>
         {ended ? <PodiumStage g={g} /> : inRound ? <QuestionStage g={g} /> : <WaitingStage g={g} />}
-        {/* QR + lien + code : permanents, quelle que soit la phase (contrat R8). */}
-        <JoinPanel code={g.room?.code} />
+
+        {/* CONTRAT S1, RÉÉCRIT (actions 3, 4 et 5).
+            Avant : un panneau latéral de 460 px, sur toute la hauteur, PERMANENT
+            quelle que soit la phase. Il portait un QR, un code, une adresse et un
+            bloc de marque — un quart de la largeur en permanence, ce qui nuisait
+            au dynamisme de la partie sans rien apporter de plus qu'une pastille.
+
+            Maintenant :
+              - pendant l'accueil et la partie, une PASTILLE discrète en bas à
+                gauche, pour que les retardataires puissent toujours rejoindre ;
+              - au podium, plus de QR — mais le code RESTE, en tout petit, avec
+                l'adresse sur la même ligne : un code seul ne dirait pas où le
+                taper, et le salon reste ouvert cinq minutes pour une relance ;
+              - la colonne libérée accueille alors le classement complet, qui
+                défile tout seul.
+            La pastille revient dès le retour au salon d'attente : sans ça, une
+            seconde partie n'aurait plus aucun moyen d'être rejointe. */}
+        {ended
+          ? <ClassementDefilant rows={classement} />
+          : null}
+        <PastilleRejoindre code={g.room?.code} podium={!!ended} />
       </div>
     </div>
   );

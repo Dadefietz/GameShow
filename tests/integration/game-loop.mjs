@@ -43,6 +43,26 @@ function waitFor(socket, event, timeout = 8000) {
   });
 }
 
+// Attend l'événement qui satisfait une CONDITION, pas simplement le prochain.
+// Nécessaire pour `play:you`, que le serveur émet à chaque révélation ET à la fin
+// de partie : attendre « le prochain » revient à parier sur l'ordre d'arrivée de
+// deux messages voisins, ce qui a rendu ce fichier fragile.
+function waitForMatching(socket, event, predicate, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      socket.off(event, onEvent);
+      reject(new Error('timeout ' + event));
+    }, timeout);
+    function onEvent(d) {
+      if (!predicate(d)) return;
+      clearTimeout(t);
+      socket.off(event, onEvent);
+      resolve(d);
+    }
+    socket.on(event, onEvent);
+  });
+}
+
 try {
   await waitForHealth();
 
@@ -63,13 +83,41 @@ try {
   const p3 = await join('Chloe');
   check('R2 join code+surnom OK', p1.playerToken && p2.playerToken && p3.playerToken);
 
-  // ---- R4 : une question ajoutée via /api/banks est jouable en partie ----
-  const putBanks = await fetch(`${BASE}/api/banks`, {
+  // ---- R4 : un JEU NOMMÉ créé au Studio est jouable en partie (action 2) ----
+  // La bibliothèque est désormais une liste de jeux nommés, plus quatre seaux par
+  // type — c'est l'aplatissement par type qui détruisait le nom du jeu.
+  const JEU_ID = 'mod-studio-1';
+  const putModules = await fetch(`${BASE}/api/modules`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ quiz: [{ id: 'studio-q1', text: 'Question du Studio ?', options: ['A', 'B', 'C'], correctIndex: 1, durationSec: 3 }] }),
+    body: JSON.stringify({
+      modules: [
+        {
+          id: JEU_ID,
+          type: 'quiz',
+          name: 'Culture générale',
+          duration: 3,
+          color: 'fire',
+          questions: [{ id: 'studio-q1', text: 'Question du Studio ?', options: ['A', 'B', 'C'], correctIndex: 1, durationSec: 3 }],
+        },
+        {
+          // Un second jeu, d'un autre type : la bibliothèque REMPLACE désormais
+          // tout à l'enregistrement, donc un type absent n'est plus lançable.
+          // Deux questions, pour éprouver la non-répétition.
+          id: 'mod-studio-2',
+          type: 'true_false',
+          name: 'Vrai ou Faux',
+          duration: 3,
+          color: 'forest',
+          questions: [
+            { id: 'tf-a', text: 'Le Soleil est une étoile.', correct: true, durationSec: 3 },
+            { id: 'tf-b', text: 'La Lune est une planète.', correct: false, durationSec: 3 },
+          ],
+        },
+      ],
+    }),
   });
-  check('R4 PUT /api/banks accepté', putBanks.ok);
+  check('R4 PUT /api/modules accepté', putModules.ok);
 
   // ---- Connexions socket ----
   const host = connect(hostToken);
@@ -84,18 +132,25 @@ try {
   check('R7 room:state joueur sans leaderboard', !('leaderboard' in st1));
 
   // ---- R5 : sélection manuelle -> seule la question Studio est jouable ----
-  host.emit('host:sessionConfig', { shuffle: false, selected: { quiz: ['studio-q1'] } });
+  host.emit('host:sessionConfig', { shuffle: false, selected: { [JEU_ID]: ['studio-q1'] } });
   await sleep(150);
-  const bank = await new Promise((res) => host.emit('host:getBank', { moduleType: 'quiz' }, res));
-  check('R5 getBank fusionne studio + seed', bank.length >= 23, `${bank.length} questions`);
+  // La bibliothèque de l'animateur, telle qu'elle alimente son menu de lancement.
+  const jeux = await new Promise((res) => host.emit('host:modules', {}, res));
+  check('R4 le jeu nommé figure dans la bibliothèque',
+    jeux.some((j) => j.id === JEU_ID && j.name === 'Culture générale'), JSON.stringify(jeux.map((j) => j.name)));
+
+  const bank = await new Promise((res) => host.emit('host:getBank', { moduleId: JEU_ID }, res));
+  // La banque est celle DU JEU, plus la fusion de toutes les questions de son type.
+  check('R5 getBank ne contient que les questions du jeu', bank.length === 1, `${bank.length} questions`);
   check('R4 question studio présente dans la banque', bank.some((q) => q.id === 'studio-q1'));
 
   const started1 = waitFor(s1, 'module:started');
   const startedOv = waitFor(ov, 'module:started');
-  host.emit('host:startModule', { moduleType: 'quiz' });
+  host.emit('host:startModule', { moduleId: JEU_ID });
   const q1 = await started1;
   await startedOv;
   check('R4/R5 question Studio jouée en partie', q1.questionId === 'studio-q1', q1.questionId);
+  check('R4 le NOM du jeu voyage jusqu\'aux écrans', q1.meta?.name === 'Culture générale', q1.meta?.name);
   check('R7 la question publique ne contient pas la bonne réponse', !('correctIndex' in q1));
 
   // ---- Réponses : Alice vite (bonne), Bob plus tard (bonne), Chloé mauvaise ----
@@ -123,39 +178,48 @@ try {
   check('R7 play:you sans rang en cours de partie', !('rank' in youA), JSON.stringify(youA));
   check('R7 play:you contient placesDelta', 'placesDelta' in youA);
 
-  // ---- R3 : vitesse récompensée modérément ; R9 : bonus/malus ----
-  check('R3 rapide > lent (Alice > Bob en base)', youA.base > youB.base, `${youA.base} vs ${youB.base}`);
-  check('R3 dégressivité modérée (lent >= 70% base)', youB.base >= 700, String(youB.base));
-  check('R9 bonus Éclair pour la plus rapide', youA.bonus >= 150, String(youA.bonus));
-  check('R9 malus mauvaise réponse (-100, plancher 0)', youC.malus === -100 && youC.score === 0, JSON.stringify(youC));
+  // ---- BARÈME (actions 8 et 17) : base + complément de vitesse, RIEN D'AUTRE ----
+  // La base ne dépend plus de la rapidité : elle vaut 700 pour toute bonne
+  // réponse. C'est le complément qui départage le rapide du lent.
+  check('base identique quelle que soit la rapidité', youA.base === 700 && youB.base === 700, `${youA.base} vs ${youB.base}`);
+  check('rapide > lent, sur le COMPLÉMENT de vitesse', youA.speed > youB.speed, `${youA.speed} vs ${youB.speed}`);
+  check('supplément du plus rapide inclus dans la vitesse', youA.speed >= 150, String(youA.speed));
+  // Aucune pénalité nulle part (T1) : une mauvaise réponse ne rapporte rien et
+  // ne coûte rien. Et le champ « malus » n'existe plus du tout.
+  check('mauvaise réponse : zéro point, aucune pénalité',
+    youC.delta === 0 && youC.score === 0 && !('malus' in youC), JSON.stringify(youC));
+  check('les points se lisent en deux lignes seulement',
+    youA.delta === youA.base + youA.speed && !('bonus' in youA), JSON.stringify(youA));
 
   const late = new Promise((res) => s2.once('play:accepted', res));
   s2.emit('play:answer', { value: 1 });
   check('R7 réponse après chrono refusée', !(await late).ok);
 
-  // ---- R9 : bonus/malus manuel animateur ----
-  host.emit('host:adjustScore', { playerId: p3.playerId, delta: 100 });
-  const lbAfterAdjust = await waitFor(host, 'leaderboard:update');
-  const chloe = lbAfterAdjust.leaderboard.find((r) => r.pseudo === 'Chloe');
-  check('R9 ajustement manuel appliqué', chloe && chloe.score === 100);
+  // La correction manuelle de score (host:adjustScore) a été SUPPRIMÉE avec le
+  // panneau « Bonus / Malus » de l'écran animateur (action 8) : plus de commande,
+  // donc plus rien à vérifier ici.
 
-  // ---- R9 série : 2e bonne réponse consécutive d'Alice => bonus de série ----
+  // ---- SÉRIE : comptée, jamais monnayée (action 17) ----
   host.emit('host:nextModule');
   await sleep(150);
   host.emit('host:sessionConfig', { shuffle: false, selected: {} });
   const started2 = waitFor(s1, 'module:started');
-  host.emit('host:startModule', { moduleType: 'true_false' });
+  host.emit('host:startModule', { moduleType: 'true_false' }); // forme héritée : premier jeu de ce type
   const q2 = await started2;
   check('R5 vrai/faux lançable (bug truefalse corrigé)', q2.type === 'true_false', q2.questionId);
   s1.emit('play:answer', { value: true }); // tf-soleil : correct = true
   const youA2 = await waitFor(s1, 'play:you', 15000);
-  check('R9 bonus de série à la 2e bonne réponse', youA2.streak === 2 && youA2.bonus >= 50, JSON.stringify(youA2));
+  // La série est SUIVIE — elle vaut deux bonnes réponses d'affilée — mais elle
+  // n'ajoute plus un seul point : le total reste base + complément de vitesse.
+  check('série comptée à la 2e bonne réponse', youA2.streak === 2, JSON.stringify(youA2));
+  check('la série ne rapporte aucun point',
+    youA2.delta === youA2.base + youA2.speed, JSON.stringify(youA2));
 
   // ---- R5 pas de répétition ----
   host.emit('host:nextModule');
   await sleep(100);
   const started3 = waitFor(s1, 'module:started');
-  host.emit('host:startModule', { moduleType: 'true_false' });
+  host.emit('host:startModule', { moduleType: 'true_false' }); // forme héritée : premier jeu de ce type
   const q3 = await started3;
   check('R5 pas de répétition de question', q3.questionId !== q2.questionId, `${q2.questionId} -> ${q3.questionId}`);
   host.emit('host:reveal');
@@ -164,7 +228,9 @@ try {
 
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');
-  const youFinal = waitFor(s1, 'play:you');
+  // On attend LE relevé final, reconnaissable à son drapeau — pas le prochain
+  // `play:you` venu, qui peut être celui de la révélation qui précède.
+  const youFinal = waitForMatching(s1, 'play:you', (y) => y.final === true);
   host.emit('host:endGame');
   const endData = await ended;
   const yf = await youFinal;

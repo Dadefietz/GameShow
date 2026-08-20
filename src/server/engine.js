@@ -6,18 +6,33 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules } from './modules.js';
+import { modules, histogrammeNumerique } from './modules.js';
 import { RoomState, roomManager } from './rooms.js';
 
-// Bonus / malus automatiques (conçus au retour R9, valeurs par défaut raisonnables) :
-//  - Éclair : la réponse correcte la plus rapide de la manche gagne +150.
-//  - Série : à partir de 2 bonnes réponses consécutives, +50 par cran (max +250).
-//  - Malus : mauvaise réponse sur un module à bonne réponse ferme (quiz, vrai/faux)
-//    = -100. Ne s'applique pas à l'estimation ni au vote. Le score plancher est 0.
+// BARÈME (PLAN-CHANTIER, actions 8 et 17) — deux lignes, pas quatre :
+//   points = BASE + COMPLÉMENT DE VITESSE
+//
+//  - Base : les points de la bonne réponse, indépendants de la rapidité.
+//  - Complément de vitesse : croît avec la rapidité, plus 150 pour la réponse
+//    correcte la plus rapide de la manche.
+//
+// Ce qui a disparu, et pourquoi :
+//  - Le BONUS DE SÉRIE ne rapporte plus rien. Il était fusionné avec le bonus de
+//    vitesse et affiché sous ce nom : un joueur en série de trois lisait « bonus
+//    vitesse +100 » sans avoir été rapide, pendant que la case « série » montrait
+//    « ×3 » sans le moindre point en face. La série reste SUIVIE et affichée,
+//    comme une information — la reconnaissance remplace les points.
+//  - Le MALUS n'existe plus, dans aucun jeu. Une mauvaise réponse ne rapporte
+//    rien ; elle ne coûte rien. Contrepartie assumée : répondre au hasard est
+//    gratuit, ce qui est la norme du genre et sert la participation.
 const FASTEST_BONUS = 150;
-const STREAK_STEP = 50;
-const STREAK_CAP = 250;
-const WRONG_MALUS = -100;
+
+// Le classement circule ENTIER vers l'animateur et le stream (action 3). Il était
+// tronqué à dix en cours de partie et à cinquante à la fin : le onzième joueur
+// n'arrivait jamais jusqu'à l'écran, quoi qu'on affiche. La borne qui subsiste
+// n'est qu'un garde-fou contre un cas aberrant — très au-dessus de tout effectif
+// réel de soirée — et jamais une règle d'affichage.
+const CLASSEMENT_MAX = 500;
 
 // Diffusion : room Socket.IO = code du salon (tout le monde) ;
 // canal staff = code + ':staff' (animateur + stream uniquement — classement).
@@ -50,7 +65,9 @@ export function answerDistribution(rt) {
     return { kind: 'boolean', counts: [f, t], total: rt.answers.size };
   }
   if (rt.type === 'estimation') {
-    // Pas de catégories : on remonte min/max/moyenne pour donner du grain à l'animateur.
+    // Min / moyenne / max POUR SITUER, et l'histogramme en 8 tranches POUR VOIR :
+    // la maquette animateur (A5) le spécifiait depuis le début, il n'avait jamais
+    // été construit — et le serveur ne calculait même pas les tranches.
     const vals = [...rt.answers.values()].map((a) => a.value);
     if (!vals.length) return { kind: 'numeric', total: 0 };
     const sum = vals.reduce((s, v) => s + v, 0);
@@ -60,6 +77,7 @@ export function answerDistribution(rt) {
       min: Math.min(...vals),
       max: Math.max(...vals),
       avg: Math.round(sum / vals.length),
+      histogramme: histogrammeNumerique(vals, rt.target),
     };
   }
   return null;
@@ -83,14 +101,20 @@ export function publicRoomState(room) {
 
 export function emitRoomState(io, room) {
   toRoom(io, room).emit('room:state', publicRoomState(room));
-  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, 10) });
+  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
 }
 
 // Lance un module avec une question. answers vidées, deadline serveur posée.
-export function startModule(io, room, moduleType, question) {
-  const mod = modules[moduleType];
-  if (!mod) throw new Error('module inconnu: ' + moduleType);
+// `jeu` est le module NOMMÉ de la bibliothèque de l'animateur : { id, type, name }.
+// C'est lui qui donne son nom à la manche — les écrans affichaient jusqu'ici le
+// nom générique du type (« Quiz »), et celui que l'animateur avait choisi dans le
+// Studio ne voyageait nulle part.
+export function startModule(io, room, jeu, question) {
+  const mod = modules[jeu.type];
+  if (!mod) throw new Error('module inconnu: ' + jeu.type);
   const rt = mod.buildRound(question);
+  rt.moduleId = jeu.id;
+  rt.moduleName = jeu.name;
   rt.answers = new Map(); // playerId -> { value, at }
   rt.startedAt = Date.now();
   rt.deadline = rt.startedAt + rt.durationMs;
@@ -102,14 +126,24 @@ export function startModule(io, room, moduleType, question) {
     index: room.progression.index + 1,
     total: Math.max(room.progression.total, room.progression.index + 1),
   };
+  // Identité de cette manche : voyage avec la question ET avec le résultat perso,
+  // pour qu'un client sache toujours si son résultat est celui de la manche affichée.
+  room.roundSeq = (room.roundSeq || 0) + 1;
+  rt.roundId = room.roundSeq;
   roomManager.touch(room);
 
   // Question publique (sans la bonne réponse) aux joueurs + stream.
   const payload = {
     ...mod.publicQuestion(rt),
+    roundId: rt.roundId,
+    // Identifiant du JEU en cours : permet à l'animateur d'enchaîner « question
+    // suivante » DANS CE JEU, et non dans le premier venu de ce type.
+    moduleId: rt.moduleId,
     durationMs: rt.durationMs,
     deadline: rt.deadline,
-    meta: mod.meta,
+    // Le nom du JEU remplace le nom générique du type : « Culture générale »
+    // plutôt que « Quiz », sur les trois écrans à la fois.
+    meta: { ...mod.meta, name: jeu.name },
     index: room.progression.index,
     total: room.progression.total,
   };
@@ -159,8 +193,8 @@ export function submitAnswer(io, room, playerId, rawValue) {
 }
 
 // Révélation — automatique à la fin du chrono (ou anticipée par l'animateur).
-// Calcule points + bonus/malus, met à jour scores et séries, diffuse la bonne
-// réponse et les stats à tous, et envoie à chaque joueur SON delta (sans rang).
+// Calcule base + complément de vitesse, met à jour scores et séries, diffuse la
+// bonne réponse et les stats à tous, et envoie à chaque joueur SON delta (sans rang).
 export function reveal(io, room) {
   const rt = room.currentModule;
   if (!rt || rt.revealed) return;
@@ -169,9 +203,17 @@ export function reveal(io, room) {
   const ranksBefore = roomManager.rankMap(room);
   const { results, reveal: revealPayload } = mod.score(rt);
 
-  // Bonus Éclair : réponse correcte la plus rapide de la manche.
+  // Le caractère « noté » se lit sur la MANCHE, plus sur le type de module : un
+  // vote peut être un jeu ou un sondage selon la question (action 18). Le repli
+  // sur meta.scored couvre les trois autres modules, où il ne varie pas.
+  const noté = rt.scored !== undefined ? rt.scored : mod.meta.scored;
+
+  // Supplément du plus rapide : réponse correcte la plus rapide de la manche.
+  // Réservé aux modules où la rapidité prouve quelque chose — ni l'estimation
+  // (la précision y est le seul sujet) ni le vote (on ne devine pas plus vite
+  // ce que pense la salle).
   let fastestPid = null;
-  if (mod.meta.scored) {
+  if (noté && mod.meta.vitesse) {
     let fastestAt = Infinity;
     for (const [pid, r] of results) {
       const a = rt.answers.get(pid);
@@ -185,23 +227,25 @@ export function reveal(io, room) {
   const perPlayer = new Map();
   for (const [pid, p] of room.players) {
     const r = results.get(pid);
-    const answered = rt.answers.has(pid);
-    let base = r ? r.base : 0;
-    let bonus = 0;
-    let malus = 0;
-    if (mod.meta.scored) {
+    const base = r ? r.base : 0;
+    let speed = r ? r.speed || 0 : 0;
+    if (noté) {
       if (r && r.correct === true) {
         p.streak += 1;
-        if (pid === fastestPid) bonus += FASTEST_BONUS;
-        if (p.streak >= 2) bonus += Math.min(STREAK_STEP * (p.streak - 1), STREAK_CAP);
+        // Le supplément du plus rapide appartient à la vitesse, pas à une
+        // catégorie à part : le joueur doit lire UNE ligne pour tout ce que sa
+        // rapidité lui a rapporté.
+        if (pid === fastestPid) speed += FASTEST_BONUS;
       } else {
+        // La série se rompt sur une mauvaise réponse ET sur une absence de
+        // réponse : une manche non jouée n'est pas une bonne réponse. Elle ne
+        // coûte aucun point pour autant.
         p.streak = 0;
-        if (answered && mod.meta.malus) malus = WRONG_MALUS;
       }
     }
-    const delta = base + bonus + malus;
+    const delta = base + speed;
     p.score = Math.max(0, p.score + delta);
-    perPlayer.set(pid, { base, bonus, malus, delta, streak: p.streak });
+    perPlayer.set(pid, { base, speed, delta, streak: p.streak, palier: r ? r.palier : null });
   }
 
   rt.revealed = true;
@@ -213,37 +257,41 @@ export function reveal(io, room) {
   // Bonne réponse + stats de répartition : diffusées à TOUTES les surfaces.
   toRoom(io, room).emit('module:reveal', rt.revealPayload);
   // Classement : canal staff uniquement (animateur + stream).
-  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, 10) });
+  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
   emitRoomState(io, room);
 
   // Feedback perso à chaque joueur : points gagnés + places gagnées/perdues. JAMAIS le rang.
+  // Le résultat est MÉMORISÉ avant d'être émis : sans ça, un joueur qui se
+  // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
+  // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    if (p.socketId) {
-      const d = perPlayer.get(pid) || { base: 0, bonus: 0, malus: 0, delta: 0, streak: p.streak };
-      const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
-      io.to(p.socketId).emit('play:you', {
-        score: p.score,
-        delta: d.delta,
-        base: d.base,
-        bonus: d.bonus,
-        malus: d.malus,
-        streak: d.streak,
-        placesDelta,
-      });
-    }
+    const d = perPlayer.get(pid) || { base: 0, speed: 0, delta: 0, streak: p.streak, palier: null };
+    const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
+    const you = {
+      roundId: rt.roundId,
+      score: p.score,
+      delta: d.delta,
+      base: d.base,
+      speed: d.speed,
+      streak: d.streak,
+      // Palier de précision atteint (estimation seulement) : porte l'affichage
+      // et, plus tard, le message adapté à la justesse (action 7).
+      palier: d.palier,
+      placesDelta,
+    };
+    // Mémorisé pour les seuls participants : un absent n'a pas de résultat à
+    // revoir, il doit lire « tu n'étais pas là », pas un relevé à zéro.
+    if (rt.answers.has(pid)) p.lastResult = you;
+    if (p.socketId) io.to(p.socketId).emit('play:you', you);
   }
   roomManager.touch(room);
 }
 
-// Bonus/malus MANUELS de l'animateur (complément des bonus automatiques).
-export function adjustScore(io, room, playerId, delta) {
-  const p = room.players.get(playerId);
-  if (!p) return false;
-  p.score = Math.max(0, p.score + (Number(delta) || 0));
-  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, 10) });
-  emitRoomState(io, room);
-  return true;
-}
+// La correction manuelle de score a été SUPPRIMÉE (action 8). Elle s'affichait
+// sous le titre « Bonus / Malus » et permettait d'ajouter ou retirer 100 points à
+// n'importe quel joueur, sans règle, sans trace et sans retour arrière — le seul
+// objet du projet à porter ce nom sans avoir de règle. Conséquence assumée : plus
+// aucun moyen de rattraper un score en direct si un téléphone plante.
 
 // pause/resume supprimés (retour produit R9 du 2026-08-18).
 // Retour au salon d'attente après une partie terminée. Le salon reste ouvert
@@ -256,7 +304,11 @@ export function backToLobby(io, room) {
   room.currentModule = null;
   room.history = [];
   room.progression = { index: 0, total: 0 };
-  room.session.used = new Set();
+  // La liste des questions déjà posées N'EST PAS remise à zéro : « jamais deux
+  // fois la même question dans un même salon » vaut pour la soirée entière, pas
+  // pour une partie. Elle ne se vide qu'à la fermeture du salon.
+  // Les files, elles, repartent : une nouvelle partie mérite un nouvel ordre.
+  room.session.queues = {};
   for (const p of room.players.values()) { p.score = 0; p.streak = 0; }
   toRoom(io, room).emit('game:lobby');
   emitRoomState(io, room);
@@ -271,7 +323,7 @@ export function endGame(io, room) {
   // Fin de partie : le classement final devient public + récap des manches (B3,
   // question + révélation — jamais le détail par joueur).
   const history = room.history.map((h) => ({ type: h.moduleType, text: h.text, reveal: h.reveal, options: h.options }));
-  toRoom(io, room).emit('game:ended', { podium, leaderboard: roomManager.leaderboard(room, 50), history });
+  toRoom(io, room).emit('game:ended', { podium, leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX), history });
   // Chaque joueur reçoit son rang FINAL (seul moment où le rang est envoyé).
   for (const [pid, p] of room.players) {
     if (p.socketId) {

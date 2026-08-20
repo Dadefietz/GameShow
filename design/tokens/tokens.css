@@ -59,6 +59,14 @@
   --c-glow:          oklch(0.880 0.120 88);   /* étincelle : halo, points      */
   --c-ember-wash:    oklch(0.700 0.170 50 / 0.16); /* fond d'accent            */
   --c-ink-on-flame:  oklch(0.185 0.028 50);   /* encre sur fill de feu — 9.8:1 */
+  /* Piste d'anneau : la part FIXE d'un chargeur circulaire, sur laquelle court
+     le segment mobile en --c-ember-bright. Plus soutenue que --c-ember-wash,
+     qui est un fond posé sur le canevas et non un tracé.                     */
+  --c-ember-ring:    oklch(0.700 0.185 46 / 0.3);
+  /* Voile d'encre POSÉ SUR un dégradé de feu. La translucidité est le sujet :
+     la pastille doit laisser voir le dégradé qui passe dessous, sinon elle
+     devient un aplat qui casse l'effet. C'est --c-ink-on-flame à 22 %.       */
+  --c-veil-on-flame: oklch(0.190 0.030 50 / 0.22);
 
   /* --- 5. FEUILLE — contrepoint frais ------------------------------------ */
   --c-pine:          oklch(0.790 0.125 152);  /* épicéa clair : TEXTE — 8.9:1  */
@@ -67,6 +75,9 @@
   --c-fern:          oklch(0.680 0.110 142);  /* fougère : jauges, décor       */
   --c-leaf-wash:     oklch(0.760 0.120 150 / 0.14);
   --c-ink-on-leaf:   oklch(0.180 0.030 150);  /* encre sur fill de feuille     */
+  /* Pendant vert du voile de feu, pour les mêmes pastilles posées sur un
+     dégradé de mousse (option de vote choisie). --c-ink-on-leaf à 22 %.      */
+  --c-veil-on-leaf:  oklch(0.180 0.030 150 / 0.22);
 
   /* --- 6. SÉMANTIQUE ----------------------------------------------------- */
   --c-good:          var(--c-pine);
@@ -264,7 +275,12 @@
   --pad-st: 64px;      /* marge du canvas                                  */
   --gap-st: 40px;      /* gouttière entre blocs                            */
   --panel-st: 460px;   /* panneau de connexion permanent (S1)              */
-  --qr-st: 260px;      /* QR du salon sur le stream                        */
+  --qr-st: 180px;      /* QR du salon sur le stream — PLANCHER FONCTIONNEL :
+                          un téléphone lit un QR jusqu'à ~10x son côté physique.
+                          À 180px sur 1920, il fait ~5cm sur un écran de bureau,
+                          donc lisible à distance d'écran. En dessous de ~160px
+                          il devient décoratif : les gens n'y arrivent pas et
+                          n'en disent rien, ils abandonnent.                    */
   --bw-st: 4px;        /* filet visible à 25 %                             */
   --r-st: 28px;        /* rayon des blocs de scène                        */
 
@@ -329,6 +345,11 @@ svg { display: block; }
 @keyframes om-commit  { 0% { transform: scale(1); } 35% { transform: scale(0.975); } 100% { transform: scale(1); } }
 @keyframes om-draw    { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
 @keyframes om-fill    { from { width: 0; } to { width: var(--om-to, 100%); } }
+/* Défilement bouclé du classement de fin sur le stream : la liste se déplace de
+   sa propre hauteur excédentaire, puis repart — le début étant répété en queue,
+   la boucle ne montre aucune coupure. Déplacement graphique, jamais la position
+   de défilement : c'est ce qui reste fluide dans une source navigateur OBS. */
+@keyframes om-rank-scroll { from { transform: translateY(0); } to { transform: translateY(var(--defile, 0)); } }
 @keyframes om-sweep   { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
 @keyframes om-halo    { 0%,100% { box-shadow: 0 0 0 0 oklch(0.80 0.155 72 / 0); } 50% { box-shadow: 0 0 0 7px oklch(0.80 0.155 72 / 0.22); } }
 @keyframes om-slide-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
