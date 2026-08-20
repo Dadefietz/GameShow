@@ -247,10 +247,13 @@ function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
 // BOUTONS MONTER/DESCENDRE À CÔTÉ, et pas seulement pour l'accessibilité : en
 // direct, sous pression, un bouton ne rate jamais sa cible là où un glisser peut
 // déraper.
-function FileAttente({ g, moduleId, nomJeu }) {
+function FileAttente({ g, moduleId, nomJeu, enCours }) {
   const [file, setFile] = useState([]);
-  const [pris, setPris] = useState(null);   // index en cours de déplacement
-  const depart = useRef(null);              // position du pointeur à la prise
+  const [pris, setPris] = useState(null);       // index d'origine de la ligne tenue
+  const [cible, setCible] = useState(null);     // index où elle atterrira
+  const [decalage, setDecalage] = useState(0);  // px dont elle suit le doigt
+  const depart = useRef(null);                  // { y, pas, ordre } à la prise
+  const liste = useRef(null);                   // la fenêtre défilante de la file
 
   const rafraichir = useCallback(() => {
     if (!moduleId) return;
@@ -264,9 +267,14 @@ function FileAttente({ g, moduleId, nomJeu }) {
     return () => g.off('host:queue', onQueue);
   }, [g, moduleId]);
 
+  // L'ORDRE AFFICHÉ EST CELUI QUE LE SERVEUR CONFIRME (décision 4.8). L'ancienne
+  // version posait l'ordre localement PUIS émettait : un message perdu laissait
+  // à l'écran un ordre que le serveur ignorait, sans que rien ne le dise. Ici,
+  // c'est la réponse du serveur qui met à jour la liste — si elle n'arrive pas,
+  // la ligne revient à sa place, ce qui se voit.
   const envoyerOrdre = (suivante) => {
-    setFile(suivante);
-    g.emit('host:reorderQueue', { moduleId, order: suivante.map((q) => q.id) });
+    g.emit('host:reorderQueue', { moduleId, order: suivante.map((q) => q.id) },
+      (r) => { if (r && r.moduleId === moduleId) setFile(r.queue || []); });
   };
 
   const deplacer = (de, vers) => {
@@ -278,31 +286,111 @@ function FileAttente({ g, moduleId, nomJeu }) {
   };
 
   const retirer = (id) => {
-    setFile((f) => f.filter((q) => q.id !== id));
-    g.emit('host:removeFromQueue', { moduleId, questionId: id });
+    g.emit('host:removeFromQueue', { moduleId, questionId: id },
+      (r) => { if (r && r.moduleId === moduleId) setFile(r.queue || []); });
   };
 
-  // Le glisser ne part QUE de la poignée, et un seuil de déplacement fait qu'un
-  // clic reste un clic : en plein direct, l'animateur vise « question suivante »,
-  // pas un déplacement involontaire.
+  // ---- LE GLISSER ---------------------------------------------------------
+  // AVANT : rien ne bougeait. La ligne prise changeait de teinte et restait sur
+  // place ; la liste se réordonnait par téléportation ; le seuil valait 28 px
+  // pour une ligne de 60, si bien qu'elle sautait d'un rang avant que le doigt
+  // n'ait parcouru un rang ; et CHAQUE pas partait sur le réseau — cinq messages
+  // pour un glisser de cinq places.
+  //
+  // MAINTENANT : la ligne tenue suit le doigt, les autres s'écartent en laissant
+  // le trou où elle va tomber, le pas vient de la hauteur MESURÉE, et le serveur
+  // n'apprend le nouvel ordre qu'au lâcher.
+  //
+  // La poignée reste le seul point de prise : en plein direct, l'animateur vise
+  // « question suivante », pas un déplacement involontaire.
   const prendre = (i) => (e) => {
-    depart.current = { y: e.clientY, i };
+    const ligne = e.currentTarget.closest('.file__row');
+    const cs = liste.current ? getComputedStyle(liste.current) : null;
+    // DÉCISION 4.3 — le pas est la hauteur réelle d'une ligne plus l'écart entre
+    // deux lignes. Une constante approchée redevient fausse au premier changement
+    // de typo ou d'espacement ; celle d'avant l'était déjà.
+    const pas = ligne ? ligne.offsetHeight + (cs ? parseFloat(cs.rowGap) || 0 : 0) : 0;
+    depart.current = { y: e.clientY, pas, ordre: file };
     setPris(i);
+    setCible(i);
+    setDecalage(0);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
+
+  // DÉCISION 4.5 — sans défilement automatique, avec quatre lignes visibles sur
+  // vingt et une, le glisser ne déplace une question que d'un rang : le pointeur
+  // atteint le bord et plus rien ne se passe. La vitesse croît avec la proximité
+  // du bord, et elle est plafonnée — un défilement qui s'emballe est pire que pas
+  // de défilement, on ne vise plus rien.
+  const autoDefiler = (y) => {
+    const el = liste.current;
+    if (!el || el.scrollHeight <= el.clientHeight) return;
+    const r = el.getBoundingClientRect();
+    const ZONE = 48;
+    const PLAFOND = 16;
+    const versHaut = y - r.top;
+    const versBas = r.bottom - y;
+    let part = 0;
+    if (versHaut < ZONE) part = -(ZONE - versHaut) / ZONE;
+    else if (versBas < ZONE) part = (ZONE - versBas) / ZONE;
+    if (part) el.scrollTop += part * PLAFOND;
+  };
+
   const glisser = (e) => {
     if (pris == null || !depart.current) return;
-    const dy = e.clientY - depart.current.y;
-    const SEUIL = 28; // hauteur approximative d'une ligne
-    if (Math.abs(dy) < SEUIL) return;
-    const pas = dy > 0 ? 1 : -1;
-    const vers = pris + pas;
-    if (vers < 0 || vers >= file.length) return;
-    depart.current = { y: e.clientY, i: vers };
-    deplacer(pris, vers);
-    setPris(vers);
+    const { y, pas } = depart.current;
+    const dy = e.clientY - y;
+    setDecalage(dy);                       // la ligne suit le doigt (décision 4.1)
+    if (pas > 0) {
+      const saut = Math.round(dy / pas);
+      const vers = Math.max(0, Math.min(file.length - 1, pris + saut));
+      if (vers !== cible) setCible(vers);
+    }
+    autoDefiler(e.clientY);
   };
-  const lacher = () => { setPris(null); depart.current = null; };
+
+  const reinitialiser = () => {
+    setPris(null);
+    setCible(null);
+    setDecalage(0);
+    depart.current = null;
+  };
+
+  const lacher = () => {
+    // DÉCISION 4.4 — UN SEUL message, au lâcher. Le glisser est local jusque-là :
+    // quatre messages sur cinq disparaissent, et avec eux toute course entre le
+    // réordonnancement et la prise de tête de file par le serveur.
+    if (pris != null && cible != null && cible !== pris) {
+      const suivante = file.slice();
+      const [x] = suivante.splice(pris, 1);
+      suivante.splice(cible, 0, x);
+      envoyerOrdre(suivante);
+    }
+    reinitialiser();
+  };
+
+  // DÉCISION 4.6 — l'échappement et la perte du pointeur ramènent la ligne à sa
+  // place, sans rien envoyer. Un geste commencé par erreur doit pouvoir être
+  // abandonné : c'est ce qui rend le glisser sûr en direct.
+  useEffect(() => {
+    if (pris == null) return undefined;
+    const surTouche = (e) => { if (e.key === 'Escape') reinitialiser(); };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [pris]);
+
+  // DÉCISION 4.2 — les autres lignes s'écartent et laissent le trou où la ligne
+  // tenue va tomber. L'ordre du DOM ne change PAS pendant le geste : ce sont des
+  // déplacements graphiques, que le CSS anime. Réordonner le DOM en direct ferait
+  // clignoter la liste — c'est exactement ce qu'on corrige.
+  const deplacementDe = (i) => {
+    if (pris == null || cible == null || !depart.current) return undefined;
+    const { pas } = depart.current;
+    if (i === pris) return `translateY(${decalage}px)`;
+    if (pris < cible && i > pris && i <= cible) return `translateY(${-pas}px)`;
+    if (cible < pris && i >= cible && i < pris) return `translateY(${pas}px)`;
+    return undefined;
+  };
 
   if (!moduleId) return null;
 
@@ -312,6 +400,17 @@ function FileAttente({ g, moduleId, nomJeu }) {
         <I.eye s={16} /> À venir dans {nomJeu || 'ce jeu'}
         <span className="private__count">{file.length}</span>
       </p>
+      {/* LA QUESTION EN COURS, HORS DE LA FILE (décision 3.4 — décision 13 de
+          l'action 6 du chantier v1, jamais réalisée). Sans elle, rien ne
+          distinguait ce qui venait d'être posé de ce qui vient : c'est la moitié
+          « savoir ce qu'il fait » de la remarque de test. Elle n'est pas une
+          ligne de file — on ne peut ni la déplacer ni la retirer. */}
+      {enCours ? (
+        <p className="file__encours" data-testid="file-en-cours">
+          <span className="file__encours-label">En cours</span>
+          <span className="file__encours-texte" title={enCours}>{enCours}</span>
+        </p>
+      ) : null}
       {/* La LONGUEUR de la file est l'indicateur de questions fraîches restantes :
           il n'y a rien de plus à construire. Et comme une question posée ne
           revient jamais dans un salon, voir la file fondre est le seul moyen de
@@ -322,9 +421,13 @@ function FileAttente({ g, moduleId, nomJeu }) {
           questions au Studio.
         </p>
       ) : (
-        <ol className="file" onPointerMove={glisser} onPointerUp={lacher} onPointerCancel={lacher}>
+        /* `onPointerCancel` ANNULE au lieu de valider : un geste interrompu par
+           le système n'est pas un geste terminé. */
+        <ol className="file" ref={liste} onPointerMove={glisser} onPointerUp={lacher}
+          onPointerCancel={reinitialiser}>
           {file.map((q, i) => (
-            <li className={`file__row${pris === i ? ' file__row--pris' : ''}`} key={q.id} data-testid="file-row">
+            <li className={`file__row${pris === i ? ' file__row--pris' : ''}`} key={q.id} data-testid="file-row"
+              style={deplacementDe(i) ? { transform: deplacementDe(i) } : undefined}>
               <button className="file__grip" type="button" aria-label={`Déplacer ${q.text}`}
                 onPointerDown={prendre(i)}><I.dots s={16} /></button>
               <span className="file__pos">{i + 1}</span>
@@ -1064,13 +1167,20 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
               answersCount={answersCount} revealed={revealed} reveal={reveal} />
             {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
           </section>
+
+          {/* LA FILE, DANS LA COLONNE CENTRALE (chantier v2, décision 3.1).
+              Elle vivait dans la colonne latérale de 336 px, où trois commandes
+              au plancher tactile de 44 px ne laissaient à l'énoncé que quelques
+              dizaines de pixels : chaque ligne affichait « Q. ».
+              Ici, sous le jeu en cours, elle dispose de la largeur du centre —
+              l'énoncé, le numéro, la poignée et les commandes tiennent sur une
+              seule ligne, sans rien comprimer. Et l'ordre de lecture dit ce que
+              l'animateur fait : ce qui est à l'antenne, puis ce qui vient. */}
+          <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name}
+            enCours={current && current.text} />
         </div>
 
         <aside className="rail">
-          {/* La file apparaît AU LANCEMENT du jeu, pas dans le salon d'attente :
-              c'est en direct qu'elle sert, quand l'animateur décide de la suite. */}
-          <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name} />
-
           <section className="private" aria-label="Classement en direct">
             <p className="private__title">
               <I.eye s={16} /> Classement — toi seul

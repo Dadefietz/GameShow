@@ -83,11 +83,14 @@
     border-radius: var(--r-m);
     background: var(--c-surface);
     box-shadow: var(--sh-2), var(--sh-edge);
-    /* La pastille est dimensionnée par le QR, pas par l'adresse : c'est le QR qui
-       a une taille fonctionnelle incompressible. Une adresse longue se replie sur
-       deux lignes plutôt que d'élargir tout le bloc — sinon un domaine à rallonge
-       ramènerait insensiblement l'encombrement du panneau qu'on vient de retirer. */
-    max-width: calc(var(--qr-st) + var(--sp-4) * 2 + var(--sp-5));
+    /* CHANTIER v2, décision 2.3 — la largeur était dictée par le QR seul (232 px)
+       au motif qu'une adresse longue « se replie sur deux lignes ». Elle s'en
+       repliait QUATRE : 200 px de contenu à 34 px de mono, pour une adresse de
+       35 caractères qui en mesure 716 sur une ligne. Elle en tient trois ici.
+       Le QR garde sa taille fonctionnelle ; c'est la plaque qui s'élargit, bornée
+       par un jeton. Le raisonnement chiffré est dans tokens.css, avec la raison
+       pour laquelle on n'a PAS simplement rapetissé la typo. */
+    max-width: var(--pastille-st);
   }
   .rejoindre__qr {
     width: var(--qr-st);
@@ -104,35 +107,94 @@
     letter-spacing: 0.07em;
     color: var(--c-flame);
   }
-  /* L'adresse commande la largeur de la pastille — c'est le plus long des trois
-     éléments. À l'échelle d'étiquette technique, elle tient sous la barre des
-     300 px de canevas, ce qui garde la pastille bien en deçà du panneau de
-     460 px pleine hauteur qu'elle remplace. */
+  /* L'ADRESSE, à l'échelle d'étiquette technique.
+     `break-word` et NON `anywhere` : c'est la correction du commit 2712880, qui
+     portait sur `.join-panel__url` — un élément que les actions 3+4+5 ont
+     supprimé. La classe neuve a réintroduit `anywhere`, et avec lui deux maux :
+     la coupure au milieu d'un mot (« show.onre / nder.com/ »), et surtout une
+     largeur minimale ramenée à UN caractère, ce qui laissait la ligne du podium
+     s'effondrer en colonne verticale. Une correction reportée sur la classe qui
+     lui succède, pas seulement sur celle qui l'a vue naître.
+
+     TROIS LIGNES, ET NON DEUX. La décision 2.3 du plan disait « deux au
+     maximum ». La mesure l'a démentie : les points de coupure sont DISCRETS, et
+     le segment « show.onrender.com/play » fait 450 px à lui seul. Deux lignes
+     exigeraient une plaque de 482 px, plus large que le panneau de 460 px qu'on
+     vient de retirer. Le détail chiffré est dans tokens.css. */
   .rejoindre__lien {
     margin: 0;
     max-width: 100%;
     font: 500 var(--fs-st-200) / 1.2 var(--f-mono);
     color: var(--c-ink-3);
     text-align: center;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   /* AU PODIUM : plus de QR, mais le code reste — une seule ligne, discrète.
-     L'adresse l'accompagne : un code seul ne dirait pas où le taper. */
-  .rejoindre--mince { padding: var(--sp-3) var(--sp-4); }
+     L'adresse l'accompagne : un code seul ne dirait pas où le taper.
+
+     DÉCISION 2.2 — la plaque mince N'HÉRITE PAS de la largeur dictée par le QR.
+     Il n'y a pas de QR ici : la borner à 232 px n'avait aucun sens, et c'est ce
+     qui écrasait l'adresse en colonne d'un caractère. Elle prend la largeur
+     qu'il faut pour tenir adresse et code sur UNE ligne. */
+  .rejoindre--mince {
+    padding: var(--sp-3) var(--sp-4);
+    max-width: none;
+  }
   .rejoindre__ligne {
     margin: 0;
     display: flex;
-    align-items: baseline;
+    /* DÉCISION 2.4 — `baseline` alignait le code sur la PREMIÈRE ligne d'une
+       adresse repliée : d'où le « pr · 2Z78R » de la capture, le code posé à
+       côté du premier fragment d'une colonne de dix-huit lignes. Le centrage ne
+       peut pas produire cela, même si le repli revenait un jour. */
+    align-items: center;
     gap: var(--sp-2);
     font: 500 var(--fs-st-200) / 1 var(--f-mono);
     color: var(--c-ink-3);
+    white-space: nowrap;
+  }
+  /* L'adresse est d'un cran sous le code : c'est le code qu'on tape, l'adresse
+     dit seulement où. Cette hiérarchie tient aussi la largeur de la plaque. */
+  .rejoindre--mince .rejoindre__lien {
+    font: 500 var(--fs-st-100) / 1 var(--f-mono);
+    max-width: none;
+    white-space: nowrap;
   }
   .rejoindre--mince .rejoindre__code { font: 600 var(--fs-st-200) / 1 var(--f-mono); }
 
   /* ZONE RÉSERVÉE : la scène ne dessine JAMAIS sous la pastille. Contrainte de
-     mise en page, pas espoir de non-recouvrement. */
-  .stream[data-state="live"] .stream__stage { padding-bottom: calc(var(--pad-st) + var(--qr-st) + 190px); }
+     mise en page, pas espoir de non-recouvrement.
+
+     CE QUI ÉTAIT FAUX (chantier v2, actions 1). Une seule règle, visant le seul
+     état `live`, avec un remplissage bas calculé sur un nombre en dur :
+     `--qr-st + 190px`. Trois défauts d'un coup :
+       - le PODIUM (`ended`) n'était pas visé du tout — aucune réservation ;
+       - 190 était calé sur « l'adresse se replie sur deux lignes » ; elle s'en
+         repliait quatre, et la pastille crevait sa zone d'une centaine de pixels ;
+       - un remplissage bas ne protège QUE si le contenu tient dedans. Sur l'écran
+         de question, l'énoncé et quatre options demandent ~720 px là où il en
+         restait 582 : un enfant de boîte flexible ne se laisse pas rogner par le
+         remplissage de son parent, il déborde — et `.stream` le clippe au bord du
+         canevas, pas au bord du remplissage.
+     S'y ajoutait un gaspillage : réserver une bande de 434 × 1920 pour protéger
+     un coin de 232 × 530, c'est étrangler la question pour rien.
+
+     CE QU'ON FAIT (décisions 1.1, 1.2, 1.3, 1.4). La scène s'écarte du coin par
+     l'axe le moins coûteux, et la mesure vient du DOM :
+       - accueil, salle d'attente, podium — le contenu est court, il cède de la
+         HAUTEUR : rien ne descend sous la pastille ;
+       - pendant la question — le contenu a besoin de toute la hauteur, il cède
+         de la LARGEUR : rien ne rentre dans la colonne de la pastille.
+     Dans les deux cas la valeur est mesurée ; --rejoindre-min est le plancher qui
+     tient le premier rendu. */
+  .stream .stream__stage {
+    padding-bottom: calc(var(--pad-st) + var(--rejoindre-h, var(--rejoindre-min)) + var(--gap-st));
+  }
+  .stream--question .stream__stage {
+    padding-bottom: var(--pad-st);
+    padding-left: calc(var(--pad-st) + var(--rejoindre-w, var(--rejoindre-min)) + var(--gap-st));
+  }
   /* La scène récupère toute la largeur pendant la partie : 1792 px utiles au lieu
      de 1332. Mais la largeur du CONTENU reste plafonnée — un énoncé étalé sur
      toute la scène devient inconfortable à lire, l'œil ne retrouvant plus le

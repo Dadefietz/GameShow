@@ -7,6 +7,7 @@
 // barre de progression — la flamme scintille, les points respirent.
 import React, { useEffect, useState } from 'react';
 import './brand-loader.css';
+import { Flamme } from './Flamme.jsx';
 import { NOM_DU_JEU } from './marque.js';
 
 export function BrandLoader() {
@@ -24,16 +25,9 @@ export function BrandLoader() {
     <div className="boot" data-state={phase} role="status" aria-live="polite"
       aria-label={`Chargement de ${NOM_DU_JEU}`}>
       <span className={`boot__mark${stuck ? '' : ' boot__mark--alive'}`} aria-hidden="true">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-          <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
-            <g className={stuck ? undefined : 'brand-flame'}>
-              <path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2" />
-            </g>
-            <path d="M3.4 18.7l17.2-3.5" />
-            <path d="M3.4 15.2l17.2 3.5" />
-          </g>
-          <circle className={stuck ? undefined : 'brand-spark'} cx="12" cy="12.6" r="1.5" fill="currentColor" />
-        </svg>
+        {/* Le dessin vient de la géométrie unique (chantier v2, décision 5.1) :
+            il était recopié ici, et l'icône d'onglet en avait déjà divergé. */}
+        <Flamme taille={44} anime={!stuck} />
       </span>
 
       <p className="boot__name">Project<br />Game Show</p>

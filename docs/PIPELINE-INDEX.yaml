@@ -80,10 +80,6 @@ app_artifacts:
         active_version: 1
         path: design/assets/hero-ambiance-campfire-v1.png
         derived_from: { design_board: 3, tokens: 1 }
-      avatar-emblem-tipi:
-        active_version: 1
-        path: design/assets/avatar-emblem-tipi-v1.png
-        derived_from: { design_board: 3, tokens: 1 }
       social-card-join:
         active_version: 1
         path: design/assets/social-card-join-v1.png
@@ -103,7 +99,7 @@ app_artifacts:
       change_set: forward
       manifest_coverage: 100
       build_verified: true
-      derived_from: { tech_spec: 1, design_manifest: 1, tokens: 1, user_needs: 1, image_assets: { hero-ambiance-campfire: 1, avatar-emblem-tipi: 1, social-card-join: 1 } }
+      derived_from: { tech_spec: 1, design_manifest: 1, tokens: 1, user_needs: 1, image_assets: { hero-ambiance-campfire: 1, social-card-join: 1 } }
       updated_at: "2026-08-18T00:50:00Z"
     test_report:
       node: 6

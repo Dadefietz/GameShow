@@ -6,12 +6,6 @@ assets:
     version: 1
     path: design/assets/hero-ambiance-campfire-v1.png
     sidecar: design/assets/hero-ambiance-campfire-v1.asset.yaml
-  - id: avatar-emblem-tipi
-    asset_type: avatar
-    slug: emblem-tipi
-    version: 1
-    path: design/assets/avatar-emblem-tipi-v1.png
-    sidecar: design/assets/avatar-emblem-tipi-v1.asset.yaml
   - id: social-card-join
     asset_type: social-card
     slug: join

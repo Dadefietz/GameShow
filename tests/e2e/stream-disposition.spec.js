@@ -51,10 +51,21 @@ test.describe('Disposition du stream', () => {
     expect(pastille.x - scene.x).toBeLessThan(scene.width * 0.25);
     expect((scene.y + scene.height) - (pastille.y + pastille.height)).toBeLessThan(scene.height * 0.2);
 
-    // Emprise DIVISÉE : l'ancien panneau faisait 460 px de large sur toute la
-    // hauteur. La pastille doit rester très en deçà.
+    // Emprise DIVISÉE : l'ancien panneau faisait 460 px de large SUR TOUTE LA
+    // HAUTEUR — un quart de la scène en permanence. C'est l'emprise, pas la
+    // largeur seule, qui était le grief.
+    //
+    // Le plafond est passé de 300 à 400 px au chantier v2. Ce n'est pas un
+    // relâchement : mesuré dans le vrai navigateur avec la vraie adresse
+    // d'hébergement (35 caractères, 716 px sur une ligne à 34 px de mono), tenir
+    // l'adresse en deux lignes exige 390 px de plaque. L'alternative était de
+    // descendre d'un cran de typo — l'adresse tombait alors à 9,4 px sur un
+    // téléphone en paysage, sous le plancher de 10 px garanti plus bas dans ce
+    // fichier. On a préféré une plaque plus large à une adresse illisible.
+    //
+    // La HAUTEUR reste le vrai garde-fou : 380 px au lieu de 1080.
     const echelle = scene.width / 1920;
-    expect(pastille.width / echelle).toBeLessThan(300);
+    expect(pastille.width / echelle).toBeLessThanOrEqual(400);
     expect(pastille.height / echelle).toBeLessThan(scene.height / echelle * 0.55);
 
     // La scène ne dessine JAMAIS sous la pastille : contrainte de mise en page,

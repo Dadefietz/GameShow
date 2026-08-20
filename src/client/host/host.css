@@ -54,18 +54,86 @@
      endroit du produit où le défilement manuel est le bon geste. */
   .lb--scroll { max-height: 46vh; overflow-y: auto; }
 
-  /* FILE D'ATTENTE — réordonnable au glisser ou au bouton. */
-  .file { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); max-height: 34vh; overflow-y: auto; }
+  /* FILE D'ATTENTE — réordonnable au glisser ou au bouton.
+     Elle vit dans la COLONNE CENTRALE depuis le chantier v2 (décision 3.1) : dans
+     la colonne latérale de 336 px, trois commandes au plancher tactile de 44 px
+     ne laissaient à l'énoncé que quelques dizaines de pixels, et chaque ligne
+     affichait « Q. ». */
+
+  /* QUATRE LIGNES VISIBLES, puis défilement (décision 3.5). Le plafond était en
+     hauteur de fenêtre — 34vh — une unité qui ne sait rien de la hauteur d'une
+     ligne : elle coupait la cinquième en une bande vide, sans texte ni commande.
+     Ici la borne est un NOMBRE DE LIGNES, seule unité qui ait un sens pour une
+     file. L'enjeu réel est ailleurs : la barre d'actions doit rester au-dessus du
+     pli. En direct, perdre « Question suivante » coûte plus cher que défiler. */
+  .file {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    max-height: calc(var(--file-row) * 4 + var(--sp-2) * 3);
+    overflow-y: auto;
+  }
+
+  /* LA QUESTION EN COURS — hors de la file, non déplaçable (décision 3.4). */
+  .file__encours {
+    margin: 0 0 var(--sp-3);
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    min-width: 0;
+  }
+  .file__encours-label {
+    flex: none;
+    font: 600 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .file__encours-texte {
+    min-width: 0;
+    font: 500 var(--fs-300) / 1.25 var(--f-ui);
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .file__row {
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    /* `1fr` seul portait un minimum automatique que `overflow: hidden` sur
+       l'énoncé ramenait à ZÉRO : la colonne se laissait comprimer en silence
+       jusqu'à « Q. ». `minmax(12ch, …)` lui donne un plancher réel — si la place
+       venait à manquer, la ligne DÉBORDE, ce qui se voit et se corrige, au lieu
+       de se taire (décision 3.3). */
+    grid-template-columns: auto auto minmax(12ch, 1fr) auto;
     align-items: center;
     gap: var(--sp-2);
     padding: var(--sp-2) var(--sp-3);
     border-radius: var(--r-s);
     background: var(--c-surface-sunk);
   }
-  .file__row--pris { background: var(--c-secret-wash); }
+  /* LES AUTRES LIGNES s'écartent en douceur ; la ligne TENUE, elle, ne transite
+     pas : elle doit coller au doigt, une transition la ferait traîner derrière.
+     Les durées viennent des jetons de mouvement (décision 4.11), et le bloc
+     « sans animation » du socle les neutralise déjà — la ligne tenue continue de
+     suivre le doigt, puisque son déplacement n'est pas une transition (4.7). */
+  .file__row { transition: transform var(--mo-fast) var(--ease-out); }
+
+  /* LA LIGNE TENUE se soulève : ombre, léger agrandissement, et elle passe
+     au-dessus des autres. C'est le seul retour qui dise « je tiens ça » — avant,
+     tout le retour visuel tenait dans un changement de teinte, et la ligne ne
+     bougeait pas d'un pixel. */
+  .file__row--pris {
+    background: var(--c-secret-wash);
+    position: relative;
+    z-index: 2;
+    transition: none;
+    box-shadow: var(--sh-3);
+    scale: 1.02;
+  }
   /* La poignée est le SEUL point de prise : ailleurs, un clic reste un clic. */
   .file__grip {
     border: 0;
@@ -367,10 +435,15 @@
     pointer-events: none;
   }
   .private > * { position: relative; }
+  /* L'intitulé tient sur UNE ligne (chantier v2, décision 3.9). Il se repliait,
+     « SEUL » tombant sous le reste et le compteur restant perché sur la première
+     ligne. `nowrap` le tient ; si un intitulé venait un jour à ne plus rentrer,
+     il déborderait — donc se verrait — au lieu de se replier en silence. */
   .private__title {
     margin: 0;
     display: flex;
     align-items: center;
+    white-space: nowrap;
     gap: var(--sp-2);
     font: 600 var(--fs-200) / 1 var(--f-ui);
     letter-spacing: var(--tr-label);
@@ -604,8 +677,13 @@
   /* ============================ A5 · PILOTAGE ============================ */
   .live { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   /* Quand .live EST la page, son min-height:0 annulait le 100dvh de .page :
-     la barre d'action flottait au milieu au lieu de tenir le bas de l'écran. */
-  .page.live { min-height: 100dvh; }
+     la barre d'action flottait au milieu au lieu de tenir le bas de l'écran.
+     HAUTEUR FIXÉE, et non plus seulement minimale (chantier v2, décision 3.5) :
+     `min-height` autorisait la page à GRANDIR avec son contenu. La file passée
+     dans la colonne centrale, la page atteignait 994 px pour une fenêtre de 720
+     et emportait la barre d'actions sous le pli. Une hauteur fixée contraint les
+     enfants, et c'est le corps qui défile — la barre reste. */
+  .page.live { height: 100dvh; min-height: 100dvh; }
   .actions { background: var(--c-canvas-2); }
   .antenne {
     display: flex;
@@ -639,6 +717,14 @@
     gap: var(--pane-gap);
     padding: var(--pane-gap) var(--sp-7);
     align-items: start;
+    /* LE CORPS DÉFILE, PAS LA PAGE (chantier v2, décision 3.5). La file est
+       passée dans la colonne centrale : sur un écran court, le contenu poussait
+       la page et emportait la barre d'actions sous le pli — mesuré à 1074 px
+       pour une fenêtre de 720. C'est le défaut que l'action 16 du chantier v1
+       avait déjà corrigé une fois, sur le menu des modules.
+       En direct, perdre « Question suivante » coûte plus cher que défiler : la
+       barre est ce qui doit rester, quoi qu'il arrive. */
+    overflow-y: auto;
   }
   .stage { display: flex; flex-direction: column; gap: var(--pane-gap); min-width: 0; }
   .stage__card {

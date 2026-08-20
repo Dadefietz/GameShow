@@ -24,9 +24,18 @@ function pick() {
   return <PlayApp />; // '/', '/play'
 }
 
-// Overlay OBS : fond transparent, aucun loader visible. Autres surfaces : loader de marque.
+// LA MARQUE SUR LES QUATRE SURFACES, /overlay compris (chantier v2, décision 5.2).
+// Le stream n'avait AUCUN écran de chargement : entre la navigation et le premier
+// rendu, la source OBS montrait du vide.
+//
+// LA DÉCISION 5.7 DISAIT « fond transparent sur le stream ». Elle reposait sur une
+// prémisse PÉRIMÉE : la scène du stream est elle-même opaque depuis qu'elle est un
+// canevas fixe (`.stream-fit` peint --c-canvas). Les overlays transparents ont été
+// abandonnés le 2026-08-18 ; seul le commentaire avait survécu. Un chargement
+// transparent laisserait donc voir… le même brun. Ce qui compte vraiment, et qui
+// était faux, c'est que ce brun soit LE MÊME partout — voir index.html.
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <Suspense fallback={isOverlay ? null : <BrandLoader />}>{pick()}</Suspense>
+    <Suspense fallback={<BrandLoader />}>{pick()}</Suspense>
   </React.StrictMode>
 );

@@ -12,6 +12,7 @@
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
 import { dire, momentDePlateau } from '../shared/voix.js';
 import './overlay.css';
@@ -20,21 +21,11 @@ const nf = new Intl.NumberFormat('fr-FR');
 const fmt = (n) => (typeof n === 'number' && Number.isFinite(n) ? nf.format(n) : '—');
 const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-// Marque animée du système : flamme qui respire, braise qui scintille.
+// Marque animée du système : flamme qui respire, braise qui scintille. Le dessin
+// vient de la géométrie unique (chantier v2, décision 5.1) — il était recopié ici
+// à l'identique de BrandLoader, et rien n'empêchait les deux de diverger.
 function BrandMark({ size = 37, ember = false }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
-        <g className="brand-flame">
-          <path d="M12 2.9c3 3.7 4.5 6.1 4.5 8a4.5 4.5 0 01-9 0c0-1.7.9-3.4 2.6-5.2" />
-        </g>
-        <path d="M3.4 18.7l17.2-3.5" />
-        <path d="M3.4 15.2l17.2 3.5" />
-      </g>
-      <circle className="brand-spark" cx="12" cy="12.6" r="1.5" fill="currentColor" />
-      {ember ? <circle className="brand-ember" cx="15.6" cy="6.4" r="0.9" fill="currentColor" /> : null}
-    </svg>
-  );
+  return <Flamme taille={size} escarbille={ember} />;
 }
 
 function PeopleIcon({ size = 52, stroke = 'currentColor' }) {
@@ -613,16 +604,61 @@ function useStreamScale() {
   }, []);
 }
 
+// GÉOMÉTRIE RÉELLE DE LA PASTILLE (chantier v2, décision 1.3).
+// La zone réservée était un nombre écrit à la main, calé sur une hypothèse de
+// mise en page — « l'adresse se replie sur deux lignes ». L'hypothèse a cessé
+// d'être vraie et personne ne l'a su : la pastille débordait de sa propre zone.
+// Un nombre deviné redevient faux dès que la police, l'adresse ou le contenu
+// changent. Celui-ci vient du DOM, et se recalcule quand la pastille bouge.
+// `phase` vaut null tant que la scène n'est pas montée. Sans cela, l'effet
+// s'exécuterait une seule fois — pendant que la connexion s'établit, quand la
+// pastille n'existe pas encore — et ne reviendrait jamais : la phase, elle, n'a
+// pas changé. La mesure resterait au plancher et la scène passerait dessous.
+function usePastilleGeometrie(phase) {
+  useEffect(() => {
+    const racine = document.documentElement;
+    const el = phase && document.querySelector('.rejoindre');
+    if (!el) return undefined;
+    const publier = () => {
+      // offsetWidth/Height et NON getBoundingClientRect : la scène est mise à
+      // l'échelle par une transformation. Le rectangle client rendrait des pixels
+      // d'écran là où la mise en page raisonne en pixels de canevas.
+      racine.style.setProperty('--rejoindre-w', `${el.offsetWidth}px`);
+      racine.style.setProperty('--rejoindre-h', `${el.offsetHeight}px`);
+    };
+    publier();
+    // Le repli de l'adresse change la hauteur sans qu'aucun événement de fenêtre
+    // ne se produise : c'est l'élément qu'il faut observer, pas la fenêtre.
+    const ro = new ResizeObserver(publier);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [phase]);
+
+  // Le nettoyage des variables est séparé : le fait au démontage seulement, pour
+  // qu'un changement de phase ne les retire pas une image durant — ce qui ferait
+  // sauter la scène à l'antenne.
+  useEffect(() => () => {
+    document.documentElement.style.removeProperty('--rejoindre-w');
+    document.documentElement.style.removeProperty('--rejoindre-h');
+  }, []);
+}
+
 export function OverlayApp() {
   const token = new URLSearchParams(window.location.search).get('token');
   const g = useGame(token);
   useStreamScale();
 
-  if (!token || !g.connected) return null;
-
+  // La phase est calculée AVANT la sortie anticipée : les crochets ne peuvent pas
+  // vivre après un `return`, et la mesure de la pastille doit se refaire à chaque
+  // changement de phase — la plaque du podium n'a ni la forme ni la taille de la
+  // pastille à QR.
   const state = g.room?.state;
   const ended = state === 'ended' || (g.podium && g.podium.length);
   const inRound = g.current && (state === 'playing' || state === 'results');
+  const montee = Boolean(token && g.connected);
+  usePastilleGeometrie(!montee ? null : ended ? 'podium' : inRound ? 'question' : 'attente');
+
+  if (!montee) return null;
 
   // Classement COMPLET : on n'écarte pas les joueurs à zéro. Le but de cette
   // colonne est précisément que tout le monde existe à l'écran — écarter les

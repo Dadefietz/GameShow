@@ -179,6 +179,10 @@
 
   /* --- 13. CIBLES TACTILES & GABARITS (WCAG 2.2 AA) -------------------- */
   --hit-min: 44px;      /* plancher absolu           */
+  /* Hauteur d'une ligne de file d'attente (chantier v2, décision 3.5). La file
+     se borne en NOMBRE DE LIGNES, pas en pourcentage de fenêtre : 34vh ne sait
+     rien de la hauteur d'une ligne et coupait la cinquième en bande vide. */
+  --file-row: calc(var(--hit-min) + var(--sp-2) * 2);
   --hit: 56px;          /* standard une main         */
   --hit-lg: 68px;       /* option de réponse         */
   --pad-screen: 20px;   /* marge d'écran joueur      */
@@ -281,6 +285,34 @@
                           donc lisible à distance d'écran. En dessous de ~160px
                           il devient décoratif : les gens n'y arrivent pas et
                           n'en disent rien, ils abandonnent.                    */
+  --pastille-st: 390px; /* largeur de la pastille « rejoindre » (chantier v2).
+                          AVANT : la plaque était dimensionnée par le QR seul —
+                          232 px — et l'adresse d'hébergement s'y repliait sur
+                          QUATRE lignes, coupées au milieu des mots.
+
+                          POURQUOI 390, ET POURQUOI PAS DEUX LIGNES. Tout est
+                          mesuré dans le vrai navigateur, avec la vraie adresse
+                          (« project-game-show.onrender.com/play », 35 caractères,
+                          20,46 px par caractère à 34 px de mono).
+                          Une coupure propre ne tombe qu'aux tirets et aux barres.
+                          Les segments insécables sont donc :
+                            « project- » 164 px · « game- » 102 px
+                            « show.onrender.com/play » 450 px
+                          Deux lignes exigeraient une plaque de 482 px — PLUS LARGE
+                          que les 460 px du panneau permanent qu'on vient de
+                          retirer. Trois lignes n'exigent que le plus long segment
+                          seul : 348 px, soit 380 px de plaque.
+                          Descendre la typo aurait raccourci tout cela, mais
+                          l'adresse tombait à 9,4 px sur un téléphone en paysage,
+                          sous le plancher de 10 px que la v1 garantit.
+                          On garde donc : typo pleine, trois lignes, 390 px.
+                          Le QR ne bouge pas : c'est --qr-st qui commande. */
+  /* Plancher de la pastille (chantier v2, décision 1.4). La scène s'écarte de la
+     GÉOMÉTRIE MESURÉE de la pastille, publiée en --rejoindre-w / --rejoindre-h.
+     Entre le premier rendu et l'arrivée de cette mesure, il faut une valeur
+     honnête : la pastille ne peut jamais être plus petite que son QR plus ses
+     marges. Ce plancher-là est connu d'avance, lui. */
+  --rejoindre-min: calc(var(--qr-st) + var(--sp-4) * 2);
   --bw-st: 4px;        /* filet visible à 25 %                             */
   --r-st: 28px;        /* rayon des blocs de scène                        */
 
