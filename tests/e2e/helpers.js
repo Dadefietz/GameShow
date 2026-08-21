@@ -32,3 +32,35 @@ export async function joinAsPlayer(browser, code, pseudo) {
   await page.getByTestId('join-submit').click();
   return { ctx, page };
 }
+
+// RETIRER LES JEUX FABRIQUÉS PAR UN CONTRÔLE.
+//
+// POURQUOI C'EST NÉCESSAIRE. La bibliothèque de jeux vit côté serveur et se
+// PARTAGE entre tous les contrôles d'une exécution. Or dix fichiers lancent « le
+// premier module de la liste » (`getByRole('menuitem').first()`) : un contrôle qui
+// fabrique un jeu et le laisse derrière lui change donc ce que lancent les
+// suivants.
+//
+// Le symptôme observé : le contrôle géométrique de la file — qui a besoin d'un jeu
+// de PLUS DE QUATRE questions — tombait sur un jeu fabriqué qui n'en avait qu'une,
+// attendait quinze secondes une cinquième ligne qui n'arriverait jamais, puis
+// échouait. Vert seul, rouge dans la suite complète, selon l'ordre d'exécution.
+//
+// Un contrôle qui lègue son état au suivant finit par mentir — c'est la même règle
+// que la clôture de salon (voir `cloture.js`).
+export async function retirerJeux(...noms) {
+  try {
+    const res = await fetch(`${BASE}/api/modules`);
+    if (!res.ok) return;
+    const { modules } = await res.json();
+    const restants = modules.filter((m) => !noms.some((n) => (m.name || '').startsWith(n)));
+    if (restants.length === modules.length) return;
+    await fetch(`${BASE}/api/modules`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ modules: restants }),
+    });
+  } catch {
+    // Un nettoyage ne doit JAMAIS faire échouer le contrôle qui vient de finir.
+  }
+}

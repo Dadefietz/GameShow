@@ -9,6 +9,7 @@
 //   2. les actions destructives (terminer, fermer) passent toujours par une
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { plagesVisibles, bornes, repereCible } from '../shared/echelle-estimation.js';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
@@ -1099,6 +1100,9 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     // coup d'œil pour décider quand révéler.
     const histo = stats?.histogramme || dist.histogramme || null;
     const hautMax = histo ? Math.max(1, ...histo.counts) : 1;
+    const plages = plagesVisibles(stats?.plages, histo);
+    const reperes = bornes(histo);
+    const cible = repereCible(stats?.target ?? reveal?.target, histo);
     return (
       <div className="dist__numeric">
         {histo ? (
@@ -1106,20 +1110,72 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
             <p className="histo__legend">
               Dispersion des <span className="histo__legend-num">{fmt(total)}</span> estimation{total > 1 ? 's' : ''}
             </p>
-            <div className="histo__plot">
-              {histo.counts.map((c, i) => (
-                <span
-                  key={i}
-                  className={`histo__bar${i === histo.cibleIndex ? ' histo__bar--cible' : ''}`}
-                  style={{ height: `${Math.round((c / hautMax) * 100)}%` }}
-                  title={`${c} estimation${c > 1 ? 's' : ''}`}
-                  data-count={c}
-                />
+            {/* L'AXE ET SES PLAGES (voir `shared/echelle-estimation.js`).
+                Sans eux, ces huit barres ne disaient rien : ni ce que chaque
+                tranche recouvre, ni où tombe la bonne réponse, ni jusqu'où il
+                fallait viser pour marquer. */}
+            <div className="histo__cadre">
+              {/* Les plages du barème, au FOND : la plus large d'abord, celle du
+                  mille par-dessus. Elles viennent du serveur, jamais d'un
+                  pourcentage recopié ici. */}
+              {plages.filter((p) => p.zone).map((p) => (
+                <span key={p.nom} className={`histo__plage histo__plage--${p.nom}`}
+                  style={{ left: `${p.gauche}%`, width: `${p.largeur}%` }}
+                  data-plage={p.nom} data-libelle={p.libelle}
+                  title={`${p.libelle} — ${fmt(p.points)} points${p.rognee ? ' (plage tronquée par l\'échelle)' : ''}`} />
+              ))}
+              {/* LES BORNES DES PLAGES — « les ± 2, 10, 20 et 30 % ». Un trait à
+                  chaque seuil, là où il tombe réellement. Peindre les zones ne
+                  suffisait pas : au-delà d'une certaine largeur elles couvrent
+                  tout et ne délimitent plus rien (mesuré, voir le module d'échelle). */}
+              {plages.flatMap((p) => p.bornes.map((b) => (
+                <span key={`${p.nom}-${b.cote}`} className={`histo__seuil histo__seuil--${p.nom}`}
+                  style={{ left: `${b.pct}%` }} data-seuil={p.nom}
+                  title={`${p.libelle} — ${fmt(p.points)} points`}>
+                  <span className="histo__seuil-lbl">{p.libelle}</span>
+                </span>
+              )))}
+              <div className="histo__plot">
+                {histo.counts.map((c, i) => (
+                  <span
+                    key={i}
+                    className={`histo__bar${i === histo.cibleIndex ? ' histo__bar--cible' : ''}`}
+                    style={{ height: `${Math.round((c / hautMax) * 100)}%` }}
+                    title={`${c} estimation${c > 1 ? 's' : ''} — de ${fmt(Math.round(histo.min + i * histo.pas))} à ${fmt(Math.round(histo.min + (i + 1) * histo.pas))}`}
+                    data-count={c}
+                  />
+                ))}
+              </div>
+              {/* LA BONNE RÉPONSE, à sa place exacte sur l'axe — et non plus
+                  « repérée en couleur » quelque part dans une tranche large. */}
+              {cible ? (
+                <span className="histo__cible" style={{ left: `${cible.pct}%` }} data-testid="histo-cible">
+                  <span className={`histo__cible-val histo__cible-val--${cible.ancrage}`}>
+                    {fmt(stats?.target ?? reveal?.target)}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            {/* Les valeurs de l'axe : une borne sur deux, extrémités comprises. */}
+            <div className="histo__axe" data-testid="histo-axe">
+              {reperes.map((b) => (
+                <span key={b.i} className="histo__tick" style={{ left: `${b.pct}%` }}>
+                  {fmt(Math.round(b.valeur))}
+                </span>
               ))}
             </div>
-            {/* La cible est repérée dans le graphique : on voit où tombe la
-                vérité par rapport au groupe, pas seulement où est le groupe. */}
-            <p className="histo__target">Bonne réponse repérée en couleur</p>
+            {/* La légende des plages : ce que chaque zone rapporte. */}
+            {plages.length ? (
+              <p className="histo__plages-legende" data-testid="histo-plages">
+                {plages.map((p) => (
+                  <span key={p.nom}
+                    className={`histo__cle histo__cle--${p.nom}${p.bornes.length ? '' : ' histo__cle--hors'}`}
+                    title={p.bornes.length ? undefined : 'Plage plus large que l\'échelle affichée'}>
+                    {p.libelle}<span className="histo__cle-pts">{fmt(p.points)}</span>
+                  </span>
+                ))}
+              </p>
+            ) : null}
           </div>
         ) : null}
         <div className="dist__facts">

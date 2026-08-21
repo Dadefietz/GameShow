@@ -14,6 +14,7 @@ export function useGame(token) {
   const [you, setYou] = useState(null);           // { rank, score, delta } (joueur)
   const [podium, setPodium] = useState(null);
   const [answered, setAnswered] = useState(false);
+  const [monChoix, setMonChoix] = useState(null);
   const [roomClosed, setRoomClosed] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
@@ -41,6 +42,9 @@ export function useGame(token) {
     s.on('module:started', (m) => {
       // `answered` restauré par le serveur (reconnexion/retardataire : pas de double réponse).
       setCurrent(m); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
+      // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
+      // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
+      setMonChoix(m.monChoix ?? null);
       // Temps restant RÉEL (deadline serveur) — un rechargement en cours de manche
       // n'affiche plus la durée totale comme s'il restait tout le temps.
       const left = m.deadline ? Math.max(0, Math.ceil((m.deadline - Date.now()) / 1000)) : Math.ceil((m.durationMs || 0) / 1000);
@@ -82,7 +86,7 @@ export function useGame(token) {
     socketRef.current?.off(event, handler);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, roomClosed, distribution, history, fatal, serverError, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, monChoix, roomClosed, distribution, history, fatal, serverError, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

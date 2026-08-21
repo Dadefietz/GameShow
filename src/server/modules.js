@@ -158,6 +158,41 @@ export function histogrammeNumerique(values, cible, tranches = TRANCHES) {
   return { min, max, pas, counts, cibleIndex: indice(cible) };
 }
 
+// LES PLAGES DU BARÈME, EN VALEURS ABSOLUES, POUR LES DEUX HISTOGRAMMES.
+//
+// CE QUI MANQUAIT À L'ÉCRAN. Les barres se lisaient sans échelle : ni les valeurs
+// que chaque tranche recouvre, ni où tombe la bonne réponse, ni jusqu'où il
+// fallait viser pour marquer. Un graphique sans axe ne dit rien de ce qu'il
+// montre — l'animateur commentait des rectangles.
+//
+// POURQUOI C'EST LE SERVEUR QUI LES CALCULE. Les bornes sont celles du BARÈME :
+// `PALIERS_ESTIMATION` en relatif, `PALIERS_ANNEE` en absolu, et la tolérance
+// d'une unité qui élargit le premier palier sur les petites cibles. Les recopier
+// dans deux écrans, c'est garantir qu'ils finiront par annoncer une plage que le
+// barème ne récompense plus — le même piège que la double définition du « plus
+// proche » (décision 6.1). Un seul calcul, ici, à côté des constantes.
+export function plagesEstimation(cible, nature) {
+  const paliers = nature === 'annee' ? PALIERS_ANNEE : PALIERS_ESTIMATION;
+  return paliers.map((p) => {
+    // Même règle que `palierEstimation` : en relatif, la tolérance absolue d'une
+    // unité l'emporte quand elle est plus large que le pourcentage.
+    const demi = nature === 'annee'
+      ? p.ecartMax
+      : Math.max(p.ecartMax * Math.abs(cible), TOLERANCE_ABSOLUE);
+    return {
+      nom: p.nom,
+      points: p.points,
+      // L'étiquette telle qu'elle doit s'écrire à l'antenne : « ± 10 % » n'a pas
+      // de sens sur une année, « ± 2 ans » n'en a pas sur un nombre d'habitants.
+      libelle: nature === 'annee'
+        ? (p.ecartMax === 0 ? 'exact' : `± ${p.ecartMax} ans`)
+        : `± ${Math.round(p.ecartMax * 100)} %`,
+      bas: cible - demi,
+      haut: cible + demi,
+    };
+  });
+}
+
 // Répartition des réponses sur des options indexées (quiz, vote) ou binaires (vrai/faux).
 function tallyOptions(runtime, size) {
   const tally = new Array(size).fill(0);
@@ -312,6 +347,10 @@ export const modules = {
         closest,
         target: rt.target,
         histogramme: histogrammeNumerique(values, rt.target),
+        // Les plages du barème, pour que les deux histogrammes portent un axe qui
+        // dit quelque chose (voir `plagesEstimation`).
+        plages: plagesEstimation(rt.target, nature),
+        nature,
       };
       // `prives` : ce qui ne doit JAMAIS partir dans `reveal`, lequel est diffusé
       // à tout le salon, stream compris. Les noms des plus proches en font partie

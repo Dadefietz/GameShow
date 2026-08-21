@@ -29,7 +29,7 @@
 //      les pixels rendus, sur les deux écrans, et l'on vérifie qu'ils sont
 //      proportionnels à des effectifs CONNUS D'AVANCE.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { MOMENTS } from '../../src/client/shared/voix.js';
 
@@ -40,6 +40,9 @@ test.describe('L\'estimation du chantier v4', () => {
   const joueurs = [];
 
   test.afterEach(async () => {
+    // Les jeux fabriqués par ce fichier sont retirés : la bibliothèque est
+    // PARTAGÉE, et dix contrôles lancent « le premier module de la liste ».
+    await retirerJeux('Épreuve d\'histogramme', 'Épreuve de verdict', 'Épreuve de poignée');
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     for (const j of joueurs.splice(0)) await j.ctx.close();
   });

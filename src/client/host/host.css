@@ -872,6 +872,115 @@
     background: var(--c-wood);
   }
   .histo__bar--cible { background: var(--g-ember); }
+
+  /* L'AXE ET LES PLAGES DU BARÈME.
+     Huit barres sans échelle ne disent rien : l'animateur commentait des
+     rectangles. Le cadre porte désormais, du fond vers l'avant, les plages qui
+     rapportent des points, les barres, puis le repère de la bonne réponse. */
+  /* UNE BANDE D'ÉTIQUETTES EN HAUT DU CADRE, et non des étiquettes posées
+     au-dessus. Mesuré : placées hors du cadre, la valeur de la cible et les
+     libellés de seuils sortaient de la boîte — sur le stream, la pastille « 100 »
+     n'apparaissait tout simplement pas. Réservée ici, la place leur appartient. */
+  .histo__cadre { position: relative; padding-top: 15px; }
+  .histo__plage {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: var(--r-xs);
+    background: var(--c-flame);
+    /* Empilées de la plus large à la plus étroite : l'opacité s'additionne, et le
+       cœur du barème est naturellement le plus lumineux. */
+    opacity: 0.07;
+    pointer-events: none;
+  }
+  .histo__plage--mille { opacity: 0.16; }
+  .histo__plage--proche { opacity: 0.11; }
+  /* Les seuils du barème : un filet vertical là où la plage s'arrête, et son
+     étiquette au ras de l'axe. Discrets — ils encadrent la lecture, ils ne la
+     remplacent pas. */
+  .histo__seuil {
+    position: absolute;
+    top: 15px;
+    bottom: 0;
+    width: 1px;
+    background: repeating-linear-gradient(
+      to bottom, var(--c-ink-4) 0 3px, transparent 3px 6px);
+    pointer-events: none;
+  }
+  .histo__seuil--mille { background: repeating-linear-gradient(
+    to bottom, var(--c-ember-bright) 0 3px, transparent 3px 6px); }
+  .histo__seuil-lbl {
+    position: absolute;
+    top: -14px;
+    left: 2px;
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    color: var(--c-ink-4);
+    white-space: nowrap;
+  }
+  .histo__seuil--mille .histo__seuil-lbl { color: var(--c-ember-bright); }
+  .histo__cle--hors { opacity: 0.55; }
+
+  .histo__cible {
+    position: absolute;
+    top: 15px;
+    bottom: 0;
+    width: 2px;
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    transform: translateX(-1px);
+  }
+  .histo__cible-val {
+    position: absolute;
+    top: -15px;
+    padding: 1px var(--sp-2);
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    color: var(--c-ink-on-flame);
+    font: 600 var(--fs-100) / 1.4 var(--f-mono);
+    white-space: nowrap;
+  }
+  .histo__cible-val--centre { left: 50%; transform: translateX(-50%); }
+  .histo__cible-val--debut { left: 0; }
+  .histo__cible-val--fin { right: 0; }
+
+  /* Les valeurs de l'axe. Position ABSOLUE et non grille : les bornes tombent aux
+     limites de tranches, pas au centre des barres — les aligner sur les barres
+     décalerait chaque étiquette d'une demi-tranche. */
+  .histo__axe {
+    position: relative;
+    height: 14px;
+    margin-top: var(--sp-2);
+    border-top: 1px solid var(--c-line);
+  }
+  .histo__tick {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    font: 400 var(--fs-100) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+    white-space: nowrap;
+  }
+  .histo__tick:first-child { transform: none; }
+  .histo__tick:last-child { transform: translateX(-100%); }
+
+  .histo__plages-legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-3);
+    margin: var(--sp-2) 0 0;
+  }
+  .histo__cle {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    padding: 1px var(--sp-2);
+    border-radius: var(--r-full);
+    background: var(--c-surface-sunk);
+    font: 500 var(--fs-100) / 1.5 var(--f-ui);
+    color: var(--c-ink-2);
+  }
+  .histo__cle--mille { background: var(--c-ember-wash); color: var(--c-ink); }
+  .histo__cle-pts { font: 600 var(--fs-100) / 1.5 var(--f-mono); color: var(--c-ink-3); }
   .histo__target { margin: 0; font: 400 var(--fs-100) / 1 var(--f-ui); color: var(--c-ink-3); }
 
   .dist__facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }

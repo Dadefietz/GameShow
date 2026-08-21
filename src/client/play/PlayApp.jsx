@@ -1174,6 +1174,19 @@ export function PlayApp() {
     g.emit('play:answer', { value });
   }
 
+  // LE CHOIX DU JOUEUR SURVIT AU RECHARGEMENT.
+  //
+  // `myAnswer` ne vit qu'en mémoire : un rechargement l'efface, et l'écran de
+  // résultat — qui déduit le verdict en comparant ce choix à la bonne réponse —
+  // n'avait plus de quoi conclure. Le serveur le rejoue désormais à la
+  // reconnexion ; on le reprend ici, sans jamais écraser un choix fait dans cette
+  // page (la valeur locale est la plus fraîche des deux).
+  const choixRejoue = g.monChoix;
+  useEffect(() => {
+    if (choixRejoue == null) return;
+    setMyAnswer((actuel) => (actuel == null ? choixRejoue : actuel));
+  }, [choixRejoue]);
+
   if (!playerToken) {
     return <JoinScreen initialCode={urlCode} onJoin={handleJoin} notice={notice} />;
   }

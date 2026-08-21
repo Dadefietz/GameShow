@@ -35,7 +35,12 @@ test.describe('La file dans la colonne centrale', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'File');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    // LE JEU EST NOMMÉ, et ce n'est pas un détail de style : ces contrôles ont
+    // besoin d'une file de PLUS DE QUATRE questions. En lançant « le premier de la
+    // liste », ils tombaient sur le jeu fabriqué par un autre contrôle — une seule
+    // question — et attendaient quinze secondes une cinquième ligne qui
+    // n'existait pas. Ils passaient seuls et échouaient dans la suite complète.
+    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
     await expect(hote.page.getByTestId('file-attente')).toBeVisible();
   }
 
@@ -160,7 +165,7 @@ test.describe('Le glisser de la file', () => {
 
     joueur = await joinAsPlayer(browser, hote.code, 'Glisse');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
     await expect(hote.page.getByTestId('file-attente')).toBeVisible();
 
     const lignes = hote.page.getByTestId('file-row');
@@ -207,7 +212,7 @@ test.describe('Le glisser de la file', () => {
 
     joueur = await joinAsPlayer(browser, hote.code, 'Annule');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
     await expect(hote.page.getByTestId('file-attente')).toBeVisible();
 
     const lignes = hote.page.getByTestId('file-row');
@@ -241,7 +246,7 @@ test.describe('Le glisser de la file', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Defile');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
     await expect(hote.page.getByTestId('file-attente')).toBeVisible();
 
     const lignes = hote.page.getByTestId('file-row');

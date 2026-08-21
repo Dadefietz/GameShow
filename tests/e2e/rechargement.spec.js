@@ -18,7 +18,7 @@
 //
 // Ce fichier appuie sur F5, aux six étapes, sur les trois surfaces.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Le rechargement de page', () => {
@@ -127,6 +127,121 @@ test.describe('Le rechargement de page', () => {
     expect(e.surFormulaire).toBe(false);
   });
 
+  test('après un rechargement, le joueur reçoit bien son résultat de manche', async ({ browser }) => {
+    // RAPPORTÉ EN JEU : « lorsque le joueur actualise sa page, puis qu'il répond à
+    // une question et que la réponse est révélée par l'animateur, il a une page qui
+    // dit "Ta réponse est bien partie" au lieu d'avoir la page de résultat avec ses
+    // points. »
+    //
+    // CET ÉCRAN A UNE RAISON D'ÊTRE — il couvre l'instant où la réponse est partie
+    // mais où la manche n'est pas révélée. Ce qui n'a pas lieu d'être, c'est qu'il
+    // reste affiché APRÈS la révélation : cela veut dire que le résultat personnel
+    // n'est jamais arrivé.
+    //
+    // POURQUOI LES CONTRÔLES DE RECHARGEMENT NE LE VOYAIENT PAS. Ils rechargeaient
+    // à chaque étape et vérifiaient qu'on n'était pas éjecté. Aucun ne RÉPONDAIT
+    // après le rechargement pour se faire ensuite révéler la manche : la séquence
+    // exacte du défaut n'était jouée nulle part.
+    hote = await openHost(browser);
+    const j = await joinAsPlayer(browser, hote.code, 'Actualise');
+    joueurs.push(j);
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await hote.page.getByRole('menuitem').first().click();
+    await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
+
+    // LE RECHARGEMENT, puis la réponse — dans cet ordre, c'est tout l'objet.
+    await j.page.reload();
+    await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
+    await j.page.getByTestId('answer-option').first().click();
+    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+
+    // L'animateur, lui, voit bien la réponse arriver : le joueur a participé.
+    await expect(hote.page.getByTestId('answers-count'),
+      'la réponse du joueur rechargé n\'est pas parvenue au serveur').toHaveText('1');
+
+    // CE QUE LE JOUEUR DOIT VOIR : son relevé de points, pas un accusé de réception.
+    const verdict = j.page.locator('#verdict');
+    await expect(verdict).toBeVisible({ timeout: 10_000 });
+    const dit = (await verdict.textContent())?.trim().replace(/\s+/g, ' ') || '';
+    const gain = await j.page.locator('.gain__value').count();
+    console.log(`  après rechargement + révélation, le joueur lit « ${dit} » · relevé de points : ${gain}`);
+    expect(dit, 'le joueur reste sur l\'accusé de réception après la révélation')
+      .not.toMatch(/bien partie/i);
+    expect(gain, 'aucun relevé de points sur l\'écran de résultat').toBe(1);
+  });
+
+  test('le verdict de la manche survit à un rechargement APRÈS avoir répondu', async ({ browser }) => {
+    // MESURÉ, PAS SUPPOSÉ. Le joueur répond, lit « Raté » ou « Bien joué », puis
+    // recharge : son verdict devenait « Manche close » — le mot neutre réservé aux
+    // manches dont on ne sait rien.
+    //
+    // LA CAUSE, ET UNE DÉCISION QUI SE RETOURNE. L'écran déduit le verdict en
+    // comparant LE CHOIX DU JOUEUR à la bonne réponse. Ce choix ne vivait qu'en
+    // mémoire de page. La décision 1.4 du chantier v4 avait tranché « le choix non
+    // révélé n'est pas restauré — pas grave » : l'arbitrage supposait qu'il n'y
+    // allait que d'une case non recochée. Il en allait aussi du verdict.
+    hote = await openHost(browser);
+    const j = await joinAsPlayer(browser, hote.code, 'Verdict');
+    joueurs.push(j);
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await hote.page.getByRole('menuitem').first().click();
+    await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
+    await j.page.getByTestId('answer-option').first().click();
+    await j.page.waitForTimeout(600);
+    const avant = (await j.page.locator('#verdict').textContent())?.trim().replace(/\s+/g, ' ') || '';
+
+    await j.page.reload();
+    await j.page.waitForTimeout(1800);
+    const apres = (await j.page.locator('#verdict').textContent())?.trim().replace(/\s+/g, ' ') || '';
+    console.log(`  verdict avant : « ${avant} » · après rechargement : « ${apres} »`);
+
+    // La prémisse d'abord : sans un verdict tranché avant, il n'y a rien à perdre.
+    expect(['Bien joué', 'Raté'],
+      `verdict initial inattendu (« ${avant} ») : le contrôle ne mesurerait rien`).toContain(avant);
+    expect(apres, 'le verdict a été perdu au rechargement').toBe(avant);
+  });
+
+  test('l\'adieu d\'une liaison morte n\'emporte pas la liaison neuve', async ({ browser }) => {
+    // LA COURSE, JOUÉE EXPRÈS. Sur un rechargement réel — un téléphone qui change
+    // de réseau, un onglet qui revient de veille — le navigateur ouvre souvent la
+    // nouvelle liaison AVANT que l'ancienne n'ait fini de mourir. L'adieu de
+    // l'ancienne arrivait alors après le rattachement de la neuve et effaçait la
+    // liaison du joueur. Son résultat de manche, envoyé à cette liaison, n'était
+    // plus envoyé nulle part : il restait sur « ta réponse est bien partie », même
+    // après la révélation.
+    //
+    // Playwright recharge trop proprement pour produire ce chevauchement. On le
+    // FABRIQUE : deux pages sur la même session — donc deux liaisons pour le même
+    // joueur — puis on ferme la première, dans cet ordre.
+    hote = await openHost(browser);
+    const j = await joinAsPlayer(browser, hote.code, 'Chevauche');
+    joueurs.push(j);
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await hote.page.getByRole('menuitem').first().click();
+    await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
+
+    // La seconde liaison s'ouvre pendant que la première vit encore.
+    const seconde = await j.ctx.newPage();
+    await seconde.goto(`/play?code=${hote.code}`);
+    await expect(seconde.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
+    // PUIS la première meurt — l'ordre est tout l'objet du contrôle.
+    await j.page.close();
+    await seconde.waitForTimeout(800);
+
+    await seconde.getByTestId('answer-option').first().click();
+    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+
+    const verdict = seconde.locator('#verdict');
+    await expect(verdict).toBeVisible({ timeout: 10_000 });
+    const dit = (await verdict.textContent())?.trim().replace(/\s+/g, ' ') || '';
+    const gains = await seconde.locator('.gain__value').count();
+    console.log(`  après l'adieu de l'ancienne liaison, le joueur lit « ${dit} » · relevé : ${gains}`);
+    expect(dit, 'le joueur reste sur l\'accusé de réception : son résultat n\'est allé nulle part')
+      .not.toMatch(/bien partie/i);
+    expect(gains, 'aucun relevé de points').toBe(1);
+    await seconde.close();
+  });
+
   test('l\'animateur et le stream survivent aussi au rechargement', async ({ browser }) => {
     // DÉCISION 1.7 — le joueur était la seule surface fautive, mais on ne le
     // conclut pas d'une lecture : on l'éprouve.
@@ -175,6 +290,11 @@ test.describe('L\'écran de fin', () => {
   const JEU_ZERO = 'Épreuve à zéro';
   const BONNE = 'Braise-Juste';
   const FAUSSE = 'Cendre-Fausse';
+  // Le jeu fabriqué est retiré à la FIN du fichier, et non après chaque contrôle :
+  // il est créé une seule fois et sert aux quatre. La bibliothèque est partagée,
+  // et dix contrôles lancent « le premier module de la liste » — le lui laisser
+  // reviendrait à changer ce qu'ils lancent.
+  test.afterAll(async () => { await retirerJeux(JEU_ZERO); });
   // Le module est fabriqué UNE fois pour les quatre contrôles : il vit côté
   // serveur, et le recréer à chaque test ajoutait une minute de Studio pour rien.
   let jeuPret = false;

@@ -11,6 +11,7 @@
 //      les points ni les places d'un joueur.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
 import React, { useEffect, useRef, useState } from 'react';
+import { plagesVisibles, bornes, repereCible } from '../shared/echelle-estimation.js';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
@@ -194,19 +195,61 @@ function revealText(reveal, current) {
 // Dispersion des estimations, en 8 tranches — la tranche qui contient la bonne
 // réponse est mise en couleur. Les hauteurs sont relatives à la tranche la plus
 // fournie : un histogramme montre une FORME, pas des parts d'un total.
-function StreamHistogram({ histo, total }) {
+function StreamHistogram({ histo, total, plages, cible }) {
   if (!histo || !total) return null;
   const haut = Math.max(1, ...histo.counts);
+  // MÊME GÉOMÉTRIE QUE LA CONSOLE, calculée au même endroit. Le stream n'apporte
+  // que ses tailles : deux mètres de recul, un axe qui doit se lire d'un coup.
+  const zones = plagesVisibles(plages, histo);
+  const reperes = bornes(histo);
+  const marque = repereCible(cible, histo);
   return (
     <div className="st-histo" data-bind="reveal.stats.histogramme" data-testid="stream-histogramme">
-      <div className="st-histo__plot">
-        {histo.counts.map((c, i) => (
-          <span key={i}
-            className={`st-histo__bar${i === histo.cibleIndex ? ' st-histo__bar--cible' : ''}`}
-            style={{ height: `${Math.round((c / haut) * 100)}%`, animationDelay: `${i * 40}ms` }}
-            data-count={c} />
+      <div className="st-histo__cadre">
+        {/* Les plages qui rapportent des points, au fond. Le public voyait des
+            barres sans savoir ce qu'il fallait viser pour marquer. */}
+        {zones.filter((z) => z.zone).map((z) => (
+          <span key={z.nom} className={`st-histo__plage st-histo__plage--${z.nom}`}
+            style={{ left: `${z.gauche}%`, width: `${z.largeur}%` }} data-plage={z.nom} />
+        ))}
+        {/* Les seuils du barème, chacun à sa place : ± 2, 10, 20 et 30 %. */}
+        {zones.flatMap((z) => z.bornes.map((b) => (
+          <span key={`${z.nom}-${b.cote}`} className={`st-histo__seuil st-histo__seuil--${z.nom}`}
+            style={{ left: `${b.pct}%` }} data-seuil={z.nom}>
+            <span className="st-histo__seuil-lbl">{z.libelle}</span>
+          </span>
+        )))}
+        <div className="st-histo__plot">
+          {histo.counts.map((c, i) => (
+            <span key={i}
+              className={`st-histo__bar${i === histo.cibleIndex ? ' st-histo__bar--cible' : ''}`}
+              style={{ height: `${Math.round((c / haut) * 100)}%`, animationDelay: `${i * 40}ms` }}
+              data-count={c} />
+          ))}
+        </div>
+        {/* LA BONNE RÉPONSE, à sa place exacte : elle n'était repérée que par la
+            couleur d'une tranche large de plusieurs dizaines d'unités. */}
+        {marque ? (
+          <span className="st-histo__cible" style={{ left: `${marque.pct}%` }} data-testid="stream-histo-cible">
+            <span className={`st-histo__cible-val st-histo__cible-val--${marque.ancrage}`}>{fmt(cible)}</span>
+          </span>
+        ) : null}
+      </div>
+      <div className="st-histo__axe" data-testid="stream-histo-axe">
+        {reperes.map((b) => (
+          <span key={b.i} className="st-histo__tick" style={{ left: `${b.pct}%` }}>{fmt(Math.round(b.valeur))}</span>
         ))}
       </div>
+      {zones.length ? (
+        <p className="st-histo__plages" data-testid="stream-histo-plages">
+          {zones.map((z) => (
+            <span key={z.nom}
+              className={`st-histo__cle st-histo__cle--${z.nom}${z.bornes.length ? '' : ' st-histo__cle--hors'}`}>
+              {z.libelle}<span className="st-histo__cle-pts">{fmt(z.points)}</span>
+            </span>
+          ))}
+        </p>
+      ) : null}
       <p className="st-histo__legend">Dispersion des {fmt(total)} estimation{total > 1 ? 's' : ''}</p>
     </div>
   );
@@ -386,7 +429,8 @@ function QuestionStage({ g }) {
                   pour les modules à options, mais trois chiffres seulement pour
                   l'estimation — impossible d'y voir si la salle était groupée ou
                   éparpillée autour de la vérité. */}
-              <StreamHistogram histo={stats.histogramme} total={stats.total} />
+              <StreamHistogram histo={stats.histogramme} total={stats.total}
+                plages={stats.plages} cible={stats.target} />
               <div className="st-facts">
                 <div className="st-fact">
                   <span className="st-fact__label">Le plus proche</span>

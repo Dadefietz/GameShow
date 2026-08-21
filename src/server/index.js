@@ -342,6 +342,19 @@ io.on('connection', (socket) => {
       index: room.progression.index,
       total: room.progression.total,
       answered: socket.data.role === 'player' && socket.data.sub ? cur.answers.has(socket.data.sub) : false,
+      // LA RÉPONSE DU JOUEUR, REJOUÉE AVEC LE RESTE.
+      //
+      // La décision 1.4 du chantier v4 posait que le choix non révélé « n'est pas
+      // restauré » — arbitrage de l'auteur, « pas grave », pris quand la seule
+      // conséquence connue était une case non recochée.
+      //
+      // ELLE EN AVAIT UNE AUTRE, INVISIBLE ALORS. L'écran de résultat déduit le
+      // verdict en comparant LE CHOIX DU JOUEUR à la bonne réponse. Sans son
+      // choix, il ne peut plus conclure : un joueur qui rechargeait après avoir
+      // répondu voyait « Manche close » là où il lisait « Raté » ou « Bien joué »
+      // l'instant d'avant. Mesuré, puis corrigé ici.
+      monChoix: socket.data.role === 'player' && socket.data.sub
+        ? (cur.answers.get(socket.data.sub)?.value ?? null) : null,
     });
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur
@@ -526,16 +539,48 @@ io.on('connection', (socket) => {
     const r = requireRoom(socket);
     if (r && socket.data.role === 'player' && socket.data.sub) {
       const p = r.players.get(socket.data.sub);
-      if (p) { p.connected = false; p.socketId = null; }
+      // SEULEMENT SI C'EST ENCORE SA LIAISON. Sur un rechargement, le navigateur
+      // ouvre souvent la nouvelle avant que l'ancienne n'ait fini de mourir :
+      // l'adieu de l'ancienne arrivait APRÈS le rattachement de la neuve et
+      // effaçait `socketId`. Le joueur passait alors pour déconnecté, et surtout
+      // son résultat de manche — envoyé à `p.socketId` — n'était plus envoyé
+      // nulle part. Il restait sur « ta réponse est bien partie », révélation
+      // comprise.
+      if (p && p.socketId === socket.id) { p.connected = false; p.socketId = null; }
       engine.emitRoomState(io, r);
     }
   });
 });
 
 // SPA fallback (routes client) — sert index.html pour les chemins non-API.
+//
+// UN FICHIER ABSENT DOIT RÉPONDRE 404, PAS UNE PAGE.
+//
+// Ce repli répondait `index.html` avec un code 200 à TOUT chemin hors `/api` —
+// `/favicon.ico` compris. Le navigateur demandait donc une icône et recevait
+// cinq kilo-octets de HTML, annoncés comme un succès.
+//
+// Ce n'est pas une subtilité : `/favicon.ico` est la requête que TOUT navigateur
+// émet de lui-même, sans qu'on la déclare. Une réponse 200 ne remplace jamais
+// l'icône déjà mémorisée pour le domaine — seule une vraie 404 la fait
+// abandonner. Un ancien favicon pouvait ainsi survivre indéfiniment à son
+// remplacement, y compris après un rechargement forcé.
+//
+// La règle : un chemin qui porte une EXTENSION désigne un fichier. S'il n'existe
+// pas, c'est 404. Les routes du client — `/play`, `/host`, `/overlay`, `/studio`
+// — n'en portent aucune et continuent de recevoir la page.
+// Douze caractères d'extension, et non huit : `site.webmanifest` en compte onze,
+// et c'est exactement le genre de fichier qu'un navigateur va chercher tout seul.
+// Aucune route du client ne porte de point, la borne peut donc être large.
+const CHEMIN_DE_FICHIER = /\.[a-z0-9]{1,12}(\?|$)/i;
+
 app.setNotFoundHandler((req, reply) => {
-  if (req.raw.url.startsWith('/api') || req.raw.url.startsWith('/socket.io')) {
+  const url = req.raw.url;
+  if (url.startsWith('/api') || url.startsWith('/socket.io')) {
     return reply.code(404).send({ error: 'not-found' });
+  }
+  if (CHEMIN_DE_FICHIER.test(url)) {
+    return reply.code(404).type('text/plain').send('not-found');
   }
   return reply.sendFile('index.html');
 });

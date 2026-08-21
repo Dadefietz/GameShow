@@ -563,6 +563,102 @@
     animation: om-rise var(--mo-scene) var(--ease-out) both;
   }
   .st-histo__bar--cible { background: var(--g-ember); }
+
+  /* L'AXE DU STREAM. Même échelle que la console, à la taille de l'antenne : le
+     public voyait huit barres sans savoir ce qu'elles recouvraient, où tombait la
+     bonne réponse, ni jusqu'où il fallait viser pour marquer. */
+  /* Même bande réservée qu'à la console, à la taille de l'antenne. */
+  .st-histo__cadre { position: relative; padding-top: 28px; }
+  .st-histo__plage {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: var(--r-m);
+    background: var(--c-flame);
+    opacity: 0.07;
+    pointer-events: none;
+  }
+  .st-histo__plage--mille { opacity: 0.18; }
+  .st-histo__plage--proche { opacity: 0.12; }
+  .st-histo__seuil {
+    position: absolute;
+    top: 28px;
+    bottom: 0;
+    width: 2px;
+    background: repeating-linear-gradient(
+      to bottom, var(--c-ink-4) 0 5px, transparent 5px 10px);
+    pointer-events: none;
+  }
+  .st-histo__seuil--mille { background: repeating-linear-gradient(
+    to bottom, var(--c-ember-bright) 0 5px, transparent 5px 10px); }
+  .st-histo__seuil-lbl {
+    position: absolute;
+    top: -26px;
+    left: 4px;
+    font: 500 var(--fs-st-100) / 1 var(--f-ui);
+    color: var(--c-ink-4);
+    white-space: nowrap;
+  }
+  .st-histo__seuil--mille .st-histo__seuil-lbl { color: var(--c-ember-bright); }
+  .st-histo__cle--hors { opacity: 0.55; }
+
+  .st-histo__cible {
+    position: absolute;
+    top: 28px;
+    bottom: 0;
+    width: 3px;
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    transform: translateX(-1.5px);
+  }
+  .st-histo__cible-val {
+    position: absolute;
+    top: -28px;
+    padding: 2px var(--sp-3);
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    color: var(--c-ink-on-flame);
+    font: 600 var(--fs-st-100) / 1.5 var(--f-mono);
+    white-space: nowrap;
+  }
+  .st-histo__cible-val--centre { left: 50%; transform: translateX(-50%); }
+  .st-histo__cible-val--debut { left: 0; }
+  .st-histo__cible-val--fin { right: 0; }
+
+  .st-histo__axe {
+    position: relative;
+    height: 22px;
+    border-top: 1px solid var(--c-line);
+  }
+  .st-histo__tick {
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+    font: 500 var(--fs-st-100) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+    white-space: nowrap;
+  }
+  .st-histo__tick:first-child { transform: none; }
+  .st-histo__tick:last-child { transform: translateX(-100%); }
+
+  .st-histo__plages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-4);
+    margin: 0;
+  }
+  .st-histo__cle {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    padding: 2px var(--sp-3);
+    border-radius: var(--r-full);
+    background: var(--c-surface-2);
+    font: 500 var(--fs-st-100) / 1.6 var(--f-ui);
+    color: var(--c-ink-2);
+  }
+  .st-histo__cle--mille { background: var(--c-ember-wash); color: var(--c-ink); }
+  .st-histo__cle-pts { font: 600 var(--fs-st-100) / 1.6 var(--f-mono); color: var(--c-ink-3); }
   .st-histo__legend {
     margin: 0;
     font: 500 var(--fs-st-100) / 1 var(--f-ui);

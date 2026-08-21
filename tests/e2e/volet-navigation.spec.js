@@ -24,7 +24,7 @@
 // console le produisait aussi — mais aucun contrôle ne regardait la console
 // après une reconnexion. D'où le second contrôle, sur le score.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Un aller-retour complet coûte deux chargements de page et deux reprises de
@@ -36,6 +36,9 @@ test.describe('Le volet de navigation', () => {
   let joueur = null;
 
   test.afterEach(async () => {
+    // Les jeux fabriqués par ce fichier sont retirés : la bibliothèque est
+    // PARTAGÉE, et dix contrôles lancent « le premier module de la liste ».
+    await retirerJeux('Épreuve de podium');
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     if (joueur) { await joueur.ctx.close(); joueur = null; }
   });

@@ -141,7 +141,13 @@ test.describe('La voix dans les cas limites', () => {
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
 
     // Il n'a pas participé : on le lui dit, ET le jeu lui parle.
-    await expect(tardif.getByText('sans toi')).toBeVisible();
+    // LE TITRE, ET NON « un texte quelque part ». `getByText('sans toi')` tombait
+    // par intermittence sur une violation de mode strict : la voix tire au sort sa
+    // phrase, et l'une de celles de ce moment dit « Celle-là s'est jouée sans toi ».
+    // Deux éléments correspondaient alors, et le contrôle échouait sur le hasard du
+    // tirage. (Le même piège existait dans `reconnexion-resultat.spec.js` ; corrigé
+    // là-bas d'abord, il avait été manqué ici.)
+    await expect(tardif.getByRole('heading', { name: /sans toi/i })).toBeVisible();
     await expect(tardif.getByTestId('voix-resultat')).toBeVisible();
     const phrase = await tardif.getByTestId('voix-resultat').innerText();
     expect(phrase.length).toBeGreaterThan(0);

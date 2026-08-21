@@ -52,7 +52,10 @@ test.describe('Reconnexion en cours de partie', () => {
 
     // ---- CE QUI DOIT ÊTRE VRAI APRÈS ----
     // 1. On ne lui dit JAMAIS qu'il n'était pas là : il a répondu.
-    await expect(joueur.page.getByText('sans toi')).toHaveCount(0);
+    // Resserré sur le TITRE, comme son symétrique plus bas : « sans toi » apparaît
+    // aussi dans une phrase de la voix, et l'assertion portait donc sur plus que ce
+    // qu'elle annonçait.
+    await expect(joueur.page.getByRole('heading', { name: /sans toi/i })).toHaveCount(0);
     // 2. Son résultat de manche est de retour.
     await expect(joueur.page.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
     // 3. Son score cumulé est inchangé — c'est son décalage qui déroutait.
