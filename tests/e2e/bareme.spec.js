@@ -38,9 +38,21 @@ test.describe('Barème', () => {
     const liste = regles.getByRole('list');
     await expect(liste).toBeVisible();
     // L'énoncé doit décrire le barème RÉELLEMENT appliqué, pas un souvenir.
+    //
+    // CHANTIER v4 — CE CONTRÔLE A ÉTÉ MIS À JOUR AVEC LA RÈGLE, ET NON L'INVERSE.
+    // Il attendait « 300 » (le complément de vitesse d'alors) et « 150 » (le
+    // supplément du plus rapide). L'action 4 a ramené le complément à 250 et
+    // SUPPRIMÉ le supplément — le plus rapide reste nommé, pour l'honneur. Un
+    // contrôle qui garderait les anciens chiffres accuserait le produit d'avoir
+    // changé ce que l'auteur a demandé de changer.
     await expect(liste).toContainText('700');
-    await expect(liste).toContainText('300');
-    await expect(liste).toContainText('150');
+    await expect(liste).toContainText('250');
+    await expect(liste, 'l\'énoncé doit dire que le plus rapide est nommé, pas récompensé')
+      .toContainText('pour l\'honneur');
+    // DÉCISIONS 5.11 — les deux jeux de plages de l'estimation y figurent aussi.
+    await expect(liste).toContainText('1000');
+    await expect(liste).toContainText('±2');
+    await expect(liste).toContainText('400');
     await expect(liste).toContainText('ne coûte rien');
   });
 

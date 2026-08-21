@@ -26,7 +26,13 @@ describe('quiz', () => {
   // La vitesse ne se cache plus dans la base : elle a sa propre ligne (action 17).
   // Les TOTAUX sont inchangés — immédiat 1000, dernier instant 700 — mais ils se
   // lisent désormais comme 700 de base plus 0 à 300 de complément.
-  it('base fixe à 700 ; la vitesse vit dans un complément séparé (totaux inchangés)', () => {
+  // CHANTIER v4, décisions 4.1 et 4.8. Ce contrôle s'appelait « totaux inchangés »
+  // et vérifiait que la décomposition du chantier v1 reproduisait exactement le
+  // barème d'avant — 700 + 300. Cette propriété est PÉRIMÉE : Theodore a demandé
+  // en réunion de ramener le complément à 250 « pour équilibrer le score par
+  // rapport à la base de 700 ». Ce n'est pas une régression, c'est une règle qui
+  // change ; le contrôle change avec elle et dit pourquoi.
+  it('base fixe à 700 ; complément de vitesse plafonné à 250 (chantier v4)', () => {
     const rt = round(modules.quiz, QUIZ_Q);
     rt.answers.set('fast', { value: 1, at: rt.startedAt });
     rt.answers.set('slow', { value: 1, at: rt.deadline });
@@ -36,10 +42,11 @@ describe('quiz', () => {
 
     expect(rapide.base).toBe(700);
     expect(lent.base).toBe(700);
-    expect(rapide.speed).toBe(300);
+    expect(rapide.speed).toBe(250);
     expect(lent.speed).toBe(0);
-    // Les totaux d'avant, au point près.
-    expect(rapide.base + rapide.speed).toBe(1000);
+    // Le maximum d'une manche de quiz : 950, et non plus 1150 — le supplément du
+    // plus rapide ayant lui aussi disparu du calcul (décision 4.2).
+    expect(rapide.base + rapide.speed).toBe(950);
     expect(lent.base + lent.speed).toBe(700);
     expect(rapide.correct).toBe(true);
   });
@@ -117,6 +124,11 @@ describe('estimation', () => {
     expect(exact.base).toBeGreaterThan(approx.base);
   });
 
+  // CHANTIER v4 — les paliers relatifs sont INCHANGÉS (décision 5.1), mais deux
+  // bonus s'y ajoutent désormais : 400 au plus proche (5.3) et 200 à l'exactitude
+  // (5.5), cumulables sans plafond (5.6). Ce contrôle isole donc le PALIER en
+  // écartant le plus proche du décompte, et un contrôle dédié plus bas éprouve les
+  // bonus eux-mêmes.
   it('les paliers valent des points fixes', () => {
     const rt = round(modules.estimation, ES_Q);
     rt.answers.set('mille', { value: 101, at: rt.startedAt });   // 1 %
@@ -125,7 +137,8 @@ describe('estimation', () => {
     rt.answers.set('loin', { value: 128, at: rt.startedAt });    // 28 %
     rt.answers.set('hors', { value: 200, at: rt.startedAt });    // 100 %
     const { results } = modules.estimation.score(rt);
-    expect(results.get('mille').base).toBe(1000);
+    // « mille » est ici le plus proche : 1000 de palier + 400 de bonus.
+    expect(results.get('mille').base).toBe(1000 + 400);
     expect(results.get('proche').base).toBe(750);
     expect(results.get('correct').base).toBe(500);
     expect(results.get('loin').base).toBe(250);
@@ -160,7 +173,9 @@ describe('estimation', () => {
     rt.answers.set('juste', { value: 1_000_000, at: rt.startedAt });
     rt.answers.set('cent-mille-a-cote', { value: 1_100_000, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    expect(results.get('juste').base).toBe(1000);
+    // « juste » est exact ET le plus proche : 1000 de palier, +200 d'exactitude,
+    // +400 de plus proche (chantier v4, décisions 5.3, 5.5 et 5.6).
+    expect(results.get('juste').base).toBe(1000 + 200 + 400);
     expect(results.get('cent-mille-a-cote').base).toBe(750); // pas 900 : l'écart se paie
   });
 
@@ -172,7 +187,9 @@ describe('estimation', () => {
     rt.answers.set('une-unite', { value: 4, at: rt.startedAt });
     rt.answers.set('loin', { value: 30, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    expect(results.get('exact').base).toBe(1000);
+    expect(results.get('exact').base).toBe(1000 + 200 + 400);
+    // Être à une unité près reste le MEILLEUR PALIER — c'est ce que ce contrôle
+    // garde — mais sans l'exactitude ni le bonus du plus proche.
     expect(results.get('une-unite').base).toBe(1000);
     expect(results.get('loin').base).toBe(0);
   });

@@ -54,6 +54,29 @@
      endroit du produit où le défilement manuel est le bon geste. */
   .lb--scroll { max-height: 46vh; overflow-y: auto; }
 
+  /* LE PLUS PROCHE (chantier v4, action 6) — panneau privé de l'animateur. */
+  .proches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+  .proches__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-sunk);
+  }
+  .proches__name { font: 500 var(--fs-300) / 1.25 var(--f-ui); color: var(--c-ink); }
+  .proches__value { font: 600 var(--fs-300) / 1 var(--f-mono); color: var(--c-flame); }
+  .proches__plus {
+    align-self: flex-start;
+    min-height: var(--hit-min);
+    border: 0;
+    background: transparent;
+    color: var(--c-secret);
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    cursor: pointer;
+  }
+
   /* FILE D'ATTENTE — réordonnable au glisser ou au bouton.
      Elle vit dans la COLONNE CENTRALE depuis le chantier v2 (décision 3.1) : dans
      la colonne latérale de 336 px, trois commandes au plancher tactile de 44 px
@@ -738,7 +761,15 @@
   }
   .stage__question {
     margin: 0;
-    font: 600 var(--fs-800) / var(--lh-tight) var(--f-display);
+    /* CHANTIER v4, décision 8.1 — POLICE D'INTERFACE, pas d'affichage.
+       `--f-display` est une grotesque CONDENSÉE, faite pour l'énoncé du stream vu
+       à deux mètres en 84 ou 116 px. Sur la console, lue à cinquante centimètres
+       et entourée de texte en `--f-ui`, elle détonnait — et surtout elle ralentit
+       la lecture de près, ce pour quoi elle n'est pas faite. L'animateur LIT cet
+       énoncé pour le dire à l'antenne, souvent en diagonale, entre deux gestes.
+       DÉCISION 8.3 — la hiérarchie tient par la TAILLE et la GRAISSE, pas par le
+       dessin : `--fs-800` et 600 sont conservés tels quels. */
+    font: 600 var(--fs-800) / var(--lh-tight) var(--f-ui);
     letter-spacing: var(--tr-display);
     text-wrap: pretty;
   }
@@ -816,7 +847,15 @@
   .histo__legend { margin: 0; font: 400 var(--fs-200) / 1 var(--f-ui); color: var(--c-ink-3); }
   .histo__legend-num { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-2); }
   .histo__plot {
-    min-height: 96px;
+    /* CHANTIER v4, décision 7.1 — HAUTEUR DÉFINIE, et non plus `min-height`.
+       Un pourcentage de hauteur ne se résout que contre une hauteur DÉFINIE ;
+       face à un simple minimum, `height: 100%` est traité comme `auto` et la
+       barre s'effondre sur son contenu, qui est vide. Mesuré : les huit barres
+       de l'animateur faisaient TOUTES 2 px, quand celles du stream — dont le
+       conteneur déclare `height: 180px` — mesuraient 93, 2, 47, 2, 2, 2, 2, 47.
+       Les styles étaient pourtant justes : `height: 100%`, `50%`, `0%`. C'est ce
+       qui rendait le défaut invisible à la relecture. */
+    height: 96px;
     display: flex;
     align-items: flex-end;
     gap: var(--sp-2);
@@ -1011,6 +1050,21 @@
   .exit-menu__item:hover { background: var(--c-surface); }
   .exit-menu__item--danger { color: var(--c-bad); }
   .exit-menu__item.is-armed { background: var(--c-bad); color: var(--c-ink-on-flame); font-weight: 600; }
+  /* CHANTIER v4, décision 9.2 — le volet de navigation emploie des LIENS, pas des
+     boutons : ce sont de vraies destinations, et l'animateur doit pouvoir les
+     ouvrir dans un onglet à part d'un clic milieu. Le soulignement du lien, lui,
+     n'a pas sa place dans un menu. */
+  a.exit-menu__item { text-decoration: none; }
+  /* Note NEUTRE, à ne pas confondre avec `.exit-menu__consequence` : celle-ci
+     rassure (le salon reste ouvert), l'autre alerte (elle est lavée de rouge). */
+  .exit-menu__note {
+    margin: 0;
+    padding: var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface);
+    font: 400 var(--fs-200) / 1.4 var(--f-ui);
+    color: var(--c-ink-2);
+  }
   .exit-menu__consequence {
     margin: 0;
     padding: var(--sp-3);

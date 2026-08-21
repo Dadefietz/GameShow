@@ -247,9 +247,27 @@ export const MOMENTS = {
       'Généreux dans l’estimation.',
     ],
   },
+  // LE PLUS PROCHE, HORS DE TOUTE PLAGE (chantier v4, décisions 5.3 et 2.8).
+  //
+  // Sans ce moment, ce joueur tombait dans `estimation.hors`, dont la condition
+  // déclarée dit « zéro point » et dont les phrases le répètent — « et ça ne coûte
+  // rien » — pendant que son écran affichait « +400 ». Le bonus du plus proche a
+  // rendu fausse la condition d'un moment existant : il fallait donc un moment,
+  // non une phrase de plus dans l'ancien.
+  'estimation.plus-proche': {
+    surface: 'play',
+    quand: 'au-delà de 30 % de la cible, mais le plus proche : le bonus de 400',
+    phrases: [
+      'Loin, mais le moins loin de tous. Ça compte.',
+      'Personne n’a fait mieux. C’est déjà une victoire.',
+      'Le plus proche du cercle — de loin, mais le plus proche.',
+      'Tout le monde s’est perdu. Toi, un peu moins.',
+      'Pas dans le mille, mais devant les autres.',
+    ],
+  },
   'estimation.hors': {
     surface: 'play',
-    quand: 'au-delà de 30 % : zéro point',
+    quand: 'au-delà de 30 % de la cible, et pas le plus proche : zéro point',
     phrases: [
       'Là, on est loin. Vraiment loin.',
       'Autre ordre de grandeur. Ça arrive.',

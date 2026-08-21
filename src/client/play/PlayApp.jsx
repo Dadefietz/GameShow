@@ -137,7 +137,13 @@ function correctAnswerLabel(reveal, current) {
 const ERROR_MESSAGES = {
   'room-not-found': "Ce salon n'existe pas. Vérifie le code.",
   'invalid-pseudo': 'Ce pseudo ne convient pas. Essaie-en un autre.',
-  'pseudo-taken': 'Ce pseudo est déjà pris, choisis-en un autre.',
+  // DÉCISION 1.3 du chantier v4. Le refus est maintenu — autoriser à reprendre la
+  // place d'un joueur déconnecté ouvrirait l'usurpation d'un pseudo lu sur le
+  // stream. Mais le message doit dire la CAUSE LA PLUS PROBABLE : neuf fois sur
+  // dix, le pseudo est pris par le joueur lui-même, revenu après avoir perdu sa
+  // session. Sans cette phrase, il invente un autre pseudo et repart à zéro.
+  'pseudo-taken': 'Ce pseudo est déjà pris — c\'est peut-être toi, sur un autre onglet. '
+    + 'Ferme-le et reviens, ou choisis-en un autre.',
   'room-full': 'Ce salon est complet.',
   'join-failed': 'Connexion impossible. Réessaie.',
 };
@@ -353,16 +359,35 @@ function WaitScreen({ pseudo, code, playerCount }) {
         <details className="rules" data-testid="scoring-rules">
           <summary className="rules__summary">Comment on marque des points</summary>
           <ul className="rules__list">
+            {/* DÉCISION 4.7 du chantier v4 — l'énoncé doit refléter le barème RÉEL.
+                Le complément est passé de 300 à 250, et le supplément du plus rapide
+                a disparu du calcul : le maximum d'une manche est 950, plus 1150.
+                Le plus rapide reste NOMMÉ, comme la série — pour l'honneur. */}
             <li>Une bonne réponse vaut <strong>700 points</strong>.</li>
-            <li>Plus tu réponds vite, plus tu ajoutes : <strong>jusqu'à 300 points</strong> de complément.</li>
-            <li>La réponse juste la plus rapide de la manche prend <strong>150 points</strong> de plus.</li>
+            <li>Plus tu réponds vite, plus tu ajoutes : <strong>jusqu'à 250 points</strong> de complément.</li>
+            <li>
+              La réponse juste la plus rapide de la manche est <strong>nommée</strong>, pour
+              l'honneur : elle ne rapporte pas de points de plus.
+            </li>
             {/* L'énoncé doit couvrir les QUATRE jeux, pas seulement le quiz :
                 l'estimation et le vote ont leurs propres règles, et un barème
                 incomplet est aussi trompeur qu'un barème absent. */}
+            {/* DÉCISION 5.11 du chantier v4 — l'énoncé décrit LES DEUX jeux de plages.
+                Un barème incomplet est aussi trompeur qu'un barème absent. */}
             <li>
               En <strong>estimation</strong>, seule la justesse compte — la vitesse n'y joue
               aucun rôle. Plus tu es près, plus tu marques : <strong>1000</strong> dans le mille,
               puis 750, 500 et 250 à mesure que tu t'éloignes.
+            </li>
+            <li>
+              Quand la réponse est une <strong>année</strong>, les plages se comptent en années :
+              exact, puis ±2, ±5 et ±10 ans. Un pourcentage n'aurait aucun sens — 2 % de 1789
+              feraient trente-cinq ans.
+            </li>
+            <li>
+              Toujours en estimation, la réponse <strong>la plus proche</strong> gagne 400 points,
+              même si personne n'est dans une plage. Et tomber <strong>exactement</strong> juste
+              en ajoute 200.
             </li>
             <li>Au <strong>vote</strong>, tu marques si tu es dans la majorité. En cas d'égalité, les deux camps gagnent.</li>
             <li>Une mauvaise réponse ne rapporte rien — et ne coûte rien. Aucun jeu ne retire de points.</li>
@@ -585,9 +610,23 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
     if (!hasData) return 'resultat.attente';
     if (isSondage) return 'vote.sondage';
     if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
-    if (isEstimation && monResultat.palier) return `estimation.${monResultat.palier}`;
+    if (isEstimation && monResultat.palier) {
+      // TROUVÉ PAR LE BALAYAGE DE CLÔTURE (décision 2.8). Le moment
+      // `estimation.hors` déclare « au-delà de 30 % : ZÉRO POINT », et ses phrases
+      // le disent : « Complètement à côté — et ça ne coûte rien. » Depuis le bonus
+      // du plus proche (décision 5.3), un joueur hors de toute plage peut toucher
+      // 400 points : la phrase démentait alors le « +400 » affiché juste au-dessus,
+      // et la condition déclarée du moment était devenue fausse.
+      // C'est un défaut CRÉÉ par ce chantier, pas hérité.
+      if (monResultat.palier === 'hors' && (monResultat.base || 0) > 0) return 'estimation.plus-proche';
+      return `estimation.${monResultat.palier}`;
+    }
     if (correct === true) {
-      if (monResultat.speed >= 150) return 'juste.plus-rapide';
+      // DÉCISION 4.6 — le seuil `speed >= 150` n'avait de sens que parce que le
+      // plus rapide touchait exactement 150. Le supplément supprimé (4.2), il
+      // ferait dire « le plus rapide du cercle » à quiconque répond vite sans être
+      // premier. On s'adosse au drapeau que le serveur désigne.
+      if (monResultat.fastest) return 'juste.plus-rapide';
       if (monResultat.streak >= 2) return 'juste.serie';
       return 'juste.simple';
     }
@@ -670,6 +709,14 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
               <h1 className={`verdict__title${correct === true ? ' verdict__title--good' : ''}`} id="verdict">
                 {/* Sur un vote, être minoritaire n'est pas un échec : c'est un
                     pari perdu. Le mot « Raté » serait faux et inutilement dur. */}
+                {/* BALAYAGE DE CLÔTURE, décision 2.8 — VÉRIFIÉ, RIEN À CORRIGER ICI.
+                    Le titre ne peut pas démentir les chiffres qu'il surmonte : sur une
+                    estimation, `correct` est établi plus haut comme « a marqué des
+                    points » (ligne 597), et non comme le drapeau du serveur, qui, lui,
+                    exige moins de 10 % d'écart. « Raté » ne coiffe donc jamais un gain.
+                    La contradiction trouvée par ce balayage était ailleurs — dans la
+                    VOIX, qui disait « ça ne coûte rien » au-dessus d'un +400. Elle est
+                    corrigée au moment `estimation.plus-proche`. */}
                 {isVote
                   ? (isSondage ? 'Voix comptée' : correct === true ? 'Avec la majorité' : correct === false ? 'À contre-courant' : 'Voix comptée')
                   : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
@@ -862,16 +909,36 @@ function historyAnswer(h) {
   return null;
 }
 
-function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
+function EndScreen({ you, podium, classement, playerId, pseudo, history, roomCode }) {
   const rank = you?.rank;
-  const scored = (podium || []).filter((p) => (p.score || 0) > 0);
-  const ranked = rank != null && scored.length > 0;
+
+  // LE CLASSEMENT COMPLET, ET NON LE PODIUM (chantier v4, décisions 2.1 et 2.2).
+  //
+  // CE QUI ÉTAIT FAUX. La condition d'affichage examinait `podium`, qui ne
+  // contient que les TROIS PREMIERS. Si ces trois-là étaient à zéro — ce qui
+  // arrive dès que chacun se trompe, une mauvaise réponse ne coûtant plus rien
+  // depuis T1 — le classement disparaissait POUR TOUT LE MONDE, et le bouton de
+  // partage avec lui, puisqu'il y était adossé.
+  //
+  // La donnée était pourtant déjà là : le serveur diffuse le classement complet à
+  // tout le salon en fin de partie. Il ne manquait que de le regarder.
+  const rangs = (classement && classement.length ? classement : podium) || [];
+  // DÉCISION 2.3 — une partie où personne n'a marqué a quand même un classement :
+  // tout le monde à égalité, à zéro. C'est précisément ce que demandait le joueur
+  // arrivé en cours de route : se voir dans la liste, même sans point.
+  const ranked = rank != null;
+  const aMarque = rangs.some((p) => (p.score || 0) > 0);
   const [shared, setShared] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
 
   const share = async () => {
-    const rankTxt = rank != null ? `${rank}${rank === 1 ? 're' : 'e'} place` : 'la partie';
-    const text = `J'ai terminé ${rankTxt} avec ${fmtNum(you?.score)} pts sur ${NOM_DU_JEU} !`;
+    // DÉCISION 3.2 — sans classement, on ne partage pas un rang absent : on dit ce
+    // qui reste vrai, le salon et le nombre d'épreuves. « J'ai terminé la partie
+    // avec 0 pts » n'a aucun intérêt ; « j'ai joué huit épreuves » en a un.
+    const epreuves = Array.isArray(history) ? history.filter((h) => h && h.text).length : 0;
+    const text = (aMarque && rank != null)
+      ? `J'ai terminé ${rank}${rank === 1 ? 're' : 'e'} place avec ${fmtNum(you?.score)} pts sur ${NOM_DU_JEU} !`
+      : `J'ai joué ${epreuves} épreuve${epreuves > 1 ? 's' : ''} autour du feu sur ${NOM_DU_JEU} !`;
     const url = typeof window !== 'undefined' ? window.location.origin : '';
     try {
       if (navigator.share) {
@@ -906,7 +973,12 @@ function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
         </div>
 
         <h1 className="p-title" id="end-title">
-          {rank === 1 ? 'Victoire' : ranked && rank <= 3 ? 'Sur le podium' : 'C’est fini'}
+          {/* DÉCISION 2.4 — le titre annonçait « Victoire » à un joueur à zéro point,
+              trois lignes au-dessus de « personne n'a marqué ». Une contradiction sur
+              le même écran, que la décision 8 de l'action 7 du chantier v1 interdit. */}
+          {rank === 1 && aMarque ? 'Victoire'
+            : ranked && rank <= 3 && aMarque ? 'Sur le podium'
+            : 'C’est fini'}
         </h1>
 
         {ranked ? (
@@ -920,13 +992,21 @@ function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
               <span className="final__score" data-bind="you.score">{fmtNum(you?.score)}</span>
             </span>
           </div>
-        ) : (
-          <p className="p-lead">Personne n'a marqué cette fois — pas de classement.</p>
-        )}
+        ) : null}
+        {ranked && !aMarque ? (
+          <p className="p-lead">Personne n'a marqué cette fois. Le classement reste, à égalité.</p>
+        ) : null}
 
-        {scored.length ? (
-          <div className="board" data-bind="podium">
-            {scored.slice(0, 5).map((entry, i) => {
+        {/* DÉCISION 2.1 — le classement, sa propre ligne distinguée. Avant, l'écran
+            n'affichait qu'un chiffre : « Ton rang final : 4ᵉ ». Personne ne pouvait
+            « se voir sur le classement » depuis son téléphone, ni le retardataire ni
+            les autres.
+            DÉCISION 2.5 — la liste est ENTIÈRE, pas tronquée à cinq : un joueur arrivé
+            en cours de route est souvent loin, et c'est lui qui a demandé à s'y voir.
+            DÉCISION 2.7 — elle défile dans son bloc, jamais la page. */}
+        {rangs.length ? (
+          <div className="board board--defile" data-bind="leaderboard" data-testid="classement-final">
+            {rangs.map((entry, i) => {
               const r = entry.rank != null ? entry.rank : i + 1;
               const me = playerId != null && entry.id === playerId;
               return (
@@ -964,17 +1044,23 @@ function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
         ) : null}
 
         <div className="screen__push" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-          {roomCode ? (
-            <p className="p-note" role="status">
-              Reste connecté — si l'animateur relance une partie dans le salon <strong>{roomCode}</strong>,
-              tu y seras automatiquement.
-            </p>
-          ) : null}
-          {ranked ? (
-            <button className="p-btn p-btn--primary" type="button" data-action="share" onClick={share}>
-              {shared ? 'Copié !' : 'Partager mon score'}
-            </button>
-          ) : null}
+          {/* DÉCISION 10.1 du chantier v4 — UNE SEULE PHRASE. Deux rédactions
+              concurrentes du même message se suivaient à dix-sept lignes d'intervalle
+              sur cet écran, nées de deux ajouts successifs qui ne se sont pas vus.
+              Celle-ci garde les deux apports : le CODE DU SALON, qui dit où l'on est,
+              et « sans rien faire », qui évite de chercher un bouton. */}
+          <p className="p-note" role="status" data-bind="end.replayHint">
+            Reste là — si l'animateur relance une partie{roomCode ? <> dans le salon <strong>{roomCode}</strong></> : null},
+            tu y seras ramené sans rien faire.
+          </p>
+          {/* DÉCISION 3.1 — le bouton était conditionné au classement. Quand celui-ci
+              disparaissait — trois premiers à zéro, ou rang non reçu après une
+              reconnexion — le partage disparaissait avec lui, chez certains joueurs
+              et pas chez d'autres. Il n'a rien à voir avec le fait d'avoir gagné :
+              « les joueurs sont libres de faire ce qu'ils veulent ». */}
+          <button className="p-btn p-btn--primary" type="button" data-action="share" onClick={share}>
+            {shared ? 'Copié !' : 'Partager ma partie'}
+          </button>
         </div>
         {/* Plus de bouton « Rejouer » : il effaçait la session locale sans prévenir
             le serveur, si bien que le joueur perdait son identité et se voyait
@@ -982,21 +1068,57 @@ function EndScreen({ you, podium, playerId, pseudo, history, roomCode }) {
             promettait de rejouer était celui qui l'en empêchait.
             Rien à cliquer : quand l'animateur relance, le serveur ramène tout le
             monde au salon d'attente. */}
-        <p className="p-lead" role="status" data-bind="end.replayHint">
-          Reste là : si l'animateur relance une partie, tu y seras ramené sans rien faire.
-        </p>
       </div>
     </main>
   );
 }
 
 // ============================================================
+// RETROUVER LA SESSION AU CHARGEMENT (chantier v4, décisions 1.1 et 1.2).
+//
+// CE QUI ÉTAIT FAUX. La session est enregistrée sous `play:<CODE>`, et la
+// restauration lisait ce code DANS L'URL. Or l'inscription ne l'y écrivait
+// jamais — elle le posait dans l'état React. Le défaut dépendait donc du chemin
+// d'entrée : par le QR du stream, l'URL portait `?code=`, et le rechargement
+// restaurait ; en tapant le code au formulaire — ce que fait quiconque lit le
+// code à l'antenne — l'URL restait `/`, et le rechargement ÉJECTAIT.
+//
+// La suite s'enchaînait toute seule : le joueur retapait son pseudo, le serveur
+// le refusait parce que sa propre inscription était encore dans le salon, il en
+// inventait un autre, devenait un nouveau joueur à zéro point, et perdait du même
+// coup ses écrans de résultats et sa place au podium. Quatre symptômes rapportés
+// en réunion, un seul défaut.
+function sessionInitiale(urlCode) {
+  if (urlCode) return { code: urlCode, session: store.load('play:' + urlCode) };
+
+  // REPLI (décision 1.2) — l'URL ne dit rien, mais le stockage peut savoir. On ne
+  // reprend QUE s'il n'y a aucune ambiguïté : deux salons rejoints depuis le même
+  // navigateur, et l'on ne devine pas lequel reprendre.
+  const cles = store.cles('play:');
+  if (cles.length !== 1) return { code: '', session: null };
+  return { code: cles[0].slice('play:'.length), session: store.load(cles[0]) };
+}
+
+// Le code vit désormais DANS L'URL, comme celle que produit le QR du stream.
+// `replaceState` et non `pushState` : rejoindre n'est pas une navigation, et une
+// entrée d'historique de plus ferait sortir du jeu au premier geste « retour ».
+function poserCodeDansUrl(code) {
+  if (typeof history === 'undefined' || !code) return;
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.get('code') === code) return;
+    u.searchParams.set('code', code);
+    history.replaceState(null, '', u);
+  } catch { /* navigateur sans History : la session tient par le repli ci-dessus */ }
+}
+
 export function PlayApp() {
   const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
   const urlCode = (params.get('code') || '').trim();
-  const stored = urlCode ? store.load('play:' + urlCode) : null;
+  const reprise = sessionInitiale(urlCode);
+  const stored = reprise.session;
 
-  const [code, setCode] = useState(urlCode);
+  const [code, setCode] = useState(reprise.code);
   const [pseudo, setPseudo] = useState(stored?.pseudo || '');
   const [playerId, setPlayerId] = useState(stored?.playerId || null);
   const [playerToken, setPlayerToken] = useState(stored?.playerToken || null);
@@ -1038,6 +1160,8 @@ export function PlayApp() {
   async function handleJoin(joinCode, joinPseudo) {
     const r = await joinRoom(joinCode, joinPseudo);
     store.save('play:' + joinCode, r);
+    // DÉCISION 1.1 — sans cette ligne, un rechargement éjecte le joueur.
+    poserCodeDansUrl(joinCode);
     setCode(joinCode);
     setPseudo(r.pseudo || joinPseudo);
     setPlayerId(r.playerId || null);
@@ -1084,8 +1208,8 @@ export function PlayApp() {
   if (g.podium || room?.state === 'ended') {
     return (
       <>
-        <EndScreen you={effectiveYou} podium={podiumRows} playerId={playerId}
-          pseudo={displayPseudo} history={g.history} roomCode={roomCode} />
+        <EndScreen you={effectiveYou} podium={podiumRows} classement={g.leaderboard}
+          playerId={playerId} pseudo={displayPseudo} history={g.history} roomCode={roomCode} />
       </>
     );
   }

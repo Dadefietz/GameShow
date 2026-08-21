@@ -90,7 +90,7 @@ function serverToStudioQuestion(type, q) {
   const base = { id: String(q.id ?? uid('q')), type, prompt: q.text || '' };
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
-  if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
   return { ...base, options: q.options || ['', ''], poll: !!q.poll }; // vote
 }
 
@@ -98,7 +98,7 @@ function studioToServerQuestion(type, q, durationSec) {
   const base = { id: String(q.id), text: q.prompt || '', durationSec: durationSec || undefined };
   if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
   if (type === 'true_false') return { ...base, correct: !!q.answer };
-  if (type === 'estimation') return { ...base, target: Number(q.target) || 0 };
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
   return { ...base, options: q.options || [], poll: !!q.poll }; // vote
 }
 
@@ -373,6 +373,16 @@ export function StudioApp() {
             <p className="work__sub">Assemble les modules qui rythment tes soirées.</p>
           </div>
           <div className="work__actions">
+            {/* CHANTIER v4, décision 9.4 — LE CHEMIN DE RETOUR. Le volet de la
+                console mène ici ; sans ce lien, le Studio est un cul-de-sac et
+                l'animateur en repart par le bouton « précédent » du navigateur —
+                le seul geste dont on ne maîtrise pas l'effet.
+                La console restaure sa session au retour : le salon, ses joueurs et
+                la manche en cours sont retrouvés (décision 9.6). */}
+            <a className="button button--quiet" href="/host" data-action="studio:retour-animation"
+              data-testid="studio-retour-animation">
+              Retour à l'animation
+            </a>
             <button className="button" type="button" data-action="studio:restore"
               onClick={restaurerBase} title="Remet les jeux livrés d'office qui manquent, sans toucher aux tiens">
               Restaurer les questions de base
@@ -762,6 +772,29 @@ function QuestionFields({ type, question, onPatch, errors }) {
             onChange={(e) => onPatch({ target: Number(e.target.value) || 0 })} />
           {bad ? <p className="qerror" id={`te-${question.id}`} role="alert">{bad.msg}</p> : null}
           <p className="fhint">L'unité va dans l'énoncé.</p>
+        </div>
+        {/* LA NATURE DE LA RÉPONSE (chantier v4, décisions 5.7 à 5.9).
+            Un pourcentage n'a aucun sens sur une année : 2 % de 1789 valent
+            TRENTE-SIX ANS, si bien que répondre 1753 tombait « dans le mille ».
+            Les années ont donc leurs propres plages, en écart absolu.
+            Elle est DÉCLARÉE et jamais devinée de la valeur : 1789 peut être un
+            nombre d'habitants. Sans déclaration, on reste en plages relatives —
+            le comportement d'aujourd'hui, donc aucune migration. */}
+        <div className="fgroup fgroup--short">
+          <span className="flabel" id={`nat-${question.id}`}>Nature de la réponse</span>
+          <div className="seg" role="radiogroup" aria-labelledby={`nat-${question.id}`}>
+            <button type="button" role="radio" data-action="question:nature"
+              className="seg__btn" aria-checked={question.nature !== 'annee'}
+              onClick={() => onPatch({ nature: 'nombre' })}>Nombre</button>
+            <button type="button" role="radio" data-action="question:nature"
+              className="seg__btn" aria-checked={question.nature === 'annee'}
+              onClick={() => onPatch({ nature: 'annee' })}>Année</button>
+          </div>
+          <p className="fhint">
+            {question.nature === 'annee'
+              ? 'Plages en années : exact, ±2, ±5, ±10.'
+              : 'Plages en pourcentage de la cible : 2 %, 10 %, 20 %, 30 %.'}
+          </p>
         </div>
       </>
     );

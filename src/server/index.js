@@ -302,6 +302,21 @@ io.on('connection', (socket) => {
     socket.join(room.code + ':staff');
   }
 
+  // LE CLASSEMENT, REJOUÉ AU STAFF (chantier v4, décision 9.6).
+  //
+  // TROUVÉ PAR LE CONTRÔLE DE L'ACTION 9, ET NON PRÉVU PAR ELLE. Le classement
+  // n'est diffusé que sur ÉVÉNEMENT — `leaderboard:update` part à la révélation
+  // et à la fin d'une épreuve. Une console qui se rattache entre deux événements
+  // n'en reçoit donc jamais : elle affichait « Aucun score pour l'instant » sur
+  // une partie déjà bien engagée.
+  //
+  // Ce n'est pas propre au volet de navigation : un simple F5 sur la console
+  // produisait le même écran. Le défaut vivait depuis toujours ; il fallait
+  // seulement qu'un contrôle regarde la console APRÈS un rattachement.
+  if (socket.data.role === 'host' || socket.data.role === 'overlay') {
+    socket.emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, engine.CLASSEMENT_MAX) });
+  }
+
   // Rattachement joueur (reconnexion sans perte de score — S5).
   if (socket.data.role === 'player' && socket.data.sub) {
     const p = room.players.get(socket.data.sub);
@@ -339,6 +354,32 @@ io.on('connection', (socket) => {
       if (moi && moi.lastResult && moi.lastResult.roundId === cur.roundId) {
         socket.emit('play:you', moi.lastResult);
       }
+    }
+  }
+
+  // L'ÉTAT DE FIN DE PARTIE, REJOUÉ (chantier v4, décision 3.3).
+  //
+  // CE QUI ÉTAIT FAUX. Tout ce qui précède vit dans un `if (cur)` — donc sous
+  // condition qu'une manche soit EN COURS. Une partie terminée n'en a plus. Un
+  // joueur qui se reconnectait ou rechargeait après la fin ne recevait donc
+  // RIEN : ni podium, ni classement, ni rang final.
+  //
+  // Deux griefs de la réunion en découlaient, sans qu'on voie qu'ils n'en font
+  // qu'un : « la personne qui a actualisé n'a même pas d'écran final », et « tout
+  // le monde n'a pas l'option de partage » — ce bouton étant conditionné au rang,
+  // il disparaissait avec lui. D'où un défaut qui frappait certains joueurs et pas
+  // d'autres : ceux qui avaient rechargé, et eux seuls.
+  if (room.state === RoomState.ENDED) {
+    const classement = roomManager.leaderboard(room, engine.CLASSEMENT_MAX);
+    socket.emit('game:ended', {
+      podium: roomManager.leaderboard(room, 3),
+      leaderboard: classement,
+      history: room.history.map((h) => ({ type: h.moduleType, text: h.text, reveal: h.reveal, options: h.options })),
+    });
+    if (socket.data.role === 'player' && socket.data.sub) {
+      const moi = room.players.get(socket.data.sub);
+      const rang = roomManager.rankOf(room, socket.data.sub);
+      if (moi) socket.emit('play:you', { rank: rang?.rank, score: moi.score, delta: 0, final: true });
     }
   }
 

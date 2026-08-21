@@ -195,6 +195,72 @@ function ExitMenu({ onCloseRoom, onLogout, onEndGame, playerCount }) {
   );
 }
 
+// LE VOLET DE NAVIGATION (chantier v4, action 9).
+//
+// CE QUI MANQUAIT. L'adresse du stream n'était offerte que dans le salon
+// d'attente : l'écran de direct ne recevait même pas le jeton. Une fois la partie
+// lancée, l'animateur n'avait plus aucun moyen de la retrouver — ni d'atteindre
+// le Studio.
+//
+// CE QUI RENDAIT LA CORRECTION SÛRE. Le salon SURVIT au départ de l'animateur :
+// le gestionnaire de déconnexion du serveur ne touche que les joueurs, et la
+// session de l'animateur vit sous une clé fixe qui se restaure au retour. La
+// navigation était donc déjà possible ; il n'en manquait que le moyen.
+//
+// DÉCISION 9.5 — aucune confirmation en pleine manche. C'est son métier ; une
+// confirmation de plus en direct coûte plus qu'elle ne protège.
+function VoletNavigation({ overlayToken }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const streamUrl = overlayToken
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/overlay?token=${overlayToken}`
+    : null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onEsc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc); };
+  }, [open]);
+
+  return (
+    <div className="exit-menu" ref={ref} data-testid="volet-navigation">
+      <button className="button button--quiet" type="button" aria-haspopup="menu" aria-expanded={open}
+        data-action="nav:open" onClick={() => setOpen((v) => !v)}>
+        <I.arrow s={20} />
+        Naviguer
+      </button>
+      {open ? (
+        <div className="exit-menu__pop" role="menu">
+          {/* DÉCISION 9.8 — le dire explicitement : sans cette phrase, l'animateur
+              croit fermer son salon en le quittant et en rouvre un second, avec un
+              autre code, pendant que ses joueurs restent dans le premier. */}
+          <p className="exit-menu__note" data-testid="nav-salon-ouvert">Le salon reste ouvert. Tu peux revenir quand tu veux.</p>
+          <a className="exit-menu__item" role="menuitem" href="/host" data-action="nav:animation">
+            Animation
+          </a>
+          <a className="exit-menu__item" role="menuitem" href="/studio" data-action="nav:studio">
+            Studio — mes jeux
+          </a>
+          {/* DÉCISION 9.3 — le stream dans un ONGLET SÉPARÉ : il ne doit jamais
+              remplacer la console en plein direct.
+              DÉCISION 9.1 — l'adresse est DÉVOILÉE, non masquée. Arbitrage de
+              l'auteur ; le jeton reste celui que l'audit du v1 a classé ouvert et
+              accepté (F-009). */}
+          {streamUrl ? (
+            <a className="exit-menu__item" role="menuitem" href={streamUrl}
+              target="_blank" rel="noreferrer" data-action="nav:stream" data-testid="nav-stream">
+              Écran de stream — nouvel onglet
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // Menu de changement de module — un seul aller-retour, jamais de sous-menu.
 function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
   const [open, setOpen] = useState(false);
@@ -247,6 +313,64 @@ function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
 // BOUTONS MONTER/DESCENDRE À CÔTÉ, et pas seulement pour l'accessibilité : en
 // direct, sous pression, un bouton ne rate jamais sa cible là où un glisser peut
 // déraper.
+// LE PLUS PROCHE — CHEZ L'ANIMATEUR SEUL (chantier v4, action 6).
+//
+// Le serveur trouvait déjà la réponse la plus proche, mais n'en gardait que LE
+// NOMBRE, pas qui l'avait donnée. Et ce nombre voyage dans `stats`, diffusé à
+// tout le salon, stream compris — y ajouter un nom l'aurait mis à l'antenne.
+//
+// Le nom arrive donc par le canal `:host`, jamais par le canal partagé avec le
+// stream. C'est la seconde donnée du produit dans ce cas, après la file d'attente
+// (décision 8 de l'action 6 du chantier v1) : ce qui ne doit pas être capturé par
+// OBS ne transite pas par une source qu'OBS capture.
+function PlusProches({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  const [tout, setTout] = useState(false);
+  const VISIBLES = 3;
+
+  useEffect(() => {
+    const onClosest = (d) => setDonnee(d && Array.isArray(d.joueurs) ? d : null);
+    g.on('host:closest', onClosest);
+    return () => g.off('host:closest', onClosest);
+  }, [g]);
+
+  // DÉCISION 6.6 — à la révélation SEULEMENT. Avant, l'animateur saurait qui mène
+  // pendant que les réponses arrivent : une information qu'il pourrait laisser
+  // échapper à l'antenne.
+  useEffect(() => { setTout(false); }, [roundId]);
+  if (!revealed || !donnee || donnee.roundId !== roundId || !donnee.joueurs.length) return null;
+
+  const liste = tout ? donnee.joueurs : donnee.joueurs.slice(0, VISIBLES);
+  const reste = donnee.joueurs.length - liste.length;
+
+  return (
+    <section className="private" aria-label="Réponse la plus proche" data-testid="plus-proches">
+      <p className="private__title">
+        <I.eye s={16} /> Le plus proche — toi seul
+        <span className="private__count">{donnee.joueurs.length}</span>
+      </p>
+      <ul className="proches">
+        {liste.map((j, i) => (
+          <li className="proches__row" key={`${j.pseudo}-${i}`}>
+            <span className="proches__name">{j.pseudo}</span>
+            {/* DÉCISION 6.5 — avec la valeur : c'est elle qui permet à l'animateur de
+                dire quelque chose d'intéressant à l'antenne. */}
+            <span className="proches__value">{j.valeur != null ? fmt(j.valeur) : '—'}</span>
+          </li>
+        ))}
+      </ul>
+      {/* DÉCISION 6.4 — une poignée de noms, puis un « + » qui déplie. Sur une
+          question en années, dix joueurs peuvent tomber juste ; l'animateur a
+          besoin de savoir QUI, pas de lire une liste en direct. */}
+      {reste > 0 ? (
+        <button className="proches__plus" type="button" onClick={() => setTout(true)}>
+          + {reste} autre{reste > 1 ? 's' : ''}
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
 function FileAttente({ g, moduleId, nomJeu, enCours }) {
   const [file, setFile] = useState([]);
   const [pris, setPris] = useState(null);       // index d'origine de la ligne tenue
@@ -805,6 +929,7 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
         </div>
         <div className="topbar__end">
           <a className="button" href="/studio" data-action="goto:studio">Questionnaires</a>
+          <VoletNavigation overlayToken={overlayToken} />
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} playerCount={playerCount} />
         </div>
       </header>
@@ -1056,7 +1181,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // ============================================================
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1120,6 +1245,8 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
           </span>
           <span className="h-label">Chrono</span>
         </span>
+        {/* DÉCISION 9.2 — atteignable à TOUTE phase, direct compris. */}
+        <VoletNavigation overlayToken={overlayToken} />
         <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame}
           playerCount={room.playerCount} />
       </header>
@@ -1167,6 +1294,8 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
               answersCount={answersCount} revealed={revealed} reveal={reveal} />
             {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
           </section>
+
+          <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA FILE, DANS LA COLONNE CENTRALE (chantier v2, décision 3.1).
               Elle vivait dans la colonne latérale de 336 px, où trois commandes
@@ -1236,7 +1365,7 @@ function LiveScreen({ g, code, onShowResults, onLogout, onCloseRoom, onEndGame, 
 // ============================================================
 // A6 — Classement et podium
 // ============================================================
-function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom, onBackToLobby }) {
+function ResultsScreen({ g, overlayToken, onNextModule, continueLabel, onEndGame, onBack, canBack, onLogout, onCloseRoom, onBackToLobby }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard) || [];
   const ended = !!onBackToLobby;
   const progIndex = g.room?.progression?.index || 0;
@@ -1285,6 +1414,7 @@ function ResultsScreen({ g, onNextModule, continueLabel, onEndGame, onBack, canB
         </div>
         <div className="topbar__end">
           <span className="h-cap"><I.eye s={16} /> Toi et le stream uniquement</span>
+          <VoletNavigation overlayToken={overlayToken} />
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame}
             playerCount={g.room?.playerCount} />
         </div>
@@ -1548,6 +1678,7 @@ export function HostApp() {
     return (
       <>
         <ResultsScreen
+          overlayToken={session.overlayToken}
           g={g}
           onNextModule={() => { setShowResults(false); startModule(jeuEnCours); }}
           continueLabel={state === 'ended' ? 'Relancer une partie' : 'Question suivante'}
@@ -1570,6 +1701,7 @@ export function HostApp() {
         <LiveScreen
           g={g}
           code={code}
+          overlayToken={session.overlayToken}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}
           onCloseRoom={closeRoom}

@@ -25,14 +25,21 @@ import { RoomState, roomManager } from './rooms.js';
 //  - Le MALUS n'existe plus, dans aucun jeu. Une mauvaise réponse ne rapporte
 //    rien ; elle ne coûte rien. Contrepartie assumée : répondre au hasard est
 //    gratuit, ce qui est la norme du genre et sert la participation.
-const FASTEST_BONUS = 150;
+// CHANTIER v4, décision 4.2 : le supplément du plus rapide est SUPPRIMÉ du calcul.
+// Décision 4.5 : le plus rapide reste DÉSIGNÉ, comme information et non comme
+// points — exactement le traitement que T1 du chantier v1 a réservé à la série.
+// La constante disparaît ; le drapeau `fastest` la remplace dans ce que le serveur
+// transmet au joueur.
 
 // Le classement circule ENTIER vers l'animateur et le stream (action 3). Il était
 // tronqué à dix en cours de partie et à cinquante à la fin : le onzième joueur
 // n'arrivait jamais jusqu'à l'écran, quoi qu'on affiche. La borne qui subsiste
 // n'est qu'un garde-fou contre un cas aberrant — très au-dessus de tout effectif
 // réel de soirée — et jamais une règle d'affichage.
-const CLASSEMENT_MAX = 500;
+// Exporté depuis le chantier v4 : la reconnexion après la fin de partie doit
+// rejouer le MÊME classement que celui envoyé à la fin (décision 3.3). Deux
+// plafonds différents finiraient par diverger.
+export const CLASSEMENT_MAX = 500;
 
 // Diffusion : room Socket.IO = code du salon (tout le monde) ;
 // canal staff = code + ':staff' (animateur + stream uniquement — classement).
@@ -201,17 +208,21 @@ export function reveal(io, room) {
   if (!rt.closed) closeWindow(io, room);
   const mod = modules[rt.type];
   const ranksBefore = roomManager.rankMap(room);
-  const { results, reveal: revealPayload } = mod.score(rt);
+  const { results, reveal: revealPayload, prives } = mod.score(rt);
 
   // Le caractère « noté » se lit sur la MANCHE, plus sur le type de module : un
   // vote peut être un jeu ou un sondage selon la question (action 18). Le repli
   // sur meta.scored couvre les trois autres modules, où il ne varie pas.
   const noté = rt.scored !== undefined ? rt.scored : mod.meta.scored;
 
-  // Supplément du plus rapide : réponse correcte la plus rapide de la manche.
-  // Réservé aux modules où la rapidité prouve quelque chose — ni l'estimation
-  // (la précision y est le seul sujet) ni le vote (on ne devine pas plus vite
-  // ce que pense la salle).
+  // LE PLUS RAPIDE — désigné, jamais payé (chantier v4, décisions 4.2 et 4.5).
+  // Réservé aux modules où la rapidité prouve quelque chose : ni l'estimation
+  // (la précision y est le seul sujet) ni le vote (on ne devine pas plus vite ce
+  // que pense la salle).
+  // Il ne rapporte plus de points, mais il continue d'être NOMMÉ : c'est ce
+  // drapeau, et non un seuil de points, qui déclenche la phrase « le plus rapide
+  // du cercle » côté joueur. Sans lui, cette phrase se dirait à quiconque répond
+  // vite sans être premier — ce qu'interdit la décision 8 de l'action 7 du v1.
   let fastestPid = null;
   if (noté && mod.meta.vitesse) {
     let fastestAt = Infinity;
@@ -232,10 +243,6 @@ export function reveal(io, room) {
     if (noté) {
       if (r && r.correct === true) {
         p.streak += 1;
-        // Le supplément du plus rapide appartient à la vitesse, pas à une
-        // catégorie à part : le joueur doit lire UNE ligne pour tout ce que sa
-        // rapidité lui a rapporté.
-        if (pid === fastestPid) speed += FASTEST_BONUS;
       } else {
         // La série se rompt sur une mauvaise réponse ET sur une absence de
         // réponse : une manche non jouée n'est pas une bonne réponse. Elle ne
@@ -245,7 +252,13 @@ export function reveal(io, room) {
     }
     const delta = base + speed;
     p.score = Math.max(0, p.score + delta);
-    perPlayer.set(pid, { base, speed, delta, streak: p.streak, palier: r ? r.palier : null });
+    perPlayer.set(pid, {
+      base, speed, delta, streak: p.streak, palier: r ? r.palier : null,
+      // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
+      // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
+      // trahit plus par un seuil.
+      fastest: pid === fastestPid,
+    });
   }
 
   rt.revealed = true;
@@ -258,6 +271,23 @@ export function reveal(io, room) {
   toRoom(io, room).emit('module:reveal', rt.revealPayload);
   // Classement : canal staff uniquement (animateur + stream).
   toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
+
+  // LE NOM DU PLUS PROCHE — CANAL ANIMATEUR SEUL (chantier v4, décision 6.2).
+  // Le stream est une source capturée par OBS : y faire apparaître un nom
+  // romprait l'anonymat que la réunion a explicitement demandé de préserver.
+  // Les `stats` publiques, elles, gardent la VALEUR sans le nom (décision 6.3).
+  if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
+    io.to(room.code + ':host').emit('host:closest', {
+      roundId: rt.roundId,
+      joueurs: prives.plusProches
+        .map((pid) => {
+          const p = room.players.get(pid);
+          const a = rt.answers.get(pid);
+          return p ? { pseudo: p.pseudo, valeur: a ? a.value : null } : null;
+        })
+        .filter(Boolean),
+    });
+  }
   emitRoomState(io, room);
 
   // Feedback perso à chaque joueur : points gagnés + places gagnées/perdues. JAMAIS le rang.
@@ -265,7 +295,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, speed: 0, delta: 0, streak: p.streak, palier: null };
+    const d = perPlayer.get(pid) || { base: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -274,6 +304,7 @@ export function reveal(io, room) {
       base: d.base,
       speed: d.speed,
       streak: d.streak,
+      fastest: d.fastest,
       // Palier de précision atteint (estimation seulement) : porte l'affichage
       // et, plus tard, le message adapté à la justesse (action 7).
       palier: d.palier,

@@ -28,3 +28,6 @@ test-results/
 *.zip
 PHOTO-*.jpg
 design-board-standalone.html
+
+# Données du balayage des redites (outil ponctuel, hors suite)
+tests/.data-balayage

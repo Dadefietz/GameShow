@@ -90,4 +90,10 @@ export const store = {
   save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch {} },
   load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
   clear(key) { try { localStorage.removeItem(key); } catch {} },
+  // Clés stockées commençant par un préfixe. Sert au repli de la décision 1.2 du
+  // chantier v4 : quand l'URL ne porte pas de code de salon, on ne peut retrouver
+  // la session qu'en cherchant ce qui est là.
+  cles(prefixe) {
+    try { return Object.keys(localStorage).filter((k) => k.startsWith(prefixe)); } catch { return []; }
+  },
 };

@@ -33,7 +33,10 @@ const BASE_POINTS = 1000;
 // que la vitesse agissait déjà, invisible, dans la ligne du dessus. On ne change
 // pas le calcul, on cesse de le cacher.
 const BASE_BONNE_REPONSE = 700;
-const COMPLEMENT_VITESSE_MAX = 300;
+// CHANTIER v4, décision 4.1 : de 300 à 250. Motif donné en réunion — « équilibrer
+// le score par rapport à la base de 700 points ». Le maximum d'une manche de quiz
+// tombe ainsi de 1150 à 950, le supplément du plus rapide étant supprimé (4.2).
+const COMPLEMENT_VITESSE_MAX = 250;
 
 // Part de la durée restant au moment de la réponse : 1 (immédiate) -> 0 (dernière seconde).
 function fractionRestante(runtime, answeredAt) {
@@ -42,7 +45,7 @@ function fractionRestante(runtime, answeredAt) {
   return total > 0 ? 1 - elapsed / total : 1;
 }
 
-// Complément de vitesse d'une bonne réponse : 0 à 300 points selon la rapidité.
+// Complément de vitesse d'une bonne réponse : 0 à 250 points selon la rapidité.
 function complementVitesse(runtime, answeredAt) {
   return Math.round(COMPLEMENT_VITESSE_MAX * fractionRestante(runtime, answeredAt));
 }
@@ -74,11 +77,42 @@ const PALIERS_ESTIMATION = [
 // grands nombres.
 const TOLERANCE_ABSOLUE = 1;
 
-function palierEstimation(valeur, cible) {
+// PALIERS DES ANNÉES (chantier v4, décision 5.8).
+//
+// POURQUOI UN SECOND JEU. Un pourcentage n'a aucun sens sur une année : 2 % de
+// 1789 valent TRENTE-SIX ANS. Répondre 1753 tombait donc « dans le mille » et
+// rapportait 1000 points — le premier palier était trois fois plus large que le
+// siècle. La tolérance absolue d'une unité ne change rien à cette échelle.
+// Ici les écarts sont ABSOLUS, en années, comme on les compte réellement.
+const PALIERS_ANNEE = [
+  { nom: 'mille',    ecartMax: 0,  points: 1000 },
+  { nom: 'proche',   ecartMax: 2,  points: 750 },
+  { nom: 'correct',  ecartMax: 5,  points: 500 },
+  { nom: 'loin',     ecartMax: 10, points: 250 },
+];
+
+// DÉCISION 5.3 — le plus proche marque, même si personne n'est dans une plage.
+// Sans lui, une manche où tout le monde vise trop large ne rapporte rien à
+// personne : le module devient muet.
+const BONUS_PLUS_PROCHE = 400;
+// DÉCISION 5.5 — l'exactitude, que les paliers ne distinguent pas : sur une cible
+// de 1000, répondre 1000 ou 1015 rapporte le même palier.
+const BONUS_EXACTITUDE = 200;
+
+const HORS = { nom: 'hors', ecartMax: Infinity, points: 0 };
+
+// DÉCISION 5.9 — la nature est DÉCLARÉE à la création de la question, jamais
+// devinée de la valeur : 1789 peut être un nombre d'habitants.
+// DÉCISION 5.10 — sans nature déclarée, on reste en plages relatives : c'est le
+// comportement d'aujourd'hui, donc aucune migration des questions existantes.
+function palierEstimation(valeur, cible, nature) {
   const ecartAbsolu = Math.abs(valeur - cible);
+  if (nature === 'annee') {
+    return PALIERS_ANNEE.find((p) => ecartAbsolu <= p.ecartMax) || HORS;
+  }
   if (ecartAbsolu <= TOLERANCE_ABSOLUE) return PALIERS_ESTIMATION[0];
   const ecart = ecartAbsolu / Math.max(Math.abs(cible), 1);
-  return PALIERS_ESTIMATION.find((p) => ecart <= p.ecartMax) || { nom: 'hors', ecartMax: Infinity, points: 0 };
+  return PALIERS_ESTIMATION.find((p) => ecart <= p.ecartMax) || HORS;
 }
 
 // Histogramme de répartition numérique, en 8 tranches (maquette A5).
@@ -210,6 +244,11 @@ export const modules = {
         questionId: q.id,
         text: q.text,
         target: Number(q.target),
+        // DÉCISION 5.7 — la nature de la réponse, déclarée à la création dans le
+        // Studio. Deux jeux de plages : relatives pour un nombre, ABSOLUES pour
+        // une année. Sans déclaration, on reste en relatif (décision 5.10) : les
+        // questions existantes gardent leur comportement, aucune migration.
+        nature: q.nature === 'annee' ? 'annee' : 'nombre',
         durationMs: (q.durationSec || 20) * 1000,
       };
     },
@@ -227,16 +266,40 @@ export const modules = {
       const results = new Map();
       const values = [];
       let closest = null;
+      // DÉCISIONS 5.3, 5.4 et 6.1 — on désigne LES JOUEURS les plus proches, pas
+      // seulement la valeur. Un seul calcul sert au bonus et à l'affichage du nom
+      // chez l'animateur : deux définitions du « plus proche » finiraient par
+      // diverger.
+      let ecartMini = Infinity;
+      let plusProches = [];
+      const nature = rt.nature === 'annee' ? 'annee' : 'nombre';
+
       for (const [pid, a] of rt.answers) {
         values.push(a.value);
-        const palier = palierEstimation(a.value, rt.target);
+        const palier = palierEstimation(a.value, rt.target, nature);
+        const ecart = Math.abs(a.value - rt.target);
+        // DÉCISION 5.5 — l'exactitude s'ajoute AUX points de la plage.
+        const exact = ecart === 0;
         results.set(pid, {
-          base: palier.points,
+          base: palier.points + (exact ? BONUS_EXACTITUDE : 0),
           speed: 0,
-          correct: palier.ecartMax <= 0.10,
+          correct: nature === 'annee' ? palier.ecartMax <= 2 : palier.ecartMax <= 0.10,
           palier: palier.nom, // sert à l'affichage et aux messages (action 7)
+          exact,
         });
-        if (closest === null || Math.abs(a.value - rt.target) < Math.abs(closest - rt.target)) closest = a.value;
+        if (closest === null || ecart < Math.abs(closest - rt.target)) closest = a.value;
+        // DÉCISION 5.4 — égalité : TOUS les joueurs à distance identique. Même
+        // principe que l'égalité au vote (décision 2 de l'action 18 du v1).
+        if (ecart < ecartMini) { ecartMini = ecart; plusProches = [pid]; }
+        else if (ecart === ecartMini) plusProches.push(pid);
+      }
+
+      // DÉCISION 5.6 — les bonus SE CUMULENT, sans plafond. Un joueur exact, au
+      // premier palier et le plus proche touche 1000 + 200 + 400 = 1600, quand un
+      // quiz plafonne à 950. Écart accepté par l'auteur en connaissance de cause.
+      for (const pid of plusProches) {
+        const r = results.get(pid);
+        if (r) r.base += BONUS_PLUS_PROCHE;
       }
       values.sort((a, b) => a - b);
       const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
@@ -250,7 +313,11 @@ export const modules = {
         target: rt.target,
         histogramme: histogrammeNumerique(values, rt.target),
       };
-      return { results, reveal: { target: rt.target, text: rt.text, stats } };
+      // `prives` : ce qui ne doit JAMAIS partir dans `reveal`, lequel est diffusé
+      // à tout le salon, stream compris. Les noms des plus proches en font partie
+      // (décision 6.2) — même famille que la file d'attente, décision 8 de
+      // l'action 6 du chantier v1.
+      return { results, reveal: { target: rt.target, text: rt.text, stats }, prives: { plusProches } };
     },
   },
 

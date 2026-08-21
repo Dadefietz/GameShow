@@ -626,6 +626,13 @@
   .final__score { font: 600 var(--fs-400) / 1 var(--f-mono); }
 
   .board { width: 100%; display: flex; flex-direction: column; gap: var(--sp-2); }
+  /* DÉCISION 2.7 du chantier v4 — le classement complet DÉFILE DANS SON BLOC,
+     jamais la page. Il ne comptait que trois lignes tant qu'il était alimenté par
+     le podium ; il en compte désormais autant que de joueurs, et un joueur arrivé
+     en cours de route est souvent loin dans la liste — c'est lui qui a demandé à
+     s'y voir. Le plafond est en hauteur d'écran : sur un téléphone, la moitié de
+     la vue suffit à comprendre où l'on est sans perdre le reste de l'écran. */
+  .board--defile { max-height: 42dvh; overflow-y: auto; }
   .board__row {
     display: flex;
     align-items: center;

@@ -82,7 +82,12 @@ test.describe('Reconnexion en cours de partie', () => {
     // précédente. Sans identité de manche, l'écran affichait les points, bonus et
     // malus d'avant jusqu'à l'arrivée du nouveau résultat : les « points
     // fantômes ». C'est cette garantie que ce test protège.
-    await expect(joueur.page.getByText('sans toi')).toBeVisible();
+    // LE TITRE, ET NON « un texte quelque part ». `getByText('sans toi')` tombait
+    // une fois sur trois sur une violation de mode strict : la voix du jeu tire au
+    // sort sa phrase, et l'une de celles de ce moment dit « Celle-là s'est jouée
+    // sans toi ». Deux éléments correspondaient alors, et le contrôle échouait
+    // sur le hasard du tirage — jamais sur ce qu'il vérifie.
+    await expect(joueur.page.getByRole('heading', { name: /sans toi/i })).toBeVisible();
     await expect(joueur.page.getByTestId('points-gained')).toHaveCount(0);
     await expect(joueur.page.getByTestId('points-base')).toHaveCount(0);
 
