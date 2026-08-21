@@ -11,7 +11,7 @@
 //      les points ni les places d'un joueur.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
 import React, { useEffect, useRef, useState } from 'react';
-import { plagesVisibles, bornes, repereCible } from '../shared/echelle-estimation.js';
+import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
@@ -197,12 +197,13 @@ function revealText(reveal, current) {
 // fournie : un histogramme montre une FORME, pas des parts d'un total.
 function StreamHistogram({ histo, total, plages, cible }) {
   if (!histo || !total) return null;
-  const haut = Math.max(1, ...histo.counts);
-  // MÊME GÉOMÉTRIE QUE LA CONSOLE, calculée au même endroit. Le stream n'apporte
-  // que ses tailles : deux mètres de recul, un axe qui doit se lire d'un coup.
+  // MÊME GÉOMÉTRIE QUE LA CONSOLE, calculée au même endroit — le stream n'apporte
+  // que ses classes.
   const zones = plagesVisibles(plages, histo);
   const reperes = bornes(histo);
+  const barresHisto = barres(histo);
   const marque = repereCible(cible, histo);
+  const trouvee = (histo.exact || 0) > 0;
   return (
     <div className="st-histo" data-bind="reveal.stats.histogramme" data-testid="stream-histogramme">
       <div className="st-histo__cadre">
@@ -212,25 +213,30 @@ function StreamHistogram({ histo, total, plages, cible }) {
           <span key={z.nom} className={`st-histo__plage st-histo__plage--${z.nom}`}
             style={{ left: `${z.gauche}%`, width: `${z.largeur}%` }} data-plage={z.nom} />
         ))}
-        {/* Les seuils du barème, chacun à sa place : ± 2, 10, 20 et 30 %. */}
+        {/* Les seuils du barème, chacun à sa place — SANS étiquette : les mots
+            descendent dans la règle, sous l'axe, où chaque palier a sa ligne et ne
+            peut plus en cacher un autre. */}
         {zones.flatMap((z) => z.bornes.map((b) => (
           <span key={`${z.nom}-${b.cote}`} className={`st-histo__seuil st-histo__seuil--${z.nom}`}
-            style={{ left: `${b.pct}%` }} data-seuil={z.nom}>
-            <span className="st-histo__seuil-lbl">{z.libelle}</span>
-          </span>
+            style={{ left: `${b.pct}%` }} data-seuil={z.nom} />
         )))}
+        {/* Les barres épousent les paliers — voir la console, même règle. */}
         <div className="st-histo__plot">
-          {histo.counts.map((c, i) => (
-            <span key={i}
-              className={`st-histo__bar${i === histo.cibleIndex ? ' st-histo__bar--cible' : ''}`}
-              style={{ height: `${Math.round((c / haut) * 100)}%`, animationDelay: `${i * 40}ms` }}
-              data-count={c} />
+          {barresHisto.map((b) => (
+            <span key={b.i}
+              className={`st-histo__bar st-histo__bar--${b.palier}${b.count === 0 ? ' st-histo__bar--vide' : ''}`}
+              style={{ left: `${b.gauche}%`, width: `${b.largeur}%`, height: `${b.hauteur}%`,
+                animationDelay: `${b.i * 40}ms` }}
+              data-count={b.count} data-palier={b.palier} data-cote={b.cote}>
+              {b.count > 0 ? <span className="st-histo__bar-n">{fmt(b.count)}</span> : null}
+            </span>
           ))}
         </div>
         {/* LA BONNE RÉPONSE, à sa place exacte : elle n'était repérée que par la
             couleur d'une tranche large de plusieurs dizaines d'unités. */}
         {marque ? (
-          <span className="st-histo__cible" style={{ left: `${marque.pct}%` }} data-testid="stream-histo-cible">
+          <span className={`st-histo__cible${trouvee ? ' st-histo__cible--trouvee' : ''}`}
+            style={{ left: `${marque.pct}%` }} data-testid="stream-histo-cible" data-trouvee={trouvee || undefined}>
             <span className={`st-histo__cible-val st-histo__cible-val--${marque.ancrage}`}>{fmt(cible)}</span>
           </span>
         ) : null}
@@ -240,17 +246,24 @@ function StreamHistogram({ histo, total, plages, cible }) {
           <span key={b.i} className="st-histo__tick" style={{ left: `${b.pct}%` }}>{fmt(Math.round(b.valeur))}</span>
         ))}
       </div>
+      {/* LA RÈGLE DES PLAGES — une ligne par palier, à sa place sur l'axe. Même
+          structure que la console : seules les tailles diffèrent. */}
       {zones.length ? (
-        <p className="st-histo__plages" data-testid="stream-histo-plages">
+        <div className="st-histo__regle" data-testid="stream-histo-plages">
           {zones.map((z) => (
-            <span key={z.nom}
-              className={`st-histo__cle st-histo__cle--${z.nom}${z.bornes.length ? '' : ' st-histo__cle--hors'}`}>
-              {z.libelle}<span className="st-histo__cle-pts">{fmt(z.points)}</span>
-            </span>
+            <div className={`st-histo__regle-ligne st-histo__regle-ligne--${z.nom}`} key={z.nom} data-plage={z.nom}>
+              <span className="st-histo__regle-barre" style={{ left: `${z.gauche}%`, width: `${z.largeur}%` }} />
+              <span className={`st-histo__regle-lbl st-histo__regle-lbl--${z.lblVersGauche ? 'gauche' : 'droite'}`}
+                style={{ left: `${z.ancreLbl}%` }}>
+                {z.libelle}<span className="st-histo__regle-pts">{fmt(z.points)} pts</span>
+              </span>
+            </div>
           ))}
-        </p>
+        </div>
       ) : null}
-      <p className="st-histo__legend">Dispersion des {fmt(total)} estimation{total > 1 ? 's' : ''}</p>
+      <p className="st-histo__legend">
+        {total > 1 ? `Dispersion des ${fmt(total)} estimations` : 'Une seule estimation'}
+      </p>
     </div>
   );
 }

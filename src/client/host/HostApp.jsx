@@ -9,7 +9,7 @@
 //   2. les actions destructives (terminer, fermer) passent toujours par une
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { plagesVisibles, bornes, repereCible } from '../shared/echelle-estimation.js';
+import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
@@ -1099,16 +1099,29 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     // groupé ou éparpillé — et c'est cette forme-là que l'animateur lit d'un
     // coup d'œil pour décider quand révéler.
     const histo = stats?.histogramme || dist.histogramme || null;
-    const hautMax = histo ? Math.max(1, ...histo.counts) : 1;
-    const plages = plagesVisibles(stats?.plages, histo);
+    // Les repères viennent de la révélation SI elle a eu lieu, sinon du direct —
+    // qui les porte désormais, sur le seul canal de l'animateur.
+    const plages = plagesVisibles(stats?.plages ?? dist.plages, histo);
     const reperes = bornes(histo);
-    const cible = repereCible(stats?.target ?? reveal?.target, histo);
+    const barresHisto = barres(histo);
+    const cible = repereCible(stats?.target ?? dist.target ?? reveal?.target, histo);
+    // DÉCISION DE L'AUTEUR : la réponse exacte n'est pas une tranche — elle est de
+    // largeur nulle. Elle se dessine en TRAIT, qui passe au VERT dès que quelqu'un
+    // l'a trouvée. C'est le seul endroit du graphique où une couleur dit un fait
+    // plutôt qu'une catégorie.
+    const trouvee = (histo?.exact || 0) > 0;
     return (
       <div className="dist__numeric">
         {histo ? (
           <div className="histo" data-testid="histogramme">
+            {/* « Dispersion des 1 estimation » : le pluriel était appliqué au nom
+                sans l'être à l'article. Une seule réponse se dit autrement. */}
             <p className="histo__legend">
-              Dispersion des <span className="histo__legend-num">{fmt(total)}</span> estimation{total > 1 ? 's' : ''}
+              {total > 1 ? (
+                <>Dispersion des <span className="histo__legend-num">{fmt(total)}</span> estimations</>
+              ) : (
+                <>Une seule estimation</>
+              )}
             </p>
             {/* L'AXE ET SES PLAGES (voir `shared/echelle-estimation.js`).
                 Sans eux, ces huit barres ne disaient rien : ni ce que chaque
@@ -1124,34 +1137,47 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
                   data-plage={p.nom} data-libelle={p.libelle}
                   title={`${p.libelle} — ${fmt(p.points)} points${p.rognee ? ' (plage tronquée par l\'échelle)' : ''}`} />
               ))}
-              {/* LES BORNES DES PLAGES — « les ± 2, 10, 20 et 30 % ». Un trait à
-                  chaque seuil, là où il tombe réellement. Peindre les zones ne
-                  suffisait pas : au-delà d'une certaine largeur elles couvrent
-                  tout et ne délimitent plus rien (mesuré, voir le module d'échelle). */}
+              {/* LES BORNES DES PLAGES, sans étiquette. Elles étaient posées ICI,
+                  toutes à la même hauteur : la pastille de la cible en couvrait
+                  une, et les trois autres se touchaient. Les traits restent — ils
+                  situent — mais les mots descendent dans la règle, sous l'axe, où
+                  chaque plage a sa propre ligne et ne peut plus rien cacher. */}
               {plages.flatMap((p) => p.bornes.map((b) => (
                 <span key={`${p.nom}-${b.cote}`} className={`histo__seuil histo__seuil--${p.nom}`}
                   style={{ left: `${b.pct}%` }} data-seuil={p.nom}
-                  title={`${p.libelle} — ${fmt(p.points)} points`}>
-                  <span className="histo__seuil-lbl">{p.libelle}</span>
-                </span>
+                  title={`${p.libelle} — ${fmt(p.points)} points`} />
               )))}
+              {/* LES BARRES ÉPOUSENT LES PALIERS. Elles étaient huit parts égales
+                  de l'étendue, dont les bornes ne tombaient nulle part : une même
+                  barre pouvait réunir des joueurs à 1 000 points et d'autres à
+                  750. Chaque barre couvre désormais exactement un demi-palier, et
+                  sa largeur à l'écran EST celle de la plage qu'elle représente.
+                  Elles sont donc inégales — c'est le but. */}
               <div className="histo__plot">
-                {histo.counts.map((c, i) => (
+                {barresHisto.map((b) => (
                   <span
-                    key={i}
-                    className={`histo__bar${i === histo.cibleIndex ? ' histo__bar--cible' : ''}`}
-                    style={{ height: `${Math.round((c / hautMax) * 100)}%` }}
-                    title={`${c} estimation${c > 1 ? 's' : ''} — de ${fmt(Math.round(histo.min + i * histo.pas))} à ${fmt(Math.round(histo.min + (i + 1) * histo.pas))}`}
-                    data-count={c}
-                  />
+                    key={b.i}
+                    className={`histo__bar histo__bar--${b.palier}${b.count === 0 ? ' histo__bar--vide' : ''}`}
+                    style={{ left: `${b.gauche}%`, width: `${b.largeur}%`, height: `${b.hauteur}%` }}
+                    title={`${b.count} estimation${b.count > 1 ? 's' : ''} — de ${fmt(Math.round(b.bas))} à ${fmt(Math.round(b.haut))}`}
+                    data-count={b.count} data-palier={b.palier} data-cote={b.cote}
+                  >
+                    {/* LE COMPTE, ÉCRIT. Les tranches n'ayant plus la même largeur,
+                        la hauteur seule trompe : une zone hors barème large des deux
+                        tiers du cadre, avec UNE réponse, se lisait comme une
+                        majorité. La largeur dit le palier, le chiffre dit combien. */}
+                    {b.count > 0 ? <span className="histo__bar-n">{fmt(b.count)}</span> : null}
+                  </span>
                 ))}
               </div>
               {/* LA BONNE RÉPONSE, à sa place exacte sur l'axe — et non plus
                   « repérée en couleur » quelque part dans une tranche large. */}
               {cible ? (
-                <span className="histo__cible" style={{ left: `${cible.pct}%` }} data-testid="histo-cible">
+                <span className={`histo__cible${trouvee ? ' histo__cible--trouvee' : ''}`}
+                  style={{ left: `${cible.pct}%` }} data-testid="histo-cible" data-trouvee={trouvee || undefined}
+                  title={trouvee ? `${histo.exact} joueur${histo.exact > 1 ? 's ont' : ' a'} trouvé la réponse exacte` : undefined}>
                   <span className={`histo__cible-val histo__cible-val--${cible.ancrage}`}>
-                    {fmt(stats?.target ?? reveal?.target)}
+                    {fmt(stats?.target ?? dist.target ?? reveal?.target)}
                   </span>
                 </span>
               ) : null}
@@ -1164,17 +1190,24 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
                 </span>
               ))}
             </div>
-            {/* La légende des plages : ce que chaque zone rapporte. */}
+            {/* LA RÈGLE DES PLAGES — une ligne par palier, à sa place sur l'axe.
+                Les pastilles d'avant disaient « ± 2 % · 1 000 » sans montrer OÙ ;
+                et posées côte à côte, elles ne disaient pas non plus que les
+                plages s'emboîtent. Ici chaque palier occupe sa propre ligne : rien
+                ne peut en cacher un autre, et l'emboîtement se voit. */}
             {plages.length ? (
-              <p className="histo__plages-legende" data-testid="histo-plages">
+              <div className="histo__regle" data-testid="histo-plages">
                 {plages.map((p) => (
-                  <span key={p.nom}
-                    className={`histo__cle histo__cle--${p.nom}${p.bornes.length ? '' : ' histo__cle--hors'}`}
-                    title={p.bornes.length ? undefined : 'Plage plus large que l\'échelle affichée'}>
-                    {p.libelle}<span className="histo__cle-pts">{fmt(p.points)}</span>
-                  </span>
+                  <div className={`histo__regle-ligne histo__regle-ligne--${p.nom}`} key={p.nom} data-plage={p.nom}>
+                    <span className="histo__regle-barre" style={{ left: `${p.gauche}%`, width: `${p.largeur}%` }} />
+                    <span
+                      className={`histo__regle-lbl histo__regle-lbl--${p.lblVersGauche ? 'gauche' : 'droite'}`}
+                      style={{ left: `${p.ancreLbl}%` }}>
+                      {p.libelle}<span className="histo__regle-pts">{fmt(p.points)} pts</span>
+                    </span>
+                  </div>
                 ))}
-              </p>
+              </div>
             ) : null}
           </div>
         ) : null}

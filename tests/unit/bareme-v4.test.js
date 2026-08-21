@@ -146,9 +146,10 @@ describe('l\'estimation (action 5)', () => {
     const { results, reveal } = modules.estimation.score(rt);
     expect(results.get('aberrante').palier).toBe('hors');
     expect(results.get('aberrante').base).toBe(0);
-    // L'histogramme survit : l'aberrante est RAMENÉE dans la barre d'extrémité,
+    // L'histogramme survit : l'aberrante est RAMENÉE dans la zone d'extrémité,
     // elle n'étire pas l'échelle et n'écrase pas les autres.
-    expect(reveal.stats.histogramme.counts.reduce((s, c) => s + c, 0),
+    const h = reveal.stats.histogramme;
+    expect(h.zones.reduce((s, z) => s + z.count, 0) + h.exact,
       'une estimation a disparu de l\'histogramme').toBe(2);
     expect(Number.isFinite(reveal.stats.avg)).toBe(true);
   });

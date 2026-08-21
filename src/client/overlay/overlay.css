@@ -546,29 +546,48 @@
      chiffres. Barres verticales, tranche de la bonne réponse en braise. */
   .st-histo { display: flex; flex-direction: column; gap: var(--sp-3); }
   .st-histo__plot {
-    height: 180px;
-    display: flex;
-    align-items: flex-end;
-    gap: var(--sp-3);
+    /* MÊME HAUTEUR QUE LA CONSOLE. Arbitrage de l'auteur : « je veux exactement le
+       même histogramme entre les deux ». La scène du stream étant un canevas 1920
+       ramené à l'échelle de la fenêtre, ces valeurs sont AGRANDIES à la diffusion
+       dans la même proportion que tout le reste de la scène. */
+    height: 96px;
+    /* Positionnement absolu : chaque barre a sa largeur et sa place, comme à la
+       console (même règle, même géométrie). */
+    position: relative;
     padding: var(--sp-5);
     border-radius: var(--r-m);
     background: var(--c-surface);
     box-shadow: var(--sh-edge);
   }
   .st-histo__bar {
-    flex: 1;
-    min-height: 3px;
+    position: absolute;
+    bottom: 0;
+    min-height: 2px;
     border-radius: var(--r-s) var(--r-s) 2px 2px;
     background: var(--c-surface-2);
     animation: om-rise var(--mo-scene) var(--ease-out) both;
   }
-  .st-histo__bar--cible { background: var(--g-ember); }
+  .st-histo__bar--mille { background: var(--g-ember); }
+  .st-histo__bar--proche { background: var(--c-flame); }
+  .st-histo__bar--correct { background: var(--c-wood); }
+  .st-histo__bar--loin { background: var(--c-wood); opacity: 0.75; }
+  .st-histo__bar--hors { background: var(--c-wood); opacity: 0.32; }
+  .st-histo__bar-n {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font: 600 var(--fs-100) / 1 var(--f-mono);
+    color: var(--c-ink-2);
+  }
+  /* Une tranche vide se lit comme vide, jamais comme un filet de construction. */
+  .st-histo__bar--vide { background: var(--c-line); }
 
   /* L'AXE DU STREAM. Même échelle que la console, à la taille de l'antenne : le
      public voyait huit barres sans savoir ce qu'elles recouvraient, où tombait la
      bonne réponse, ni jusqu'où il fallait viser pour marquer. */
   /* Même bande réservée qu'à la console, à la taille de l'antenne. */
-  .st-histo__cadre { position: relative; padding-top: 28px; }
+  .st-histo__cadre { position: relative; padding-top: 15px; }
   .st-histo__plage {
     position: absolute;
     top: 0;
@@ -582,43 +601,44 @@
   .st-histo__plage--proche { opacity: 0.12; }
   .st-histo__seuil {
     position: absolute;
-    top: 28px;
+    top: 15px;
     bottom: 0;
-    width: 2px;
+    width: 1px;
     background: repeating-linear-gradient(
-      to bottom, var(--c-ink-4) 0 5px, transparent 5px 10px);
+      to bottom, var(--c-ink-4) 0 3px, transparent 3px 6px);
     pointer-events: none;
   }
   .st-histo__seuil--mille { background: repeating-linear-gradient(
-    to bottom, var(--c-ember-bright) 0 5px, transparent 5px 10px); }
-  .st-histo__seuil-lbl {
-    position: absolute;
-    top: -26px;
-    left: 4px;
-    font: 500 var(--fs-st-100) / 1 var(--f-ui);
-    color: var(--c-ink-4);
-    white-space: nowrap;
-  }
-  .st-histo__seuil--mille .st-histo__seuil-lbl { color: var(--c-ember-bright); }
-  .st-histo__cle--hors { opacity: 0.55; }
+    to bottom, var(--c-ember-bright) 0 3px, transparent 3px 6px); }
 
   .st-histo__cible {
     position: absolute;
-    top: 28px;
+    z-index: 2;
+    top: 15px;
     bottom: 0;
-    width: 3px;
+    width: 2px;
     border-radius: var(--r-full);
     background: var(--c-ember-bright);
-    transform: translateX(-1.5px);
+    transform: translateX(-1px);
   }
+  /* La réponse exacte trouvée : trait vert, même règle qu'à la console. */
+  .st-histo__cible--trouvee {
+    background: var(--c-good);
+    /* Le vert doit se LIRE, pas seulement être là : deux pixels coincés entre deux
+       barres de braise passaient inaperçus. Un trait un peu plus large et un halo
+       qui le détache du fond orange — mesuré sur le rendu, pas supposé. */
+    width: 3px;
+    box-shadow: 0 0 0 2px var(--c-good-wash);
+  }
+  .st-histo__cible--trouvee .st-histo__cible-val { background: var(--c-good); color: var(--c-ink-on-leaf); }
   .st-histo__cible-val {
     position: absolute;
-    top: -28px;
-    padding: 2px var(--sp-3);
+    top: -15px;
+    padding: 1px var(--sp-2);
     border-radius: var(--r-full);
     background: var(--c-ember-bright);
     color: var(--c-ink-on-flame);
-    font: 600 var(--fs-st-100) / 1.5 var(--f-mono);
+    font: 600 var(--fs-100) / 1.4 var(--f-mono);
     white-space: nowrap;
   }
   .st-histo__cible-val--centre { left: 50%; transform: translateX(-50%); }
@@ -627,41 +647,63 @@
 
   .st-histo__axe {
     position: relative;
-    height: 22px;
+    height: 14px;
     border-top: 1px solid var(--c-line);
   }
   .st-histo__tick {
     position: absolute;
-    top: 4px;
+    top: 2px;
     transform: translateX(-50%);
-    font: 500 var(--fs-st-100) / 1 var(--f-mono);
+    font: 400 var(--fs-100) / 1 var(--f-mono);
     color: var(--c-ink-3);
     white-space: nowrap;
   }
   .st-histo__tick:first-child { transform: none; }
   .st-histo__tick:last-child { transform: translateX(-100%); }
 
-  .st-histo__plages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-2) var(--sp-4);
-    margin: 0;
+  /* LA RÈGLE DES PLAGES — même structure que la console, à la taille de
+     l'antenne : lignes plus hautes, traits plus épais, texte plus contrasté. */
+  /* La marge basse n'est pas décorative : sans elle, l'étiquette de la dernière
+     ligne venait toucher la légende « Dispersion des N estimations ». */
+  .st-histo__regle { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--sp-3); }
+  /* LA HAUTEUR DE LIGNE SUIT L'INTERLIGNE, elle n'est pas choisie au jugé.
+     Mesuré : à 26 px de police et 1,6 d'interligne, l'étiquette occupait 42 px de
+     canevas dans une ligne de 30 — elle débordait de douze pixels sur la ligne
+     suivante, et trois paires d'étiquettes se recouvraient. Interligne ramené à
+     1,2 (31 px) et ligne portée à 34 : l'étiquette tient chez elle.
+
+     ATTENTION EN MESURANT : la scène du stream est un canevas fixe RAMENÉ À
+     L'ÉCHELLE de la fenêtre (`--stream-scale`, plus bas). Une boîte relevée dans
+     le navigateur est donc en pixels d'écran, pas en pixels de canevas — 34
+     déclarés se lisent 23 sous un facteur de 0,68. Ce n'est pas un écrasement. */
+  .st-histo__regle-ligne { position: relative; height: 17px; }
+  .st-histo__regle-barre {
+    position: absolute;
+    top: 7px;
+    height: 3px;
+    border-radius: var(--r-full);
+    background: var(--c-wood);
   }
-  .st-histo__cle {
+  .st-histo__regle-ligne--mille .st-histo__regle-barre { background: var(--c-ember-bright); }
+  .st-histo__regle-lbl {
+    position: absolute;
+    top: 0;
     display: inline-flex;
     align-items: baseline;
     gap: var(--sp-2);
-    padding: 2px var(--sp-3);
-    border-radius: var(--r-full);
-    background: var(--c-surface-2);
-    font: 500 var(--fs-st-100) / 1.6 var(--f-ui);
+    padding: 0 var(--sp-2);
+    background: var(--c-surface);
+    font: 500 var(--fs-100) / 1.25 var(--f-ui);
     color: var(--c-ink-2);
+    white-space: nowrap;
   }
-  .st-histo__cle--mille { background: var(--c-ember-wash); color: var(--c-ink); }
-  .st-histo__cle-pts { font: 600 var(--fs-st-100) / 1.6 var(--f-mono); color: var(--c-ink-3); }
+  .st-histo__regle-lbl--droite { transform: none; }
+  .st-histo__regle-lbl--gauche { transform: translateX(-100%); }
+  .st-histo__regle-ligne--mille .st-histo__regle-lbl { color: var(--c-ink); }
+  .st-histo__regle-pts { font: 600 var(--fs-100) / 1.25 var(--f-mono); color: var(--c-ink-3); }
   .st-histo__legend {
     margin: 0;
-    font: 500 var(--fs-st-100) / 1 var(--f-ui);
+    font: 400 var(--fs-200) / 1 var(--f-ui);
     letter-spacing: var(--tr-label);
     text-transform: uppercase;
     color: var(--c-ink-3);

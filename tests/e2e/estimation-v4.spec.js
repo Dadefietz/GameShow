@@ -203,15 +203,15 @@ test.describe('L\'estimation du chantier v4', () => {
     const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
     await stream.goto(`/overlay?token=${token}`);
 
-    // TROIS RÉPONSES IDENTIQUES, une très à l'écart. Trois valeurs simplement
-    // VOISINES ne suffisaient pas : les bornes de l'histogramme écartent les
-    // valeurs extrêmes par l'écart interquartile, si bien que 100, 101 et 102 se
-    // retrouvaient dans trois tranches distinctes d'une échelle resserrée sur
-    // deux unités. Des valeurs égales tombent forcément ensemble, quelle que soit
-    // l'échelle — et le rapport d'effectifs vaut alors exactement 3 contre 1.
-    await repondre(joueurs[0], CIBLE);
-    await repondre(joueurs[1], CIBLE);
-    await repondre(joueurs[2], CIBLE);
+    // TROIS RÉPONSES DANS LE MÊME PALIER, une très à l'écart.
+    //
+    // Pas la valeur EXACTE : depuis que les tranches épousent le barème, la réponse
+    // exacte est comptée à part et se dessine en trait, pas en barre — les trois
+    // joueurs n'auraient alors produit aucune barre à mesurer. `CIBLE + 1` reste
+    // dans le premier palier sans être exact.
+    await repondre(joueurs[0], CIBLE + 1);
+    await repondre(joueurs[1], CIBLE + 1);
+    await repondre(joueurs[2], CIBLE + 1);
     await repondre(joueurs[3], CIBLE * 9);
     await expect(hote.page.getByTestId('answers-count')).toHaveText('4');
 
@@ -233,6 +233,8 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const [nom, barres_] of [['console', console_], ['stream', direct]]) {
       const pleines = barres_.filter((b) => b.n > 0).sort((a, b) => b.n - a.n);
       console.log(`  ${nom} → ${barres_.map((b) => `${b.n}:${Math.round(b.h)}px`).join(' ')}`);
+      // DEUX barres remplies : celle du palier où sont les trois, celle de la
+      // réponse lointaine. Les autres zones existent mais sont vides.
       expect(pleines.length, `${nom} : effectifs inattendus`).toBe(2);
       const [haute, basse] = pleines;
       expect(haute.n, `${nom} : la tranche groupée devrait compter 3`).toBe(3);

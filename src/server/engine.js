@@ -6,7 +6,18 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules, histogrammeNumerique } from './modules.js';
+import { modules, histogrammeBareme, plagesEstimation } from './modules.js';
+
+// L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
+// du barème. Un seul endroit la calcule ici comme à la révélation, pour que les
+// deux histogrammes — celui du direct et celui de la révélation — partagent
+// exactement la même échelle.
+function plagesDe(rt) {
+  return plagesEstimation(rt.target, rt.nature === 'annee' ? 'annee' : 'nombre');
+}
+function margeBareme(rt) {
+  return Math.max(0, ...plagesDe(rt).map((p) => p.haut - rt.target));
+}
 import { RoomState, roomManager } from './rooms.js';
 
 // BARÈME (PLAN-CHANTIER, actions 8 et 17) — deux lignes, pas quatre :
@@ -84,7 +95,20 @@ export function answerDistribution(rt) {
       min: Math.min(...vals),
       max: Math.max(...vals),
       avg: Math.round(sum / vals.length),
-      histogramme: histogrammeNumerique(vals, rt.target),
+      // LA MÊME ÉCHELLE, ET LES MÊMES REPÈRES, DÈS LE DIRECT.
+      //
+      // Ce panneau ne part QUE sur le canal de l'animateur (`toHost`, plus haut) :
+      // y porter la cible et les plages ne dévoile rien de plus — il voit déjà la
+      // tranche de la vérité en couleur, et la révélation rend le tout public une
+      // seconde plus tard.
+      //
+      // Ce que ça corrige, en revanche : l'échelle et les repères CHANGEAIENT à la
+      // révélation, si bien que le graphique sur lequel l'animateur décidait
+      // n'était pas celui qu'il commentait ensuite.
+      histogramme: histogrammeBareme(vals, rt.target, plagesDe(rt), margeBareme(rt)),
+      target: rt.target,
+      plages: plagesDe(rt),
+      nature: rt.nature === 'annee' ? 'annee' : 'nombre',
     };
   }
   return null;

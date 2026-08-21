@@ -130,7 +130,7 @@ test.describe('L\'axe de l\'histogramme', () => {
       ['console', hote.page.getByTestId('histo-plages')],
       ['stream', stream.getByTestId('stream-histo-plages')],
     ]) {
-      const cles = await legende.locator('span[class*="cle"]').allInnerTexts();
+      const cles = await legende.locator('[class*="regle-lbl"]').allInnerTexts();
       const texte = cles.join(' ').replace(/\s+/g, ' ');
       console.log(`  ${quoi} → ${texte}`);
       for (const seuil of ['2 %', '10 %', '20 %', '30 %']) {
@@ -163,6 +163,192 @@ test.describe('L\'axe de l\'histogramme', () => {
       console.log(`  ${quoi} → ${texte}`);
       expect(texte, `${quoi} : un pourcentage sur une question en années`).not.toContain('%');
       expect(texte, `${quoi} : les plages en années ne sont pas annoncées`).toMatch(/ans/);
+    }
+  });
+
+  // ------------------------------------------------------------------
+  // L'ÉCHELLE CONTIENT LE BARÈME (arbitrage de l'auteur : « étendre »).
+  // ------------------------------------------------------------------
+  const ETENDUES = [
+    ['réponses au-dessus', [3000, 2600, 2900]],
+    ['réponses en dessous', [400, 600, 500]],
+    ['réponses des deux côtés', [900, 1600, 1300]],
+  ];
+
+  for (const [nom, valeurs] of ETENDUES) {
+    test(`les quatre plages sont entières — ${nom}`, async ({ browser, page }) => {
+      // CE QUI ÉTAIT FAUX, ET MESURÉ. L'échelle était tirée des seules RÉPONSES,
+      // quand les plages sont une propriété de la QUESTION. Quand tout le monde
+      // répondait au-dessus, seules les bornes HAUTES entraient dans le cadre :
+      // l'écran écrivait « ± 10 % » à un endroit qui n'était que « +10 % ». Le
+      // miroir se produisait en dessous. Et sur une étendue serrée, ± 30 % ne se
+      // dessinait PAS DU TOUT tout en restant annoncé.
+      const JEU = `Axe — ${nom}`;
+      const CIBLE = 1235;
+      await jeuAvecCible(page, JEU, CIBLE);
+      const stream = await jouer(browser, JEU, valeurs);
+      await expect(stream.getByTestId('stream-histogramme')).toBeVisible({ timeout: 15_000 });
+
+      for (const [quoi, cadre] of [
+        ['console', hote.page.locator('.histo__cadre')],
+        ['stream', stream.locator('.st-histo__cadre')],
+      ]) {
+        const seuils = await cadre.locator('[data-seuil]').evaluateAll(
+          (els) => els.map((e) => e.dataset.seuil));
+        const parPlage = {};
+        for (const n of seuils) parPlage[n] = (parPlage[n] || 0) + 1;
+        console.log(`  ${quoi} · ${nom} → ${JSON.stringify(parPlage)}`);
+        // QUATRE plages, DEUX bornes chacune. Une plage à une seule borne est un
+        // « ± » qui ment ; une plage à zéro borne est une plage annoncée et
+        // invisible.
+        for (const plage of ['mille', 'proche', 'correct', 'loin']) {
+          expect(parPlage[plage],
+            `${quoi} · ${nom} : la plage « ${plage} » n'a pas ses deux bornes`).toBe(2);
+        }
+      }
+    });
+  }
+
+  test('aucune étiquette n\'en cache une autre, sur aucune des deux surfaces', async ({ browser, page }) => {
+    // L'AUTEUR L'A POSÉ EN RÈGLE : « il faut que toutes les infos soient visibles
+    // et ne soient pas cachées. » Sur les captures qui ont motivé ce chantier, la
+    // pastille de la bonne réponse recouvrait « ± 10 % », et les trois autres
+    // libellés se touchaient — tous posés à la même hauteur au-dessus du
+    // graphique. Ils vivent désormais dans une règle, une ligne par palier.
+    const JEU = 'Axe — collisions';
+    await jeuAvecCible(page, JEU, 1235);
+    const stream = await jouer(browser, JEU, [3000, 2600, 2900]);
+    await expect(stream.getByTestId('stream-histo-plages')).toBeVisible({ timeout: 15_000 });
+
+    for (const [quoi, racine] of [
+      ['console', hote.page.getByTestId('histogramme')],
+      ['stream', stream.getByTestId('stream-histogramme')],
+    ]) {
+      const boites = await racine
+        .locator('[class*="regle-lbl"], [class*="cible-val"], [class*="__tick"]')
+        .evaluateAll((els) => els
+          .filter((e) => e.checkVisibility?.())
+          .map((e) => {
+            const r = e.getBoundingClientRect();
+            return { t: (e.textContent || '').replace(/\s+/g, ' ').trim(), x: r.x, y: r.y, w: r.width, h: r.height };
+          }));
+      expect(boites.length, `${quoi} : rien à mesurer`).toBeGreaterThan(5);
+      const chevauche = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      const collisions = [];
+      for (let i = 0; i < boites.length; i += 1) {
+        for (let j = i + 1; j < boites.length; j += 1) {
+          if (chevauche(boites[i], boites[j])) collisions.push(`« ${boites[i].t} » × « ${boites[j].t} »`);
+        }
+      }
+      console.log(`  ${quoi} → ${boites.length} étiquettes, ${collisions.length} collision(s)`);
+      expect(collisions, `${quoi} : des étiquettes se recouvrent — ${collisions.join(', ')}`).toEqual([]);
+    }
+  });
+
+  test('les deux surfaces disent la même chose, dans le même ordre', async ({ browser, page }) => {
+    // ARBITRAGE DE L'AUTEUR : « dans le développement il faut que les deux soient
+    // similaires ». La géométrie est partagée (`echelle-estimation.js`), mais rien
+    // n'empêcherait une surface de dériver — un libellé oublié, une plage peinte
+    // d'un côté seulement. On l'ÉTABLIT au lieu de le supposer.
+    const JEU = 'Axe — parité';
+    await jeuAvecCible(page, JEU, 1235);
+    const stream = await jouer(browser, JEU, [900, 1600, 1300]);
+    await expect(stream.getByTestId('stream-histo-plages')).toBeVisible({ timeout: 15_000 });
+
+    const releve = async (racine, prefixe) => ({
+      ticks: (await racine.locator(`[data-testid$="histo-axe"] span`).allInnerTexts())
+        .map((t) => t.replace(/\s+/g, '')),
+      plages: (await racine.locator(`.${prefixe}__regle-ligne`).evaluateAll(
+        (els) => els.map((e) => e.dataset.plage))),
+      libelles: (await racine.locator(`.${prefixe}__regle-lbl`).allInnerTexts())
+        .map((t) => t.replace(/\s+/g, ' ').trim()),
+      zones: (await racine.locator(`.${prefixe}__plage`).evaluateAll(
+        (els) => els.map((e) => e.dataset.plage))),
+      cible: (await racine.locator(`.${prefixe}__cible-val`).first().innerText()).replace(/\s+/g, ''),
+    });
+
+    const console_ = await releve(hote.page.getByTestId('histogramme'), 'histo');
+    const direct = await releve(stream.getByTestId('stream-histogramme'), 'st-histo');
+    console.log(`  console → ${console_.plages.join(',')} | cible ${console_.cible}`);
+    console.log(`  stream  → ${direct.plages.join(',')} | cible ${direct.cible}`);
+
+    expect(direct.ticks, 'les axes ne portent pas les mêmes valeurs').toEqual(console_.ticks);
+    expect(direct.plages, 'les paliers ne sont pas les mêmes, ni dans le même ordre').toEqual(console_.plages);
+    expect(direct.libelles, 'les libellés diffèrent d\'une surface à l\'autre').toEqual(console_.libelles);
+    expect(direct.zones, 'le fond n\'est pas peint sur les mêmes paliers').toEqual(console_.zones);
+    expect(direct.cible, 'la bonne réponse n\'est pas la même').toEqual(console_.cible);
+    // Et le fond n'est peint QUE pour le point de mire : quatre fonds empilés
+    // noyaient les barres sous un aplat continu.
+    expect(console_.zones, 'plus d\'un fond peint').toEqual(['mille']);
+  });
+
+  test('les deux surfaces emploient les MÊMES tailles de texte', async ({ browser, page }) => {
+    // ARBITRAGE DE L'AUTEUR : « utilise vraiment les mêmes tailles de police que
+    // sur l'animation ; je veux exactement le même histogramme entre les deux ».
+    //
+    // Le stream avait sa propre échelle typographique (`--fs-st-*`, pensée pour
+    // deux mètres de recul). Elle est abandonnée POUR CE BLOC : la scène du stream
+    // est un canevas 1920 ramené à l'échelle de la fenêtre, et tout y grandit dans
+    // la même proportion. On mesure la police CALCULÉE, pas la déclaration.
+    const JEU = 'Axe — tailles';
+    await jeuAvecCible(page, JEU, 1235);
+    const stream = await jouer(browser, JEU, [3000, 2600, 2900]);
+    await expect(stream.getByTestId('stream-histogramme')).toBeVisible({ timeout: 15_000 });
+
+    const tailles = (pg, prefixe) => pg.evaluate((p) => {
+      const px = (sel) => {
+        const e = document.querySelector(`.${p}${sel}`);
+        return e ? getComputedStyle(e).fontSize : null;
+      };
+      return { tick: px('__tick'), etiquette: px('__regle-lbl'), points: px('__regle-pts'), cible: px('__cible-val') };
+    }, prefixe);
+
+    const console_ = await tailles(hote.page, 'histo');
+    const direct = await tailles(stream, 'st-histo');
+    console.log(`  console → ${JSON.stringify(console_)}`);
+    console.log(`  stream  → ${JSON.stringify(direct)}`);
+    for (const cle of Object.keys(console_)) {
+      expect(console_[cle], `la console n'a pas de « ${cle} » à mesurer`).toBeTruthy();
+      expect(direct[cle], `« ${cle} » : le stream n'emploie pas la taille de la console`).toBe(console_[cle]);
+    }
+  });
+
+  test('chaque étiquette se tient contre son seuil, sans jamais sortir du cadre', async ({ browser, page }) => {
+    // ARBITRAGE DE L'AUTEUR : « les étiquettes 20 % et 30 %, mets-les à droite de
+    // la bande. En l'état ça ne signifie rien. » Elles étaient centrées sur leur
+    // plage — un libellé flottant au milieu d'un long trait, rattaché à rien.
+    // Elles s'ancrent désormais à la borne HAUTE. Quand cette borne touche le bord
+    // du cadre — la plage la plus large, celle qui définit l'échelle — l'étiquette
+    // bascule à sa gauche : contre le même seuil, sans déborder.
+    const JEU = 'Axe — ancrage';
+    await jeuAvecCible(page, JEU, 1235);
+    // Réponses des DEUX CÔTÉS : c'est le cas où ± 30 % touche le bord droit.
+    const stream = await jouer(browser, JEU, [900, 1600, 1300]);
+    await expect(stream.getByTestId('stream-histo-plages')).toBeVisible({ timeout: 15_000 });
+
+    for (const [quoi, pg, prefixe] of [
+      ['console', hote.page, 'histo'], ['stream', stream, 'st-histo'],
+    ]) {
+      const releve = await pg.evaluate((p) => {
+        const cadre = document.querySelector(`.${p}__regle`).getBoundingClientRect();
+        return [...document.querySelectorAll(`.${p}__regle-ligne`)].map((ligne) => {
+          const barre = ligne.querySelector(`.${p}__regle-barre`).getBoundingClientRect();
+          const lbl = ligne.querySelector(`.${p}__regle-lbl`).getBoundingClientRect();
+          return {
+            plage: ligne.dataset.plage,
+            // Distance entre le bord de l'étiquette et la BORNE HAUTE de la bande.
+            ecart: Math.round(Math.min(Math.abs(lbl.left - barre.right), Math.abs(lbl.right - barre.right))),
+            deborde: Math.round(Math.max(0, cadre.left - lbl.left, lbl.right - cadre.right)),
+          };
+        });
+      }, prefixe);
+      console.log(`  ${quoi} → ${releve.map((r) => `${r.plage}: écart ${r.ecart}px, déborde ${r.deborde}px`).join(' | ')}`);
+      for (const r of releve) {
+        // CONTRE le seuil : quelques pixels de marge typographique, pas davantage.
+        // Centrée sur la bande, une étiquette de ± 30 % en serait à des centaines.
+        expect(r.ecart, `${quoi} · ${r.plage} : l'étiquette flotte loin de son seuil`).toBeLessThan(12);
+        expect(r.deborde, `${quoi} · ${r.plage} : l'étiquette sort du cadre`).toBe(0);
+      }
     }
   });
 });

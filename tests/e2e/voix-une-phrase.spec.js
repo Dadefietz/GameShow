@@ -20,7 +20,7 @@
 // crée donc une question à réponse CONNUE, pour que le joueur gagne à coup sûr :
 // répondre au hasard laisserait le défaut hors de portée une fois sur quatre.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 const JEU = 'Épreuve de voix';
@@ -45,6 +45,10 @@ test.describe('La voix du résultat', () => {
   let joueur = null;
 
   test.afterEach(async () => {
+    // Le jeu fabriqué par ce fichier est retiré : la bibliothèque est PARTAGÉE.
+    // Sans cela il s'accumule d'une exécution à l'autre — le menu en proposait
+    // deux, puis trois, du même nom, et le contrôle échouait sur l'ambiguïté.
+    await retirerJeux(JEU);
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     if (joueur) { await joueur.ctx.close(); joueur = null; }
   });
@@ -72,7 +76,7 @@ test.describe('La voix du résultat', () => {
     joueur = await joinAsPlayer(browser, hote.code, 'Voix');
     await expect(hote.page.getByTestId('player-count')).toContainText('1');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).click();
+    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
 
     await expect(joueur.page.getByTestId('question-text')).toHaveText(ENONCE);
     await joueur.page.getByRole('button', { name: BONNE }).click();

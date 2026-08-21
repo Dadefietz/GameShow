@@ -856,22 +856,48 @@
        Les styles étaient pourtant justes : `height: 100%`, `50%`, `0%`. C'est ce
        qui rendait le défaut invisible à la relecture. */
     height: 96px;
-    display: flex;
-    align-items: flex-end;
-    gap: var(--sp-2);
+    /* POSITIONNEMENT ABSOLU, et non plus une rangée flex à parts égales : depuis
+       que les tranches épousent les paliers, chaque barre a SA largeur et SA
+       place. Une rangée flex les répartirait à égalité — exactement ce qu'on
+       vient de supprimer. */
+    position: relative;
     padding: var(--sp-4);
     border-radius: var(--r-s);
     background: var(--c-surface);
   }
   .histo__bar {
-    flex: 1;
+    position: absolute;
+    bottom: 0;
     /* Plancher visible : une tranche vide doit se lire comme vide, pas comme
        absente — sans pour autant prétendre à des réponses qu'elle n'a pas. */
     min-height: 2px;
     border-radius: var(--r-xs) var(--r-xs) 2px 2px;
     background: var(--c-wood);
   }
-  .histo__bar--cible { background: var(--g-ember); }
+  /* La teinte dit le PALIER, donc ce que la tranche rapporte : plus on approche
+     du mille, plus la braise est vive. C'est la même information que la règle du
+     bas, redite par la couleur — utile en un coup d'œil, en direct. */
+  .histo__bar--mille { background: var(--g-ember); }
+  .histo__bar--proche { background: var(--c-flame); }
+  .histo__bar--correct { background: var(--c-wood); }
+  .histo__bar--loin { background: var(--c-wood); opacity: 0.75; }
+  /* Le hors barème est TRÈS effacé : il ne rapporte rien, et sa largeur — souvent
+     la majorité du cadre — en ferait autrement l'élément dominant du graphique. */
+  .histo__bar--hors { background: var(--c-wood); opacity: 0.32; }
+  .histo__bar-n {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font: 600 var(--fs-100) / 1 var(--f-mono);
+    color: var(--c-ink-2);
+  }
+  /* UNE TRANCHE VIDE SE LIT COMME VIDE. Le plancher de 2 px portait la même
+     couleur qu'une barre pleine : mises bout à bout, les tranches vides
+     dessinaient un filet continu qu'on prenait pour une règle, et celle de la
+     cible gardait même son dégradé de braise — une donnée là où il n'y en a
+     aucune. */
+  .histo__bar--vide { background: var(--c-line); }
 
   /* L'AXE ET LES PLAGES DU BARÈME.
      Huit barres sans échelle ne disent rien : l'animateur commentait des
@@ -909,19 +935,12 @@
   }
   .histo__seuil--mille { background: repeating-linear-gradient(
     to bottom, var(--c-ember-bright) 0 3px, transparent 3px 6px); }
-  .histo__seuil-lbl {
-    position: absolute;
-    top: -14px;
-    left: 2px;
-    font: 500 var(--fs-100) / 1 var(--f-ui);
-    color: var(--c-ink-4);
-    white-space: nowrap;
-  }
-  .histo__seuil--mille .histo__seuil-lbl { color: var(--c-ember-bright); }
-  .histo__cle--hors { opacity: 0.55; }
 
   .histo__cible {
     position: absolute;
+    /* AU-DESSUS DES BARRES : la tranche du mille commence exactement à la cible et
+       recouvrait le trait, qui disparaissait derrière elle. */
+    z-index: 2;
     top: 15px;
     bottom: 0;
     width: 2px;
@@ -929,6 +948,19 @@
     background: var(--c-ember-bright);
     transform: translateX(-1px);
   }
+  /* LA RÉPONSE EXACTE TROUVÉE. Le trait passe au vert — le seul endroit du
+     graphique où la couleur énonce un FAIT (quelqu'un est tombé juste) et non une
+     catégorie. La réponse exacte n'a pas de largeur : elle ne peut pas être une
+     barre, seulement un trait. */
+  .histo__cible--trouvee {
+    background: var(--c-good);
+    /* Le vert doit se LIRE, pas seulement être là : deux pixels coincés entre deux
+       barres de braise passaient inaperçus. Un trait un peu plus large et un halo
+       qui le détache du fond orange — mesuré sur le rendu, pas supposé. */
+    width: 3px;
+    box-shadow: 0 0 0 2px var(--c-good-wash);
+  }
+  .histo__cible--trouvee .histo__cible-val { background: var(--c-good); color: var(--c-ink-on-leaf); }
   .histo__cible-val {
     position: absolute;
     top: -15px;
@@ -963,24 +995,44 @@
   .histo__tick:first-child { transform: none; }
   .histo__tick:last-child { transform: translateX(-100%); }
 
-  .histo__plages-legende {
+  /* LA RÈGLE DES PLAGES — une ligne par palier, à sa place sur l'axe.
+     Les étiquettes vivaient AU-DESSUS du graphique, toutes à la même hauteur : la
+     pastille de la bonne réponse en couvrait une, les autres se touchaient. Une
+     ligne par palier rend la collision impossible — et montre l'emboîtement, que
+     des pastilles côte à côte ne pouvaient pas dire. */
+  .histo__regle {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-2) var(--sp-3);
-    margin: var(--sp-2) 0 0;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: var(--sp-2);
   }
-  .histo__cle {
+  .histo__regle-ligne { position: relative; height: 17px; }
+  .histo__regle-barre {
+    position: absolute;
+    top: 7px;
+    height: 3px;
+    border-radius: var(--r-full);
+    background: var(--c-wood);
+  }
+  .histo__regle-ligne--mille .histo__regle-barre { background: var(--c-ember-bright); }
+  .histo__regle-lbl {
+    position: absolute;
+    top: 0;
     display: inline-flex;
     align-items: baseline;
     gap: var(--sp-2);
-    padding: 1px var(--sp-2);
-    border-radius: var(--r-full);
-    background: var(--c-surface-sunk);
-    font: 500 var(--fs-100) / 1.5 var(--f-ui);
+    padding: 0 var(--sp-2);
+    background: var(--c-surface);
+    font: 500 var(--fs-100) / 1.25 var(--f-ui);
     color: var(--c-ink-2);
+    white-space: nowrap;
   }
-  .histo__cle--mille { background: var(--c-ember-wash); color: var(--c-ink); }
-  .histo__cle-pts { font: 600 var(--fs-100) / 1.5 var(--f-mono); color: var(--c-ink-3); }
+  /* À DROITE de la borne, ou à sa gauche quand la borne touche le bord. Dans les
+     deux cas l'étiquette est CONTRE le seuil qu'elle nomme. */
+  .histo__regle-lbl--droite { transform: none; }
+  .histo__regle-lbl--gauche { transform: translateX(-100%); }
+  .histo__regle-ligne--mille .histo__regle-lbl { color: var(--c-ink); }
+  .histo__regle-pts { font: 600 var(--fs-100) / 1.25 var(--f-mono); color: var(--c-ink-3); }
   .histo__target { margin: 0; font: 400 var(--fs-100) / 1 var(--f-ui); color: var(--c-ink-3); }
 
   .dist__facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }

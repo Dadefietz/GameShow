@@ -27,18 +27,34 @@ export function position(valeur, min, max) {
 
 // Les BORNES DE TRANCHES, telles qu'on les écrit sous l'axe.
 //
-// Neuf bornes pour huit tranches : les afficher toutes rendrait l'axe illisible
-// sur la console comme à l'antenne. On en garde une sur deux — cinq repères, dont
-// les deux extrémités, ce qui suffit à situer n'importe quelle barre.
+// Elles ne sont plus régulières : depuis que les tranches épousent les paliers,
+// leurs bornes SONT celles du barème. Les écrire toutes serait illisible — dix
+// nombres dont quatre se touchent au centre. On garde les DEUX EXTRÉMITÉS, qui
+// donnent l'étendue, et une borne sur deux entre les deux.
 export function bornes(histo, { pas: unSurDeux = 2 } = {}) {
-  if (!histo) return [];
-  const total = histo.counts.length;
-  const out = [];
-  for (let i = 0; i <= total; i += unSurDeux) {
-    const valeur = histo.min + i * histo.pas;
-    out.push({ i, valeur, pct: (i / total) * 100 });
-  }
-  return out;
+  if (!histo || !histo.zones?.length) return [];
+  const toutes = [histo.zones[0].bas, ...histo.zones.map((z) => z.haut)];
+  const garde = toutes.filter((v, i) => i === 0 || i === toutes.length - 1 || i % unSurDeux === 0);
+  return garde.map((valeur, i) => ({ i, valeur, pct: position(valeur, histo.min, histo.max) }));
+}
+
+// LES BARRES, à leur largeur réelle. Une tranche large de trente pour cent de la
+// cible occupe trente pour cent de la cible sur l'axe — c'est tout l'objet du
+// calage sur le barème.
+export function barres(histo) {
+  if (!histo || !histo.zones?.length) return [];
+  const haut = Math.max(1, ...histo.zones.map((z) => z.count), histo.exact || 0);
+  return histo.zones.map((z, i) => ({
+    i,
+    palier: z.palier,
+    cote: z.cote,
+    count: z.count,
+    bas: z.bas,
+    haut: z.haut,
+    gauche: position(z.bas, histo.min, histo.max),
+    largeur: Math.max(0.2, position(z.haut, histo.min, histo.max) - position(z.bas, histo.min, histo.max)),
+    hauteur: Math.round((z.count / haut) * 100),
+  }));
 }
 
 // LES PLAGES DU BARÈME, RAMENÉES À L'ÉCHELLE DESSINÉE.
@@ -47,12 +63,18 @@ export function bornes(histo, { pas: unSurDeux = 2 } = {}) {
 // hors de l'échelle est ÉCARTÉE : dessinée quand même, elle s'écraserait en un
 // trait collé au bord et se lirait comme une plage minuscule au mauvais endroit.
 //
-// LE REMPLISSAGE NE VAUT QUE TANT QU'IL DÉLIMITE QUELQUE CHOSE. Mesuré sur un
-// rendu réel : sur une cible de 100 et des réponses tenant entre 88 et 101, les
-// plages à ±10, ±20 et ±30 % couvrent CHACUNE toute la largeur. Empilées, elles
-// noyaient les barres sous un aplat continu et ne délimitaient plus rien. Au-delà
-// de ce seuil, la plage n'est plus dessinée en zone — seules ses bornes le sont.
-const LARGEUR_MAX_ZONE = 70;
+// UN SEUL FOND, CELUI DU MILLE.
+//
+// Les quatre plages s'emboîtent par construction. Peintes toutes les quatre,
+// leurs opacités s'additionnent et produisent un aplat continu où l'on ne
+// distingue plus ni les plages entre elles, ni les barres au travers — mesuré sur
+// deux rendus successifs, avant et après l'ouverture de l'échelle.
+//
+// Ce que le fond apportait, deux autres choses le disent mieux : les BORNES, qui
+// marquent chaque seuil à sa place, et la RÈGLE sous l'axe, où chaque palier a sa
+// ligne. Il ne reste donc qu'un fond, celui du premier palier — le point de mire.
+// Le graphique redevient ce qu'il doit être : des barres qu'on lit.
+const ZONE_PEINTE = 'mille';
 
 export function plagesVisibles(plages, histo) {
   if (!plages || !histo) return [];
@@ -70,8 +92,8 @@ export function plagesVisibles(plages, histo) {
         points: p.points,
         gauche,
         largeur,
-        // La zone n'est peinte que si elle délimite encore quelque chose.
-        zone: largeur <= LARGEUR_MAX_ZONE,
+        // Le fond n'est peint que pour le point de mire (voir ci-dessus).
+        zone: p.nom === ZONE_PEINTE,
         // LES BORNES, elles, se dessinent toujours — ce sont elles que l'auteur
         // a demandées : « les +/- 2, 10, 20 et 30 % ». Une borne hors de
         // l'échelle n'est pas dessinée : elle mentirait en se collant au bord.
@@ -79,8 +101,24 @@ export function plagesVisibles(plages, histo) {
           dedans(p.bas) ? { cote: 'bas', pct: gauche } : null,
           dedans(p.haut) ? { cote: 'haut', pct: droite } : null,
         ].filter(Boolean),
-        // Une plage rognée par le bord ne doit pas prétendre montrer ses deux
-        // extrémités : l'écran peut le dire au lieu de laisser croire.
+        // L'ÉTIQUETTE SE POSE À LA BORNE, JAMAIS AU MILIEU DE LA BANDE.
+        //
+        // Elle était centrée sur la plage. Sur les paliers larges — ± 20 et ± 30 % —
+        // cela donnait un libellé flottant au milieu d'un long trait, rattaché à
+        // rien : « en l'état ça ne signifie rien », et c'est juste. Un libellé
+        // NOMME UN SEUIL ; il doit donc se tenir contre ce seuil.
+        //
+        // On l'ancre à la borne HAUTE, à sa droite. Quand cette borne touche le
+        // bord droit du cadre — le cas de la plage la plus large, qui définit
+        // l'échelle — l'étiquette bascule à sa GAUCHE : elle reste collée au même
+        // seuil, sans sortir du cadre.
+        ancreLbl: droite,
+        lblVersGauche: droite > 78,
+        droite,
+        // Depuis que l'échelle s'engage à contenir la plage la plus large
+        // (`histogrammeNumerique`, paramètre `marge`), ceci ne devrait plus jamais
+        // être vrai. On le garde comme TÉMOIN : si une plage se retrouvait rognée,
+        // c'est que l'engagement aurait été rompu quelque part.
         rognee: p.bas < min || p.haut > max,
       };
     })

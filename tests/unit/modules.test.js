@@ -210,17 +210,36 @@ describe('estimation', () => {
 
   // L'HISTOGRAMME : spécifié par la maquette A5, jamais construit — le serveur ne
   // calculait même pas les tranches.
-  it('publie un histogramme en 8 tranches, cible repérée', () => {
+  it('publie un histogramme CALÉ SUR LE BARÈME, la réponse exacte à part', () => {
+    // CE CONTRÔLE A CHANGÉ D'OBJET. Il vérifiait huit tranches ÉGALES, dont les
+    // bornes ne tombaient nulle part : une même barre pouvait réunir des joueurs à
+    // 1 000 points et d'autres à 750. Les bornes SONT désormais celles des paliers
+    // — arbitrage de l'auteur : « la largeur de l'intervalle doit coïncider avec
+    // les ± 2 % ». Les tranches sont donc inégales, et c'est le but.
     const rt = round(modules.estimation, ES_Q);
     for (const [i, v] of [80, 90, 95, 100, 105, 110].entries()) {
       rt.answers.set('p' + i, { value: v, at: rt.startedAt });
     }
     const { reveal } = modules.estimation.score(rt);
     const h = reveal.stats.histogramme;
-    expect(h.counts).toHaveLength(8);
-    expect(h.counts.reduce((s, c) => s + c, 0)).toBe(6); // personne n'est perdu
-    expect(h.cibleIndex).toBeGreaterThanOrEqual(0);
-    expect(h.cibleIndex).toBeLessThan(8);
+
+    // Personne n'est perdu : la réponse exacte est comptée À PART, parce qu'elle
+    // est de largeur nulle et se dessine en trait, pas en barre.
+    expect(h.exact, 'la réponse exacte devrait être comptée à part').toBe(1);
+    expect(h.zones.reduce((s, z) => s + z.count, 0) + h.exact).toBe(6);
+
+    // Chaque zone porte SON palier, et ses bornes sont celles du barème.
+    for (const z of h.zones) {
+      expect(['hors', 'loin', 'correct', 'proche', 'mille']).toContain(z.palier);
+      expect(['g', 'd']).toContain(z.cote);
+      expect(z.haut, 'une zone de largeur nulle n\'a rien à dessiner').toBeGreaterThan(z.bas);
+    }
+    // Les zones se suivent sans trou ni recouvrement, de min à max.
+    expect(h.zones[0].bas).toBeCloseTo(h.min, 6);
+    expect(h.zones[h.zones.length - 1].haut).toBeCloseTo(h.max, 6);
+    for (let i = 1; i < h.zones.length; i += 1) {
+      expect(h.zones[i].bas, 'trou ou recouvrement entre deux zones').toBeCloseTo(h.zones[i - 1].haut, 6);
+    }
   });
 
   it('une valeur aberrante est ramenée à l\'extrémité, sans écraser l\'échelle', () => {
@@ -234,9 +253,10 @@ describe('estimation', () => {
 
     // L'échelle reste celle du groupe : elle ne part pas jusqu'au milliard.
     expect(h.max).toBeLessThan(1000);
-    // Et l'aberrante n'est pas perdue : elle est comptée dans la dernière tranche.
-    expect(h.counts.reduce((s, c) => s + c, 0)).toBe(6);
-    expect(h.counts[7]).toBeGreaterThanOrEqual(1);
+    // Et l'aberrante n'est pas perdue : elle est ramenée dans la zone d'extrémité.
+    expect(h.zones.reduce((s, z) => s + z.count, 0) + h.exact).toBe(6);
+    expect(h.zones[h.zones.length - 1].count,
+      'l\'aberrante a disparu du graphique').toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -125,14 +125,22 @@ function palierEstimation(valeur, cible, nature) {
 // vérité par rapport au groupe.
 const TRANCHES = 8;
 
-export function histogrammeNumerique(values, cible, tranches = TRANCHES) {
-  if (!values.length) return null;
+// `marge` : demi-largeur MINIMALE que l'échelle doit contenir de part et d'autre
+// de la cible. C'est par elle que les plages du barème entrent toujours dans le
+// cadre — voir l'appel dans `estimation.score`.
+// L'ÉTENDUE UTILE, aberrantes écartées.
+//
+// Bornes par ÉCART INTERQUARTILE plutôt que par centiles : avec six réponses,
+// écarter « les 10 % du haut » n'écarte personne, et l'aberrante reste dans
+// l'échelle. La règle des quartiles, elle, tient sur un petit effectif — ce qui
+// est le cas courant d'une soirée autour du feu.
+//
+// Les aberrantes ne DISPARAISSENT pas pour autant : elles sont ramenées dans la
+// tranche d'extrémité, donc toujours comptées. Sans cette règle, un plaisantin
+// qui tape un milliard étire l'échelle jusqu'au milliard et écrase tout le monde
+// dans un seul pixel.
+function etendueUtile(values) {
   const tries = [...values].sort((a, b) => a - b);
-
-  // Bornes par ÉCART INTERQUARTILE plutôt que par centiles : avec six réponses,
-  // écarter « les 10 % du haut » n'écarte personne, et l'aberrante reste dans
-  // l'échelle. La règle des quartiles, elle, tient sur un petit effectif — ce qui
-  // est le cas courant d'une soirée autour du feu.
   let bas = tries[0];
   let haut = tries[tries.length - 1];
   if (tries.length >= 4) {
@@ -140,14 +148,32 @@ export function histogrammeNumerique(values, cible, tranches = TRANCHES) {
     const q1 = quartile(0.25);
     const q3 = quartile(0.75);
     const interquartile = q3 - q1;
-    const limiteBasse = q1 - 1.5 * interquartile;
-    const limiteHaute = q3 + 1.5 * interquartile;
-    const dedans = tries.filter((v) => v >= limiteBasse && v <= limiteHaute);
+    const dedans = tries.filter((v) => v >= q1 - 1.5 * interquartile && v <= q3 + 1.5 * interquartile);
     if (dedans.length) { bas = dedans[0]; haut = dedans[dedans.length - 1]; }
   }
+  return { bas, haut };
+}
 
-  let min = Math.min(bas, cible);
-  let max = Math.max(haut, cible);
+export function histogrammeNumerique(values, cible, tranches = TRANCHES, marge = 0) {
+  if (!values.length) return null;
+  const { bas, haut } = etendueUtile(values);
+
+  // L'ÉCHELLE S'ENGAGE À CONTENIR LE BARÈME (arbitrage de l'auteur, 2026-08-21).
+  //
+  // CE QUI ÉTAIT FAUX. L'échelle était tirée des seules RÉPONSES, quand les plages
+  // sont une propriété de la QUESTION : rien ne garantissait que les secondes
+  // tiennent dans la première. Mesuré sur une cible de 1 235 : quand toutes les
+  // réponses tombaient au-dessus, seules les bornes HAUTES entraient dans le
+  // cadre — et l'écran écrivait « ± 10 % » à un endroit qui n'était que « +10 % ».
+  // Le miroir se produisait quand tout le monde répondait en dessous. Et sur une
+  // étendue serrée, la plage la plus large ne se dessinait PAS DU TOUT, tout en
+  // restant annoncée dans la légende.
+  //
+  // Le barème est la grille de lecture, les réponses n'en sont que le contenu :
+  // c'est donc à l'échelle de s'ouvrir. Le coût est assumé — un groupe très
+  // resserré occupe moins de largeur qu'avant.
+  let min = Math.min(bas, cible - marge);
+  let max = Math.max(haut, cible + marge);
   if (min === max) { min -= 1; max += 1; } // tout le monde d'accord : une échelle quand même
   const pas = (max - min) / tranches;
 
@@ -156,6 +182,74 @@ export function histogrammeNumerique(values, cible, tranches = TRANCHES) {
   for (const v of values) counts[indice(v)] += 1;
 
   return { min, max, pas, counts, cibleIndex: indice(cible) };
+}
+
+// L'HISTOGRAMME CALÉ SUR LE BARÈME.
+//
+// CE QUI N'ALLAIT PAS. Les huit tranches étaient des parts ÉGALES de l'étendue :
+// leurs bornes ne tombaient nulle part en particulier. Une même barre pouvait
+// donc réunir des joueurs qui avaient marqué 1 000 points et d'autres qui n'en
+// avaient marqué que 750 — la forme montrait la dispersion, jamais le barème.
+//
+// LA RÈGLE, ARBITRÉE PAR L'AUTEUR : « la largeur de l'intervalle doit coïncider
+// avec les ± 2 % ; idem pour les autres ». Les bornes de tranches SONT désormais
+// celles des paliers. Chaque barre couvre donc exactement un demi-palier, et sa
+// largeur à l'écran se lit comme la plage qu'elle représente.
+//
+// DIX ZONES : hors barème à gauche, −30, −20, −10, −2, puis le trait de la
+// réponse exacte, puis +2, +10, +20, +30, hors barème à droite. Les tranches sont
+// INÉGALES par construction — c'est le but.
+//
+// LA RÉPONSE EXACTE N'EST PAS UNE ZONE : elle est de largeur nulle. Elle est
+// comptée à part et se dessine en TRAIT, vert dès que quelqu'un l'a trouvée.
+export function histogrammeBareme(values, cible, plages, marge) {
+  if (!values.length) return null;
+
+  // L'échelle : l'étendue UTILE des réponses — aberrantes écartées, voir
+  // `etendueUtile` — ouverte au moins jusqu'au dernier palier (arbitrage
+  // « étendre »). Les zones hors barème occupent ce qui dépasse.
+  const utile = etendueUtile(values);
+  const min = Math.min(utile.bas, cible - marge);
+  const max = Math.max(utile.haut, cible + marge);
+
+  // Les bornes, du plus large au plus étroit, de part et d'autre de la cible.
+  const demi = plages.map((p) => p.haut - cible).sort((a, b) => b - a);
+  const zones = [];
+  const pousser = (bas, haut, palier, cote) => {
+    if (haut - bas > 0) zones.push({ bas, haut, palier, cote, count: 0 });
+  };
+  // Côté gauche, du bord vers la cible.
+  pousser(min, cible - demi[0], 'hors', 'g');
+  for (let i = 0; i < demi.length; i += 1) {
+    const bas = cible - demi[i];
+    const haut = i + 1 < demi.length ? cible - demi[i + 1] : cible;
+    pousser(bas, haut, plages[plages.length - 1 - i].nom, 'g');
+  }
+  // Côté droit, de la cible vers le bord.
+  for (let i = demi.length - 1; i >= 0; i -= 1) {
+    const bas = i + 1 < demi.length ? cible + demi[i + 1] : cible;
+    pousser(bas, cible + demi[i], plages[plages.length - 1 - i].nom, 'd');
+  }
+  pousser(cible + demi[0], max, 'hors', 'd');
+
+  // Le comptage. La réponse EXACTE ne tombe dans aucune zone : elle est le trait.
+  let exact = 0;
+  for (const v of values) {
+    if (v === cible) { exact += 1; continue; }
+    // À gauche on prend la zone qui contient v ; à droite aussi. Les bornes se
+    // touchent : on attribue la valeur à la zone dont elle ne dépasse pas le haut,
+    // en commençant par la gauche. Une valeur exactement sur une borne appartient
+    // au palier le PLUS GÉNÉREUX — c'est ce que le barème lui verse.
+    // RAMENÉE DANS LE CADRE, jamais perdue : une aberrante écartée de l'échelle
+    // reste une estimation, et elle est comptée dans la zone d'extrémité.
+    const w = Math.min(max, Math.max(min, v));
+    const cote = v < cible ? 'g' : 'd';
+    const candidates = zones.filter((x) => x.cote === cote);
+    const z = candidates.find((x) => w >= x.bas && w <= x.haut)
+      || (cote === 'g' ? candidates[0] : candidates[candidates.length - 1]);
+    if (z) z.count += 1;
+  }
+  return { min, max, zones, exact };
 }
 
 // LES PLAGES DU BARÈME, EN VALEURS ABSOLUES, POUR LES DEUX HISTOGRAMMES.
@@ -336,6 +430,10 @@ export const modules = {
         const r = results.get(pid);
         if (r) r.base += BONUS_PLUS_PROCHE;
       }
+      // Les plages sont calculées AVANT l'histogramme : c'est la plus large qui
+      // fixe l'ouverture minimale de l'échelle.
+      const plages = plagesEstimation(rt.target, nature);
+      const margeBareme = Math.max(0, ...plages.map((p) => p.haut - rt.target));
       values.sort((a, b) => a - b);
       const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
       const median = values.length ? values[Math.floor(values.length / 2)] : null;
@@ -346,10 +444,12 @@ export const modules = {
         median,
         closest,
         target: rt.target,
-        histogramme: histogrammeNumerique(values, rt.target),
+        // L'histogramme est CALÉ SUR LE BARÈME : les bornes de tranches sont
+        // celles des paliers, et la réponse exacte est comptée à part.
+        histogramme: histogrammeBareme(values, rt.target, plages, margeBareme),
         // Les plages du barème, pour que les deux histogrammes portent un axe qui
         // dit quelque chose (voir `plagesEstimation`).
-        plages: plagesEstimation(rt.target, nature),
+        plages,
         nature,
       };
       // `prives` : ce qui ne doit JAMAIS partir dans `reveal`, lequel est diffusé

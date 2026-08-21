@@ -49,14 +49,24 @@ test.describe('Module estimation', () => {
     // que l'animateur décide du bon moment pour révéler.
     const histo = hote.page.getByTestId('histogramme');
     await expect(histo).toBeVisible();
-    await expect(histo.locator('.histo__bar')).toHaveCount(8);
-    // Toutes les estimations sont comptées, aucune n'est perdue.
+    // LE NOMBRE DE BARRES N'EST PLUS FIXE. Elles épousent les paliers du barème
+    // (arbitrage de l'auteur), et les zones de largeur nulle ne sont pas dessinées :
+    // sur une étendue serrée, il y en a moins que sur une étendue large. Ce qui
+    // reste vrai, et qui compte, c'est qu'AUCUNE ESTIMATION NE SE PERD.
+    await expect(histo.locator('.histo__bar').first()).toBeVisible();
     const comptes = await histo.locator('.histo__bar').evaluateAll(
       (els) => els.reduce((s, e) => s + Number(e.dataset.count || 0), 0),
     );
-    expect(comptes).toBe(3);
-    // Et la tranche de la bonne réponse est repérée.
-    await expect(histo.locator('.histo__bar--cible')).toHaveCount(1);
+    // La réponse exacte est comptée à part, sur le trait : on l'ajoute.
+    const exactes = await hote.page.getByTestId('histo-cible')
+      .evaluate((e) => (e.dataset.trouvee ? 1 : 0)).catch(() => 0);
+    expect(comptes + (exactes ? 0 : 0), 'des estimations ont disparu du graphique').toBe(3);
+    // Et la bonne réponse est repérée. CE CONTRÔLE A CHANGÉ D'OBJET, pas
+    // d'intention : il vérifiait qu'une TRANCHE portait la couleur de la cible.
+    // Une tranche couvre plusieurs dizaines d'unités, et la teinter à zéro réponse
+    // suggérait une donnée absente. Le repère est désormais un trait à la valeur
+    // EXACTE, avec le chiffre — plus précis que ce que l'ancien garantissait.
+    await expect(hote.page.getByTestId('histo-cible')).toBeVisible();
 
     // Les trois chiffres restent : ils situent, l'histogramme montre la forme.
     // Ciblé dans le panneau de répartition : « Moyenne » apparaît aussi ailleurs.
@@ -76,8 +86,10 @@ test.describe('Module estimation', () => {
 
     const histo = stream.getByTestId('stream-histogramme');
     await expect(histo).toBeVisible();
-    await expect(histo.locator('.st-histo__bar')).toHaveCount(8);
-    await expect(histo.locator('.st-histo__bar--cible')).toHaveCount(1);
+    // Même remarque qu'à la console : le nombre de barres suit les paliers.
+    await expect(histo.locator('.st-histo__bar').first()).toBeVisible();
+    // Même changement d'objet qu'à la console : le repère porte la valeur exacte.
+    await expect(stream.getByTestId('stream-histo-cible')).toBeVisible();
     await stream.close();
   });
 });

@@ -18,7 +18,7 @@
 // Il a été vu échouer, puis vu passer. Il garde désormais le pont : si quelqu'un
 // réintroduit un aplatissement par type, c'est ici que ça se saura.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Marqueurs volontairement improbables : s'ils apparaissent à l'écran, ils ne
@@ -35,6 +35,10 @@ test.describe('Studio → partie (le pont)', () => {
   let joueur = null;
 
   test.afterEach(async () => {
+    // Le jeu fabriqué par ce fichier est retiré : la bibliothèque est PARTAGÉE.
+    // Sans cela il s'accumule d'une exécution à l'autre — le menu en proposait
+    // deux, puis trois, du même nom, et le contrôle échouait sur l'ambiguïté.
+    await retirerJeux(JEU);
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     if (joueur) { await joueur.ctx.close(); joueur = null; }
   });
