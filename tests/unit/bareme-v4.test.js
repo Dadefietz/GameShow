@@ -15,6 +15,14 @@
 import { describe, it, expect } from 'vitest';
 import { modules } from '../../src/server/modules.js';
 
+// LE TOTAL D'UNE MANCHE, recomposé à partir de ses parties.
+//
+// `base` ne porte plus que les points du PALIER : les bonus de l'estimation
+// voyagent à part, pour que l'écran du joueur puisse montrer le calcul au lieu
+// d'afficher une somme opaque. Ces contrôles lisaient `base` comme le total — ils
+// disent désormais explicitement ce qu'ils additionnent.
+const total = (r) => (r.base || 0) + (r.bonusExact || 0) + (r.bonusProche || 0) + (r.speed || 0);
+
 function round(mod, q) {
   const rt = mod.buildRound(q);
   rt.startedAt = 1_000;
@@ -82,8 +90,12 @@ describe('l\'estimation (action 5)', () => {
     const { results } = modules.estimation.score(rt);
     // Les deux sont à 40 d'écart : hors plage (40 %), donc zéro de palier, mais
     // tous deux les plus proches.
-    expect(results.get('dessous').base).toBe(400);
-    expect(results.get('dessus').base).toBe(400);
+    expect(total(results.get('dessous'))).toBe(400);
+    expect(total(results.get('dessus'))).toBe(400);
+    // Et c'est bien un BONUS, pas un palier : la distinction est ce que l'écran
+    // du joueur montre désormais.
+    expect(results.get('dessous').bonusProche).toBe(400);
+    expect(results.get('dessous').base).toBe(0);
   });
 
   it('le plus proche marque même si personne n\'est dans une plage', () => {
@@ -94,8 +106,8 @@ describe('l\'estimation (action 5)', () => {
     rt.answers.set('tres-loin', { value: 900, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
     expect(results.get('loin').palier).toBe('hors');
-    expect(results.get('loin').base, 'le plus proche doit marquer malgré tout').toBe(400);
-    expect(results.get('tres-loin').base).toBe(0);
+    expect(total(results.get('loin')), 'le plus proche doit marquer malgré tout').toBe(400);
+    expect(total(results.get('tres-loin'))).toBe(0);
   });
 
   it('les bonus se cumulent, sans plafond', () => {
@@ -105,8 +117,14 @@ describe('l\'estimation (action 5)', () => {
     const rt = round(modules.estimation, CIBLE);
     rt.answers.set('parfait', { value: 100, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    expect(results.get('parfait').base).toBe(1600);
-    expect(results.get('parfait').exact).toBe(true);
+    const r = results.get('parfait');
+    expect(total(r)).toBe(1600);
+    expect(r.exact).toBe(true);
+    // LE DÉTAIL, ET NON LA SOMME. Tout tombait dans `base` : le joueur lisait
+    // « 1 600 » sans savoir d'où venaient les six cents points de plus, et le
+    // barème qu'on venait de lui expliquer devenait invérifiable.
+    expect({ palier: r.base, exactitude: r.bonusExact, plusProche: r.bonusProche })
+      .toEqual({ palier: 1000, exactitude: 200, plusProche: 400 });
   });
 
   // DÉCISION 5.12 — LES ÉCHELLES EXTRÊMES. Un barème en pourcentage se comporte
@@ -186,11 +204,7 @@ describe('les maximums par module, consignés', () => {
     e.answers.set('x', { value: 100, at: e.startedAt });
     const re = modules.estimation.score(e).results.get('x');
 
-    const maxima = {
-      quiz: rq.base + rq.speed,
-      vrai_faux: rt.base + rt.speed,
-      estimation: re.base + re.speed,
-    };
+    const maxima = { quiz: total(rq), vrai_faux: total(rt), estimation: total(re) };
     console.log(`  maximums par manche : ${JSON.stringify(maxima)}`);
     expect(maxima).toEqual({ quiz: 950, vrai_faux: 950, estimation: 1600 });
   });

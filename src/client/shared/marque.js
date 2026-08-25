@@ -20,7 +20,7 @@
 // lire ce fichier : ils sont servis avant que le code ne s'exécute. Un contrôle
 // automatique vérifie donc qu'ils restent cohérents avec cette valeur.
 
-export const NOM_DU_JEU = 'Project Game Show';
+export const NOM_DU_JEU = 'Le cercle du feu';
 
 // Nom provisoire, en attente du choix définitif (« Game Show », « Fire Game
 // Show », « Le Feu de Camp » ont été évoqués). Tant qu'il est vrai, le contrôle

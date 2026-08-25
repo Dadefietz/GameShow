@@ -89,7 +89,17 @@ export class RoomManager {
 
   addPlayer(room, pseudo) {
     const id = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10)();
-    const player = { id, pseudo, score: 0, streak: 0, connected: false, socketId: null };
+    // `joinedAt` : l'instant de l'arrivée dans le salon, écrit UNE FOIS.
+    //
+    // Comparé à `rt.startedAt`, il sépare deux situations que le produit
+    // confondait : celui qui a rejoint APRÈS le lancement d'une manche, et celui
+    // qui était là mais n'a pas répondu à temps. Les deux lisaient « Tu es arrivé
+    // après le lancement » — faux pour le second, qui regardait la question depuis
+    // le début.
+    //
+    // Un nombre par joueur, plutôt que l'ensemble des présents recopié à chaque
+    // manche : le salon accepte jusqu'à mille joueurs.
+    const player = { id, pseudo, score: 0, streak: 0, connected: false, socketId: null, joinedAt: Date.now() };
     room.players.set(id, player);
     this.touch(room);
     return player;

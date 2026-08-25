@@ -15,7 +15,7 @@ import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-e
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
-import { useVoixDePlateau } from '../shared/voix-hooks.js';
+import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -485,6 +485,11 @@ function QuestionStage({ g }) {
 // ============================================================
 function PodiumStage({ g }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard || []).slice(0, 3);
+  // LA VOIX DU PODIUM. `stream.podium` — « le SEUL moment où le stream nomme
+  // quelqu'un, pour célébrer » — vivait dans le registre avec ses quatre phrases
+  // sans qu'aucun code ne l'atteigne. Le moment le plus chargé de la soirée était
+  // muet.
+  const phrasePodium = usePhraseDeManche('stream.podium', 'podium');
   const scored = rows.filter((r) => (r.score || 0) > 0);
   const prog = g.room?.progression;
 
@@ -528,6 +533,9 @@ function PodiumStage({ g }) {
       </div>
 
       <h2 className="st-title">Le podium</h2>
+      {phrasePodium ? (
+        <p className="st-voix" data-testid="stream-voix-podium">{phrasePodium}</p>
+      ) : null}
 
       <div className="st-podium" data-bind="podium">
         {slots.map(({ entry, place, rank }) => (

@@ -85,12 +85,21 @@ test.describe('Reconnexion en cours de partie', () => {
     // précédente. Sans identité de manche, l'écran affichait les points, bonus et
     // malus d'avant jusqu'à l'arrivée du nouveau résultat : les « points
     // fantômes ». C'est cette garantie que ce test protège.
-    // LE TITRE, ET NON « un texte quelque part ». `getByText('sans toi')` tombait
-    // une fois sur trois sur une violation de mode strict : la voix du jeu tire au
-    // sort sa phrase, et l'une de celles de ce moment dit « Celle-là s'est jouée
-    // sans toi ». Deux éléments correspondaient alors, et le contrôle échouait
-    // sur le hasard du tirage — jamais sur ce qu'il vérifie.
-    await expect(joueur.page.getByRole('heading', { name: /sans toi/i })).toBeVisible();
+    // CE CONTRÔLE A CHANGÉ DE TITRE ATTENDU, et c'est le produit qui a changé.
+    //
+    // Il exigeait « Manche jouée sans toi ». Or ce joueur ÉTAIT LÀ au lancement de
+    // la manche 2 : il l'a vue commencer, il n'a simplement pas répondu. Lui dire
+    // qu'il est arrivé après le lancement était faux, et l'écran le distingue
+    // désormais de l'arrivant tardif (voir `deux-absences.spec.js`).
+    //
+    // L'INTENTION EST INTACTE : on lui DIT qu'il n'a pas de relevé pour cette
+    // manche, au lieu de lui remontrer celui de la précédente. Seul le mot juste a
+    // changé.
+    //
+    // (Le titre, et non « un texte quelque part » : `getByText` tombait une fois
+    // sur trois sur une violation de mode strict, la voix tirant au sort une
+    // phrase qui contient les mêmes mots.)
+    await expect(joueur.page.getByRole('heading', { name: /devancé/i })).toBeVisible();
     await expect(joueur.page.getByTestId('points-gained')).toHaveCount(0);
     await expect(joueur.page.getByTestId('points-base')).toHaveCount(0);
 

@@ -409,8 +409,19 @@ export const modules = {
         const ecart = Math.abs(a.value - rt.target);
         // DÉCISION 5.5 — l'exactitude s'ajoute AUX points de la plage.
         const exact = ecart === 0;
+        // BASE ET BONUS SÉPARÉS, et non plus additionnés ici.
+        //
+        // Tout tombait dans `base` : l'écran du joueur affichait donc « Base 1 600 »
+        // sans que rien ne dise d'où venaient les six cents points de plus. Le
+        // total était juste, le calcul invisible — et le barème que le jeu vient
+        // d'expliquer au joueur devenait invérifiable.
+        //
+        // Les composantes voyagent séparément ; c'est le moteur qui fait la somme,
+        // à un seul endroit.
         results.set(pid, {
-          base: palier.points + (exact ? BONUS_EXACTITUDE : 0),
+          base: palier.points,
+          bonusExact: exact ? BONUS_EXACTITUDE : 0,
+          bonusProche: 0,
           speed: 0,
           correct: nature === 'annee' ? palier.ecartMax <= 2 : palier.ecartMax <= 0.10,
           palier: palier.nom, // sert à l'affichage et aux messages (action 7)
@@ -428,7 +439,7 @@ export const modules = {
       // quiz plafonne à 950. Écart accepté par l'auteur en connaissance de cause.
       for (const pid of plusProches) {
         const r = results.get(pid);
-        if (r) r.base += BONUS_PLUS_PROCHE;
+        if (r) r.bonusProche = BONUS_PLUS_PROCHE;
       }
       // Les plages sont calculées AVANT l'histogramme : c'est la plus large qui
       // fixe l'ouverture minimale de l'échelle.

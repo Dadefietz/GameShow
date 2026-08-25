@@ -263,6 +263,10 @@ export function reveal(io, room) {
   for (const [pid, p] of room.players) {
     const r = results.get(pid);
     const base = r ? r.base : 0;
+    // Les bonus de l'estimation voyagent à part pour que l'écran du joueur puisse
+    // MONTRER le calcul. La somme se fait ici, et nulle part ailleurs.
+    const bonusExact = r ? r.bonusExact || 0 : 0;
+    const bonusProche = r ? r.bonusProche || 0 : 0;
     let speed = r ? r.speed || 0 : 0;
     if (noté) {
       if (r && r.correct === true) {
@@ -274,10 +278,10 @@ export function reveal(io, room) {
         p.streak = 0;
       }
     }
-    const delta = base + speed;
+    const delta = base + bonusExact + bonusProche + speed;
     p.score = Math.max(0, p.score + delta);
     perPlayer.set(pid, {
-      base, speed, delta, streak: p.streak, palier: r ? r.palier : null,
+      base, bonusExact, bonusProche, speed, delta, streak: p.streak, palier: r ? r.palier : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -319,19 +323,25 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
       score: p.score,
       delta: d.delta,
       base: d.base,
+      bonusExact: d.bonusExact,
+      bonusProche: d.bonusProche,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,
       // Palier de précision atteint (estimation seulement) : porte l'affichage
-      // et, plus tard, le message adapté à la justesse (action 7).
+      // et le message adapté à la justesse (action 7).
       palier: d.palier,
+      // LA RÉPONSE EXACTE, distinguée du palier des 2 %. Elle vaut 200 points de
+      // plus (décision 5.5) et n'a rien de commun avec « à deux pour cent près » :
+      // l'écran lui doit ses propres mots.
+      exact: d.exact === true,
       placesDelta,
     };
     // Mémorisé pour les seuls participants : un absent n'a pas de résultat à

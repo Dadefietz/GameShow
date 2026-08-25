@@ -42,7 +42,8 @@ test.describe('L\'estimation du chantier v4', () => {
   test.afterEach(async () => {
     // Les jeux fabriqués par ce fichier sont retirés : la bibliothèque est
     // PARTAGÉE, et dix contrôles lancent « le premier module de la liste ».
-    await retirerJeux('Épreuve d\'histogramme', 'Épreuve de verdict', 'Épreuve de poignée');
+    await retirerJeux('Épreuve d\'histogramme', 'Épreuve de verdict', 'Épreuve de poignée',
+      'Épreuve de détail');
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     for (const j of joueurs.splice(0)) await j.ctx.close();
   });
@@ -381,5 +382,76 @@ test.describe('L\'estimation du chantier v4', () => {
     const noms = await panneau.locator('.proches__name').allInnerTexts();
     console.log(`  déplié : ${noms.join(' · ')}`);
     expect(noms.sort()).toEqual([...PSEUDOS].sort());
+  });
+
+  test('le joueur voit le DÉTAIL de son calcul, pas seulement le total', async ({ browser, page }) => {
+    // CE QUI A ÉTÉ RAPPORTÉ : « le calcul total est bon mais la différence entre
+    // base et bonus ne s'affiche pas. Le total est affiché dans "Base" et le bonus
+    // y est directement intégré, alors qu'on doit voir le détail du calcul. »
+    //
+    // C'était exact, et la cause était au serveur : `base` accumulait les points
+    // du palier PUIS le bonus d'exactitude PUIS celui du plus proche. L'écran
+    // affichait donc « 1 600 » en face du mot « Base », sans que rien ne dise d'où
+    // venaient les six cents points de plus — et le barème que le jeu venait
+    // d'expliquer au joueur devenait invérifiable.
+    //
+    // On fabrique le cas le plus complet : une réponse EXACTE, qui est aussi la
+    // plus proche. Les trois composantes sont alors non nulles en même temps.
+    const JEU = 'Épreuve de détail';
+    const CIBLE = 100;
+    await page.goto('/studio');
+    await page.getByLabel('Gestion des modules')
+      .getByRole('button', { name: 'Nouveau module' }).click();
+    const editeur = page.getByRole('complementary');
+    await expect(editeur).toBeVisible();
+    await editeur.getByLabel('Nom').fill(JEU);
+    await editeur.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
+    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
+    await editeur.getByPlaceholder('Rédige la question').fill('Combien de braises exactement ?');
+    await editeur.getByLabel('Cible').fill(String(CIBLE));
+    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
+    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+
+    hote = await openHost(browser);
+    for (const p of ['Pile', 'Loin']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
+    await expect(hote.page.getByTestId('player-count')).toHaveText('2');
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await expect(joueurs[0].page.getByLabel('Ta réponse')).toBeVisible({ timeout: 15_000 });
+    await repondre(joueurs[0], CIBLE);        // exact ET le plus proche
+    await repondre(joueurs[1], CIBLE * 8);    // hors de tout
+    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
+    await j.waitForTimeout(1200); // l'animation du score
+
+    const lire = async (id) => {
+      const n = await j.getByTestId(id).count();
+      if (!n) return null;
+      return Number((await j.getByTestId(id).innerText()).replace(/[^\d-]/g, ''));
+    };
+    const palier = await lire('points-base');
+    const exactitude = await lire('points-bonus-exact');
+    const proche = await lire('points-bonus-proche');
+    const gagne = await lire('points-gained');
+    console.log(`  palier ${palier} · exactitude ${exactitude} · plus proche ${proche} · total ${gagne}`);
+
+    // 1. LES TROIS COMPOSANTES SONT VISIBLES, chacune séparément. C'est tout
+    //    l'objet : avant, seule la première existait et portait la somme.
+    expect(palier, 'le palier n\'est pas affiché').toBe(1000);
+    expect(exactitude, 'le bonus d\'exactitude n\'est pas affiché à part').toBe(200);
+    expect(proche, 'le bonus du plus proche n\'est pas affiché à part').toBe(400);
+
+    // 2. ET LEUR SOMME EST LE TOTAL ANNONCÉ. Séparer les lignes ne doit rien
+    //    changer au score : c'est la moitié qui protège contre une régression de
+    //    barème introduite en cherchant à mieux l'expliquer.
+    expect(palier + exactitude + proche,
+      'le détail ne redonne pas le total affiché').toBe(gagne);
+    expect(gagne, 'le maximum d\'une estimation a changé').toBe(1600);
+
+    // 3. LE LIBELLÉ dit « Palier » sur une estimation, pas « Base » : il n'y a pas
+    //    de « base » dans ce jeu, il y a des paliers de précision.
+    await expect(j.getByText('Palier', { exact: true })).toBeVisible();
   });
 });

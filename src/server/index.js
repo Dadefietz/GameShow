@@ -355,6 +355,20 @@ io.on('connection', (socket) => {
       // l'instant d'avant. Mesuré, puis corrigé ici.
       monChoix: socket.data.role === 'player' && socket.data.sub
         ? (cur.answers.get(socket.data.sub)?.value ?? null) : null,
+      // PRÉSENT AU LANCEMENT ? La diffusion à tout le salon ne peut pas porter une
+      // information PAR JOUEUR : elle ne part qu'à ceux qui sont déjà là. C'est
+      // donc ce rejeu-ci — envoyé à une seule liaison — qui la porte, et lui seul
+      // peut dire `false`. Côté écran, l'absence du champ vaut « présent », ce qui
+      // est exact : on ne reçoit la diffusion que si l'on était dans le salon.
+      //
+      // La borne est le DÉCLENCHEMENT DE LA QUESTION : c'est lui qui sépare avoir
+      // vu la question depuis le début de ne pas l'avoir vue commencer.
+      presentAuLancement: (() => {
+        if (socket.data.role !== 'player' || !socket.data.sub) return true;
+        const moi = room.players.get(socket.data.sub);
+        if (!moi || moi.joinedAt == null || cur.startedAt == null) return true;
+        return moi.joinedAt <= cur.startedAt;
+      })(),
     });
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur

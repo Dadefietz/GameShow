@@ -14,6 +14,22 @@ import { MODULE_TYPES } from '../../src/server/modules.js';
 
 beforeEach(() => reinitialiserVoix());
 
+// LES MOMENTS VOLONTAIREMENT MUETS. Vide : chaque moment déclaré doit être atteint
+// par au moins un chemin de code. Cette liste existe pour qu'un moment laissé de
+// côté soit une DÉCISION consignée ici, jamais un oubli — c'est ainsi que huit
+// d'entre eux ont dormi des mois.
+const MUETS_ASSUMES = [
+  // `reponse.envoyee` — « la réponse est enregistrée, la manche n'est pas révélée ».
+  //
+  // L'auteur a demandé de tout brancher « sauf les places, les réponses envoyées ».
+  // Ses six phrases sont pourtant CONSERVÉES dans le fichier corrigé. La
+  // contradiction est laissée telle quelle, en pleine lumière, plutôt que
+  // tranchée à sa place : soit on branche le moment sur l'écran de question après
+  // envoi, soit on retire ses six phrases. En attendant, il est le seul moment du
+  // registre que personne ne verra — et c'est écrit ici, pas oublié.
+  'reponse.envoyee',
+];
+
 describe('convention de la voix — contrôle bloquant', () => {
   it('chaque moment déclaré a au moins une phrase', () => {
     for (const [id, m] of Object.entries(MOMENTS)) {
@@ -89,6 +105,33 @@ describe('convention de la voix — contrôle bloquant', () => {
     }
   });
 
+  it('CHAQUE MOMENT DÉCLARÉ EST ATTEIGNABLE PAR LE CODE', () => {
+    // LE GARDE-FOU QUI MANQUAIT, ET CE QU'IL A COÛTÉ DE NE PAS L'AVOIR.
+    //
+    // Le contrôle voisin vérifie qu'un moment CITÉ existe. Personne ne vérifiait
+    // l'inverse : qu'un moment déclaré soit atteint. Huit d'entre eux ne l'étaient
+    // pas — `reponse.envoyee`, `temps.ecoule`, les deux `places.*`, les trois
+    // `fin.*` et `stream.podium` — soit trente-six phrases écrites, relues,
+    // listées à l'auteur, et que personne n'a jamais vues à l'écran. L'écran de
+    // fin de partie et le podium du stream, les deux moments les plus chargés de
+    // la soirée, étaient muets.
+    //
+    // Ce contrôle lit les fichiers de surface — JAMAIS le registre lui-même, où
+    // tous les identifiants figurent par construction. C'est l'erreur qui m'avait
+    // fait conclure « tout est branché » alors que rien ne l'était.
+    const surfaces = ['play/PlayApp.jsx', 'host/HostApp.jsx', 'overlay/OverlayApp.jsx', 'shared/voix-hooks.js']
+      .map((f) => fs.readFileSync('src/client/' + f, 'utf8')).join('\n');
+    const parPrefixe = surfaces.includes('`estimation.${');
+    const muets = [];
+    for (const id of Object.keys(MOMENTS)) {
+      const direct = surfaces.includes(`'${id}'`);
+      const prefixe = parPrefixe && id.startsWith('estimation.');
+      const plateau = PRIORITE_PLATEAU.includes(id);
+      if (!direct && !prefixe && !plateau) muets.push(id);
+    }
+    expect(muets, `moment(s) sans aucun chemin de code : ${muets.join(', ')}`).toEqual(MUETS_ASSUMES);
+  });
+
   it('l\'ordre de priorité du plateau ne cite que des moments existants', () => {
     for (const id of PRIORITE_PLATEAU) {
       expect(MOMENTS[id], `« ${id} » cité en priorité mais non déclaré`).toBeDefined();
@@ -157,9 +200,24 @@ describe('le plateau ne parle que sur le remarquable', () => {
   });
 
   it('lit la dispersion des estimations', () => {
+    // LE PLATEAU NE S'ÉMEUT PLUS D'UNE APPROCHE, MAIS D'UNE RÉPONSE EXACTE.
+    // Arbitrage de l'auteur : le seuil des 2 % a été remplacé par « une seule
+    // personne a trouvé la valeur exacte ». À deux pour cent près sans être
+    // exact, le plateau se tait désormais — c'est le premier cas ci-dessous, qui
+    // retombe donc sur la justesse du GROUPE.
     expect(momentDePlateau('estimation', {
       kind: 'numeric', total: 6, target: 100, avg: 103, closest: 100,
-    })).toBe('stream.estim-quelquun-proche');
+    })).toBe('stream.estim-groupe-juste');
+    // UNE seule réponse exacte : c'est l'exploit, et le plateau le dit.
+    expect(momentDePlateau('estimation', {
+      kind: 'numeric', total: 6, target: 100, avg: 140, closest: 100,
+      histogramme: { exact: 1 },
+    })).toBe('stream.estim-exact-unique');
+    // À PLUSIEURS, l'exploit n'en est plus un : le plateau se tait sur ce point.
+    expect(momentDePlateau('estimation', {
+      kind: 'numeric', total: 6, target: 100, avg: 140, closest: 100,
+      histogramme: { exact: 3 },
+    })).not.toBe('stream.estim-exact-unique');
     expect(momentDePlateau('estimation', {
       kind: 'numeric', total: 6, target: 100, avg: 400, closest: 250,
     })).toBe('stream.estim-personne-proche');

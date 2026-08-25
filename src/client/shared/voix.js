@@ -48,16 +48,8 @@ export const MOMENTS = {
     quand: 'le joueur est le seul dans le salon',
     rotation: true,
     phrases: [
-      'Tu es arrivé le premier. Tu choisis ta place.',
-      "Il n'y a que toi et les braises.",
-      'Le feu part doucement. Comme toujours.',
-      'Quelqu’un finira bien par sentir la fumée.',
-      'Rien ne presse. Le bois est sec.',
-      'Le cercle est vide. Ça ne durera pas.',
-      'Tu gardes le feu. C’est une responsabilité.',
-      'Personne à qui parler, personne à qui mentir.',
-      'Profite : dans deux minutes, il y aura du monde.',
-      'Le silence avant les rires. On y est.',
+      'Tu es arrivé(e) le premier. Choisis ta place autour du feu.',
+      "Pour le moment, il n'y a que toi et les braises.",
     ],
   },
   'attente.accompagne': {
@@ -65,14 +57,17 @@ export const MOMENTS = {
     quand: 'au moins deux joueurs sont connectés',
     rotation: true,
     phrases: [
-      'Le cercle est formé. Il manque juste le signal.',
+      'Patience... le feu part doucement, comme toujours.',
+      'x',
+      'Le cercle est encore vide. Ça ne va pas durer.',
+      'Tu gardes le feu. C’est une responsabilité.',
+      'Profite : dans deux minutes, il y aura du monde.',
+      'Le cercle se forme. En attente que le feu prenne !',
       'Tout le monde est assis. Personne n’ose commencer.',
-      'Tu as encore le temps de préparer une excuse.',
+      'Patience... tu as le temps de te griller un marshmallow.',
       'Ça sent le bois et la compétition.',
-      'Les places sont prises. Le feu attend.',
-      'Quelqu’un a forcément révisé. Ce n’est pas toi.',
-      'On y est presque. Respire.',
-      'Le plus dur, c’est d’attendre.',
+      'Assis-toi sur ta souche et patiente mon ami(e).',
+      'On y est presque. Respire (mais pas la fumée).',
     ],
   },
 
@@ -83,7 +78,7 @@ export const MOMENTS = {
     phrases: [
       'C’est parti. On verra bien.',
       'Ta réponse est au chaud.',
-      'Enregistré. Plus qu’à attendre.',
+      'Les flammes ont entendu ta réponse.',
       'Voilà. Trop tard pour changer d’avis.',
       'Reçu. Croise les doigts si tu veux.',
       'Ta voix est dans le pot commun.',
@@ -93,20 +88,20 @@ export const MOMENTS = {
     surface: 'play',
     quand: 'le chrono est tombé sans réponse du joueur',
     phrases: [
-      'Le temps a filé. Ça arrive.',
-      'Rien envoyé cette fois. La prochaine est à toi.',
-      'Trop tard — mais ça ne coûte rien.',
-      'Manche blanche. On repart entier.',
+      'Le temps passe vite autour du feu ! On se reconcentre.',
+      'Rien reçu... Parle plus fort la prochaine fois.',
+      "Bah alors ? Tu t'es endormi(e) au coin du feu ?",
+      "Ouhlala... t'es parti(e) au petit coin ?",
     ],
   },
   'juste.simple': {
     surface: 'play',
-    quand: 'bonne réponse, sans supplément de rapidité ni série',
+    quand: 'bonne réponse, sans être le plus rapide de la manche ni en série',
     phrases: [
-      'Bien vu.',
+      "Bien vu l'ami(e).",
       'C’était ça.',
       'Solide.',
-      'Tu savais. Ça se voit.',
+      'Tu le savais. Ça se voit.',
       'Propre.',
       'Sans trembler.',
       'Exactement ça.',
@@ -115,13 +110,13 @@ export const MOMENTS = {
   },
   'juste.plus-rapide': {
     surface: 'play',
-    quand: 'bonne réponse ET plus rapide de la manche (speed inclut le supplément)',
+    quand: 'bonne réponse ET plus rapide de la manche (drapeau `fastest` du serveur)',
     phrases: [
-      'Le plus rapide du cercle. Personne n’a vu passer ta main.',
-      'Premier, et juste. Ça ne s’improvise pas.',
+      "L'un(e) des plus rapide du cercle. Ziouuuum......",
+      "C'est vif, et juste. Telle la flèche de Robin des bois.",
       'Tu as répondu avant que les autres finissent de lire.',
-      'Le doigt plus vite que la pensée — sauf que c’était bon.',
-      'Réflexe de braconnier.',
+      'Mère Nature est fière de toi.',
+      'Le feu crépite de joie en te voyant jouer !',
     ],
   },
   'juste.serie': {
@@ -129,87 +124,62 @@ export const MOMENTS = {
     quand: 'bonne réponse ET série de 2 ou plus',
     requiert: ['serie'],
     phrases: [
-      '{serie} d’affilée. Tu commences à faire peur.',
-      'Toujours pas fautif. {serie} de suite.',
-      '{serie} bonnes réponses enchaînées. On te regarde.',
-      'La série tient. {serie} et ça continue.',
-      '{serie} d’affilée : quelqu’un devrait t’arrêter.',
+      "{serie} d’affilée. Attention à ne pas t'enflammer !",
+      'Toujours pas de faute. {serie} de suite.',
+      "{serie} bonnes réponses enchaînées. Le feu t'admire.",
+      'Une série enflammée ! {serie} et ça continue.',
+      "{serie} à la suite : on ne t'arrête plus.",
     ],
   },
   faux: {
     surface: 'play',
     quand: 'mauvaise réponse (aucune pénalité : zéro point, pas moins)',
     phrases: [
-      'Raté — mais ça ne coûte rien.',
-      'Pas cette fois. Rien de perdu.',
-      'À côté. La prochaine est neuve.',
-      'Non. On efface et on repart.',
-      'Manqué. Personne n’a rien vu.',
+      "Ouch ! Tu t'es brûlé(e) sur celle-ci.",
+      "Aïe raté... ça fait plus mal qu'une écharde.",
+      'À côté... Touche du bois pour la prochaine.',
+      "Non non non... le feu va s'éteindre.",
+      'Manqué. Chut, personne n’a rien vu.',
       'Ce n’était pas ça. Ça arrive aux meilleurs.',
-      'Zéro pointé, zéro dégât.',
+      'Dommage... Ne laisse pas tes espoirs se consumer !',
     ],
   },
 
-  // Repli quand le joueur a répondu mais que le résultat n'est pas encore arrivé
-  // — reconnexion en cours, ou manche pas encore révélée.
-  'resultat.attente': {
-    surface: 'play',
-    quand: 'le joueur a répondu, son résultat n’est pas encore arrivé',
-    phrases: [
-      'Ta réponse est bien partie. On attend le verdict.',
-      'C’est enregistré. Le résultat arrive.',
-      'Tout est en ordre de ton côté.',
-      'Patience : la manche se termine.',
-    ],
-  },
   // Repli pour le joueur ARRIVÉ APRÈS le lancement. La décision 11 est explicite :
   // jamais d'écran muet, même dans les cas limites.
   'manche.sans-toi': {
     surface: 'play',
     quand: 'le joueur n’a pas participé à cette manche (arrivé après le lancement)',
     phrases: [
-      'Celle-là s’est jouée sans toi. La prochaine est à toi.',
-      'Tu arrives : le cercle avait déjà commencé.',
-      'Manche manquée, soirée intacte.',
-      'Rien de perdu — tu entres maintenant.',
+      'Celle-là s’est jouée sans toi. Il va falloir envoyer du bois pour revenir.',
+      "Tu arrives : le cercle avait déjà commencé. Le feu n'attend pas.",
+      'Tu entres en jeu maintenant petite allumette.',
     ],
   },
 
-  // ---------- VOIX INTIME : les places ----------
-  'places.gagnees': {
-    surface: 'play',
-    quand: 'placesDelta > 0',
-    requiert: ['places'],
-    phrases: [
-      '{places} de gagnées. Continue comme ça.',
-      'Tu remontes de {places}. Ça se sent.',
-      '{places} places grignotées.',
-      '{places} de plus au compteur des places.',
-      'Ça monte : {places} de gagnées.',
-    ],
-  },
-  'places.perdues': {
-    surface: 'play',
-    quand: 'placesDelta < 0',
-    phrases: [
-      'Les autres avancent. Toi aussi, bientôt.',
-      'Ça bouscule derrière. Rien d’irréversible.',
-      'Un peu de terrain perdu. Le feu brûle encore.',
-      'Le cercle se resserre autour de toi.',
-      'Ça bouge devant. Rien n’est joué.',
-    ],
-  },
+
 
   // ---------- VOIX INTIME : estimation, par palier ----------
+  // LA RÉPONSE EXACTE. Elle tombait dans `estimation.mille`, le palier des 2 %,
+  // alors qu'elle vaut 200 points de plus (décision 5.5 du chantier v4) et n'a
+  // rien de commun avec « à deux pour cent près ». Elle passe AVANT lui.
+  'estimation.exact': {
+    surface: 'play',
+    quand: 'palier « exact » : la valeur donnée est exactement la cible',
+    phrases: [
+      'Wow ! Dans le mille.',
+      "Le cercle t'applaudit !",
+      "La précision c'est ton dada !",
+    ],
+  },
   'estimation.mille': {
     surface: 'play',
     quand: 'palier « mille » : à 2 % de la cible, ou à une unité près',
     phrases: [
-      'Dans le mille. Presque suspect.',
       'Tu as visé juste au chiffre près.',
-      'Exact, ou tout comme.',
-      'Personne ne fait mieux que ça.',
-      'Pile. Sans hésiter.',
+      'Exact ! (enfin quasi)',
+      "T'es plutôt doué !",
+      'À une brindille de mettre le feu !',
     ],
   },
   'estimation.proche': {
@@ -217,7 +187,6 @@ export const MOMENTS = {
     quand: 'palier « proche » : à 10 % de la cible',
     phrases: [
       'Tout près. Bien vu.',
-      'À un cheveu. Solide.',
       'Presque pile. On prend.',
       'Tu avais l’ordre de grandeur et la finesse.',
       'Belle visée.',
@@ -242,8 +211,7 @@ export const MOMENTS = {
     phrases: [
       'Un peu large, mais tu y étais.',
       'Pas tout à fait. L’idée était là.',
-      'Ça s’éloigne — sans se perdre.',
-      'Tu visais le bon continent.',
+      'Ça s’éloigne, sans se perdre.',
       'Généreux dans l’estimation.',
     ],
   },
@@ -270,10 +238,10 @@ export const MOMENTS = {
     quand: 'au-delà de 30 % de la cible, et pas le plus proche : zéro point',
     phrases: [
       'Là, on est loin. Vraiment loin.',
-      'Autre ordre de grandeur. Ça arrive.',
-      'Complètement à côté — et ça ne coûte rien.',
+      'Tu as dû missclick.',
+      "Ouch ! Tu t'es brûlé(e) sur celle-ci.",
       'On ne parlait peut-être pas de la même chose.',
-      'Hardi, mais non.',
+      "On va faire comme s'il ne s'était rien passé...",
     ],
   },
 
@@ -282,23 +250,23 @@ export const MOMENTS = {
     surface: 'play',
     quand: 'vote noté, le joueur est dans un camp gagnant',
     phrases: [
-      'Avec la salle. Tu la lis bien.',
-      'Majoritaire. Tu sais où souffle le vent.',
-      'Le groupe pensait comme toi.',
-      'Tu as senti le cercle.',
+      "T'es avec le cercle !",
+      'Tu sais où souffle le vent ! Et le feu aime le vent.',
+      'Le cercle pensait comme toi.',
+      "Peu importe si c'est ce que tu penses vraiment, t'es là où il faut.",
       'Dans le camp le plus fourni.',
-      'Bien vu : la salle t’a suivi.',
+      'Bien vu : le cercle t’a suivi.',
     ],
   },
   'vote.minorite': {
     surface: 'play',
     quand: 'vote noté, le joueur est minoritaire',
     phrases: [
-      'Seul contre le cercle. Ça a du panache.',
-      'Le groupe en a décidé autrement. Aucun point retiré.',
-      'À contre-courant. Ce n’est pas une faute.',
-      'Tu avais peut-être raison. Ça ne compte juste pas.',
-      'Minoritaire, et assumé.',
+      'Seul contre le cercle. Courageux.',
+      'Le cercle en a décidé autrement. Montre lui de quel bois tu te chauffes.',
+      'À contre-courant.',
+      "C'est comme se sentir seul... mais en pire.",
+      'Minoritaire, et assumé. Tu vas te refaire.',
       'Le cercle a penché ailleurs.',
     ],
   },
@@ -306,9 +274,9 @@ export const MOMENTS = {
     surface: 'play',
     quand: 'vote en mode sondage : personne ne gagne',
     phrases: [
-      'Ta voix compte. Pas en points, en avis.',
-      'C’est noté. Sans enjeu, juste ton opinion.',
-      'Merci — la salle t’a entendu.',
+      'Ta voix compte. (Je le pense vraiment)',
+      "C’est noté. Sans enjeu, juste ton opinion, et je l'apprécie.",
+      'Merci ! Le cercle t’a entendu.',
       'Un avis, pas un pari.',
     ],
   },
@@ -319,10 +287,10 @@ export const MOMENTS = {
     quand: 'le joueur termine dans les trois premiers',
     requiert: ['rang'],
     phrases: [
-      '{rang} du cercle. Tu peux te resservir.',
+      '{rang} du cercle. Tu peux être fier(e) !',
       'Sur le podium. C’était mérité.',
-      '{rang} — garde-le pour la prochaine fois.',
-      '{rang}. La soirée est à toi.',
+      "{rang} — Jubile devant les autres, ça n'arrivera peut-être plus.",
+      "{rang}. L'une des légendes du cercle. Bravo",
     ],
   },
   'fin.classe': {
@@ -330,9 +298,9 @@ export const MOMENTS = {
     quand: 'le joueur est classé hors podium',
     requiert: ['rang'],
     phrases: [
-      '{rang}. La soirée n’était pas perdue.',
-      'Tu finis {rang}. Il y a des podiums plus faciles.',
-      '{rang} — largement de quoi revenir.',
+      '{rang}. La soirée n’était pas perdue. Le cercle se souvient.',
+      'Tu finis {rang}. Tu reviendras plus fort(e).',
+      '{rang}, on acclame le podium et on prie pour les perdants',
       '{rang}, et une revanche à prendre.',
     ],
   },
@@ -342,7 +310,7 @@ export const MOMENTS = {
     phrases: [
       'Tu es resté jusqu’au bout. C’est déjà beaucoup.',
       'Le classement dit une chose, la soirée en dit une autre.',
-      'Prochaine fois. Le feu ne s’éteint pas.',
+      'Une prochaine fois. Le feu ne s’éteint pas.',
       'Dernier au tableau, présent au cercle.',
     ],
   },
@@ -353,7 +321,7 @@ export const MOMENTS = {
     quand: 'tout le monde a trouvé (>= 5 réponses)',
     phrases: [
       'Tout le cercle a trouvé. Trop facile ?',
-      'Personne ne s’est trompé. Chapeau collectif.',
+      'Le cercle est bon. Trop bon ?',
       'Unanimité. La question était trop tendre.',
       'Sans faute, tout le monde.',
       'Le cercle au complet a visé juste.',
@@ -363,7 +331,7 @@ export const MOMENTS = {
     surface: 'overlay',
     quand: 'personne n’a trouvé (>= 5 réponses)',
     phrases: [
-      'Personne. Absolument personne.',
+      "Personne. Absolument personne... ça c'est un cercle uni !",
       'Le cercle entier est passé à côté.',
       'Zéro bonne réponse. La question a gagné.',
       'Toute la salle dans le mur, ensemble.',
@@ -377,7 +345,7 @@ export const MOMENTS = {
       'Le piège a fonctionné. La majorité est tombée dedans.',
       'La salle a choisi la mauvaise porte, en groupe.',
       'Belle embuscade : le cercle s’est fait avoir.',
-      'La fausse réponse était plus séduisante.',
+      'La plupart se sont brûlés. Bravo aux autres !',
       'Piégés, et en nombre.',
     ],
   },
@@ -387,7 +355,7 @@ export const MOMENTS = {
     phrases: [
       'Presque tout le monde a trouvé.',
       'Quasi-unanimité. Un ou deux distraits.',
-      'Le cercle était sûr de lui — à raison.',
+      'Le cercle était sûr de lui, à raison.',
       'À une poignée près, tout le monde.',
     ],
   },
@@ -396,29 +364,28 @@ export const MOMENTS = {
     quand: 'les deux options de tête se tiennent à une voix',
     phrases: [
       'Le cercle est coupé en deux.',
-      'Égalité parfaite. Personne ne tranche.',
-      'Deux camps, pas un de plus que l’autre.',
-      'La salle est partagée, exactement.',
+      'Wow ! Égalité parfaite.',
+      'Le cercle est partagé...',
     ],
   },
   'stream.option-morte': {
     surface: 'overlay',
     quand: 'une option n’a recueilli aucune voix',
     phrases: [
-      'Une réponse que personne n’a voulue.',
-      'Il y avait une option de trop.',
-      'Une proposition délaissée par tout le monde.',
-      'Personne n’a mordu à celle-là.',
+      'Il y a une option qui devrait finir au feu.',
+      'Il y avait une option de trop on dirait.',
+      'Une proposition délaissée par le cercle.',
+      "Le cercle n'est pas dûpe face à cette option bancale.",
     ],
   },
   'stream.vote-consensus': {
     surface: 'overlay',
     quand: 'vote : une option dépasse huit voix sur dix',
     phrases: [
-      'La salle est d’accord. C’est rare.',
+      'Le cercle est d’accord. C’est rare.',
       'Consensus écrasant.',
-      'Presque tout le cercle du même avis.',
-      'Peu de débat sur celle-là.',
+      'Presque tout le cercle est du même avis.',
+      "Le feu s'intensifie en voyant une telle unité !",
     ],
   },
   'stream.vote-division': {
@@ -426,18 +393,18 @@ export const MOMENTS = {
     quand: 'vote : les deux premières options à une voix près',
     phrases: [
       'Le cercle hésite. Deux camps à égalité.',
-      'Aucune majorité claire. Ça va discuter.',
-      'La salle est coupée en deux.',
-      'Personne ne l’emporte vraiment.',
+      'Le feu brûle de bonheur en voyant cette compétition !',
+      'La cercle est coupé en deux... ça fait des demi-cercles du coup.',
+      'Mais qui a gagné en fait ?',
     ],
   },
   'stream.estim-groupe-juste': {
     surface: 'overlay',
     quand: 'la moyenne du groupe est à moins de 10 % de la cible',
     phrases: [
-      'La moyenne du cercle tombe presque juste.',
-      'Ensemble, la salle avait vu juste.',
-      'Le groupe, collectivement, ne s’est pas trompé.',
+      'Un cercle de qualité !',
+      'Ensemble, le cercle a ajusté sa mire !',
+      'Le cercle a envoyé du bois sur celle-ci.',
       'La sagesse de la foule, pour une fois.',
     ],
   },
@@ -446,39 +413,42 @@ export const MOMENTS = {
     quand: 'la moyenne du groupe dépasse le double de la cible',
     phrases: [
       'Le cercle s’est trompé d’échelle.',
-      'Tout le monde a visé beaucoup trop haut.',
-      'La salle entière était hors sujet.',
+      'Tout le monde a visé beaucoup trop loin.',
+      'Une partie du cercle était hors sujet.',
       'Collectivement à côté de la plaque.',
     ],
   },
-  'stream.estim-quelquun-proche': {
+  // REMPLACE « la meilleure estimation est à moins de 2 % de la cible ».
+  // Arbitrage de l'auteur : le plateau ne s'émeut plus d'une approche, mais
+  // d'une réponse EXACTE — et seulement si une seule personne l'a trouvée.
+  'stream.estim-exact-unique': {
     surface: 'overlay',
-    quand: 'la meilleure estimation est à moins de 2 % de la cible',
+    quand: 'estimation : une seule personne a trouvé la valeur exacte',
     phrases: [
-      'Quelqu’un est tombé pile. Sans calculer, on parie.',
-      'Une estimation au millimètre dans le lot.',
-      'Il y a un expert dans la salle.',
-      'Quelqu’un savait, manifestement.',
+      'Une seule personne talentueuse dans le cercle on dirait.',
+      'Une estimation au millimètre dans le lot. Chapeau bas !',
+      "Il y a un expert dans le cercle. Gardons-le à l'œil !",
+      "Quelqu’un savait, et c'est tout à son honneur.",
     ],
   },
   'stream.estim-personne-proche': {
     surface: 'overlay',
     quand: 'même la meilleure estimation reste à plus de 50 % de la cible',
     phrases: [
-      'Personne n’a approché. La question a gagné.',
-      'Pas une estimation dans la bonne zone.',
-      'Le cercle est resté loin du compte.',
-      'Aucune approche sérieuse.',
+      'Le cercle est parti se promener sur cette estimation on dirait.',
+      "Alors... le but du jeu c'est d'être le plus proche de la réponse, pas le plus loin.",
+      'Le cercle est resté loin du compte. Il va falloir songer à toucher du bois un peu.',
+      'Ouch ! Le feu se sent bien seul sur celle-là.',
     ],
   },
   'stream.podium': {
     surface: 'overlay',
     quand: 'podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer',
     phrases: [
-      'Voilà le cercle au complet.',
-      'La soirée a rendu son verdict.',
-      'Trois en haut, tout le monde autour du feu.',
-      'Le classement est tombé.',
+      'Voici un podium de qualité ! (et le reste du cercle aussi vous avez du talent)',
+      'La feu a rendu son verdict ! Bravo à notre grand vainqueur !',
+      'Trois en haut, et tout le monde danse autour du feu.',
+      'Tout feu tout flamme ces 3 gagnants ! (et les autres vous êtes chauds aussi !)',
     ],
   },
 };
@@ -499,7 +469,9 @@ export const SEUILS = {
   consensusVote: 0.8,
   ecartMoyenneJuste: 0.10,
   ecartMoyenneLoin: 2.0,
-  meilleureProche: 0.02,
+  // `meilleureProche` (2 %) a disparu avec le moment qu'il servait : le plateau
+  // ne parle plus d'une approche, mais d'une réponse EXACTE et unique. Un seuil
+  // qui ne sert plus est un piège pour la relecture — on ne le garde pas.
   personneProche: 0.5,
 };
 
@@ -508,7 +480,7 @@ export const PRIORITE_PLATEAU = [
   'stream.unanimite-juste',
   'stream.personne',
   'stream.piege',
-  'stream.estim-quelquun-proche',
+  'stream.estim-exact-unique',
   'stream.estim-personne-proche',
   'stream.egalite',
   'stream.vote-division',
@@ -585,9 +557,18 @@ export function momentDePlateau(type, stats, reveal) {
     }
     if (stats.closest != null) {
       const meilleur = Math.abs(stats.closest - stats.target) / echelle;
-      if (meilleur <= SEUILS.meilleureProche) candidats.add('stream.estim-quelquun-proche');
       if (meilleur >= SEUILS.personneProche) candidats.add('stream.estim-personne-proche');
     }
+    // UNE SEULE PERSONNE A TROUVÉ LA VALEUR EXACTE.
+    //
+    // Le seuil de proximité a été REMPLACÉ par cette condition, sur arbitrage de
+    // l'auteur : le plateau ne s'émeut plus d'une approche à deux pour cent, mais
+    // d'une réponse exacte — et seulement si UNE seule personne l'a trouvée. À
+    // plusieurs, l'exploit n'en est plus un, et le plateau se tait.
+    //
+    // Le compte vient de l'histogramme, qui isole déjà la réponse exacte parce
+    // qu'elle est de largeur nulle et se dessine en trait (chantier de l'axe).
+    if (stats.histogramme?.exact === 1) candidats.add('stream.estim-exact-unique');
   }
 
   return PRIORITE_PLATEAU.find((id) => candidats.has(id)) || null;

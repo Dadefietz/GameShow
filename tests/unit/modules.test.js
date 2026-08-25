@@ -96,6 +96,10 @@ describe('true_false', () => {
   });
 });
 
+// `base` ne porte plus que les points du PALIER : les bonus voyagent à part pour
+// que l'écran du joueur montre le calcul au lieu d'une somme opaque.
+const totalManche = (r) => (r.base || 0) + (r.bonusExact || 0) + (r.bonusProche || 0) + (r.speed || 0);
+
 describe('estimation', () => {
   const ES_Q = { id: 'es1', text: 'Combien ?', target: 100, durationSec: 20 };
 
@@ -138,11 +142,11 @@ describe('estimation', () => {
     rt.answers.set('hors', { value: 200, at: rt.startedAt });    // 100 %
     const { results } = modules.estimation.score(rt);
     // « mille » est ici le plus proche : 1000 de palier + 400 de bonus.
-    expect(results.get('mille').base).toBe(1000 + 400);
-    expect(results.get('proche').base).toBe(750);
-    expect(results.get('correct').base).toBe(500);
-    expect(results.get('loin').base).toBe(250);
-    expect(results.get('hors').base).toBe(0);
+    expect(totalManche(results.get('mille'))).toBe(1000 + 400);
+    expect(totalManche(results.get('proche'))).toBe(750);
+    expect(totalManche(results.get('correct'))).toBe(500);
+    expect(totalManche(results.get('loin'))).toBe(250);
+    expect(totalManche(results.get('hors'))).toBe(0);
     // Le palier atteint voyage jusqu'au client (affichage + messages).
     expect(results.get('mille').palier).toBe('mille');
     expect(results.get('hors').palier).toBe('hors');
@@ -175,8 +179,8 @@ describe('estimation', () => {
     const { results } = modules.estimation.score(rt);
     // « juste » est exact ET le plus proche : 1000 de palier, +200 d'exactitude,
     // +400 de plus proche (chantier v4, décisions 5.3, 5.5 et 5.6).
-    expect(results.get('juste').base).toBe(1000 + 200 + 400);
-    expect(results.get('cent-mille-a-cote').base).toBe(750); // pas 900 : l'écart se paie
+    expect(totalManche(results.get('juste'))).toBe(1000 + 200 + 400);
+    expect(totalManche(results.get('cent-mille-a-cote'))).toBe(750); // pas 900 : l'écart se paie
   });
 
   // LES PETITS NOMBRES : sans tolérance absolue, sur une cible de 3, dix pour
@@ -187,11 +191,11 @@ describe('estimation', () => {
     rt.answers.set('une-unite', { value: 4, at: rt.startedAt });
     rt.answers.set('loin', { value: 30, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    expect(results.get('exact').base).toBe(1000 + 200 + 400);
+    expect(totalManche(results.get('exact'))).toBe(1000 + 200 + 400);
     // Être à une unité près reste le MEILLEUR PALIER — c'est ce que ce contrôle
     // garde — mais sans l'exactitude ni le bonus du plus proche.
-    expect(results.get('une-unite').base).toBe(1000);
-    expect(results.get('loin').base).toBe(0);
+    expect(totalManche(results.get('une-unite'))).toBe(1000);
+    expect(totalManche(results.get('loin'))).toBe(0);
   });
 
   it('le seuil de série reste à 10 %, et les faits de révélation sont publiés', () => {
@@ -202,7 +206,7 @@ describe('estimation', () => {
     const { results, reveal } = modules.estimation.score(rt);
     expect(results.get('close').correct).toBe(true);
     expect(results.get('meh').correct).toBe(false);
-    expect(results.get('far').base).toBe(0);
+    expect(totalManche(results.get('far'))).toBe(0);
     expect(reveal.stats.kind).toBe('numeric');
     expect(reveal.stats.closest).toBe(109);
     expect(reveal.stats.total).toBe(3);
@@ -271,10 +275,10 @@ describe('vote', () => {
     rt.answers.set('mino', { value: 1, at: rt.startedAt });
     const { results, reveal } = modules.vote.score(rt);
 
-    expect(results.get('majo1').base).toBe(700);
+    expect(totalManche(results.get('majo1'))).toBe(700);
     expect(results.get('majo1').correct).toBe(true);
     // Minoritaire : zéro point, aucune pénalité. Un pari perdu n'est pas une faute.
-    expect(results.get('mino').base).toBe(0);
+    expect(totalManche(results.get('mino'))).toBe(0);
     expect(results.get('mino').correct).toBe(false);
     // Aucun complément de vitesse : on ne devine pas plus vite ce que pense la salle.
     expect(results.get('majo1').speed).toBe(0);

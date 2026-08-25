@@ -570,7 +570,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
 // ============================================================
 // J4 — Résultat de manche (aucun rang, jamais)
 // ============================================================
-function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered }) {
+function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, presentAuLancement }) {
   const rv = reveal || {};
   const isVote = (rv.type || current?.type) === 'vote';
   // Un vote est désormais un JEU par défaut : la majorité marque (action 18).
@@ -586,15 +586,40 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
   // l'identité de la manche affichée — sinon c'est un souvenir d'une manche
   // précédente, qui affichait jusqu'ici des bonus et malus fantômes.
   const monResultat = you && current?.roundId != null && you.roundId === current.roundId ? you : null;
+  // Le total d'une manche, recomposé : `base` ne porte plus que le palier depuis
+  // que les bonus voyagent à part pour être MONTRÉS au joueur.
+  const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0) + (r?.speed || 0);
   const hasData = !!monResultat;
   const absent = answered === false;
+  // DEUX ABSENCES, ET NON UNE.
+  //
+  // `answered === false` ne dit qu'une chose : aucune réponse enregistrée. Deux
+  // situations très différentes s'y confondaient, et l'écran affirmait la première
+  // dans les deux cas :
+  //   - le joueur a REJOINT APRÈS le lancement — il n'a jamais vu la question ;
+  //   - le joueur ÉTAIT LÀ et n'a pas répondu à temps — il l'a vue en entier.
+  // Dire « tu es arrivé après le lancement » à quelqu'un qui joue depuis vingt
+  // minutes est faux, et il le sait.
+  //
+  // Le serveur tranche en comparant sa date d'arrivée au déclenchement de la
+  // question. Le téléphone mis en veille pendant la manche tombe volontairement
+  // dans le second cas : il était dans le salon, et le serveur ne sait pas
+  // reconstituer les coupures — seulement l'instant présent.
+  const arriveApres = absent && presentAuLancement === false;
+  const devanceParLeTemps = absent && !arriveApres;
 
   // Bon / mauvais quand la révélation le permet.
   let correct = null;
   if (!isVote) {
     if (typeof rv.correct === 'boolean' && typeof myAnswer === 'boolean') correct = myAnswer === rv.correct;
     else if (typeof rv.correctIndex === 'number' && typeof myAnswer === 'number') correct = myAnswer === rv.correctIndex;
-    else if (rv.target != null && myAnswer != null) correct = (monResultat?.base || 0) > 0;
+    // ESTIMATION : « a-t-il marqué ? », et donc le TOTAL, jamais `base` seul.
+    // Depuis que les composantes voyagent séparément pour que l'écran montre le
+    // calcul, `base` ne porte plus que les points du palier : un joueur hors de
+    // toute plage mais le plus proche a `base` à zéro et 400 points au compteur.
+    // Lu sur `base`, son verdict repassait à « Raté » au-dessus de « +400 » —
+    // exactement la contradiction qu'un contrôle existant interdit.
+    else if (rv.target != null && myAnswer != null) correct = pointsDeLaManche(monResultat) > 0;
   } else if (!isSondage && Array.isArray(rv.winners) && typeof myAnswer === 'number') {
     correct = rv.winners.includes(myAnswer);
   }
@@ -606,10 +631,18 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
   const momentVoix = (() => {
     // Les deux cas limites ont eux aussi leur phrase : « jamais d'écran muet »
     // vaut aussi — et surtout — pour le joueur qui arrive en cours de partie.
-    if (absent) return 'manche.sans-toi';
-    if (!hasData) return 'resultat.attente';
+    if (arriveApres) return 'manche.sans-toi';
+    // `temps.ecoule` — « le chrono est tombé sans réponse du joueur ». Ce moment
+    // DORMAIT dans le registre depuis l'origine, avec ses phrases, sans qu'aucun
+    // code ne l'atteigne. J'en avais recréé un second sans le voir ; le doublon a
+    // été supprimé et c'est l'original qui parle.
+    if (devanceParLeTemps) return 'temps.ecoule';
     if (isSondage) return 'vote.sondage';
     if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
+    // LA RÉPONSE EXACTE D'ABORD. Elle tombait dans `estimation.mille`, le palier
+    // des 2 %, alors qu'elle vaut 200 points de plus et n'a rien de commun avec
+    // « à deux pour cent près ».
+    if (isEstimation && monResultat.exact === true) return 'estimation.exact';
     if (isEstimation && monResultat.palier) {
       // TROUVÉ PAR LE BALAYAGE DE CLÔTURE (décision 2.8). Le moment
       // `estimation.hors` déclare « au-delà de 30 % : ZÉRO POINT », et ses phrases
@@ -618,7 +651,11 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
       // 400 points : la phrase démentait alors le « +400 » affiché juste au-dessus,
       // et la condition déclarée du moment était devenue fausse.
       // C'est un défaut CRÉÉ par ce chantier, pas hérité.
-      if (monResultat.palier === 'hors' && (monResultat.base || 0) > 0) return 'estimation.plus-proche';
+      // LE TOTAL, et non `base`. Ce joueur est hors de toute plage : ses points du
+      // palier valent zéro, et ses 400 points viennent du seul bonus. Lue sur
+      // `base`, la condition ne se déclenchait plus et la voix lui servait les
+      // phrases du « hors » — « ça ne coûte rien » au-dessus d'un +400.
+      if (monResultat.palier === 'hors' && pointsDeLaManche(monResultat) > 0) return 'estimation.plus-proche';
       return `estimation.${monResultat.palier}`;
     }
     if (correct === true) {
@@ -675,7 +712,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
             qui n'ont pas répondu. Se fier à la présence du relevé faisait donc
             afficher « 0 point » à un retardataire, là où la décision 5 de
             l'action 12 exige qu'on lui DISE qu'il n'était pas là. */}
-        {absent ? (
+        {arriveApres ? (
           <div className="screen__main--center" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
               style={{ color: 'var(--c-ink-3)' }}><Ico.clock s={30} /></span>
@@ -685,15 +722,18 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
             </p>
             {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
           </div>
-        ) : !hasData ? (
-          /* Situation 2 : le joueur a bien répondu, son résultat n'est pas encore
-             arrivé — reconnexion en cours, ou manche pas encore révélée. On ne lui
-             dit SURTOUT pas qu'il n'était pas là. */
+        ) : devanceParLeTemps ? (
+          /* IL ÉTAIT LÀ. On ne lui dit donc pas qu'il est arrivé après : on lui dit
+             ce qui s'est réellement passé. Le chrono est désigné comme l'adversaire,
+             jamais le joueur — c'est la règle du registre, où une mauvaise réponse
+             « ne coûte rien ». */
           <div className="screen__main--center" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
-              style={{ color: 'var(--c-fern)' }}><Ico.checkCircle s={30} /></span>
-            <h1 className="p-title p-title--sm" id="verdict">Ta réponse<br />est bien partie</h1>
-            <p className="p-lead" role="status">Ton score est à jour.</p>
+              style={{ color: 'var(--c-ink-3)' }}><Ico.clock s={30} /></span>
+            <h1 className="p-title p-title--sm" id="verdict">Le temps<br />t'a devancé</h1>
+            <p className="p-lead" role="status">
+              Tu étais là, la réponse n'est pas partie à temps.
+            </p>
             {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
           </div>
         ) : (
@@ -772,13 +812,38 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered })
                 pénalité n'existe dans aucun jeu.
                 Chaque ligne ne s'affiche que si elle vaut quelque chose — un écran
                 de résultat n'a pas à aligner des zéros. */}
-            {!isVote && (monResultat.base || monResultat.speed) ? (
+            {!isVote && (monResultat.base || monResultat.speed
+              || monResultat.bonusExact || monResultat.bonusProche) ? (
               <div className="breakdown">
                 {monResultat.base ? (
                   <div className="breakdown__cell">
-                    <span className="p-label p-label--tiny">Base</span>
+                    <span className="p-label p-label--tiny">{isEstimation ? 'Palier' : 'Base'}</span>
                     <span className="breakdown__value" data-bind="you.base" data-testid="points-base">
                       {fmtNum(monResultat.base)}
+                    </span>
+                  </div>
+                ) : null}
+                {/* LES BONUS DE L'ESTIMATION, CHACUN SUR SA LIGNE.
+                    Ils étaient additionnés dans « Base » : le joueur lisait
+                    « 1 600 » sans savoir d'où venaient les six cents points de
+                    plus, et le barème que le jeu venait de lui expliquer devenait
+                    invérifiable. Le total n'a pas bougé — seule sa décomposition
+                    apparaît. */}
+                {monResultat.bonusExact ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Exactitude</span>
+                    <span className="breakdown__value breakdown__value--accent"
+                      data-bind="you.bonusExact" data-testid="points-bonus-exact">
+                      +{fmtNum(monResultat.bonusExact)}
+                    </span>
+                  </div>
+                ) : null}
+                {monResultat.bonusProche ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Le plus proche</span>
+                    <span className="breakdown__value breakdown__value--accent"
+                      data-bind="you.bonusProche" data-testid="points-bonus-proche">
+                      +{fmtNum(monResultat.bonusProche)}
                     </span>
                   </div>
                 ) : null}
@@ -931,6 +996,24 @@ function EndScreen({ you, podium, classement, playerId, pseudo, history, roomCod
   const [shared, setShared] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
 
+  // LA VOIX DE LA FIN DE PARTIE.
+  //
+  // Trois moments — `fin.podium`, `fin.classe`, `fin.dernier` — vivaient dans le
+  // registre depuis l'origine, avec leurs douze phrases, et AUCUN code ne les
+  // atteignait : l'écran de fin était le seul du parcours à se taire. Le relevé
+  // du registre l'a montré, la question de l'auteur l'a provoqué.
+  //
+  // Les trois cas sont exclusifs et se lisent dans cet ordre : le podium d'abord,
+  // puis le dernier ou le joueur sans point, puis tous les autres. « Dernier » et
+  // « sans point » partagent le même moment parce qu'ils partagent la même
+  // situation — on n'a rien à célébrer, et le registre ne punit jamais.
+  const dernier = ranked && rangs.length > 1 && rank === rangs.length;
+  const momentFin = !ranked ? null
+    : (rank <= 3 && aMarque) ? 'fin.podium'
+      : (dernier || !((you?.score || 0) > 0)) ? 'fin.dernier'
+        : 'fin.classe';
+  const phraseFin = usePhraseDeManche(momentFin, momentFin);
+
   const share = async () => {
     // DÉCISION 3.2 — sans classement, on ne partage pas un rang absent : on dit ce
     // qui reste vrai, le salon et le nombre d'épreuves. « J'ai terminé la partie
@@ -995,6 +1078,11 @@ function EndScreen({ you, podium, classement, playerId, pseudo, history, roomCod
         ) : null}
         {ranked && !aMarque ? (
           <p className="p-lead">Personne n'a marqué cette fois. Le classement reste, à égalité.</p>
+        ) : null}
+        {/* La voix de la fin de partie. L'écran était le seul du parcours à se
+            taire — ses trois moments existaient sans être appelés. */}
+        {phraseFin ? (
+          <p className="p-lead voix" data-testid="voix-fin">{phraseFin}</p>
         ) : null}
 
         {/* DÉCISION 2.1 — le classement, sa propre ligne distinguée. Avant, l'écran
@@ -1228,12 +1316,22 @@ export function PlayApp() {
   }
 
   // Résultat d'une manche révélée.
-  if (g.reveal) {
+  //
+  // ON N'Y VA QUE S'IL Y A QUELQUE CHOSE À MONTRER : soit le résultat personnel
+  // du joueur, soit le fait qu'il n'a pas répondu. Sinon — révélation reçue mais
+  // résultat personnel encore en route — il RESTE SUR SA QUESTION, avec sa
+  // réponse cochée. C'est vrai, et jamais trompeur.
+  //
+  // La page « Ta réponse est bien partie » qui occupait cet intervalle a été
+  // retirée sur arbitrage de l'auteur : elle n'apprenait rien, et elle a servi de
+  // symptôme à deux défauts distincts avant d'être elle-même mise en cause.
+  const monResultatPret = g.you && g.current?.roundId != null && g.you.roundId === g.current.roundId;
+  if (g.reveal && (monResultatPret || g.answered === false)) {
     return (
       <>
         <ScoreScreen you={g.you} reveal={g.reveal} myAnswer={myAnswer} current={g.current}
           index={room?.progression?.index} total={room?.progression?.total}
-          answered={g.answered} />
+          answered={g.answered} presentAuLancement={g.presentAuLancement} />
       </>
     );
   }
