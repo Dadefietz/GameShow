@@ -245,6 +245,65 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX INTIME : le lien ----------
+  //
+  // PHRASES PROVISOIRES, à relire par l'auteur. Elles suivent la règle du
+  // registre — on ne punit jamais, on nomme ce qui s'est passé — mais elles n'ont
+  // pas encore été arbitrées, contrairement aux 165 autres.
+  'lien.seul': {
+    surface: 'play',
+    quand: 'le lien : personne d’autre n’a donné ce mot',
+    phrases: [
+      'Personne n’a pensé comme toi. C’est original, ça ne rapporte rien.',
+      'Ton mot n’a trouvé personne. Le cercle pensait ailleurs.',
+      'Seul de ton avis. Ça arrive aux meilleurs.',
+      'Bien vu, mais tout seul — et ici, seul ne compte pas.',
+    ],
+  },
+  'lien.majorite': {
+    surface: 'play',
+    quand: 'le lien : le joueur est dans le groupe le plus nombreux',
+    phrases: [
+      'Le mot que tout le monde attendait. Tu l’as trouvé.',
+      'En plein dans la tête du cercle.',
+      'Le groupe le plus nombreux, et tu en es.',
+      'Tu penses comme la majorité. Ce soir, c’est un talent.',
+    ],
+  },
+  'lien.groupe': {
+    surface: 'play',
+    quand: 'le lien : le joueur partage son mot, hors du groupe de tête',
+    requiert: ['taille'],
+    phrases: [
+      'Vous êtes {taille} à y avoir pensé.',
+      'Ton mot a trouvé du monde. Pas la foule, mais du monde.',
+      'Partagé — ce n’était donc pas si tiré par les cheveux.',
+      'Un petit groupe s’est formé autour de toi.',
+    ],
+  },
+
+  // ---------- VOIX DE PLATEAU : le lien ----------
+  'stream.lien-unanime': {
+    surface: 'overlay',
+    quand: 'le lien : la moitié du cercle au moins a donné le même mot',
+    phrases: [
+      'Le cercle n’a eu qu’une seule idée.',
+      'Une évidence pour presque tout le monde.',
+      'Rarement vu autant de monde d’accord.',
+      'Un seul mot, et il a rassemblé.',
+    ],
+  },
+  'stream.lien-disperse': {
+    surface: 'overlay',
+    quand: 'le lien : personne n’a partagé son mot, tous les groupes sont seuls',
+    phrases: [
+      'Personne n’a pensé comme personne.',
+      'Autant de mots que de joueurs. Belle dispersion.',
+      'Le cercle est parti dans toutes les directions.',
+      'Aucun mot en commun. Ça n’arrive pas souvent.',
+    ],
+  },
+
   // ---------- VOIX INTIME : vote ----------
   'vote.majorite': {
     surface: 'play',
@@ -473,10 +532,15 @@ export const SEUILS = {
   // ne parle plus d'une approche, mais d'une réponse EXACTE et unique. Un seuil
   // qui ne sert plus est un piège pour la relecture — on ne le garde pas.
   personneProche: 0.5,
+  // LE LIEN : « la moitié du cercle au moins ». Sous ce seuil, un groupe de tête
+  // n'a rien d'exceptionnel — c'est le jeu qui fonctionne normalement.
+  lienUnanime: 0.5,
 };
 
 // Ordre de PRIORITÉ : si plusieurs conditions se déclenchent, une seule parle.
 export const PRIORITE_PLATEAU = [
+  'stream.lien-unanime',
+  'stream.lien-disperse',
   'stream.unanimite-juste',
   'stream.personne',
   'stream.piege',
@@ -546,6 +610,15 @@ export function momentDePlateau(type, stats, reveal) {
       else if (justes / total >= SEUILS.quasiUnanimite) candidats.add('stream.quasi-unanimite');
       if (tally.some((n, i) => i !== iJuste && n > justes)) candidats.add('stream.piege');
     }
+  }
+
+  // LE LIEN. Le plateau ne commente que deux situations remarquables : le cercle
+  // qui n'a eu qu'une idée, et celui qui n'en a partagé aucune. Entre les deux,
+  // il se tait — commenter une répartition ordinaire est le métier de l'animateur.
+  if (stats.kind === 'lien' && Array.isArray(stats.groupes)) {
+    const tete = stats.groupes[0];
+    if (tete && tete.count / total >= SEUILS.lienUnanime) candidats.add('stream.lien-unanime');
+    if (stats.groupes.length && stats.groupes.every((g) => g.count === 1)) candidats.add('stream.lien-disperse');
   }
 
   if (stats.kind === 'numeric' && stats.target != null) {

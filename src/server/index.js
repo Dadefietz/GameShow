@@ -326,6 +326,10 @@ io.on('connection', (socket) => {
   }
   // État courant à la connexion.
   socket.emit('room:state', engine.publicRoomState(room));
+  // L'ANNONCE EN COURS, rejouée : sans elle, un joueur qui recharge pendant le
+  // jingle du « Lien » retombe sur l'écran d'attente du salon, comme si rien
+  // n'était en train de se passer.
+  if (room.annonce) socket.emit('module:annonce', room.annonce);
   // Restauration complète à la (re)connexion : question en cours si la fenêtre est
   // ouverte (avec le statut « déjà répondu » du joueur), OU question + révélation si
   // la manche est déjà révélée — un rechargement retrouve son écran, sans état fantôme.
@@ -411,6 +415,14 @@ io.on('connection', (socket) => {
   }
 
   // ---- Commandes ANIMATEUR (host:*) — vérifiées par rôle + salon ----
+  // ANNONCER un jeu sans le lancer — voir `engine.annoncerModule`.
+  socket.on('host:announceModule', ({ moduleId } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    const module_ = banksStore.getModule(r.ownerId, moduleId);
+    if (!module_) return socket.emit('host:error', { code: 'no-module' });
+    engine.annoncerModule(io, r, module_);
+  });
+
   socket.on('host:startModule', async ({ moduleId, moduleType, question } = {}) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     // DEUX FORMES ACCEPTÉES. La nouvelle désigne un jeu nommé par son identifiant.
@@ -492,6 +504,10 @@ io.on('connection', (socket) => {
     if (!isHost(socket, r) || typeof cb !== 'function') return;
     cb(banksStore.getModules(r.ownerId).map((m) => ({
       id: m.id, type: m.type, name: m.name, questions: (m.questions || []).length,
+      // UN JEU « EN DIRECT » N'A PAS DE BANQUE, et n'en manque donc pas. Sans ce
+      // drapeau, l'écran de l'animateur le grisait comme un jeu vide — « Lancer
+      // Le lien — aucune question » — et le rendait injouable.
+      direct: modules[m.type]?.meta?.direct === true,
     })));
   });
   socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.reveal(io, r); });

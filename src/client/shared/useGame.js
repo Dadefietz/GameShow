@@ -16,6 +16,9 @@ export function useGame(token) {
   const [answered, setAnswered] = useState(false);
   const [monChoix, setMonChoix] = useState(null);
   const [presentAuLancement, setPresentAuLancement] = useState(true);
+  // L'ANNONCE d'un jeu qui n'a pas encore démarré — « Le lien » se joue en deux
+  // temps : le cercle voit le nom du jeu pendant que l'animateur saisit ses mots.
+  const [annonce, setAnnonce] = useState(null);
   const [roomClosed, setRoomClosed] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
@@ -49,6 +52,7 @@ export function useGame(token) {
       // SEUL UN `false` EXPLICITE dit « arrivé après ». La diffusion au salon ne
       // porte pas ce champ — et n'atteint que ceux qui étaient déjà là.
       setPresentAuLancement(m.presentAuLancement !== false);
+      setAnnonce(null);
       // Temps restant RÉEL (deadline serveur) — un rechargement en cours de manche
       // n'affiche plus la durée totale comme s'il restait tout le temps.
       const left = m.deadline ? Math.max(0, Math.ceil((m.deadline - Date.now()) / 1000)) : Math.ceil((m.durationMs || 0) / 1000);
@@ -60,6 +64,7 @@ export function useGame(token) {
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
     s.on('module:closed', () => setTick((prev) => ({ ...(prev || {}), timeLeft: 0 })));
     s.on('module:reveal', (r) => setReveal(r));
+    s.on('module:annonce', (a) => { setAnnonce(a || null); setReveal(null); setCurrent(null); setYou(null); });
     s.on('leaderboard:update', (d) => setLeaderboard(d.leaderboard || []));
     s.on('play:you', (y) => setYou(y));
     s.on('play:accepted', (res) => { if (res && (res.ok || res.reason === 'already')) setAnswered(true); });
@@ -90,7 +95,7 @@ export function useGame(token) {
     socketRef.current?.off(event, handler);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, answered, monChoix, presentAuLancement, roomClosed, distribution, history, fatal, serverError, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, history, fatal, serverError, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

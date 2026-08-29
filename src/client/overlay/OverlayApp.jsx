@@ -16,6 +16,7 @@ import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
 import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
+import { CHAINONS } from '../shared/marque-lien.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -409,10 +410,22 @@ function QuestionStage({ g }) {
 
       {/* Repère stable : le contrat réserve `question-text` à la surface joueur et
           `stream-question` au stream — le mockup utilisait le premier des deux. */}
-      <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
-        data-bind="module.text" data-testid="question-text">
-        {current.text || ''}
-      </p>
+      {current.type === 'lien' && Array.isArray(current.mots) ? (
+        /* LE LIEN : ce ne sont pas une phrase mais DEUX MOTS, et c'est entre eux
+           que tout se joue. Ils portent l'emblème au milieu, comme sur les
+           téléphones — la scène et le cercle montrent la même chose. */
+        <div className={`st-lienmots${revealed ? ' st-lienmots--revealed' : ''}`}
+          data-bind="module.text" data-testid="question-text">
+          <span className="st-lienmots__mot">{current.mots[0]}</span>
+          <span className="st-lienmots__chainons" aria-hidden="true"><ChainonsStream s={64} /></span>
+          <span className="st-lienmots__mot">{current.mots[1]}</span>
+        </div>
+      ) : (
+        <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
+          data-bind="module.text" data-testid="question-text">
+          {current.text || ''}
+        </p>
+      )}
 
       {/* Question en cours : les options, nues. */}
       {!revealed ? (
@@ -432,7 +445,9 @@ function QuestionStage({ g }) {
         <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">
           {/* Une phrase, seulement quand la répartition le mérite. */}
           {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
-          {stats?.kind === 'numeric' ? (
+          {stats?.kind === 'lien' ? (
+            <LienResultats stats={stats} />
+          ) : stats?.kind === 'numeric' ? (
             <>
               <div className="st-answer" data-bind="reveal.target" data-testid="reveal-value">
                 <span className="st-answer__label">Bonne réponse</span>
@@ -483,6 +498,53 @@ function QuestionStage({ g }) {
 // ============================================================
 // S4 — Podium
 // ============================================================
+// L'EMBLÈME DU LIEN, à la taille de l'antenne. Tracé partagé avec le joueur.
+function ChainonsStream({ s = 140 }) {
+  return (
+    <svg width={s} height={s} viewBox={CHAINONS.viewBox} fill="none" stroke="currentColor"
+      strokeWidth={CHAINONS.trait} strokeLinecap="round" aria-hidden="true">
+      <path d={CHAINONS.gauche} />
+      <path d={CHAINONS.droite} />
+      <path d={CHAINONS.jointure} />
+    </svg>
+  );
+}
+
+// L'ANNONCE DU JEU — le même temps que sur les téléphones, à l'échelle de la
+// scène. Le cercle et le public voient la même chose au même instant : c'est ce
+// qui fait qu'un plateau tient.
+function AnnonceStage({ nom }) {
+  return (
+    <div className="stream__stage stream__stage--centered" data-testid="stream-annonce" data-state="annonce">
+      <span className="st-annonce__emblem" aria-hidden="true"><ChainonsStream s={180} /></span>
+      <p className="st-kicker">Prochaine épreuve</p>
+      <h2 className="st-title st-title--xl">{nom}</h2>
+      <p className="st-lead">Un mot pour relier les deux mots de l'animateur.</p>
+    </div>
+  );
+}
+
+// LES MOTS LES PLUS DONNÉS, à la révélation. Jamais de noms : le stream est une
+// source capturée par OBS, et cette frontière ne se franchit qu'au podium.
+function LienResultats({ stats }) {
+  const groupes = (stats?.groupes || []).filter((gr) => gr.count >= 2).slice(0, 6);
+  if (!groupes.length) {
+    return <p className="st-lead" data-testid="stream-lien-vide">Aucun mot en commun. Chacun a suivi sa piste.</p>;
+  }
+  const haut = Math.max(...groupes.map((gr) => gr.count));
+  return (
+    <div className="st-lien" data-testid="stream-lien-groupes">
+      {groupes.map((gr) => (
+        <div className="st-lien__ligne" key={gr.mot} data-count={gr.count} data-rang={gr.rang}>
+          <span className="st-lien__mot">{gr.mot}</span>
+          <span className="st-lien__barre" style={{ width: `${Math.round((gr.count / haut) * 100)}%` }} />
+          <span className="st-lien__n">{fmt(gr.count)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PodiumStage({ g }) {
   const rows = (g.podium && g.podium.length ? g.podium : g.leaderboard || []).slice(0, 3);
   // LA VOIX DU PODIUM. `stream.podium` — « le SEUL moment où le stream nomme
@@ -708,7 +770,12 @@ export function OverlayApp() {
   return (
     <div className="stream-fit">
       <div className={`stream${inRound && !ended ? ' stream--question' : ''}`} data-state={ended ? 'ended' : 'live'}>
-        {ended ? <PodiumStage g={g} /> : inRound ? <QuestionStage g={g} /> : <WaitingStage g={g} />}
+        {/* L'ANNONCE passe AVANT l'attente : le cercle et le public doivent voir
+            le jingle au même instant, pas l'un le jeu et l'autre le salon. */}
+        {ended ? <PodiumStage g={g} />
+          : inRound ? <QuestionStage g={g} />
+            : g.annonce ? <AnnonceStage nom={g.annonce.name} />
+              : <WaitingStage g={g} />}
 
         {/* CONTRAT S1, RÉÉCRIT (actions 3, 4 et 5).
             Avant : un panneau latéral de 460 px, sur toute la hauteur, PERMANENT

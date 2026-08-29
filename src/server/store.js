@@ -53,7 +53,11 @@ function modulesDeDepart() {
     duration: type === 'true_false' ? 12 : 20,
     color: moduleDefs[type].meta.color,
     questions: (demoQuestions[type] || []).map((q) => ({ ...q })),
-  })).filter((m) => m.questions.length > 0);
+  }))
+    // LES JEUX « EN DIRECT » N'ONT PAS DE BANQUE, et c'est voulu : leur question
+    // est saisie à l'antenne par l'animateur. Les écarter faute de questions les
+    // rendrait tout simplement introuvables dans son menu.
+    .filter((m) => m.questions.length > 0 || moduleDefs[m.type].meta.direct === true);
 }
 
 // Reprise de l'ANCIEN format (quatre seaux par type) : un jeu par type non vide,

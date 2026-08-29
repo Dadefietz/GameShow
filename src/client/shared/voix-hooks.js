@@ -43,7 +43,7 @@ export function usePhraseQuiTourne(momentId, intervalle = 6000) {
 // Le repère est l'identifiant de manche. Le figer sur le MOMENT
 // (`juste.simple`, `juste.serie`…) ferait dire la même chose à deux manches
 // consécutives de même résultat.
-export function usePhraseDeManche(momentId, cle, serie, places) {
+export function usePhraseDeManche(momentId, cle, serie, places, taille) {
   const [etat, setEtat] = useState({ repere: null, phrase: null });
   const servi = useRef(null);
   const repere = momentId ? `${cle}·${momentId}` : null;
@@ -55,7 +55,7 @@ export function usePhraseDeManche(momentId, cle, serie, places) {
     // tirage — donc consommerait deux phrases du vivier pour une manche.
     if (servi.current === repere) return;
     servi.current = repere;
-    setEtat({ repere, phrase: dire(momentId, { serie, places }) });
+    setEtat({ repere, phrase: dire(momentId, { serie, places, taille }) });
   }, [repere, momentId, serie, places]);
 
   // Tant que l'effet n'a pas tourné, on n'affiche RIEN plutôt que la phrase de la

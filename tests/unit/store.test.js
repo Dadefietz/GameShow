@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { MODULE_TYPES, modules } from '../../src/server/modules.js';
 
 const DATA_DIR = 'tests/.data-unit';
 let store;
@@ -33,12 +34,18 @@ describe('bibliothèque de jeux', () => {
   it('sème des jeux jouables au premier accès d\'un compte', () => {
     const jeux = store.getModules('anim-a');
     expect(jeux.length).toBeGreaterThan(0);
-    // Chaque jeu semé porte un nom et des questions : une bibliothèque vide
-    // rendrait le produit injouable tant que le Studio n'a pas servi.
+    // Chaque jeu semé porte un nom, et des questions — SAUF les jeux « en
+    // direct », dont la question est saisie à l'antenne par l'animateur. Les
+    // écarter du semis les rendrait introuvables dans son menu ; leur réclamer
+    // des questions n'aurait aucun sens. Une bibliothèque vide, elle, rendrait le
+    // produit injouable tant que le Studio n'a pas servi.
+    const direct = new Set(MODULE_TYPES.filter((t) => modules[t].meta.direct === true));
     for (const j of jeux) {
       expect(j.name).toBeTruthy();
-      expect(j.questions.length).toBeGreaterThan(0);
+      if (!direct.has(j.type)) expect(j.questions.length).toBeGreaterThan(0);
     }
+    expect(jeux.some((j) => direct.has(j.type)),
+      'le jeu en direct n\'a pas été semé : il serait introuvable').toBe(true);
   });
 
   it('conserve le NOM d\'un jeu — ce que l\'ancien format détruisait', () => {

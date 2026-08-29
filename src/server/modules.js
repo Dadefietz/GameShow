@@ -287,6 +287,76 @@ export function plagesEstimation(cible, nature) {
   });
 }
 
+// ============================================================
+// LE BARÈME DU LIEN
+// ============================================================
+//
+// Base de 250 dès qu'un autre joueur a donné le même mot, puis un bonus qui
+// décroît de cent en cent selon le RANG DU GROUPE, jusqu'à un plancher de 50 :
+// 750, 650, 550, 450, 350, 250, 150, 50, puis 50 pour tous les suivants.
+// Le premier groupe atteint donc exactement 1 000 — le maximum du jeu.
+const BASE_LIEN = 250;
+const BONUS_LIEN_PREMIER = 750;
+const BONUS_LIEN_PAS = 100;
+const BONUS_LIEN_PLANCHER = 50;
+
+export function bonusDeRang(rang) {
+  if (!(rang >= 1)) return 0;
+  return Math.max(BONUS_LIEN_PLANCHER, BONUS_LIEN_PREMIER - BONUS_LIEN_PAS * (rang - 1));
+}
+
+// DEUX MOTS SONT LE MÊME MOT quand ils ne diffèrent que par la casse ou les
+// accents : « étude », « Etude », « ETUDE » et « Étude » forment un seul groupe.
+//
+// CE QU'ON NE CORRIGE PAS, ET C'EST UNE DÉCISION. Les fautes de frappe et
+// d'orthographe restent à la charge du joueur ; le pluriel est un CHOIX qui ouvre
+// un autre groupe — probablement avec d'autres joueurs qui ont pensé pareil. Un
+// rapprochement automatique déciderait à leur place de ce qui « compte pour le
+// même mot », et ce jeu consiste précisément à parier sur ce que les autres vont
+// écrire.
+export function normaliserMot(mot) {
+  return String(mot ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// LES GROUPES, classés du plus fourni au moins fourni.
+//
+// LE RANG EST « À LA COMPÉTITION » : deux groupes de même taille partagent le
+// même rang, et le suivant saute d'autant. Trois groupes de tailles 15, 8, 8, 6
+// donnent les rangs 1, 3, 3, 5 — jamais 1, 3, 3, 4. C'est ce que l'auteur a
+// spécifié, et ce qui rend l'égalité vraiment neutre : être ex æquo ne coûte rien
+// à personne, mais n'avantage pas non plus ceux qui suivent.
+export function grouperLesMots(answers) {
+  const parCle = new Map();
+  for (const [pid, a] of answers) {
+    const mot = String(a.value ?? '').trim();
+    if (!mot) continue;
+    const cle = normaliserMot(mot);
+    if (!cle) continue;
+    if (!parCle.has(cle)) parCle.set(cle, { cle, mot, pids: [] });
+    parCle.get(cle).pids.push(pid);
+  }
+  const groupes = [...parCle.values()]
+    .map((g) => ({ ...g, count: g.pids.length }))
+    // À effectif égal, l'ordre alphabétique : sans lui, deux groupes ex æquo
+    // s'échangeraient de place d'un affichage à l'autre.
+    .sort((a, b) => b.count - a.count || a.cle.localeCompare(b.cle, 'fr'));
+
+  let rang = 0;
+  let precedent = null;
+  groupes.forEach((g, i) => {
+    if (g.count !== precedent) { rang = i + 1; precedent = g.count; }
+    g.rang = rang;
+  });
+
+  const parJoueur = new Map();
+  for (const g of groupes) for (const pid of g.pids) parJoueur.set(pid, g);
+  return { groupes, parJoueur };
+}
+
 // Répartition des réponses sur des options indexées (quiz, vote) ou binaires (vrai/faux).
 function tallyOptions(runtime, size) {
   const tally = new Array(size).fill(0);
@@ -468,6 +538,90 @@ export const modules = {
       // (décision 6.2) — même famille que la file d'attente, décision 8 de
       // l'action 6 du chantier v1.
       return { results, reveal: { target: rt.target, text: rt.text, stats }, prives: { plusProches } };
+    },
+  },
+
+  // ============================================================
+  // LE LIEN — trouver le mot qui relie deux mots, et penser comme les autres
+  // ============================================================
+  //
+  // CE QUI LE DISTINGUE DE TOUS LES AUTRES JEUX. Il n'y a pas de bonne réponse.
+  // On ne gagne pas en ayant raison mais en ayant pensé COMME LES AUTRES : un mot
+  // que personne d'autre n'a donné ne rapporte rien, si juste soit-il.
+  //
+  // ET SA QUESTION NE VIENT PAS DE LA BIBLIOTHÈQUE. L'animateur tape ses deux
+  // mots en direct, à l'antenne, en fonction de ce qui vient de se dire. D'où
+  // `direct: true` : ce jeu n'a pas de banque de questions, et rien ne doit lui en
+  // réclamer une.
+  lien: {
+    meta: {
+      type: 'lien', name: 'Le lien', icon: 'link', color: 'info',
+      scored: true, malus: false, vitesse: false,
+      // La question est SAISIE À L'ANTENNE, jamais tirée d'une réserve.
+      direct: true,
+    },
+    buildRound(q) {
+      const mots = [String(q.mot1 || '').trim(), String(q.mot2 || '').trim()];
+      return {
+        type: 'lien',
+        questionId: q.id,
+        mots,
+        // `text` existe pour tout ce qui affiche « l'énoncé » sans connaître le
+        // jeu — la file de l'animateur, l'historique, la carte de partage.
+        text: mots.join(' · '),
+        durationMs: (q.durationSec || 45) * 1000,
+      };
+    },
+    publicQuestion(rt) {
+      return { type: 'lien', questionId: rt.questionId, text: rt.text, mots: rt.mots };
+    },
+    validateAnswer(rt, value) {
+      // UN MOT, pas une phrase. On borne la longueur — un joueur qui colle un
+      // paragraphe ne doit pas pouvoir déformer l'écran de l'animateur — et l'on
+      // refuse le vide, qui n'est pas une réponse.
+      const mot = String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, 40);
+      return mot.length ? mot : null;
+    },
+    score(rt) {
+      const { groupes, parJoueur } = grouperLesMots(rt.answers);
+
+      const results = new Map();
+      for (const [pid, g] of parJoueur) {
+        // SEUL AVEC SON MOT : aucun point. C'est la règle du jeu, pas une
+        // punition — on n'y gagne qu'en pensant comme quelqu'un d'autre.
+        const partage = g.count >= 2;
+        results.set(pid, {
+          base: partage ? BASE_LIEN : 0,
+          bonusGroupe: partage ? bonusDeRang(g.rang) : 0,
+          speed: 0,
+          // `correct` nourrit la SÉRIE et le verdict de l'écran : avoir partagé
+          // son mot est la réussite de ce jeu.
+          correct: partage,
+          rang: partage ? g.rang : null,
+          taille: g.count,
+        });
+      }
+
+      // CE QUI EST PUBLIC : les mots et leurs effectifs, jamais qui les a donnés.
+      // Le stream est une source capturée par OBS — même frontière que le nom du
+      // plus proche à l'estimation (décision 6.2 du chantier v4).
+      const stats = {
+        kind: 'lien',
+        total: rt.answers.size,
+        groupes: groupes.map((g) => ({ mot: g.mot, count: g.count, rang: g.rang, points: g.count >= 2 ? BASE_LIEN + bonusDeRang(g.rang) : 0 })),
+        // Combien de joueurs sont restés seuls avec leur mot : c'est ce chiffre
+        // qui dit si le groupe s'est trouvé ou dispersé.
+        solitaires: groupes.filter((g) => g.count === 1).length,
+      };
+
+      return {
+        results,
+        reveal: { type: 'lien', mots: rt.mots, text: rt.text, stats },
+        // Les NOMS, pour l'animateur seul : c'est lui qui commente à l'antenne.
+        prives: {
+          groupes: groupes.map((g) => ({ mot: g.mot, count: g.count, rang: g.rang, joueurs: g.pids })),
+        },
+      };
     },
   },
 

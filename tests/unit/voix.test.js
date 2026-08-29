@@ -85,6 +85,7 @@ describe('convention de la voix — contrôle bloquant', () => {
       true_false: ['juste.simple', 'faux'],
       estimation: ['estimation.mille', 'estimation.proche', 'estimation.correct', 'estimation.loin', 'estimation.hors'],
       vote: ['vote.majorite', 'vote.minorite', 'vote.sondage'],
+      lien: ['lien.seul', 'lien.majorite', 'lien.groupe'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

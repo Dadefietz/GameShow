@@ -9,11 +9,20 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '../shared/supabaseClient.js';
 import './studio.css';
 
-// --- Référentiel des 4 types de module (icône + variante couleur du mockup) ---
+// --- Référentiel des types de module (icône + variante couleur du mockup) ---
+//
+// TOUT TYPE DU SERVEUR DOIT FIGURER ICI. Ce qui n'y figure pas était jusqu'ici
+// converti EN SILENCE en « quiz » (voir `normalizeModule`) : « Le lien », dont
+// le type était inconnu du Studio, se transformait donc en quiz vide dès que
+// l'animateur enregistrait quoi que ce soit dans son Studio. Le jeu disparaissait
+// de son menu, sans le moindre message.
 const MODULE_TYPES = {
   quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire' },
   true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest' },
   estimation: { label: 'Estimation', subtitle: 'Réponse chiffrée', icon: 'target',       color: 'flame' },
+  // EN DIRECT : sa question — deux mots — se tape à l'antenne. Il n'y a donc rien
+  // à préparer ici, et le Studio ne doit pas prétendre le contraire.
+  lien:       { label: 'Le lien',    subtitle: 'Deux mots, en direct', icon: 'link', color: 'info', direct: true },
   vote:       { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
@@ -510,7 +519,12 @@ function ModuleCard({ module, selected, onEdit }) {
           {noQuestion ? 'Aucune question' : `${module.questions.length} question${module.questions.length > 1 ? 's' : ''}`}
         </span>
       </div>
-      {noQuestion ? (
+      {MODULE_TYPES[module.type]?.direct ? (
+        /* UN JEU EN DIRECT N'EST PAS UN JEU VIDE. Sa question — deux mots — se
+           tape à l'antenne, au moment de lancer. Lui reprocher son absence de
+           questions serait un contresens. */
+        <p className="mcard__note">Sa question se saisit en direct, au lancement. Rien à préparer ici.</p>
+      ) : noQuestion ? (
         <p className="mcard__note">Ce module ne sera pas jouable tant qu'il n'a pas de question.</p>
       ) : null}
       <div className="mcard__actions">
@@ -603,8 +617,15 @@ function EditorPanel({
               <p className="fhint">Aucune question. Ajoutes-en une pour démarrer la banque.</p>
             ) : null}
           </div>
-          <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}
-            style={{ marginTop: 'var(--sp-2)' }}><I.plus s={16} /> Ajouter une question</button>
+          {!MODULE_TYPES[module.type]?.direct ? (
+            <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}
+              style={{ marginTop: 'var(--sp-2)' }}><I.plus s={16} /> Ajouter une question</button>
+          ) : (
+            <p className="fhint" data-testid="studio-jeu-direct">
+              Ce jeu se prépare à l'antenne : l'animateur tape ses deux mots au moment
+              de le lancer. Il n'y a pas de banque à remplir.
+            </p>
+          )}
         </div>
 
         {/* Suppression : confirmation en deux temps, comme sur la surface animateur. */}

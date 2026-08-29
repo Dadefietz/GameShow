@@ -1,5 +1,6 @@
 // Tests unitaires — barème et validation des 4 modules (logique pure).
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
 import { modules, demoQuestions, MODULE_TYPES } from '../../src/server/modules.js';
 
 function round(mod, q) {
@@ -310,7 +311,36 @@ describe('vote', () => {
 });
 
 describe('banque embarquée (R6 — 20 questions par module)', () => {
-  it.each(MODULE_TYPES)('%s contient au moins 20 questions aux ids uniques', (type) => {
+  // LES JEUX « EN DIRECT » N'ONT PAS DE BANQUE, ET C'EST LEUR DÉFINITION.
+  // « Le lien » se joue sur deux mots que l'animateur tape à l'antenne, en
+  // fonction de ce qui vient de se dire. Lui réclamer vingt questions n'aurait
+  // pas de sens — mais le contrôle doit le dire, pas le contourner en silence.
+  const AVEC_BANQUE = MODULE_TYPES.filter((t) => modules[t].meta.direct !== true);
+
+  it('LE STUDIO CONNAÎT TOUS LES TYPES DU SERVEUR', () => {
+    // CE QUE CE CONTRÔLE A COÛTÉ DE NE PAS EXISTER. Le Studio normalise un module
+    // inconnu en le convertissant EN SILENCE en « quiz ». « Le lien », dont le
+    // type ne figurait pas dans son référentiel, se transformait donc en quiz vide
+    // dès que l'animateur enregistrait quoi que ce soit — le jeu disparaissait de
+    // son menu, sans un message, et seul un contrôle de bout en bout l'a révélé.
+    //
+    // Un type ajouté au serveur sans être déclaré au Studio échoue désormais ici.
+    const studio = fs.readFileSync('src/client/studio/StudioApp.jsx', 'utf8');
+    const bloc = studio.slice(studio.indexOf('const MODULE_TYPES = {'), studio.indexOf('const TYPE_KEYS'));
+    for (const type of MODULE_TYPES) {
+      expect(bloc.includes(`${type}:`), `le Studio ignore le type « ${type} » et le convertirait en quiz`).toBe(true);
+    }
+  });
+
+  it('un jeu EN DIRECT est déclaré comme tel, et n\'a donc pas de banque', () => {
+    const directs = MODULE_TYPES.filter((t) => modules[t].meta.direct === true);
+    expect(directs, 'aucun jeu en direct — ce contrôle ne mesure plus rien').not.toHaveLength(0);
+    for (const t of directs) {
+      expect(demoQuestions[t], `« ${t} » est en direct mais porte une banque`).toBeUndefined();
+    }
+  });
+
+  it.each(AVEC_BANQUE)('%s contient au moins 20 questions aux ids uniques', (type) => {
     const bank = demoQuestions[type];
     expect(bank.length).toBeGreaterThanOrEqual(20);
     expect(new Set(bank.map((q) => q.id)).size).toBe(bank.length);

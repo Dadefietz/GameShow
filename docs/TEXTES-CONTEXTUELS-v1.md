@@ -1,4 +1,4 @@
-# Les 165 textes
+# Les 185 textes
 
 | N° | Texte | Page | Occasion |
 |---:|---|---|---|
@@ -85,85 +85,105 @@
 | 81 | Ouch ! Tu t'es brûlé(e) sur celle-ci. | Joueur (téléphone) | au-delà de 30 % de la cible, et pas le plus proche : zéro point |
 | 82 | On ne parlait peut-être pas de la même chose. | Joueur (téléphone) | au-delà de 30 % de la cible, et pas le plus proche : zéro point |
 | 83 | On va faire comme s'il ne s'était rien passé... | Joueur (téléphone) | au-delà de 30 % de la cible, et pas le plus proche : zéro point |
-| 84 | T'es avec le cercle ! | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 85 | Tu sais où souffle le vent ! Et le feu aime le vent. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 86 | Le cercle pensait comme toi. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 87 | Peu importe si c'est ce que tu penses vraiment, t'es là où il faut. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 88 | Dans le camp le plus fourni. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 89 | Bien vu : le cercle t’a suivi. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
-| 90 | Seul contre le cercle. Courageux. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 91 | Le cercle en a décidé autrement. Montre lui de quel bois tu te chauffes. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 92 | À contre-courant. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 93 | C'est comme se sentir seul... mais en pire. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 94 | Minoritaire, et assumé. Tu vas te refaire. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 95 | Le cercle a penché ailleurs. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
-| 96 | Ta voix compte. (Je le pense vraiment) | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
-| 97 | C’est noté. Sans enjeu, juste ton opinion, et je l'apprécie. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
-| 98 | Merci ! Le cercle t’a entendu. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
-| 99 | Un avis, pas un pari. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
-| 100 | {rang} du cercle. Tu peux être fier(e) ! | Joueur (téléphone) | le joueur termine dans les trois premiers |
-| 101 | Sur le podium. C’était mérité. | Joueur (téléphone) | le joueur termine dans les trois premiers |
-| 102 | {rang} — Jubile devant les autres, ça n'arrivera peut-être plus. | Joueur (téléphone) | le joueur termine dans les trois premiers |
-| 103 | {rang}. L'une des légendes du cercle. Bravo | Joueur (téléphone) | le joueur termine dans les trois premiers |
-| 104 | {rang}. La soirée n’était pas perdue. Le cercle se souvient. | Joueur (téléphone) | le joueur est classé hors podium |
-| 105 | Tu finis {rang}. Tu reviendras plus fort(e). | Joueur (téléphone) | le joueur est classé hors podium |
-| 106 | {rang}, on acclame le podium et on prie pour les perdants | Joueur (téléphone) | le joueur est classé hors podium |
-| 107 | {rang}, et une revanche à prendre. | Joueur (téléphone) | le joueur est classé hors podium |
-| 108 | Tu es resté jusqu’au bout. C’est déjà beaucoup. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
-| 109 | Le classement dit une chose, la soirée en dit une autre. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
-| 110 | Une prochaine fois. Le feu ne s’éteint pas. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
-| 111 | Dernier au tableau, présent au cercle. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
-| 112 | Tout le cercle a trouvé. Trop facile ? | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
-| 113 | Le cercle est bon. Trop bon ? | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
-| 114 | Unanimité. La question était trop tendre. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
-| 115 | Sans faute, tout le monde. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
-| 116 | Le cercle au complet a visé juste. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
-| 117 | Personne. Absolument personne... ça c'est un cercle uni ! | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
-| 118 | Le cercle entier est passé à côté. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
-| 119 | Zéro bonne réponse. La question a gagné. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
-| 120 | Toute la salle dans le mur, ensemble. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
-| 121 | Pas un seul. C’est presque beau. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
-| 122 | Le piège a fonctionné. La majorité est tombée dedans. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
-| 123 | La salle a choisi la mauvaise porte, en groupe. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
-| 124 | Belle embuscade : le cercle s’est fait avoir. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
-| 125 | La plupart se sont brûlés. Bravo aux autres ! | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
-| 126 | Piégés, et en nombre. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
-| 127 | Presque tout le monde a trouvé. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
-| 128 | Quasi-unanimité. Un ou deux distraits. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
-| 129 | Le cercle était sûr de lui, à raison. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
-| 130 | À une poignée près, tout le monde. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
-| 131 | Le cercle est coupé en deux. | Stream (OBS) | les deux options de tête se tiennent à une voix |
-| 132 | Wow ! Égalité parfaite. | Stream (OBS) | les deux options de tête se tiennent à une voix |
-| 133 | Le cercle est partagé... | Stream (OBS) | les deux options de tête se tiennent à une voix |
-| 134 | Il y a une option qui devrait finir au feu. | Stream (OBS) | une option n’a recueilli aucune voix |
-| 135 | Il y avait une option de trop on dirait. | Stream (OBS) | une option n’a recueilli aucune voix |
-| 136 | Une proposition délaissée par le cercle. | Stream (OBS) | une option n’a recueilli aucune voix |
-| 137 | Le cercle n'est pas dûpe face à cette option bancale. | Stream (OBS) | une option n’a recueilli aucune voix |
-| 138 | Le cercle est d’accord. C’est rare. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
-| 139 | Consensus écrasant. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
-| 140 | Presque tout le cercle est du même avis. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
-| 141 | Le feu s'intensifie en voyant une telle unité ! | Stream (OBS) | vote : une option dépasse huit voix sur dix |
-| 142 | Le cercle hésite. Deux camps à égalité. | Stream (OBS) | vote : les deux premières options à une voix près |
-| 143 | Le feu brûle de bonheur en voyant cette compétition ! | Stream (OBS) | vote : les deux premières options à une voix près |
-| 144 | La cercle est coupé en deux... ça fait des demi-cercles du coup. | Stream (OBS) | vote : les deux premières options à une voix près |
-| 145 | Mais qui a gagné en fait ? | Stream (OBS) | vote : les deux premières options à une voix près |
-| 146 | Un cercle de qualité ! | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
-| 147 | Ensemble, le cercle a ajusté sa mire ! | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
-| 148 | Le cercle a envoyé du bois sur celle-ci. | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
-| 149 | La sagesse de la foule, pour une fois. | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
-| 150 | Le cercle s’est trompé d’échelle. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
-| 151 | Tout le monde a visé beaucoup trop loin. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
-| 152 | Une partie du cercle était hors sujet. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
-| 153 | Collectivement à côté de la plaque. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
-| 154 | Une seule personne talentueuse dans le cercle on dirait. | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
-| 155 | Une estimation au millimètre dans le lot. Chapeau bas ! | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
-| 156 | Il y a un expert dans le cercle. Gardons-le à l'œil ! | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
-| 157 | Quelqu’un savait, et c'est tout à son honneur. | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
-| 158 | Le cercle est parti se promener sur cette estimation on dirait. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
-| 159 | Alors... le but du jeu c'est d'être le plus proche de la réponse, pas le plus loin. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
-| 160 | Le cercle est resté loin du compte. Il va falloir songer à toucher du bois un peu. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
-| 161 | Ouch ! Le feu se sent bien seul sur celle-là. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
-| 162 | Voici un podium de qualité ! (et le reste du cercle aussi vous avez du talent) | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
-| 163 | La feu a rendu son verdict ! Bravo à notre grand vainqueur ! | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
-| 164 | Trois en haut, et tout le monde danse autour du feu. | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
-| 165 | Tout feu tout flamme ces 3 gagnants ! (et les autres vous êtes chauds aussi !) | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
+| 84 | Personne n’a pensé comme toi. C’est original, ça ne rapporte rien. | Joueur (téléphone) | le lien : personne d’autre n’a donné ce mot |
+| 85 | Ton mot n’a trouvé personne. Le cercle pensait ailleurs. | Joueur (téléphone) | le lien : personne d’autre n’a donné ce mot |
+| 86 | Seul de ton avis. Ça arrive aux meilleurs. | Joueur (téléphone) | le lien : personne d’autre n’a donné ce mot |
+| 87 | Bien vu, mais tout seul — et ici, seul ne compte pas. | Joueur (téléphone) | le lien : personne d’autre n’a donné ce mot |
+| 88 | Le mot que tout le monde attendait. Tu l’as trouvé. | Joueur (téléphone) | le lien : le joueur est dans le groupe le plus nombreux |
+| 89 | En plein dans la tête du cercle. | Joueur (téléphone) | le lien : le joueur est dans le groupe le plus nombreux |
+| 90 | Le groupe le plus nombreux, et tu en es. | Joueur (téléphone) | le lien : le joueur est dans le groupe le plus nombreux |
+| 91 | Tu penses comme la majorité. Ce soir, c’est un talent. | Joueur (téléphone) | le lien : le joueur est dans le groupe le plus nombreux |
+| 92 | Vous êtes {taille} à y avoir pensé. | Joueur (téléphone) | le lien : le joueur partage son mot, hors du groupe de tête |
+| 93 | Ton mot a trouvé du monde. Pas la foule, mais du monde. | Joueur (téléphone) | le lien : le joueur partage son mot, hors du groupe de tête |
+| 94 | Partagé — ce n’était donc pas si tiré par les cheveux. | Joueur (téléphone) | le lien : le joueur partage son mot, hors du groupe de tête |
+| 95 | Un petit groupe s’est formé autour de toi. | Joueur (téléphone) | le lien : le joueur partage son mot, hors du groupe de tête |
+| 96 | Le cercle n’a eu qu’une seule idée. | Stream (OBS) | le lien : la moitié du cercle au moins a donné le même mot |
+| 97 | Une évidence pour presque tout le monde. | Stream (OBS) | le lien : la moitié du cercle au moins a donné le même mot |
+| 98 | Rarement vu autant de monde d’accord. | Stream (OBS) | le lien : la moitié du cercle au moins a donné le même mot |
+| 99 | Un seul mot, et il a rassemblé. | Stream (OBS) | le lien : la moitié du cercle au moins a donné le même mot |
+| 100 | Personne n’a pensé comme personne. | Stream (OBS) | le lien : personne n’a partagé son mot, tous les groupes sont seuls |
+| 101 | Autant de mots que de joueurs. Belle dispersion. | Stream (OBS) | le lien : personne n’a partagé son mot, tous les groupes sont seuls |
+| 102 | Le cercle est parti dans toutes les directions. | Stream (OBS) | le lien : personne n’a partagé son mot, tous les groupes sont seuls |
+| 103 | Aucun mot en commun. Ça n’arrive pas souvent. | Stream (OBS) | le lien : personne n’a partagé son mot, tous les groupes sont seuls |
+| 104 | T'es avec le cercle ! | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 105 | Tu sais où souffle le vent ! Et le feu aime le vent. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 106 | Le cercle pensait comme toi. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 107 | Peu importe si c'est ce que tu penses vraiment, t'es là où il faut. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 108 | Dans le camp le plus fourni. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 109 | Bien vu : le cercle t’a suivi. | Joueur (téléphone) | vote noté, le joueur est dans un camp gagnant |
+| 110 | Seul contre le cercle. Courageux. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 111 | Le cercle en a décidé autrement. Montre lui de quel bois tu te chauffes. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 112 | À contre-courant. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 113 | C'est comme se sentir seul... mais en pire. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 114 | Minoritaire, et assumé. Tu vas te refaire. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 115 | Le cercle a penché ailleurs. | Joueur (téléphone) | vote noté, le joueur est minoritaire |
+| 116 | Ta voix compte. (Je le pense vraiment) | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
+| 117 | C’est noté. Sans enjeu, juste ton opinion, et je l'apprécie. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
+| 118 | Merci ! Le cercle t’a entendu. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
+| 119 | Un avis, pas un pari. | Joueur (téléphone) | vote en mode sondage : personne ne gagne |
+| 120 | {rang} du cercle. Tu peux être fier(e) ! | Joueur (téléphone) | le joueur termine dans les trois premiers |
+| 121 | Sur le podium. C’était mérité. | Joueur (téléphone) | le joueur termine dans les trois premiers |
+| 122 | {rang} — Jubile devant les autres, ça n'arrivera peut-être plus. | Joueur (téléphone) | le joueur termine dans les trois premiers |
+| 123 | {rang}. L'une des légendes du cercle. Bravo | Joueur (téléphone) | le joueur termine dans les trois premiers |
+| 124 | {rang}. La soirée n’était pas perdue. Le cercle se souvient. | Joueur (téléphone) | le joueur est classé hors podium |
+| 125 | Tu finis {rang}. Tu reviendras plus fort(e). | Joueur (téléphone) | le joueur est classé hors podium |
+| 126 | {rang}, on acclame le podium et on prie pour les perdants | Joueur (téléphone) | le joueur est classé hors podium |
+| 127 | {rang}, et une revanche à prendre. | Joueur (téléphone) | le joueur est classé hors podium |
+| 128 | Tu es resté jusqu’au bout. C’est déjà beaucoup. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
+| 129 | Le classement dit une chose, la soirée en dit une autre. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
+| 130 | Une prochaine fois. Le feu ne s’éteint pas. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
+| 131 | Dernier au tableau, présent au cercle. | Joueur (téléphone) | le joueur termine dernier, ou sans point |
+| 132 | Tout le cercle a trouvé. Trop facile ? | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
+| 133 | Le cercle est bon. Trop bon ? | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
+| 134 | Unanimité. La question était trop tendre. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
+| 135 | Sans faute, tout le monde. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
+| 136 | Le cercle au complet a visé juste. | Stream (OBS) | tout le monde a trouvé (>= 5 réponses) |
+| 137 | Personne. Absolument personne... ça c'est un cercle uni ! | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
+| 138 | Le cercle entier est passé à côté. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
+| 139 | Zéro bonne réponse. La question a gagné. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
+| 140 | Toute la salle dans le mur, ensemble. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
+| 141 | Pas un seul. C’est presque beau. | Stream (OBS) | personne n’a trouvé (>= 5 réponses) |
+| 142 | Le piège a fonctionné. La majorité est tombée dedans. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
+| 143 | La salle a choisi la mauvaise porte, en groupe. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
+| 144 | Belle embuscade : le cercle s’est fait avoir. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
+| 145 | La plupart se sont brûlés. Bravo aux autres ! | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
+| 146 | Piégés, et en nombre. | Stream (OBS) | une mauvaise option a recueilli plus de voix que la bonne |
+| 147 | Presque tout le monde a trouvé. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
+| 148 | Quasi-unanimité. Un ou deux distraits. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
+| 149 | Le cercle était sûr de lui, à raison. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
+| 150 | À une poignée près, tout le monde. | Stream (OBS) | au moins neuf réponses sur dix sont justes |
+| 151 | Le cercle est coupé en deux. | Stream (OBS) | les deux options de tête se tiennent à une voix |
+| 152 | Wow ! Égalité parfaite. | Stream (OBS) | les deux options de tête se tiennent à une voix |
+| 153 | Le cercle est partagé... | Stream (OBS) | les deux options de tête se tiennent à une voix |
+| 154 | Il y a une option qui devrait finir au feu. | Stream (OBS) | une option n’a recueilli aucune voix |
+| 155 | Il y avait une option de trop on dirait. | Stream (OBS) | une option n’a recueilli aucune voix |
+| 156 | Une proposition délaissée par le cercle. | Stream (OBS) | une option n’a recueilli aucune voix |
+| 157 | Le cercle n'est pas dûpe face à cette option bancale. | Stream (OBS) | une option n’a recueilli aucune voix |
+| 158 | Le cercle est d’accord. C’est rare. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
+| 159 | Consensus écrasant. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
+| 160 | Presque tout le cercle est du même avis. | Stream (OBS) | vote : une option dépasse huit voix sur dix |
+| 161 | Le feu s'intensifie en voyant une telle unité ! | Stream (OBS) | vote : une option dépasse huit voix sur dix |
+| 162 | Le cercle hésite. Deux camps à égalité. | Stream (OBS) | vote : les deux premières options à une voix près |
+| 163 | Le feu brûle de bonheur en voyant cette compétition ! | Stream (OBS) | vote : les deux premières options à une voix près |
+| 164 | La cercle est coupé en deux... ça fait des demi-cercles du coup. | Stream (OBS) | vote : les deux premières options à une voix près |
+| 165 | Mais qui a gagné en fait ? | Stream (OBS) | vote : les deux premières options à une voix près |
+| 166 | Un cercle de qualité ! | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
+| 167 | Ensemble, le cercle a ajusté sa mire ! | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
+| 168 | Le cercle a envoyé du bois sur celle-ci. | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
+| 169 | La sagesse de la foule, pour une fois. | Stream (OBS) | la moyenne du groupe est à moins de 10 % de la cible |
+| 170 | Le cercle s’est trompé d’échelle. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
+| 171 | Tout le monde a visé beaucoup trop loin. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
+| 172 | Une partie du cercle était hors sujet. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
+| 173 | Collectivement à côté de la plaque. | Stream (OBS) | la moyenne du groupe dépasse le double de la cible |
+| 174 | Une seule personne talentueuse dans le cercle on dirait. | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
+| 175 | Une estimation au millimètre dans le lot. Chapeau bas ! | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
+| 176 | Il y a un expert dans le cercle. Gardons-le à l'œil ! | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
+| 177 | Quelqu’un savait, et c'est tout à son honneur. | Stream (OBS) | estimation : une seule personne a trouvé la valeur exacte |
+| 178 | Le cercle est parti se promener sur cette estimation on dirait. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
+| 179 | Alors... le but du jeu c'est d'être le plus proche de la réponse, pas le plus loin. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
+| 180 | Le cercle est resté loin du compte. Il va falloir songer à toucher du bois un peu. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
+| 181 | Ouch ! Le feu se sent bien seul sur celle-là. | Stream (OBS) | même la meilleure estimation reste à plus de 50 % de la cible |
+| 182 | Voici un podium de qualité ! (et le reste du cercle aussi vous avez du talent) | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
+| 183 | La feu a rendu son verdict ! Bravo à notre grand vainqueur ! | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
+| 184 | Trois en haut, et tout le monde danse autour du feu. | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |
+| 185 | Tout feu tout flamme ces 3 gagnants ! (et les autres vous êtes chauds aussi !) | Stream (OBS) | podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer |

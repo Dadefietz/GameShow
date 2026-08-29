@@ -262,6 +262,85 @@ function VoletNavigation({ overlayToken }) {
   );
 }
 
+// LA SAISIE DES DEUX MOTS — « Le lien ».
+//
+// C'est le seul jeu dont la question s'écrit à l'antenne. Le bouton reste inerte
+// tant que les deux mots ne sont pas remplis : diffuser un lien à moitié posé
+// n'aurait aucun sens, et l'animateur le découvrirait devant son public.
+function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
+  const [mot1, setMot1] = useState('');
+  const [mot2, setMot2] = useState('');
+  const pret = mot1.trim().length > 0 && mot2.trim().length > 0;
+  return (
+    <section className="private lien-saisie" aria-label="Préparer Le lien" data-testid="saisie-lien">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Deux mots. Le cercle cherchera celui qui les relie, et marque en pensant
+        comme les autres.
+      </p>
+      <form
+        className="lien-saisie__form"
+        onSubmit={(e) => { e.preventDefault(); if (pret) onDiffuser(jeu, mot1.trim(), mot2.trim()); }}
+      >
+        <label className="flabel" htmlFor="lien-mot1">Mot n° 1</label>
+        <input className="input" id="lien-mot1" type="text" autoComplete="off" maxLength={40}
+          value={mot1} onChange={(e) => setMot1(e.target.value)} data-testid="lien-mot1" />
+        <label className="flabel" htmlFor="lien-mot2">Mot n° 2</label>
+        <input className="input" id="lien-mot2" type="text" autoComplete="off" maxLength={40}
+          value={mot2} onChange={(e) => setMot2(e.target.value)} data-testid="lien-mot2" />
+        <div className="lien-saisie__actions">
+          <button className="button button--primary" type="submit" disabled={!pret}
+            data-action="host:diffuserLien" data-testid="lien-diffuser">
+            Diffusion aux joueurs
+          </button>
+          {onAnnuler ? (
+            <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// LES GROUPES DE MOTS, À LA RÉVÉLATION — pour l'animateur seul.
+//
+// Il commente à l'antenne : il lui faut les NOMS, groupés par mot et classés du
+// plus donné au moins donné. Le stream, lui, ne reçoit que les mots et leurs
+// effectifs — même frontière que le nom du plus proche à l'estimation.
+function GroupesLien({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  useEffect(() => {
+    const onGroupes = (d) => setDonnee(d && Array.isArray(d.groupes) ? d : null);
+    g.on('host:groupes', onGroupes);
+    return () => g.off('host:groupes', onGroupes);
+  }, [g]);
+  // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
+  // manche antérieure ferait commenter des mots qui ne sont plus à l'antenne.
+  if (!revealed || !donnee || donnee.roundId !== roundId) return null;
+  const groupes = donnee.groupes;
+  if (!groupes?.length) return null;
+  return (
+    <section className="private" aria-label="Les mots donnés" data-testid="groupes-lien">
+      <p className="private__title">
+        <I.eye s={16} /> Les mots donnés — toi seul
+        <span className="private__count">{fmt(groupes.length)}</span>
+      </p>
+      <div className="groupes">
+        {groupes.map((gr) => (
+          <div className="groupes__bloc" key={gr.mot} data-rang={gr.rang} data-count={gr.count}>
+            <p className="groupes__tete">
+              <span className="groupes__rang">{gr.rang}</span>
+              <span className="groupes__mot">{gr.mot}</span>
+              <span className="groupes__n">{fmt(gr.count)}</span>
+            </p>
+            <p className="groupes__joueurs">{gr.joueurs.join(' · ')}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // Menu de changement de module — un seul aller-retour, jamais de sous-menu.
 function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
   const [open, setOpen] = useState(false);
@@ -289,8 +368,9 @@ function ModuleMenu({ jeux, currentId, onPick, label = 'Changer de module' }) {
               onClick={() => { setOpen(false); onPick(m); }}>
               {m.name}{(m.id && m.id === currentId) ? ' — en cours' : ''}
               {/* Un jeu vide se signale AVANT le lancement : le découvrir en
-                  direct, sur un refus du serveur, serait le pire moment. */}
-              {m.questions === 0 ? ' — aucune question' : ''}
+                  direct, sur un refus du serveur, serait le pire moment. Un jeu
+                  en direct n'a pas de banque, et n'en manque donc pas. */}
+              {m.questions === 0 && !m.direct ? ' — aucune question' : ''}
             </button>
           ))}
         </div>
@@ -1011,11 +1091,12 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
                 {jeux.map((m) => (
                   <button key={m.id || m.type} className="button button--block" type="button" role="menuitem"
                     data-action="host:startModule" onClick={() => onStartModule(m)}
-                    disabled={m.questions === 0}>
+                    disabled={m.questions === 0 && !m.direct}>
                     Lancer {m.name}
                     {/* Un jeu vide se signale AVANT le lancement, pas par un refus
-                        du serveur découvert en plein direct. */}
-                    {m.questions === 0 ? ' — aucune question' : ''}
+                        du serveur découvert en plein direct. Un jeu EN DIRECT, lui,
+                        n'a pas de banque par définition : il n'en manque pas. */}
+                    {m.questions === 0 && !m.direct ? ' — aucune question' : ''}
                   </button>
                 ))}
               </div>
@@ -1270,7 +1351,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // ============================================================
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1384,7 +1465,14 @@ function LiveScreen({ g, code, overlayToken, onShowResults, onLogout, onCloseRoo
             {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
           </section>
 
+          {/* LA SAISIE DU LIEN prend la place de la scène tant que les deux mots
+              ne sont pas diffusés : c'est LE geste de l'animateur à cet instant. */}
+          {prepare ? (
+            <SaisieLien jeu={prepare} onDiffuser={onDiffuserLien} onAnnuler={onAnnulerLien} />
+          ) : null}
+
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
+          <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA FILE, DANS LA COLONNE CENTRALE (chantier v2, décision 3.1).
               Elle vivait dans la colonne latérale de 336 px, où trois commandes
@@ -1575,6 +1663,8 @@ export function HostApp() {
   const [session, setSession] = useState(() => store.load('host') || null);
   const hostToken = session ? session.hostToken : null;
   const [showResults, setShowResults] = useState(false);
+  // Le jeu « en direct » dont l'animateur est en train de saisir la question.
+  const [prepare, setPrepare] = useState(null);
   const [home, setHome] = useState(null);           // 'closed' | 'expired'
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState(null);
@@ -1668,7 +1758,28 @@ export function HostApp() {
   const startModule = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
+    // LES JEUX « EN DIRECT » NE SE LANCENT PAS D'UN CLIC. « Le lien » attend deux
+    // mots que l'animateur tape à l'antenne : on ANNONCE le jeu — le cercle voit
+    // le jingle — et la manche ne démarre qu'à la diffusion des mots. Le temps de
+    // saisie ne doit pas être décompté du temps de jeu.
+    if (jeu?.type === 'lien') {
+      setPrepare(jeu);
+      g.emit('host:announceModule', { moduleId: jeu.id });
+      return;
+    }
+    setPrepare(null);
     g.emit('host:startModule', { moduleId: jeu?.id, moduleType: jeu?.type });
+  }, [g]);
+
+  // La diffusion des deux mots : c'est ELLE qui démarre réellement la manche.
+  const diffuserLien = useCallback((jeu, mot1, mot2) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `lien-${Date.now()}`, text: `${mot1} · ${mot2}`, mot1, mot2 },
+    });
   }, [g]);
 
   const endGame = useCallback(() => { g.emit('host:endGame'); }, [g]);
@@ -1791,11 +1902,17 @@ export function HostApp() {
           g={g}
           code={code}
           overlayToken={session.overlayToken}
+          prepare={prepare}
+          onDiffuserLien={diffuserLien}
+          onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}
           onCloseRoom={closeRoom}
           onEndGame={endGame}
-          onNextQuestion={() => startModule(jeuEnCours)}
+          onNextQuestion={() => {
+            if (jeuEnCours?.type === 'lien') { setPrepare(jeuEnCours); return; }
+            startModule(jeuEnCours);
+          }}
           onChangeModule={(t) => startModule(t)}
           connLost={connLost}
           hostError={hostError}

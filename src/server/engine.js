@@ -140,6 +140,25 @@ export function emitRoomState(io, room) {
 // C'est lui qui donne son nom à la manche — les écrans affichaient jusqu'ici le
 // nom générique du type (« Quiz »), et celui que l'animateur avait choisi dans le
 // Studio ne voyageait nulle part.
+// L'ANNONCE D'UN JEU, SANS LE LANCER.
+//
+// « Le lien » se joue en DEUX TEMPS : l'animateur choisit le jeu — le cercle voit
+// alors un écran d'annonce, comme un jingle de plateau — puis il tape ses deux
+// mots et les diffuse, ce qui démarre vraiment la manche et son chrono.
+//
+// Aucun autre jeu n'en avait besoin : leur question sort de la bibliothèque et
+// part avec le lancement. Celui-ci se prépare à l'antenne, et le temps de saisie
+// de l'animateur ne doit pas être décompté du temps de jeu.
+export function annoncerModule(io, room, jeu) {
+  room.annonce = { moduleId: jeu.id, type: jeu.type, name: jeu.name };
+  // La manche précédente n'a plus lieu d'être affichée : on annonce la suivante.
+  room.currentModule = null;
+  room.state = RoomState.PLAYING;
+  toRoom(io, room).emit('module:annonce', room.annonce);
+  emitRoomState(io, room);
+  roomManager.touch(room);
+}
+
 export function startModule(io, room, jeu, question) {
   const mod = modules[jeu.type];
   if (!mod) throw new Error('module inconnu: ' + jeu.type);
@@ -267,6 +286,10 @@ export function reveal(io, room) {
     // MONTRER le calcul. La somme se fait ici, et nulle part ailleurs.
     const bonusExact = r ? r.bonusExact || 0 : 0;
     const bonusProche = r ? r.bonusProche || 0 : 0;
+    // « Le lien » : le bonus du groupe. Comme les deux autres, il voyage à part
+    // pour que l'écran du joueur MONTRE son calcul — et comme les deux autres, il
+    // entre dans le total ici, à l'endroit unique où la somme se fait.
+    const bonusGroupe = r ? r.bonusGroupe || 0 : 0;
     let speed = r ? r.speed || 0 : 0;
     if (noté) {
       if (r && r.correct === true) {
@@ -278,10 +301,12 @@ export function reveal(io, room) {
         p.streak = 0;
       }
     }
-    const delta = base + bonusExact + bonusProche + speed;
+    const delta = base + bonusExact + bonusProche + bonusGroupe + speed;
     p.score = Math.max(0, p.score + delta);
     perPlayer.set(pid, {
-      base, bonusExact, bonusProche, speed, delta, streak: p.streak, palier: r ? r.palier : null,
+      base, bonusExact, bonusProche, bonusGroupe, speed, delta, streak: p.streak, palier: r ? r.palier : null,
+      // Le rang du groupe et sa taille : l'écran les nomme, la voix les cite.
+      rang: r ? r.rang ?? null : null, taille: r ? r.taille ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -304,6 +329,23 @@ export function reveal(io, room) {
   // Le stream est une source capturée par OBS : y faire apparaître un nom
   // romprait l'anonymat que la réunion a explicitement demandé de préserver.
   // Les `stats` publiques, elles, gardent la VALEUR sans le nom (décision 6.3).
+  // LES GROUPES DU LIEN, AVEC LES NOMS — canal animateur seul.
+  //
+  // C'est lui qui commente à l'antenne : il lui faut savoir QUI a donné quoi. Le
+  // stream reçoit les mots et leurs effectifs, jamais les noms — même frontière
+  // que le plus proche de l'estimation (décision 6.2 du chantier v4).
+  if (prives && Array.isArray(prives.groupes) && prives.groupes.length) {
+    io.to(room.code + ':host').emit('host:groupes', {
+      roundId: rt.roundId,
+      groupes: prives.groupes.map((g) => ({
+        mot: g.mot,
+        count: g.count,
+        rang: g.rang,
+        joueurs: g.joueurs.map((pid) => room.players.get(pid)?.pseudo).filter(Boolean),
+      })),
+    });
+  }
+
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
     io.to(room.code + ':host').emit('host:closest', {
       roundId: rt.roundId,
@@ -323,7 +365,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -332,6 +374,9 @@ export function reveal(io, room) {
       base: d.base,
       bonusExact: d.bonusExact,
       bonusProche: d.bonusProche,
+      bonusGroupe: d.bonusGroupe,
+      rang: d.rang,
+      taille: d.taille,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,

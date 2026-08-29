@@ -632,6 +632,37 @@
      en cours de route est souvent loin dans la liste — c'est lui qui a demandé à
      s'y voir. Le plafond est en hauteur d'écran : sur un téléphone, la moitié de
      la vue suffit à comprendre où l'on est sans perdre le reste de l'écran. */
+  /* ===== LE LIEN =====
+     L'annonce, l'énoncé à deux mots, le champ de saisie. Aucune valeur en dur :
+     mêmes jetons, mêmes rayons, mêmes rythmes que le reste de la surface. */
+  .annonce__emblem {
+    display: grid;
+    place-items: center;
+    margin-bottom: var(--sp-5);
+    color: var(--c-ember-bright);
+    animation: om-pop var(--mo-slow) var(--ease-out) both;
+  }
+  .lien { display: flex; flex-direction: column; gap: var(--sp-4); width: 100%; }
+  /* Les deux mots AVANT le champ : c'est sur eux que le joueur réfléchit. */
+  .lien__mots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+    padding: var(--sp-4);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+  }
+  .lien__mot {
+    font: 600 var(--fs-600) / var(--lh-tight) var(--f-display);
+    letter-spacing: var(--tr-display);
+    color: var(--c-ink);
+    text-align: center;
+  }
+  .lien__chainons { display: grid; place-items: center; color: var(--c-ember-bright); }
+  .est__input--mot { text-align: center; font-family: var(--f-ui); }
+
   .board--defile { max-height: 42dvh; overflow-y: auto; }
   .board__row {
     display: flex;

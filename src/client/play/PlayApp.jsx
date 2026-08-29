@@ -14,6 +14,7 @@ import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
+import { CHAINONS } from '../shared/marque-lien.js';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -312,6 +313,38 @@ function JoinScreen({ initialCode, onJoin, notice }) {
 // ============================================================
 // J2 — Salle d'attente
 // ============================================================
+// L'EMBLÈME DU LIEN. Le tracé vient de `marque-lien.js` : la flamme du projet a
+// vécu en trois exemplaires recopiés avant de diverger, on ne recommence pas.
+function Chainons({ s = 64 }) {
+  return (
+    <svg width={s} height={s} viewBox={CHAINONS.viewBox} fill="none" stroke="currentColor"
+      strokeWidth={CHAINONS.trait} strokeLinecap="round" aria-hidden="true">
+      <path d={CHAINONS.gauche} />
+      <path d={CHAINONS.droite} />
+      <path d={CHAINONS.jointure} />
+    </svg>
+  );
+}
+
+// L'ANNONCE DU JEU — le jingle. L'animateur a choisi « Le lien » et saisit ses
+// deux mots ; le cercle patiente devant le nom du jeu. C'est un temps mort qui
+// n'en est pas un : il prépare l'attention, comme un générique.
+function AnnonceScreen({ nom }) {
+  return (
+    <main className="screen screen--hearth" data-state="annonce" aria-labelledby="annonce-titre">
+      <div className="screen__main screen__main--center">
+        <span className="annonce__emblem" aria-hidden="true"><Chainons s={92} /></span>
+        <p className="p-label">Prochaine épreuve</p>
+        <h1 className="p-title" id="annonce-titre">{nom}</h1>
+        <p className="p-lead" role="status">Trouve le mot qui relie les deux mots de l'animateur.</p>
+        <span className="p-dots" aria-hidden="true">
+          <span className="p-dots__dot" /><span className="p-dots__dot" /><span className="p-dots__dot" />
+        </span>
+      </div>
+    </main>
+  );
+}
+
 function WaitScreen({ pseudo, code, playerCount }) {
   const empty = !playerCount || playerCount <= 1;
   const phrase = usePhraseQuiTourne(empty ? 'attente.seul' : 'attente.accompagne');
@@ -420,6 +453,8 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
   const timeUp = timeLeft != null && timeLeft <= 0;
   const disabled = answered || timeUp;
   const [estimate, setEstimate] = useState('');
+  // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
+  const [mot, setMot] = useState('');
   const isVote = type === 'vote';
 
   const state = answered ? 'answered' : timeUp ? 'time-up' : urgent ? 'open urgent' : 'open';
@@ -497,6 +532,38 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
                 </button>
               );
             })
+          ) : type === 'lien' ? (
+            /* LE LIEN. Les deux mots sont l'énoncé : ils passent AVANT le champ,
+               en évidence, parce que c'est sur eux que le joueur réfléchit. Le
+               chrono et le compteur restent ceux de tous les jeux. */
+            <form className="lien" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
+              <div className="lien__mots">
+                <span className="lien__mot">{current.mots?.[0]}</span>
+                <span className="lien__chainons" aria-hidden="true"><Chainons s={34} /></span>
+                <span className="lien__mot">{current.mots?.[1]}</span>
+              </div>
+              <label className="p-label" htmlFor="lien">Le mot qui les relie</label>
+              <div className="est__shell">
+                <input
+                  className="est__input est__input--mot"
+                  id="lien"
+                  type="text"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck="false"
+                  maxLength={40}
+                  placeholder="un seul mot"
+                  value={mot}
+                  disabled={disabled}
+                  onChange={(e) => setMot(e.target.value)}
+                />
+              </div>
+              <button className="p-btn p-btn--primary" type="submit" data-testid="answer-submit"
+                disabled={disabled || !mot.trim()}>
+                {answered ? 'Réponse envoyée' : 'Envoyer'}
+              </button>
+            </form>
           ) : type === 'estimation' ? (
             <form className="est" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(Number(estimate)); }}>
               <label className="p-label" htmlFor="est">Ta réponse</label>
@@ -578,6 +645,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // gagne et l'écran ne doit surtout pas annoncer de points.
   const isSondage = isVote && rv.poll === true;
   const isEstimation = (rv.type || current?.type) === 'estimation';
+  const isLien = (rv.type || current?.type) === 'lien';
 
   // TROIS situations, pas deux (R12). L'absence de résultat ne signifie pas
   // « tu n'étais pas là » : elle peut aussi vouloir dire « pas encore révélé »,
@@ -588,7 +656,8 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const monResultat = you && current?.roundId != null && you.roundId === current.roundId ? you : null;
   // Le total d'une manche, recomposé : `base` ne porte plus que le palier depuis
   // que les bonus voyagent à part pour être MONTRÉS au joueur.
-  const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0) + (r?.speed || 0);
+  const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0)
+    + (r?.bonusGroupe || 0) + (r?.speed || 0);
   const hasData = !!monResultat;
   const absent = answered === false;
   // DEUX ABSENCES, ET NON UNE.
@@ -637,6 +706,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // code ne l'atteigne. J'en avais recréé un second sans le voir ; le doublon a
     // été supprimé et c'est l'original qui parle.
     if (devanceParLeTemps) return 'temps.ecoule';
+    // LE LIEN. Trois issues, et une seule règle : on ne gagne qu'en ayant pensé
+    // comme quelqu'un d'autre. Le rang du groupe est calculé par le serveur.
+    if (isLien) {
+      if (!monResultat.rang) return 'lien.seul';
+      return monResultat.rang === 1 ? 'lien.majorite' : 'lien.groupe';
+    }
     if (isSondage) return 'vote.sondage';
     if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
     // LA RÉPONSE EXACTE D'ABORD. Elle tombait dans `estimation.mille`, le palier
@@ -678,6 +753,8 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     current?.roundId ?? null,
     monResultat?.streak,
     Math.abs(monResultat?.placesDelta || 0),
+    // « Le lien » : la taille du groupe, que ses phrases citent.
+    monResultat?.taille,
   );
 
   const gained = typeof monResultat?.delta === 'number' ? monResultat.delta : 0;
@@ -813,11 +890,13 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                 Chaque ligne ne s'affiche que si elle vaut quelque chose — un écran
                 de résultat n'a pas à aligner des zéros. */}
             {!isVote && (monResultat.base || monResultat.speed
-              || monResultat.bonusExact || monResultat.bonusProche) ? (
+              || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe) ? (
               <div className="breakdown">
                 {monResultat.base ? (
                   <div className="breakdown__cell">
-                    <span className="p-label p-label--tiny">{isEstimation ? 'Palier' : 'Base'}</span>
+                    <span className="p-label p-label--tiny">
+                      {isEstimation ? 'Palier' : isLien ? 'Mot partagé' : 'Base'}
+                    </span>
                     <span className="breakdown__value" data-bind="you.base" data-testid="points-base">
                       {fmtNum(monResultat.base)}
                     </span>
@@ -835,6 +914,17 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     <span className="breakdown__value breakdown__value--accent"
                       data-bind="you.bonusExact" data-testid="points-bonus-exact">
                       +{fmtNum(monResultat.bonusExact)}
+                    </span>
+                  </div>
+                ) : null}
+                {monResultat.bonusGroupe ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">
+                      {monResultat.rang === 1 ? 'Groupe le plus nombreux' : `${monResultat.rang}e groupe`}
+                    </span>
+                    <span className="breakdown__value breakdown__value--accent"
+                      data-bind="you.bonusGroupe" data-testid="points-bonus-groupe">
+                      +{fmtNum(monResultat.bonusGroupe)}
                     </span>
                   </div>
                 ) : null}
@@ -936,7 +1026,12 @@ function drawScoreCard({ pseudo, rank, score }) {
   ctx.textAlign = 'center';
   ctx.fillStyle = ink;
   ctx.font = `bold 64px ${fDisplay}`;
-  ctx.fillText('PROJECT GAME SHOW', W / 2, 220);
+  // LE NOM VIENT DE LA MARQUE, il n'est pas recopié ici. Il l'était : la carte
+  // que le joueur PARTAGE portait encore « PROJECT GAME SHOW » après le
+  // changement de nom, alors que tout le reste de l'application était à jour.
+  // C'est l'endroit qui sort du produit — celui qu'on relit le moins, et le seul
+  // que des inconnus voient.
+  ctx.fillText(NOM_DU_JEU.toLocaleUpperCase('fr-FR'), W / 2, 220);
   ctx.fillStyle = pine;
   ctx.font = `600 44px ${fUi}`;
   ctx.fillText('RÉSULTAT DE LA PARTIE', W / 2, 300);
@@ -1334,6 +1429,11 @@ export function PlayApp() {
           answered={g.answered} presentAuLancement={g.presentAuLancement} />
       </>
     );
+  }
+
+  // L'ANNONCE d'un jeu qui n'a pas encore démarré — le jingle du « Lien ».
+  if (g.annonce && !g.current) {
+    return <AnnonceScreen nom={g.annonce.name} />;
   }
 
   // Question en cours (pas de bouton Quitter : l'écran reste focalisé sur la réponse).

@@ -709,6 +709,50 @@
     color: var(--c-ink-3);
   }
 
+  /* ===== LE LIEN, à l'échelle de l'antenne ===== */
+  .st-annonce__emblem {
+    display: grid;
+    place-items: center;
+    margin-bottom: var(--sp-6);
+    color: var(--c-ember-bright);
+  }
+  .st-title--xl { font-size: var(--fs-st-700); }
+  .st-lienmots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-5);
+    flex-wrap: wrap;
+    margin: 0;
+  }
+  .st-lienmots__mot {
+    font: 600 var(--fs-st-600) / var(--lh-tight) var(--f-display);
+    letter-spacing: var(--tr-display);
+    color: var(--c-ink);
+  }
+  .st-lienmots__chainons { display: grid; place-items: center; color: var(--c-ember-bright); }
+  .st-lienmots--revealed .st-lienmots__mot { color: var(--c-ink-2); }
+
+  .st-lien { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .st-lien__ligne {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3fr auto;
+    align-items: center;
+    gap: var(--sp-4);
+  }
+  .st-lien__mot {
+    font: 600 var(--fs-st-200) / 1.2 var(--f-ui);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
+  .st-lien__barre {
+    height: 18px;
+    border-radius: var(--r-full);
+    background: var(--g-ember);
+    animation: om-fill var(--mo-slow) var(--ease-out) both;
+  }
+  .st-lien__n { font: 600 var(--fs-st-200) / 1 var(--f-mono); color: var(--c-ink-2); }
+
   .st-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-5); }
   .st-fact {
     display: flex;
