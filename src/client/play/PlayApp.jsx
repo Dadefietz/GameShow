@@ -15,6 +15,8 @@ import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import { CHAINONS } from '../shared/marque-lien.js';
+import { Icon } from '../shared/icons.jsx';
+import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -459,6 +461,28 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
 
   const state = answered ? 'answered' : timeUp ? 'time-up' : urgent ? 'open urgent' : 'open';
 
+  // LE SON DU CHRONO (A25) — « l'absence de signal sonore rendait difficile la
+  // perception de la fin des 20 secondes de réponse ».
+  //
+  // Un bip par seconde sur les cinq dernières, puis la chute à zéro. Le repère
+  // est la SECONDE, pas le rendu : sans lui, chaque re-rendu rejouerait le son —
+  // et l'écran de question en compte plusieurs par seconde (l'anneau de chrono
+  // s'anime).
+  //
+  // Le joueur qui a déjà répondu n'entend rien : le temps ne le concerne plus, et
+  // un décompte pressant sur un écran où il n'a plus rien à faire est une
+  // nuisance, pas une information.
+  const derniereSeconde = useRef(null);
+  useEffect(() => {
+    if (timeLeft == null || answered) { derniereSeconde.current = null; return; }
+    if (derniereSeconde.current === timeLeft) return;
+    const precedente = derniereSeconde.current;
+    derniereSeconde.current = timeLeft;
+    if (precedente == null) return; // on n'annonce rien à l'arrivée sur l'écran
+    if (timeLeft > 0 && timeLeft <= 5) bipCompteRebours();
+    else if (timeLeft === 0) sonFinDuTemps();
+  }, [timeLeft, answered]);
+
   // Bandeau de statut : accusé de réception, ou clôture.
   const status = answered
     ? { closed: false, text: isVote ? 'Ta voix est enregistrée' : 'Réponse envoyée' }
@@ -549,6 +573,14 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
                   id="lien"
                   type="text"
                   inputMode="text"
+                  // A26 — LA TOUCHE DE VALIDATION DU CLAVIER ENVOIE LA RÉPONSE.
+                  // « après la saisie d'une estimation, le bouton de validation du
+                  // clavier du téléphone devrait envoyer directement la réponse ».
+                  // Le champ est bien dans un <form> à `onSubmit`, donc la touche
+                  // d'action valide déjà — mais elle s'annonçait « Entrée » ou
+                  // « OK », sans dire ce qu'elle allait faire. `enterKeyHint`
+                  // demande au clavier de l'appeler « Envoyer ».
+                  enterKeyHint="send"
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck="false"
@@ -573,6 +605,12 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
                   id="est"
                   type="number"
                   inputMode="numeric"
+                  // A26 — voir la note du champ « Le lien ». RÉSERVE HONNÊTE : sur
+                  // iOS, le pavé NUMÉRIQUE n'a aucune touche d'action — il n'y a
+                  // donc rien à renommer ni à presser, et le bouton « Envoyer » de
+                  // l'écran reste le seul chemin. Sur Android et sur les claviers
+                  // qui en ont une, la touche porte « Envoyer » et valide.
+                  enterKeyHint="send"
                   placeholder="0"
                   value={estimate}
                   disabled={disabled}
@@ -748,14 +786,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // Une phrase par manche, figée sur l'identifiant de manche (décision 1) : elle
   // change à chaque nouvelle question, jamais pendant. La figer sur le MOMENT
   // ferait dire la même chose à deux manches consécutives de même résultat.
-  const phraseVoix = usePhraseDeManche(
-    momentVoix,
-    current?.roundId ?? null,
-    monResultat?.streak,
-    Math.abs(monResultat?.placesDelta || 0),
+  const phraseVoix = usePhraseDeManche(momentVoix, current?.roundId ?? null, {
+    serie: monResultat?.streak,
+    places: Math.abs(monResultat?.placesDelta || 0),
     // « Le lien » : la taille du groupe, que ses phrases citent.
-    monResultat?.taille,
-  );
+    taille: monResultat?.taille,
+  });
 
   const gained = typeof monResultat?.delta === 'number' ? monResultat.delta : 0;
   const animatedGain = useCountUp(gained);
@@ -794,10 +830,11 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
             <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
               style={{ color: 'var(--c-ink-3)' }}><Ico.clock s={30} /></span>
             <h1 className="p-title p-title--sm" id="verdict">Manche jouée<br />sans toi</h1>
-            <p className="p-lead" role="status">
-              Tu es arrivé après le lancement : aucun point pour cette manche.
-            </p>
-            {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
+            {/* A2/A3 — la ligne explicative est retirée. Elle disait en gris ce
+                que le titre dit en grand, juste au-dessus, et la voix parlait
+                encore une troisième fois en dessous : trois phrases pour un
+                seul fait. Le titre porte, la voix commente. */}
+            {phraseVoix ? <p className="p-lead voix" role="status" data-testid="voix-resultat">{phraseVoix}</p> : null}
           </div>
         ) : devanceParLeTemps ? (
           /* IL ÉTAIT LÀ. On ne lui dit donc pas qu'il est arrivé après : on lui dit
@@ -808,10 +845,11 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
             <span className="verdict__badge verdict__badge--neutral" aria-hidden="true"
               style={{ color: 'var(--c-ink-3)' }}><Ico.clock s={30} /></span>
             <h1 className="p-title p-title--sm" id="verdict">Le temps<br />t'a devancé</h1>
-            <p className="p-lead" role="status">
-              Tu étais là, la réponse n'est pas partie à temps.
-            </p>
-            {phraseVoix ? <p className="p-lead voix" data-testid="voix-resultat">{phraseVoix}</p> : null}
+            {/* Ligne explicative retirée — voir la note du cas précédent.
+                `role="status"` migre sur la phrase de voix : c'est elle qui
+                reste à annoncer, et l'annonce ne doit pas disparaître avec le
+                texte qu'on supprime. */}
+            {phraseVoix ? <p className="p-lead voix" role="status" data-testid="voix-resultat">{phraseVoix}</p> : null}
           </div>
         ) : (
           <>
@@ -947,12 +985,25 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
               </div>
             ) : null}
 
-            {/* La série est une INFORMATION, plus une source de points : elle se
-                lit comme un compte de bonnes réponses d'affilée, sans la notation
-                « ×N » qui laissait croire à une multiplication. */}
+            {/* LA SÉRIE EST UN MARQUEUR, PLUS UNE PHRASE (A1).
+                « Remplacer la phrase des séries par #🔥 ». Sous le relevé de
+                points, la ligne « 3 bonnes réponses d'affilée. » redisait en
+                toutes lettres ce que le chiffre suffit à dire — et le redisait
+                une deuxième fois, la voix citant déjà la série juste au-dessus.
+                Le nombre et une flamme : le joueur lit son état d'un coup d'œil.
+
+                PAS DE « # » DEVANT LE NOMBRE : « #3 » se lirait comme un RANG,
+                dans un jeu qui en affiche partout.
+                PAS D'EMOJI NON PLUS : la flamme est l'icône au trait du
+                registre, `no_emoji: true` étant une règle dure du dépôt. Le
+                sens de « 🔥 » est tenu, sa forme suit la convention. */}
             {!isVote && monResultat.streak >= 2 ? (
-              <p className="p-lead" data-bind="you.streak" data-testid="streak-count">
-                {monResultat.streak} bonnes réponses d'affilée.
+              <p className="streak" data-bind="you.streak" data-testid="streak-count">
+                <span className="streak__n">{monResultat.streak}</span>
+                <Icon name="flame" className="icon streak__flamme" />
+                <span className="visually-hidden">
+                  série de {monResultat.streak} bonnes réponses d'affilée
+                </span>
               </p>
             ) : null}
           </>
@@ -1107,7 +1158,18 @@ function EndScreen({ you, podium, classement, playerId, pseudo, history, roomCod
     : (rank <= 3 && aMarque) ? 'fin.podium'
       : (dernier || !((you?.score || 0) > 0)) ? 'fin.dernier'
         : 'fin.classe';
-  const phraseFin = usePhraseDeManche(momentFin, momentFin);
+  // `{rang}` — la valeur était là depuis toujours, sous le nom `rank`, et n'a
+  // jamais été passée : `fin.podium` et `fin.classe` la déclarent pourtant en
+  // `requiert`. Sept phrases sur huit affichaient l'accolade en clair à tout
+  // joueur classé, à chaque fin de partie (A6).
+  //
+  // FORME RETENUE : « 1er », « 2e », « 3e ». Elle n'est pas choisie dans
+  // l'abstrait : c'est CELLE QUE L'ÉCRAN AFFICHE DÉJÀ dix lignes plus bas, sous
+  // « Ton rang final ». Une seconde notation — « N° 2 » — se serait retrouvée
+  // à côté d'un « 2e » disant la même chose, dans le même bloc.
+  const phraseFin = usePhraseDeManche(momentFin, momentFin, {
+    rang: rank != null ? `${rank}${rank === 1 ? 'er' : 'e'}` : undefined,
+  });
 
   const share = async () => {
     // DÉCISION 3.2 — sans classement, on ne partage pas un rang absent : on dit ce

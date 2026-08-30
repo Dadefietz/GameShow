@@ -474,6 +474,9 @@
     color: var(--c-secret);
   }
   .private__hint { margin: 0; font: 400 var(--fs-200) / 1.35 var(--f-ui); color: var(--c-ink-3); }
+  /* La phrase de mise en avant (A21) : une formule prête à dire, pas une donnée.
+     Elle se lit donc comme du texte courant, pas comme une étiquette technique. */
+  .private__voix { margin: 0; font: 500 var(--fs-300) / 1.4 var(--f-ui); color: var(--c-ink); }
   /* À la révélation, le panneau perd sa hachure : il est devenu public. */
   .private--public { box-shadow: var(--sh-edge); }
   .private--public::before { display: none; }

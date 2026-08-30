@@ -18,7 +18,7 @@
 // Il a été vu échouer, puis vu passer. Il garde désormais le pont : si quelqu'un
 // réintroduit un aplatissement par type, c'est ici que ça se saura.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Marqueurs volontairement improbables : s'ils apparaissent à l'écran, ils ne
@@ -38,7 +38,7 @@ test.describe('Studio → partie (le pont)', () => {
     // Le jeu fabriqué par ce fichier est retiré : la bibliothèque est PARTAGÉE.
     // Sans cela il s'accumule d'une exécution à l'autre — le menu en proposait
     // deux, puis trois, du même nom, et le contrôle échouait sur l'ambiguïté.
-    await retirerJeux(JEU);
+    await retirerJeux(JEU, 'Épreuve témoin');
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     if (joueur) { await joueur.ctx.close(); joueur = null; }
   });
@@ -47,17 +47,35 @@ test.describe('Studio → partie (le pont)', () => {
   // a livré les jeux nommés : Playwright a signalé « attendu en échec, a réussi ».
   // Ce scénario est désormais la garantie permanente du pont Studio → partie.
   test('une question créée dans le Studio est jouée, sous le nom de son jeu', async ({ browser, page }) => {
-    // ---- 1. Studio : créer un jeu nommé, avec UNE question reconnaissable ----
+    // ---- 1. Studio : ÉDITER un jeu, avec UNE question reconnaissable ----
+    //
+    // CE CONTRÔLE GARDE LE PONT, ET IL DOIT DONC PASSER PAR L'INTERFACE. Les
+    // autres contrôles posent désormais leur décor par l'API (A15 : le studio ne
+    // crée plus de module) — celui-ci ne le peut pas : ce qu'il mesure EST le
+    // trajet « je tape dans le studio, ça se joue en partie ». Le poser par l'API
+    // reviendrait à vérifier que l'API écrit ce que l'API a écrit.
+    //
+    // Seule la CRÉATION passe par l'API, faute de bouton. Tout le reste — le nom,
+    // l'énoncé, les options, la bonne réponse, l'enregistrement — se saisit à la
+    // main, exactement comme l'animateur le fait.
+    await creerJeu({
+      name: 'Épreuve témoin (brouillon)',
+      type: 'quiz',
+      // QUATRE options dans le brouillon : le formulaire n'affiche que les options
+      // existantes, et deux d'entre elles suffiraient à faire échouer la saisie sur
+      // un champ absent — un échec sur le décor, pas sur le pont.
+      questions: [{ text: 'À remplacer par le studio', options: ['a', 'b', 'c', 'd'], correctIndex: 0 }],
+    });
+
     await page.goto('/studio');
-    // Deux boutons portent ce nom (navigation et grille) : on vise celui de la grille.
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
+    await page.getByRole('button', { name: 'Épreuve témoin (brouillon)' }).first().click();
 
     const editeur = page.getByRole('complementary');
     await expect(editeur).toBeVisible();
     await editeur.getByLabel('Nom').fill(JEU);
 
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
+    // La question existe déjà : on la déplie et on la réécrit entièrement.
+    await editeur.getByRole('button', { name: 'Déplier la question 1' }).click();
     await editeur.getByPlaceholder('Rédige la question').fill(ENONCE);
     // `exact` obligatoire : sans lui, « Option 1 » attrape aussi le bouton radio
     // « Option 1 est la bonne réponse » posé juste à côté du champ.

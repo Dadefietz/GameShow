@@ -545,6 +545,24 @@
   .breakdown__value--bad { color: var(--c-bad); }
   .breakdown__value--dim { color: var(--c-ink-3); }
 
+  /* LE MARQUEUR DE SÉRIE (A1) — le nombre et la flamme, à la place de la phrase.
+     Il se pose sous le relevé comme une pastille, non comme une ligne de texte :
+     c'est un état qu'on voit, pas une information qu'on lit. La flamme est
+     calée sur la hauteur du chiffre (`1em` du bloc) pour que les deux fassent
+     un seul objet et non deux éléments voisins. */
+  .streak {
+    margin: var(--sp-5) 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
+    border-radius: var(--r-full);
+    background: var(--c-ember-wash);
+    color: var(--c-ember-bright);
+  }
+  .streak__n { font: 600 var(--fs-600) / 1 var(--f-mono); }
+  .streak__flamme { width: 1em; height: 1em; font-size: var(--fs-600); stroke-width: 2; }
+
   /* Bonne réponse — affichée même quand le joueur a juste. */
   .answer-reveal {
     margin-top: var(--sp-5);

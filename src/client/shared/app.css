@@ -28,6 +28,22 @@
     text-align: inherit;
   }
   button[disabled] { cursor: default; }
+  /* MÊME NEUTRALISATION POUR LES CHAMPS DE SAISIE — la leçon du commentaire
+     ci-dessus n'avait été tirée que pour <button>. « Le lien » a montré la
+     suite : `SaisieLien` employait `.input`, une classe définie dans la seule
+     feuille du studio, que la console animateur ne charge jamais. Les deux
+     champs retombaient sur le rendu natif — une boîte claire posée sur une
+     console sombre. Un champ sans règle de composant doit être sobre, jamais
+     blanc. */
+  input, textarea, select {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+  }
   a { color: inherit; }
   /* Les liens stylés en bouton ne doivent jamais porter le soulignement d'un lien. */
   a.button, a[class*="button--"] { text-decoration: none; }
@@ -60,4 +76,36 @@ html, body { background-color: var(--c-canvas); }
   .brand-flame { transform-origin: 12px 16px; animation: om-flame 1.9s var(--ease-in-out) infinite; }
   .brand-spark { animation: om-spark 2.6s var(--ease-in-out) infinite; }
   .brand-ember { animation: om-ember-rise 3.4s var(--ease-out) infinite; }
+
+  /* ===== PRIMITIVES DE FORMULAIRE — LES QUATRE SURFACES =====
+     Elles vivaient dans studio.css. Ce n'étaient pourtant pas des composants
+     du studio mais les briques de formulaire du jeu : la console animateur les
+     employait déjà sans les avoir. Une définition, quatre surfaces — plutôt
+     que deux copies qui divergent. Les règles sont inchangées, seul leur
+     fichier a bougé : le studio doit rendre à l'identique. */
+  .fields { display: flex; flex-direction: column; gap: var(--sp-5); }
+  .frow { display: flex; gap: var(--sp-4); align-items: flex-end; }
+  .fgroup { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
+  .fgroup--short { flex: none; width: var(--w-field-s); }
+  .flabel {
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .fhint { margin: 0; font: 400 var(--fs-100) / 1.4 var(--f-ui); color: var(--c-ink-3); }
+  .input {
+    width: 100%;
+    min-height: var(--row-form);
+    padding: 0 var(--sp-4);
+    border: 0;
+    border-radius: var(--r-s);
+    background: var(--c-surface);
+    box-shadow: var(--sh-inset);
+    color: var(--c-ink);
+    font: 500 var(--fs-400) / 1 var(--f-ui);
+  }
+  .input--invalid { box-shadow: var(--sh-inset), inset 0 0 0 var(--bw-field) var(--c-bad); }
+  .input-suffix { display: flex; align-items: center; gap: var(--sp-2); }
+  .input-suffix__unit { font: 500 var(--fs-300) / 1 var(--f-ui); color: var(--c-ink-3); }
 }

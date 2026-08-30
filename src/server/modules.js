@@ -91,9 +91,11 @@ const PALIERS_ANNEE = [
   { nom: 'loin',     ecartMax: 10, points: 250 },
 ];
 
-// DÉCISION 5.3 — le plus proche marque, même si personne n'est dans une plage.
-// Sans lui, une manche où tout le monde vise trop large ne rapporte rien à
-// personne : le module devient muet.
+// DÉCISION 5.3, RESSERRÉE PAR A4 — le plus proche marque QUAND PERSONNE n'est
+// dans une plage. Sans ce filet, une manche où tout le monde vise trop large ne
+// rapporte rien à personne et le module devient muet ; distribué en toute
+// circonstance, il devenait un supplément sans objet pour qui touchait déjà un
+// palier. Il ne joue donc que dans le cas pour lequel il a été inventé.
 const BONUS_PLUS_PROCHE = 400;
 // DÉCISION 5.5 — l'exactitude, que les paliers ne distinguent pas : sur une cible
 // de 1000, répondre 1000 ou 1015 rapporte le même palier.
@@ -504,12 +506,31 @@ export const modules = {
         else if (ecart === ecartMini) plusProches.push(pid);
       }
 
-      // DÉCISION 5.6 — les bonus SE CUMULENT, sans plafond. Un joueur exact, au
-      // premier palier et le plus proche touche 1000 + 200 + 400 = 1600, quand un
-      // quiz plafonne à 950. Écart accepté par l'auteur en connaissance de cause.
-      for (const pid of plusProches) {
-        const r = results.get(pid);
-        if (r) r.bonusProche = BONUS_PLUS_PROCHE;
+      // LE BONUS DU PLUS PROCHE NE JOUE QUE SI PERSONNE N'EST DANS UN PALIER (A4).
+      //
+      // « N'activer le bonus du plus proche dans Estimation uniquement si tous les
+      // joueurs sont hors palier. »
+      //
+      // C'EST UN RETOUR À SA RAISON D'ÊTRE, telle qu'elle était écrite : « le plus
+      // proche marque, même si personne n'est dans une plage. Sans lui, une manche
+      // où tout le monde vise trop large ne rapporte rien à personne : le module
+      // devient muet. » Le filet a été posé pour ce cas-là, puis distribué dans
+      // tous les autres — y compris à qui touchait déjà 1000 de palier, à qui il
+      // n'apportait qu'un supplément sans objet.
+      //
+      // Ce que ça change concrètement : quand quelqu'un est dans une plage, le
+      // barème seul décide, et le plus juste est déjà le mieux payé par
+      // construction. Quand personne n'y est, le filet se déclenche et la manche
+      // rapporte à quelqu'un.
+      //
+      // « Tous les joueurs » = tous ceux qui ONT RÉPONDU. Un joueur silencieux n'a
+      // pas de résultat, et ne saurait empêcher le filet de jouer.
+      const personneDansUnPalier = [...results.values()].every((r) => r.palier === 'hors');
+      if (personneDansUnPalier) {
+        for (const pid of plusProches) {
+          const r = results.get(pid);
+          if (r) r.bonusProche = BONUS_PLUS_PROCHE;
+        }
       }
       // Les plages sont calculées AVANT l'histogramme : c'est la plus large qui
       // fixe l'ouverture minimale de l'échelle.

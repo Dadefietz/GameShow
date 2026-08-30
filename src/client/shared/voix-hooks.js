@@ -18,7 +18,7 @@
 // dans « n'a » suffisait à lui faire perdre le fil et à laisser passer la faute
 // même qu'elle prétendait attraper.
 import { useEffect, useRef, useState } from 'react';
-import { dire, momentDePlateau } from './voix.js';
+import { dire, momentDePlateau, MOMENTS } from './voix.js';
 
 // ÉCRAN LONG — une phrase qui tourne. L'attente dure ; une ligne fixe y devient
 // un décor qu'on ne lit plus.
@@ -43,20 +43,40 @@ export function usePhraseQuiTourne(momentId, intervalle = 6000) {
 // Le repère est l'identifiant de manche. Le figer sur le MOMENT
 // (`juste.simple`, `juste.serie`…) ferait dire la même chose à deux manches
 // consécutives de même résultat.
-export function usePhraseDeManche(momentId, cle, serie, places, taille) {
+// LES VALEURS ARRIVENT EN UN SEUL OBJET (A30). Elles voyageaient en paramètres
+// POSITIONNELS — `(momentId, cle, serie, places, taille)` —, et c'est ce qui a
+// tué `{rang}` : le registre déclarait `requiert: ['rang']` depuis l'origine, le
+// crochet n'avait tout simplement pas ce paramètre, et l'appelant de l'écran de
+// fin passait deux arguments sur cinq. Personne ne pouvait le voir. Un objet
+// nommé rend l'oubli visible à la lecture, et le contrôle du registre le rend
+// impossible en silence.
+//
+// SI UNE VALEUR MANQUE ENCORE, LA PHRASE ATTEND. Le garde « une phrase par
+// manche » figeait le premier tirage : une valeur arrivée en retard gelait le
+// repère brut pour la manche entière. On ne sert donc qu'une fois toutes les
+// valeurs déclarées présentes — et l'écran reste muet d'ici là, comme il l'est
+// déjà avant que l'effet ait tourné. Jamais une phrase qui change sous les yeux
+// du joueur.
+export function usePhraseDeManche(momentId, cle, valeurs = {}) {
   const [etat, setEtat] = useState({ repere: null, phrase: null });
   const servi = useRef(null);
   const repere = momentId ? `${cle}·${momentId}` : null;
+  // Empreinte STABLE des valeurs : l'objet est reconstruit à chaque rendu, sa
+  // seule identité relancerait l'effet en boucle.
+  const empreinte = JSON.stringify(valeurs ?? {});
 
   useEffect(() => {
     if (!repere) { servi.current = null; setEtat({ repere: null, phrase: null }); return; }
+    const v = JSON.parse(empreinte);
+    const requis = MOMENTS[momentId]?.requiert || [];
+    if (requis.some((k) => v[k] == null)) return; // on attend : rien n'est encore servi
     // Le garde est dans une RÉFÉRENCE, pas dans l'état : le mode strict rejoue
     // les effets au montage, et un garde en état laisserait passer un second
     // tirage — donc consommerait deux phrases du vivier pour une manche.
     if (servi.current === repere) return;
     servi.current = repere;
-    setEtat({ repere, phrase: dire(momentId, { serie, places, taille }) });
-  }, [repere, momentId, serie, places]);
+    setEtat({ repere, phrase: dire(momentId, v) });
+  }, [repere, momentId, empreinte]);
 
   // Tant que l'effet n'a pas tourné, on n'affiche RIEN plutôt que la phrase de la
   // manche précédente : une phrase périmée, même une image durant, dirait quelque

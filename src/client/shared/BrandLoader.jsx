@@ -30,7 +30,15 @@ export function BrandLoader() {
         <Flamme taille={44} anime={!stuck} />
       </span>
 
-      <p className="boot__name">Project<br />Game Show</p>
+      {/* LE NOM VIENT DU REGISTRE (A23). Il était écrit EN DUR, « Project Game
+          Show » — le nom provisoire —, alors que la ligne au-dessus tirait déjà
+          `NOM_DU_JEU` pour l'annonce vocale : les deux se contredisaient dans le
+          même composant. Et c'est l'écran de chargement des QUATRE surfaces,
+          donc la toute première chose que voient un joueur, un animateur, un
+          spectateur.
+          La coupure suit le nom au lieu de la forcer : « Le cercle » / « du
+          feu ». */}
+      <p className="boot__name">{NOM_DU_JEU.split(' ').slice(0, 2).join(' ')}<br />{NOM_DU_JEU.split(' ').slice(2).join(' ')}</p>
 
       {stuck ? (
         <>

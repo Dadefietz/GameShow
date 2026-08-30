@@ -175,7 +175,9 @@ async function main() {
     await studio.goto('/studio');
     await studio.waitForTimeout(1500);
     await noter(studio, 'studio', 'liste des modules');
-    await studio.getByRole('button', { name: 'Nouveau module' }).first().click().catch(() => {});
+    // Le bouton « Nouveau module » a été retiré (A15) : on ouvre l'éditeur d'un
+    // module EXISTANT, ce qui donne la même page à balayer.
+    await studio.locator('[data-action="studio:editModule"]').first().click().catch(() => {});
     await studio.waitForTimeout(800);
     await noter(studio, 'studio', 'éditeur ouvert');
 

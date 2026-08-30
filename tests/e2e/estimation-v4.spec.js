@@ -29,7 +29,7 @@
 //      les pixels rendus, sur les deux écrans, et l'on vérifie qu'ils sont
 //      proportionnels à des effectifs CONNUS D'AVANCE.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { MOMENTS } from '../../src/client/shared/voix.js';
 
@@ -174,18 +174,8 @@ test.describe('L\'estimation du chantier v4', () => {
     // complète. Un contrôle intermittent ne dit plus rien de ce qu'il mesure.
     const JEU = 'Épreuve d\'histogramme';
     const CIBLE = 100;
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill('Combien de braises dans le foyer ?');
-    await editeur.getByLabel('Cible').fill(String(CIBLE));
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Décor posé par l'API (A15 : le studio ne crée plus de module).
+    await creerJeu({ name: JEU, type: 'estimation', questions: [{ text: 'Combien de braises dans le foyer ?', target: CIBLE }] });
 
     // QUATRE joueurs, et des valeurs choisies pour que TROIS tombent dans la même
     // tranche et le quatrième dans une autre. Des effectifs égaux dessineraient
@@ -268,18 +258,8 @@ test.describe('L\'estimation du chantier v4', () => {
     // la décision 2.8 porte sur l'écran entier et non sur le seul titre.
     const JEU = 'Épreuve de verdict';
     const CIBLE = 100;
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill('Combien de bûches dans le tas ?');
-    await editeur.getByLabel('Cible').fill(String(CIBLE));
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Décor posé par l'API (A15 : le studio ne crée plus de module).
+    await creerJeu({ name: JEU, type: 'estimation', questions: [{ text: 'Combien de bûches dans le tas ?', target: CIBLE }] });
 
     hote = await openHost(browser);
     for (const p of ['Proche', 'Loin']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
@@ -343,18 +323,8 @@ test.describe('L\'estimation du chantier v4', () => {
     // le cas que l'auteur avait en tête : « une poignée de nom plus un petit + ».
     const JEU = 'Épreuve de poignée';
     const CIBLE = 100;
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill('Combien de braises exactement ?');
-    await editeur.getByLabel('Cible').fill(String(CIBLE));
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Décor posé par l'API (A15 : le studio ne crée plus de module).
+    await creerJeu({ name: JEU, type: 'estimation', questions: [{ text: 'Combien de braises exactement ?', target: CIBLE }] });
 
     // QUATRE joueurs à la MÊME valeur : tous ex æquo au plus proche (décision 5.4),
     // donc quatre noms pour trois places.
@@ -399,18 +369,8 @@ test.describe('L\'estimation du chantier v4', () => {
     // plus proche. Les trois composantes sont alors non nulles en même temps.
     const JEU = 'Épreuve de détail';
     const CIBLE = 100;
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill('Combien de braises exactement ?');
-    await editeur.getByLabel('Cible').fill(String(CIBLE));
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Décor posé par l'API (A15 : le studio ne crée plus de module).
+    await creerJeu({ name: JEU, type: 'estimation', questions: [{ text: 'Combien de braises exactement ?', target: CIBLE }] });
 
     hote = await openHost(browser);
     for (const p of ['Pile', 'Loin']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
@@ -437,21 +397,76 @@ test.describe('L\'estimation du chantier v4', () => {
     const gagne = await lire('points-gained');
     console.log(`  palier ${palier} · exactitude ${exactitude} · plus proche ${proche} · total ${gagne}`);
 
-    // 1. LES TROIS COMPOSANTES SONT VISIBLES, chacune séparément. C'est tout
-    //    l'objet : avant, seule la première existait et portait la somme.
+    // 1. CHAQUE COMPOSANTE EST VISIBLE SÉPARÉMENT. C'est tout l'objet : avant,
+    //    seule la première existait et portait la somme.
+    //
+    //    CE CONTRÔLE A CHANGÉ DE CHIFFRES, ET C'EST LE PRODUIT QUI A CHANGÉ.
+    //    Il exigeait les TROIS composantes non nulles en même temps — 1000 + 200
+    //    + 400 = 1600. Depuis A4, le filet du plus proche ne joue QUE si personne
+    //    n'atteint de palier : un joueur exact ne peut donc plus le toucher, et le
+    //    cas « les trois à la fois » n'existe plus dans le jeu.
+    //
+    //    L'INTENTION EST INTACTE : le détail est montré ligne par ligne, et sa
+    //    somme redonne le total. Elle est éprouvée sur les DEUX cas où des
+    //    composantes coexistent — ici le palier et l'exactitude, plus bas le filet
+    //    seul.
     expect(palier, 'le palier n\'est pas affiché').toBe(1000);
     expect(exactitude, 'le bonus d\'exactitude n\'est pas affiché à part').toBe(200);
-    expect(proche, 'le bonus du plus proche n\'est pas affiché à part').toBe(400);
+    expect(proche, 'le filet du plus proche ne devrait pas jouer : ce joueur est dans une plage')
+      .toBeNull();
 
     // 2. ET LEUR SOMME EST LE TOTAL ANNONCÉ. Séparer les lignes ne doit rien
     //    changer au score : c'est la moitié qui protège contre une régression de
     //    barème introduite en cherchant à mieux l'expliquer.
-    expect(palier + exactitude + proche,
+    expect(palier + exactitude,
       'le détail ne redonne pas le total affiché').toBe(gagne);
-    expect(gagne, 'le maximum d\'une estimation a changé').toBe(1600);
+    expect(gagne, 'le maximum d\'une estimation a changé').toBe(1200);
 
     // 3. LE LIBELLÉ dit « Palier » sur une estimation, pas « Base » : il n'y a pas
     //    de « base » dans ce jeu, il y a des paliers de précision.
     await expect(j.getByText('Palier', { exact: true })).toBeVisible();
+  });
+
+  test('quand personne n\'atteint de palier, le filet paye le plus proche — et se voit', async ({ browser }) => {
+    // L'AUTRE MOITIÉ DE A4, ET LA RÉPONSE À CE QUI AVAIT ÉTÉ RAPPORTÉ EN SÉANCE :
+    // « RMA a reçu 400 points pour être la personne la plus proche, mais pas les
+    // points standards liés à une réponse correcte. »
+    //
+    // C'était conforme, et ça n'était pas lisible. La réponse était hors de tous
+    // les paliers : il n'y avait pas de points de palier à recevoir. Depuis A4,
+    // c'est même le SEUL cas où le filet joue — et le détail le dit, ligne par
+    // ligne, au lieu de laisser un total de 400 inexpliqué.
+    const JEU = 'Épreuve de filet';
+    const CIBLE = 100;
+    await creerJeu({ name: JEU, type: 'estimation', questions: [{ text: 'Combien de braises au loin ?', target: CIBLE }] });
+
+    hote = await openHost(browser);
+    for (const p of ['Moins', 'Plus']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
+    await expect(hote.page.getByTestId('player-count')).toHaveText('2');
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await expect(joueurs[0].page.getByLabel('Ta réponse')).toBeVisible({ timeout: 15_000 });
+
+    // LES DEUX SONT HORS DE TOUTE PLAGE — 400 % et 900 % d'écart.
+    await repondre(joueurs[0], CIBLE * 5);
+    await repondre(joueurs[1], CIBLE * 10);
+    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
+    await j.waitForTimeout(1200);
+    const lire = async (id) => {
+      const n = await j.getByTestId(id).count();
+      if (!n) return null;
+      return Number((await j.getByTestId(id).innerText()).replace(/[^\d-]/g, ''));
+    };
+    const proche = await lire('points-bonus-proche');
+    const gagne = await lire('points-gained');
+    console.log(`  filet ${proche} · total ${gagne}`);
+    expect(proche, 'le filet devrait jouer : personne n\'est dans une plage').toBe(400);
+    expect(gagne, 'le plus proche ne touche pas le filet seul').toBe(400);
+    // Le second, plus loin, ne marque rien : le filet ne paye QUE le plus proche.
+    const gagneSecond = await joueurs[1].page.getByTestId('points-gained').innerText();
+    expect(Number(gagneSecond.replace(/[^\d-]/g, '')), 'le plus éloigné a marqué').toBe(0);
   });
 });

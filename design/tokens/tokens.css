@@ -4,6 +4,205 @@
    de l'ordre de chargement des feuilles — et une règle de base pouvait
    écraser un composant. */
 @layer reset, base, components;
+
+/* LE JEU EST SOMBRE SUR SES QUATRE SURFACES — et le navigateur doit le savoir.
+   Sans cette déclaration, il suppose un fond clair et dessine ses contrôles
+   natifs en conséquence : un champ de saisie sans règle apparaît en boîte
+   blanche sur une console brun nuit, et le remplissage automatique y écrit en
+   clair sur clair. Hors couches, pour qu'aucune feuille de surface ne
+   puisse la contredire par mégarde. */
+:root { color-scheme: dark; }
+
+/* ============================================================================
+   LES POLICES DU JEU — AUTO-HÉBERGÉES (A27)
+   ============================================================================
+   CE QUI A ÉTÉ RAPPORTÉ : « la police est incorrecte sur tous les écrans de
+   Théodore, pas que sur les écrans de streaming », alors qu'elle était juste
+   chez l'autre.
+
+   DIAGNOSTIC : LE JEU NE CHARGEAIT AUCUNE POLICE. Les trois piles ci-dessous
+   ne nommaient que des familles INSTALLÉES SUR LA MACHINE — Avenir Next,
+   Avenir Next Condensed, Optima, SF Mono, livrées avec macOS et absentes de
+   Windows. Le rendu n'était donc pas faux chez l'un : il était différent chez
+   chacun, par conception, sur les quatre surfaces et jusque dans les chiffres
+   des scores et le code de salon.
+
+   Le dépôt contenait pourtant quinze fichiers de polices (Fraunces, Inter) et
+   en préchargeait trois à chaque visite. Leur feuille de déclarations,
+   design/fonts/fonts.css, n'était importée par PERSONNE : le CSS construit
+   n'en portait aucune trace (zéro déclaration dans dist/assets/*.css), et
+   aucune règle ne nommait ces deux familles. Chaque visiteur téléchargeait
+   soixante kilooctets de polices qui ne servaient à rien. Elles ont été
+   supprimées.
+
+   POUR UN JEU DIFFUSÉ EN DIRECT, CE N'EST PAS UNE OPTION. Ce que l'animateur
+   voit, ce que la caméra diffuse et ce que le joueur lit doivent être le même
+   dessin. Une pile système garantit exactement le contraire.
+
+   LES TROIS FAMILLES RETENUES reproduisent au plus près le rendu macOS
+   d'origine — les écrans de l'auteur ne changent presque pas, ceux des autres
+   convergent vers eux :
+     Avenir Next            ->  Mulish                 (--f-ui)
+     Avenir Next Condensed  ->  Barlow Semi Condensed   (--f-display)
+     SF Mono                ->  IBM Plex Mono           (--f-mono, déjà cité
+                                                        dans la pile de repli
+                                                        d'origine)
+   Toutes trois sous licence libre (OFL), servies depuis /fonts, sans CDN.
+   Seules les graisses réellement employées sont embarquées : 500 et 600 pour
+   l'affiche, 400 à 700 pour l'interface (700 pour <strong>), 400 à 600 pour
+   les chiffres. 168 ko en latin, le reste ne partant qu'aux caractères qui le
+   demandent.
+
+   LES DÉCLARATIONS VIVENT ICI, à côté des piles qui les nomment. C'est la
+   leçon de la panne : une police déclarée dans un fichier et nommée dans un
+   autre se perd entre les deux sans que rien ne proteste. Un contrôle
+   automatique exige désormais que la police RÉELLEMENT dessinée soit celle
+   du jeton, polices système neutralisées.
+   ========================================================================= */
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/barlow-sc-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/barlow-sc-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/barlow-sc-600-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/barlow-sc-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/mulish-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/mulish-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/mulish-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/mulish-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/mulish-600-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/mulish-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/mulish-700-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/mulish-700-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plex-mono-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plex-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plex-mono-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plex-mono-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plex-mono-600-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 /* ============================================================================
    PROJECT GAME SHOW — SOCLE DE DESIGN
    « Camping, feu de bois, la nuit tombée, cozy »
@@ -105,18 +304,21 @@
   --tex-grain: repeating-linear-gradient(90deg, oklch(0.90 0.04 80 / 0.035) 0 1px, transparent 1px 7px);
 
   /* --- 8. TYPOGRAPHIE ----------------------------------------------------
-     Aucune police à charger : trois piles substituables, choisies pour
-     leur dessin — pas pour leur ubiquité.
+     Trois familles auto-hébergées (voir le bloc @font-face ci-dessus), chacune
+     suivie de son ancienne pile système en repli.
      display : grotesque géométrique condensée (Avenir Next Condensed,
        Futura, DIN) — titres, énoncés, moments. Tracking serré.
      ui : humaniste système (Avenir Next, Optima, Segoe UI Variable) —
        labels, boutons, corps.
      mono : chiffres et codes — chrono, points, code de salon.           */
-  --f-display: "Avenir Next Condensed", "Futura", "DIN Alternate", "Haettenschweiler",
+  --f-display: "Barlow Semi Condensed",
+               "Avenir Next Condensed", "Futura", "DIN Alternate", "Haettenschweiler",
                "Oswald", "HelveticaNeue-CondensedBold", "Arial Narrow", sans-serif;
-  --f-ui:      "Avenir Next", "Avenir", "Optima", "Segoe UI Variable", "Segoe UI",
+  --f-ui:      "Mulish",
+               "Avenir Next", "Avenir", "Optima", "Segoe UI Variable", "Segoe UI",
                system-ui, -apple-system, sans-serif;
-  --f-mono:    "SF Mono", "SFMono-Regular", "IBM Plex Mono", "JetBrains Mono",
+  --f-mono:    "IBM Plex Mono",
+               "SF Mono", "SFMono-Regular", "JetBrains Mono",
                ui-monospace, Menlo, Consolas, monospace;
 
   --fs-100: 11px;  /* étiquette technique (mono uniquement)           */

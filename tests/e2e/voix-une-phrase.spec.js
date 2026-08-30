@@ -20,7 +20,7 @@
 // crée donc une question à réponse CONNUE, pour que le joueur gagne à coup sûr :
 // répondre au hasard laisserait le défaut hors de portée une fois sur quatre.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 const JEU = 'Épreuve de voix';
@@ -55,21 +55,13 @@ test.describe('La voix du résultat', () => {
 
   test('une seule phrase pendant toute l\'animation du score', async ({ browser, page }) => {
     // ---- Une question dont on connaît la bonne réponse, pour gagner à coup sûr.
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill(ENONCE);
-    await editeur.getByLabel('Option 1', { exact: true }).fill(BONNE);
-    await editeur.getByLabel('Option 2', { exact: true }).fill('Bleu-0000');
-    await editeur.getByLabel('Option 3', { exact: true }).fill('Vert-1111');
-    await editeur.getByLabel('Option 4', { exact: true }).fill('Gris-2222');
-    await editeur.getByRole('radio', { name: 'Option 1 est la bonne réponse' }).click();
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Le décor se pose par l'API (A15 : le studio ne crée plus de module). Ce que
+    // ce contrôle mesure est la VOIX, pas le formulaire du studio.
+    await creerJeu({
+      name: JEU,
+      type: 'quiz',
+      questions: [{ text: ENONCE, options: [BONNE, 'Bleu-0000', 'Vert-1111', 'Gris-2222'], correctIndex: 0 }],
+    });
 
     // ---- La partie.
     hote = await openHost(browser);

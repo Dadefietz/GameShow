@@ -213,31 +213,10 @@
     gap: var(--sp-3);
   }
 
-  .fields { display: flex; flex-direction: column; gap: var(--sp-5); }
-  .frow { display: flex; gap: var(--sp-4); align-items: flex-end; }
-  .fgroup { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
-  .fgroup--short { flex: none; width: var(--w-field-s); }
-  .flabel {
-    font: 500 var(--fs-200) / 1 var(--f-ui);
-    letter-spacing: var(--tr-label);
-    text-transform: uppercase;
-    color: var(--c-ink-3);
-  }
-  .fhint { margin: 0; font: 400 var(--fs-100) / 1.4 var(--f-ui); color: var(--c-ink-3); }
-  .input {
-    width: 100%;
-    min-height: var(--row-form);
-    padding: 0 var(--sp-4);
-    border: 0;
-    border-radius: var(--r-s);
-    background: var(--c-surface);
-    box-shadow: var(--sh-inset);
-    color: var(--c-ink);
-    font: 500 var(--fs-400) / 1 var(--f-ui);
-  }
-  .input--invalid { box-shadow: var(--sh-inset), inset 0 0 0 var(--bw-field) var(--c-bad); }
-  .input-suffix { display: flex; align-items: center; gap: var(--sp-2); }
-  .input-suffix__unit { font: 500 var(--fs-300) / 1 var(--f-ui); color: var(--c-ink-3); }
+  /* Les primitives de formulaire (.fields, .frow, .fgroup, .flabel, .fhint,
+     .input, .input-suffix) ont MONTÉ dans src/client/shared/app.css : la
+     console animateur les employait sans les charger. Ne pas les redéfinir
+     ici — deux copies divergent, c'est ce qui a produit le défaut. */
 
   /* Type : 4 boutons, sélection par forme ET couleur. */
   .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }

@@ -264,17 +264,39 @@ export function StudioApp() {
     setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   };
 
-  const addModule = () => {
-    const m = { id: uid('m'), type: 'quiz', name: 'Nouveau module', duration: 20, color: 'fire', questions: [] };
-    setModules((prev) => [...prev, m]);
-    setSelectedId(m.id);
-    setEditingQuestionId(null);
-  };
+  // `addModule` a été retiré avec ses trois boutons (A15) : un module se déclare
+  // dans le code, où vivent son type, son barème et ses écrans. La fonction ne
+  // savait de toute façon fabriquer qu'un quiz de plus.
 
-  const removeModule = (id) => {
-    setModules((prev) => prev.filter((m) => m.id !== id));
+  // LA SUPPRESSION S'ENREGISTRE TOUT DE SUITE (A5).
+  //
+  // Elle ne s'enregistrait PAS. Le seul chemin vers le serveur est le bouton
+  // « Enregistrer » du panneau d'édition — or supprimer un module ferme ce
+  // panneau, et `saveModule` sort immédiatement quand plus rien n'est
+  // sélectionné. L'animateur supprimait un jeu, le voyait disparaître, et le
+  // retrouvait au rechargement suivant.
+  //
+  // On écrit donc directement, sans passer par la validation : ce qui reste n'a
+  // pas changé, seul un élément est parti. Et la suppression demande déjà une
+  // confirmation en deux temps — elle n'a pas besoin d'un troisième geste.
+  const removeModule = async (id) => {
+    const restants = modules.filter((m) => m.id !== id);
+    setModules(restants);
     if (selectedId === id) { setSelectedId(null); setEditingQuestionId(null); }
     setConfirmDelete(null);
+    setSaveState('saving');
+    try {
+      const res = await fetch('/api/modules', {
+        method: 'PUT',
+        headers: await entetesHote(),
+        body: JSON.stringify({ modules: restants.map(studioVersServeur) }),
+      });
+      if (res.status === 403) { setSaveState('unauthorized'); return; }
+      if (!res.ok) throw new Error('save-failed-' + res.status);
+      setMode('server');
+      setSaveState('saved');
+      setTimeout(() => setSaveState((st) => (st === 'saved' ? 'idle' : st)), 2000);
+    } catch { setSaveState('error'); }
   };
 
   const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); setConfirmDelete(null); };
@@ -285,7 +307,16 @@ export function StudioApp() {
     const problems = [];
     if (!String(m.name || '').trim()) problems.push({ qid: null, tag: null, msg: 'Donne un nom au module.' });
     if (!Number.isFinite(m.duration) || m.duration < 3) problems.push({ qid: null, tag: null, msg: 'Durée minimale : 3 secondes.' });
-    if (!m.questions.length) problems.push({ qid: null, tag: null, msg: 'Ajoute au moins une question.' });
+    // UN JEU EN DIRECT N'A PAS DE BANQUE, ET C'EST VOULU (A5). Sa question est
+    // tapée à l'antenne. Exiger une question de « Le lien » rendait ce jeu
+    // IMPOSSIBLE À ENREGISTRER : renommer, changer sa durée ou sa couleur ne
+    // survivait à aucun rechargement, l'enregistrement étant refusé pour une
+    // question qu'il ne peut pas avoir. Le serveur connaissait déjà l'exception
+    // (store.js écarte les jeux sans question « sauf direct ») ; le studio la
+    // redéclarait à sa façon, et se trompait.
+    if (!m.questions.length && !MODULE_TYPES[m.type]?.direct) {
+      problems.push({ qid: null, tag: null, msg: 'Ajoute au moins une question.' });
+    }
     m.questions.forEach((q, i) => {
       const tag = `Q${i + 1}`;
       if (!String(q.prompt || '').trim()) problems.push({ qid: q.id, tag, msg: "L'énoncé est vide." });
@@ -308,19 +339,9 @@ export function StudioApp() {
   // sont désormais de la donnée ordinaire, donc supprimables — et une suppression
   // massive doit rester rattrapable. La restauration N'ÉCRASE RIEN : elle ne
   // rajoute que les jeux livrés d'office qui manquent.
-  const restaurerBase = async () => {
-    setSaveState('saving');
-    try {
-      const res = await fetch('/api/modules/restore', { method: 'POST', headers: await entetesHote() });
-      if (res.status === 403) { setSaveState('unauthorized'); return; }
-      if (!res.ok) throw new Error('restore-failed-' + res.status);
-      const { modules: recus } = await res.json();
-      setModules((recus || []).map(serveurVersStudio).filter(Boolean));
-      setMode('server');
-      setSaveState('saved');
-      setTimeout(() => setSaveState((st) => (st === 'saved' ? 'idle' : st)), 2000);
-    } catch { setSaveState('error'); }
-  };
+  // `restaurerBase` a été retiré avec son bouton (A16). La route serveur
+  // POST /api/modules/restore SUBSISTE : c'est le chemin de récupération si la
+  // bibliothèque est vidée par accident, du même côté que la création — le code.
 
   const saveModule = async () => {
     const m = selected;
@@ -373,7 +394,7 @@ export function StudioApp() {
   return (
     <div className={`studio${selected ? ' studio--editing' : ''}`}>
       <Sidebar modules={modules} selectedId={selectedId} mode={mode} loading={remoteLoading}
-        onSelect={selectModule} onAdd={addModule} />
+        onSelect={selectModule} />
 
       <main className="work" data-state={modules.length === 0 ? 'empty' : 'ready'} aria-label="Gestion des modules">
         <div className="work__head">
@@ -392,12 +413,17 @@ export function StudioApp() {
               data-testid="studio-retour-animation">
               Retour à l'animation
             </a>
-            <button className="button" type="button" data-action="studio:restore"
-              onClick={restaurerBase} title="Remet les jeux livrés d'office qui manquent, sans toucher aux tiens">
-              Restaurer les questions de base
-            </button>
-            <button className="button button--primary" type="button" data-action="studio:createModule"
-              onClick={addModule}><I.plus s={16} /> Nouveau module</button>
+            {/* A15 — « la création d'un nouveau module devait passer par le code
+                plutôt que par le chemin actuellement visible ». Un module n'est
+                pas qu'un nom et une couleur : son TYPE commande des règles de jeu,
+                un barème, un enchaînement d'écrans et des phrases de voix, tous
+                écrits dans le code. Le bouton laissait croire qu'on pouvait en
+                inventer un depuis le studio, alors qu'il ne savait produire qu'un
+                quiz de plus.
+                A16 — « Restaurer les questions de base », jugé inutile dans le
+                parcours retenu, part avec lui. Le serveur garde sa route de
+                restauration : c'est le chemin de récupération, côté code, comme
+                pour la création. */}
           </div>
         </div>
 
@@ -409,10 +435,13 @@ export function StudioApp() {
           <div className="empty-state">
             <span style={{ color: 'var(--c-ink-3)' }} aria-hidden="true"><I.flame s={30} /></span>
             <h2 className="work__title">Aucun module</h2>
-            <p className="work__sub">Crée ton premier questionnaire pour démarrer une partie.</p>
-            <button className="button button--primary" type="button" onClick={addModule}>
-              <I.plus s={16} /> Nouveau module
-            </button>
+            {/* Sans bouton de création (A15), l'écran vide doit dire où aller —
+                sinon il devient un cul-de-sac. */}
+            <p className="work__sub">
+              Les jeux sont déclarés dans le code. Si cette liste est vide, c'est
+              que la bibliothèque n'a pas encore été semée : relance le serveur, ou
+              demande une restauration des jeux livrés d'office.
+            </p>
           </div>
         ) : (
           <section className="grid" aria-label="Liste des modules">
@@ -496,8 +525,8 @@ function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
         ))}
       </div>
 
-      <button className="button button--primary button--block" type="button" style={{ marginTop: 'auto' }}
-        data-action="studio:createModule" onClick={onAdd}><I.plus s={16} /> Nouveau module</button>
+      {/* Le bouton « Nouveau module » vivait ici aussi (A15). Un seul retrait sur
+          trois aurait laissé le chemin ouvert par la porte de service. */}
     </nav>
   );
 }

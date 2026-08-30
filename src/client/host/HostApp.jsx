@@ -17,6 +17,7 @@ import { getSupabase } from '../shared/supabaseClient.js';
 import { shouldPurgeHostSession } from '../shared/hostSession.js';
 import { passwordErrorMessage, resetErrorMessage, masquerEmail } from '../shared/authErrors.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
+import { usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import './host.css';
 
@@ -419,7 +420,23 @@ function PlusProches({ g, roundId, revealed }) {
   // pendant que les réponses arrivent : une information qu'il pourrait laisser
   // échapper à l'antenne.
   useEffect(() => { setTout(false); }, [roundId]);
-  if (!revealed || !donnee || donnee.roundId !== roundId || !donnee.joueurs.length) return null;
+
+  // LE MOMENT, décidé avant tout retour anticipé — un crochet ne peut pas vivre
+  // après un `return`. Les deux cas sont exclusifs : soit quelqu'un est tombé
+  // pile et il est SEUL à l'avoir fait, soit on nomme la meilleure approche.
+  // À plusieurs exacts, l'exploit n'en est plus un et la console se tait, comme
+  // le plateau (même arbitrage que `stream.estim-exact-unique`).
+  const pret = revealed && donnee && donnee.roundId === roundId && donnee.joueurs.length > 0;
+  const exacts = pret ? donnee.joueurs.filter((j) => j.exact) : [];
+  const momentHote = !pret ? null
+    : exacts.length === 1 ? 'host.exact-unique'
+      : exacts.length === 0 && donnee.joueurs.length === 1 ? 'host.meilleure-estimation'
+        : null;
+  const phraseMiseEnAvant = usePhraseDeManche(momentHote, roundId, {
+    nom: momentHote === 'host.exact-unique' ? exacts[0]?.pseudo : donnee?.joueurs?.[0]?.pseudo,
+  });
+
+  if (!pret) return null;
 
   const liste = tout ? donnee.joueurs : donnee.joueurs.slice(0, VISIBLES);
   const reste = donnee.joueurs.length - liste.length;
@@ -430,6 +447,16 @@ function PlusProches({ g, roundId, revealed }) {
         <I.eye s={16} /> Le plus proche — toi seul
         <span className="private__count">{donnee.joueurs.length}</span>
       </p>
+      {/* LA PHRASE DE MISE EN AVANT (A21). L'animateur avait la liste des noms et
+          des valeurs, pas de quoi la DIRE. Il lui fallait une formule prête à
+          l'antenne — « une seule personne a trouvé la réponse exacte », « un tel a
+          la meilleure estimation ».
+          Elle vit sur SA surface et nulle part ailleurs : elle cite un pseudo, et
+          le stream l'afficherait devant toute l'audience. Il lit, ou il ne lit
+          pas ; c'est lui qui décide de nommer quelqu'un. */}
+      {phraseMiseEnAvant ? (
+        <p className="private__voix" data-testid="host-mise-en-avant">{phraseMiseEnAvant}</p>
+      ) : null}
       <ul className="proches">
         {liste.map((j, i) => (
           <li className="proches__row" key={`${j.pseudo}-${i}`}>

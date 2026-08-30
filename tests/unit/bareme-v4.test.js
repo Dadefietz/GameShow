@@ -110,21 +110,49 @@ describe('l\'estimation (action 5)', () => {
     expect(total(results.get('tres-loin'))).toBe(0);
   });
 
-  it('les bonus se cumulent, sans plafond', () => {
-    // DÉCISION 5.6 — 1000 + 200 + 400 = 1600, quand un quiz plafonne à 950. Écart
-    // accepté par l'auteur en connaissance de cause : c'est consigné ici pour
-    // qu'il ne soit jamais pris pour un défaut.
+  it('les bonus se cumulent, et le plus proche ne joue plus quand un palier est touché', () => {
+    // A4 — « n'activer le bonus du plus proche dans Estimation uniquement si tous
+    // les joueurs sont hors palier ».
+    //
+    // CE QUE CE CONTRÔLE DISAIT AVANT : 1000 + 200 + 400 = 1600. Le filet du plus
+    // proche tombait dans la poche de qui touchait DÉJÀ le meilleur palier — un
+    // supplément sans objet, puisque le barème avait déjà tranché en sa faveur.
+    // Il ne se déclenche plus que là où il a été inventé : quand personne n'est
+    // dans une plage et que la manche ne rapporterait rien à personne.
+    //
+    // LE MAXIMUM D'UNE MANCHE D'ESTIMATION PASSE DONC DE 1600 À 1200. C'est un
+    // fait de jeu, pas un effet de bord : consigné ici pour qu'il ne soit jamais
+    // pris pour une régression.
     const rt = round(modules.estimation, CIBLE);
     rt.answers.set('parfait', { value: 100, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
     const r = results.get('parfait');
-    expect(total(r)).toBe(1600);
+    expect(total(r)).toBe(1200);
     expect(r.exact).toBe(true);
     // LE DÉTAIL, ET NON LA SOMME. Tout tombait dans `base` : le joueur lisait
     // « 1 600 » sans savoir d'où venaient les six cents points de plus, et le
     // barème qu'on venait de lui expliquer devenait invérifiable.
     expect({ palier: r.base, exactitude: r.bonusExact, plusProche: r.bonusProche })
-      .toEqual({ palier: 1000, exactitude: 200, plusProche: 400 });
+      .toEqual({ palier: 1000, exactitude: 200, plusProche: 0 });
+  });
+
+  it('le filet du plus proche s\'efface dès qu\'UN SEUL joueur atteint un palier', () => {
+    // La frontière exacte de A4, éprouvée des deux côtés — c'est elle qui compte,
+    // pas les cas confortables.
+    const rt = round(modules.estimation, CIBLE);
+    rt.answers.set('dedans', { value: 108, at: rt.startedAt }); // 8 % : palier « proche »
+    rt.answers.set('dehors', { value: 200, at: rt.startedAt }); // 100 % : hors
+    const { results } = modules.estimation.score(rt);
+    expect(results.get('dedans').palier).toBe('proche');
+    expect(results.get('dedans').bonusProche, 'le mieux placé n\'a pas besoin du filet').toBe(0);
+    expect(total(results.get('dehors')), 'le plus loin ne marque rien').toBe(0);
+
+    // Le même tirage, mais SANS personne dans une plage : le filet revient.
+    const rt2 = round(modules.estimation, CIBLE);
+    rt2.answers.set('moins-loin', { value: 200, at: rt2.startedAt });
+    rt2.answers.set('tres-loin', { value: 900, at: rt2.startedAt });
+    const r2 = modules.estimation.score(rt2).results;
+    expect(r2.get('moins-loin').bonusProche, 'personne dans un palier : le filet doit jouer').toBe(400);
   });
 
   // DÉCISION 5.12 — LES ÉCHELLES EXTRÊMES. Un barème en pourcentage se comporte
@@ -191,7 +219,7 @@ describe('l\'estimation (action 5)', () => {
 // non dans un commentaire : un tableau qui vit dans la suite ne peut pas devenir
 // faux en silence.
 describe('les maximums par module, consignés', () => {
-  it('quiz 950 · vrai-faux 950 · estimation 1600 · vote base fixe', () => {
+  it('quiz 950 · vrai-faux 950 · estimation 1200 · vote base fixe', () => {
     const q = round(modules.quiz, { id: 'q', text: '?', options: ['a', 'b'], correctIndex: 0, durationSec: 20 });
     q.answers.set('x', { value: 0, at: q.startedAt });
     const rq = modules.quiz.score(q).results.get('x');
@@ -206,6 +234,9 @@ describe('les maximums par module, consignés', () => {
 
     const maxima = { quiz: total(rq), vrai_faux: total(rt), estimation: total(re) };
     console.log(`  maximums par manche : ${JSON.stringify(maxima)}`);
-    expect(maxima).toEqual({ quiz: 950, vrai_faux: 950, estimation: 1600 });
+    // 1200 depuis A4, et non plus 1600 : le joueur seul en lice touche son palier
+    // (1000) et son exactitude (200), mais plus le filet du plus proche — il est
+    // dans une plage, la manche rapporte déjà.
+    expect(maxima).toEqual({ quiz: 950, vrai_faux: 950, estimation: 1200 });
   });
 });

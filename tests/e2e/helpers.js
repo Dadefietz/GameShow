@@ -33,6 +33,44 @@ export async function joinAsPlayer(browser, code, pseudo) {
   return { ctx, page };
 }
 
+// FABRIQUER UN JEU POUR UN CONTRÔLE, PAR L'API.
+//
+// Les contrôles passaient par le bouton « Nouveau module » du studio. Ce bouton a
+// été retiré (A15) : un module n'est pas qu'un nom et une couleur, son TYPE
+// commande un barème, des écrans et des phrases, tous écrits dans le code — le
+// studio ne savait de toute façon fabriquer qu'un quiz de plus.
+//
+// Passer par l'API n'est pas un pis-aller, c'est un progrès : dix contrôles
+// pilotaient une dizaine de champs d'interface pour poser un décor, et
+// échouaient dès qu'un libellé bougeait. Ce qu'ils mesurent est ailleurs.
+//
+// Le jeu est AJOUTÉ à la bibliothèque existante, jamais substitué : elle est
+// partagée par toute l'exécution (voir `retirerJeux` ci-dessous).
+export async function creerJeu({ name, type, questions, duration }) {
+  const actuels = await fetch(`${BASE}/api/modules`).then((r) => r.json()).then((d) => d.modules || []);
+  const module_ = {
+    id: `m-test-${Math.random().toString(36).slice(2, 10)}`,
+    type,
+    name,
+    duration: duration ?? 20,
+    color: 'fire',
+    // Format SERVEUR : { id, text, options?, correctIndex?, correct?, target? }.
+    // C'est celui qu'écrit le studio après conversion, et celui que lit le moteur.
+    questions: questions.map((q, i) => ({
+      id: `q-test-${i}-${Math.random().toString(36).slice(2, 8)}`,
+      durationSec: duration ?? 20,
+      ...q,
+    })),
+  };
+  const res = await fetch(`${BASE}/api/modules`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ modules: [...actuels, module_] }),
+  });
+  if (!res.ok) throw new Error(`creerJeu a échoué : ${res.status}`);
+  return module_;
+}
+
 // RETIRER LES JEUX FABRIQUÉS PAR UN CONTRÔLE.
 //
 // POURQUOI C'EST NÉCESSAIRE. La bibliothèque de jeux vit côté serveur et se

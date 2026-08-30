@@ -58,12 +58,32 @@ describe('nom du jeu', () => {
     // qu'on relit le moins, puisqu'elle n'apparaît nulle part dans l'interface.
     //
     // Toute rebaptisation future ajoute son ancien nom à cette liste.
+    // CE CONTRÔLE A ÉTÉ AVEUGLE UNE FOIS DE PLUS, ET VOICI COMMENT.
+    //
+    // L'écran de chargement des QUATRE surfaces affichait
+    // `<p className="boot__name">Project<br />Game Show</p>` — le nom provisoire,
+    // à l'endroit le plus vu de toute l'application, des mois après la
+    // rebaptisation. Le contrôle cherchait la chaîne « Project Game Show » ; le
+    // `<br />` planté au milieu faisait qu'elle n'existait nulle part. Un nom
+    // coupé par une balise reste un nom pour l'œil, jamais pour `includes`.
+    //
+    // On NORMALISE donc le code avant de chercher : les balises deviennent des
+    // espaces, les espaces multiples se réduisent. « Project<br />Game Show » et
+    // « Project Game Show » sont alors la même chaîne — ce qu'ils sont pour
+    // quiconque regarde l'écran.
     const ANCIENS_NOMS = ['Project Game Show'];
+    // Les commentaires — de ligne comme de bloc, JSX compris — peuvent citer un
+    // ancien nom pour expliquer son retrait ; c'est le cas juste au-dessus de la
+    // correction, dans BrandLoader. Seul le code compte. Ils sont retirés AVANT
+    // les balises : dans l'autre ordre, un `<br />` cité dans un commentaire
+    // serait effacé et le commentaire redeviendrait du texte cherchable.
+    const normaliser = (s) => s
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')                                 // commentaires de bloc et commentaires JSX
+      .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')  // commentaires de ligne
+      .replace(/<[^>]*>/g, ' ')                                          // les balises ne coupent plus les mots
+      .replace(/\s+/g, ' ');
     for (const f of SOURCES_CLIENT) {
-      const src = fs.readFileSync(f, 'utf8');
-      // Les commentaires peuvent citer un ancien nom pour l'expliquer — comme
-      // celui-ci. Seul le code compte.
-      const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+      const code = normaliser(fs.readFileSync(f, 'utf8'));
       for (const ancien of ANCIENS_NOMS) {
         for (const forme of [ancien, ancien.toUpperCase(), ancien.toLowerCase()]) {
           expect(code.includes(forme), `« ${forme} » traîne encore dans ${f}`).toBe(false);

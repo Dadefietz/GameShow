@@ -72,18 +72,15 @@ export const MOMENTS = {
   },
 
   // ---------- VOIX INTIME : la manche ----------
-  'reponse.envoyee': {
-    surface: 'play',
-    quand: 'la réponse est enregistrée, la manche n’est pas révélée',
-    phrases: [
-      'C’est parti. On verra bien.',
-      'Ta réponse est au chaud.',
-      'Les flammes ont entendu ta réponse.',
-      'Voilà. Trop tard pour changer d’avis.',
-      'Reçu. Croise les doigts si tu veux.',
-      'Ta voix est dans le pot commun.',
-    ],
-  },
+  // `reponse.envoyee` A ÉTÉ SUPPRIMÉ AVEC L'ÉCRAN QU'IL SERVAIT (A11).
+  //
+  // Ses six phrases commentaient la page « Ta réponse est bien partie », posée
+  // entre l'envoi et la révélation. L'auteur a fait retirer cette page — « la page
+  // ta réponse est bien partie n'a pas lieu d'être » — et le joueur reste
+  // désormais sur sa question jusqu'au résultat. Le moment était donc le seul du
+  // registre que personne ne pouvait voir : il figurait en exception assumée du
+  // contrôle d'atteignabilité, ce qui est une dette, pas une décision. La liste
+  // des exceptions est maintenant vide.
   'temps.ecoule': {
     surface: 'play',
     quand: 'le chrono est tombé sans réponse du joueur',
@@ -122,13 +119,16 @@ export const MOMENTS = {
   'juste.serie': {
     surface: 'play',
     quand: 'bonne réponse ET série de 2 ou plus',
-    requiert: ['serie'],
+    // LE NOMBRE A QUITTÉ LES PHRASES (A7). Le marqueur de série l'affiche en gros
+    // à trois lignes de là, depuis A1 : la phrase le redisait en toutes lettres,
+    // et le joueur lisait deux fois le même chiffre dans le même bloc. La voix
+    // garde le ton, le marqueur porte le compte.
     phrases: [
-      "{serie} d’affilée. Attention à ne pas t'enflammer !",
-      'Toujours pas de faute. {serie} de suite.',
-      "{serie} bonnes réponses enchaînées. Le feu t'admire.",
-      'Une série enflammée ! {serie} et ça continue.',
-      "{serie} à la suite : on ne t'arrête plus.",
+      "Attention à ne pas t'enflammer !",
+      'Toujours pas de faute.',
+      "Enchaînées. Le feu t'admire.",
+      'Une série enflammée, et ça continue.',
+      "On ne t'arrête plus.",
     ],
   },
   faux: {
@@ -340,6 +340,41 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX DE L'ANIMATEUR : ce qu'il peut mettre en avant ----------
+  //
+  // A21 — « une phrase permettant à l'animateur d'indiquer qu'une seule personne a
+  // trouvé la réponse exacte ou qu'un joueur a obtenu la meilleure estimation.
+  // Cette formulation doit servir à mettre en avant un participant lorsque la
+  // condition correspondante est remplie. »
+  //
+  // PREMIÈRE SURFACE « host » DU REGISTRE, et c'est une frontière qu'il faut tenir :
+  // ces phrases CITENT UN NOM. Elles ne peuvent donc jamais passer au stream, où
+  // les pseudos s'affichent devant toute l'audience — c'est la même règle que le
+  // panneau des plus proches (décision 6.2 du chantier v4). L'animateur lit, ou
+  // ne lit pas : c'est lui qui décide de nommer quelqu'un à l'antenne.
+  'host.exact-unique': {
+    surface: 'host',
+    quand: 'estimation : une SEULE personne a trouvé la valeur exacte',
+    requiert: ['nom'],
+    phrases: [
+      'Une seule personne est tombée pile : {nom}.',
+      '{nom} a trouvé la valeur exacte. Personne d’autre.',
+      'Pile poil, et une seule fois : {nom}.',
+      'La réponse exacte, {nom} l’avait.',
+    ],
+  },
+  'host.meilleure-estimation': {
+    surface: 'host',
+    quand: 'estimation : personne n’est exact, on peut nommer la meilleure approche',
+    requiert: ['nom'],
+    phrases: [
+      'La meilleure estimation est celle de {nom}.',
+      'Personne n’a trouvé, mais {nom} s’en approche le plus.',
+      'C’est {nom} qui vise le mieux sur celle-ci.',
+      '{nom} signe la meilleure approche du cercle.',
+    ],
+  },
+
   // ---------- VOIX INTIME : la fin ----------
   'fin.podium': {
     surface: 'play',
@@ -420,11 +455,31 @@ export const MOMENTS = {
   },
   'stream.egalite': {
     surface: 'overlay',
-    quand: 'les deux options de tête se tiennent à une voix',
+    // A14 — « les camps sont parfaitement à égalité » et « les deux premières
+    // options séparées d'une seule voix » étaient traités par la MÊME condition,
+    // « à une voix près ». Une phrase comme « Wow ! Égalité parfaite » s'affichait
+    // donc sur un écart d'une voix, où elle est fausse. Ce moment ne dit plus que
+    // l'égalité STRICTE.
+    quand: 'les deux options de tête sont exactement à égalité',
     phrases: [
       'Le cercle est coupé en deux.',
       'Wow ! Égalité parfaite.',
       'Le cercle est partagé...',
+      'Pas une voix d’écart. Le cercle ne tranche pas.',
+    ],
+  },
+  'stream.majorite-trompee': {
+    surface: 'overlay',
+    // A13 — « la majorité s'est trompée ». Le piège ne se déclenchait que si UNE
+    // mauvaise option dépassait la bonne. Quand l'erreur se répartissait sur trois
+    // options, chacune sous la bonne réponse, le cercle avait beau s'être trompé
+    // en majorité : le plateau ne disait rien.
+    quand: 'moins de la moitié des réponses données sont justes, sans qu’une seule mauvaise option domine',
+    phrases: [
+      'La majorité du cercle s’est trompée.',
+      'Plus d’erreurs que de réussites sur celle-ci.',
+      'Le cercle a douté, et il a eu tort.',
+      'Celle-là a fait plus de victimes que de vainqueurs.',
     ],
   },
   'stream.option-morte': {
@@ -449,12 +504,25 @@ export const MOMENTS = {
   },
   'stream.vote-division': {
     surface: 'overlay',
-    quand: 'vote : les deux premières options à une voix près',
+    // A14 — resserré à UNE VOIX D'ÉCART EXACTEMENT. L'égalité parfaite a son
+    // propre moment ci-dessous : ce sont deux situations qu'un animateur commente
+    // différemment, et « deux camps à égalité » était faux à une voix près.
+    quand: 'vote : une seule voix sépare les deux premières options',
     phrases: [
-      'Le cercle hésite. Deux camps à égalité.',
+      'Le cercle hésite. Une seule voix d’écart.',
       'Le feu brûle de bonheur en voyant cette compétition !',
-      'La cercle est coupé en deux... ça fait des demi-cercles du coup.',
+      'Une voix. C’est tout ce qui les sépare.',
       'Mais qui a gagné en fait ?',
+    ],
+  },
+  'stream.vote-egalite': {
+    surface: 'overlay',
+    quand: 'vote : les deux premières options sont exactement à égalité',
+    phrases: [
+      'Parfaitement à égalité. Le cercle ne tranche pas.',
+      'Deux camps, pas une voix d’écart.',
+      'Le cercle est coupé en deux... ça fait des demi-cercles du coup.',
+      'Personne ne l’emporte. Il va falloir en parler.',
     ],
   },
   'stream.estim-groupe-juste': {
@@ -546,8 +614,13 @@ export const PRIORITE_PLATEAU = [
   'stream.piege',
   'stream.estim-exact-unique',
   'stream.estim-personne-proche',
+  'stream.vote-egalite',
   'stream.egalite',
   'stream.vote-division',
+  // La majorité trompée passe APRÈS le piège : quand une mauvaise option domine,
+  // c'est elle l'histoire à raconter, et les deux conditions se déclenchent
+  // ensemble. Elle passe aussi après l'égalité, plus rare donc plus remarquable.
+  'stream.majorite-trompee',
   'stream.quasi-unanimite',
   'stream.vote-consensus',
   'stream.estim-groupe-juste',
@@ -566,24 +639,60 @@ export function reinitialiserVoix() {
   dejaDites.clear();
 }
 
+// Les repères écrits dans une phrase : `{rang}`, `{serie}`, `{taille}`…
+const REPERE = /\{(\w+)\}/g;
+export function reperesDe(phrase) {
+  return [...String(phrase).matchAll(REPERE)].map((m) => m[1]);
+}
+
 // Rend une phrase du moment, sans répétition tant que le stock n'est pas épuisé.
 // `valeurs` remplit les repères déclarés dans `requiert`.
+//
+// AUCUNE ACCOLADE NE DOIT ARRIVER JUSQU'À UN JOUEUR (A30).
+//
+// Ce qui se passait avant : la substitution laissait le repère brut quand la
+// valeur manquait — sans rien signaler. Sept phrases de fin de partie citaient
+// `{rang}` alors qu'aucun appelant ne fournissait jamais cette valeur : tout
+// joueur classé lisait « {rang} du cercle » à la fin de chaque partie. Le
+// registre DÉCLARAIT pourtant le contrat, `requiert: ['rang']` ; personne ne le
+// lisait.
+//
+// Désormais une phrase dont un repère n'est pas fourni n'est pas servie : on
+// tire parmi celles qu'on peut vraiment écrire. Si aucune ne convient, on se
+// tait — une ligne absente vaut mieux qu'une accolade affichée. Et on le crie
+// en console, pour que le défaut se voie à la première partie d'essai au lieu
+// de dormir des mois.
 export function dire(momentId, valeurs = {}) {
   const moment = MOMENTS[momentId];
   if (!moment || !moment.phrases.length) return null;
 
+  const servable = (p) => reperesDe(p).every((cle) => valeurs[cle] != null);
+  const utilisables = moment.phrases
+    .map((p, i) => [p, i])
+    .filter(([p]) => servable(p));
+
+  if (!utilisables.length) {
+    const manquants = [...new Set(moment.phrases.flatMap(reperesDe))]
+      .filter((cle) => valeurs[cle] == null);
+    console.error(
+      `[voix] « ${momentId} » est muet : aucune phrase servable, valeur(s) manquante(s) : ${manquants.join(', ')}`,
+    );
+    return null;
+  }
+
   let servies = dejaDites.get(momentId);
-  if (!servies || servies.size >= moment.phrases.length) {
+  // Le stock se juge sur les phrases SERVABLES, non sur le total : sinon un
+  // moment dont la moitié des phrases sont hors d'atteinte ne se réarmerait
+  // jamais et finirait par ne plus rien dire.
+  if (!servies || utilisables.every(([, i]) => servies.has(i))) {
     servies = new Set();
     dejaDites.set(momentId, servies);
   }
-  const libres = moment.phrases.map((_, i) => i).filter((i) => !servies.has(i));
-  const i = libres[Math.floor(Math.random() * libres.length)];
+  const libres = utilisables.filter(([, i]) => !servies.has(i));
+  const [phrase, i] = libres[Math.floor(Math.random() * libres.length)];
   servies.add(i);
 
-  return moment.phrases[i].replace(/\{(\w+)\}/g, (t, cle) => (
-    valeurs[cle] != null ? String(valeurs[cle]) : t
-  ));
+  return phrase.replace(REPERE, (t, cle) => (valeurs[cle] != null ? String(valeurs[cle]) : t));
 }
 
 // Choisit le moment de plateau à commenter, ou rien. `stats` est la répartition
@@ -597,18 +706,35 @@ export function momentDePlateau(type, stats, reveal) {
     const tally = stats.tally;
     const trie = [...tally].sort((a, b) => b - a);
     if (tally.some((n) => n === 0)) candidats.add('stream.option-morte');
-    if (trie.length > 1 && trie[0] > 0 && trie[0] - trie[1] <= 1) {
-      candidats.add(type === 'vote' ? 'stream.vote-division' : 'stream.egalite');
-    }
+    // A14 — L'ÉGALITÉ PARFAITE N'EST PAS UNE VOIX D'ÉCART. Une seule condition,
+    // « à une voix près », servait les deux cas : le plateau annonçait « égalité
+    // parfaite » sur un écart d'une voix, où c'est faux, et « deux camps à
+    // égalité » là où l'un menait. Ce sont deux situations qu'un animateur
+    // commente différemment ; ce sont donc deux moments.
+    const serres = trie.length > 1 && trie[0] > 0;
+    const exAequo = serres && trie[0] === trie[1];
+    const uneVoix = serres && trie[0] - trie[1] === 1;
     if (type === 'vote') {
+      if (exAequo) candidats.add('stream.vote-egalite');
+      if (uneVoix) candidats.add('stream.vote-division');
       if (trie[0] / total >= SEUILS.consensusVote) candidats.add('stream.vote-consensus');
     } else {
+      if (exAequo) candidats.add('stream.egalite');
       const iJuste = type === 'quiz' ? reveal?.correctIndex : (reveal?.correct ? 0 : 1);
       const justes = tally[iJuste] || 0;
       if (justes === total) candidats.add('stream.unanimite-juste');
       else if (justes === 0) candidats.add('stream.personne');
       else if (justes / total >= SEUILS.quasiUnanimite) candidats.add('stream.quasi-unanimite');
       if (tally.some((n, i) => i !== iJuste && n > justes)) candidats.add('stream.piege');
+      // A13 — « la majorité s'est trompée ». Le piège ci-dessus ne se déclenche
+      // que si UNE mauvaise option dépasse la bonne. Quand l'erreur se répartit
+      // sur plusieurs options, chacune sous la bonne réponse, la majorité s'est
+      // bel et bien trompée et le plateau restait muet.
+      //
+      // Le compte porte sur les RÉPONSES DONNÉES, jamais sur les joueurs présents
+      // (`total` vaut `rt.answers.size` côté serveur) : c'est la lecture retenue
+      // en réunion pour toutes les règles de seuil.
+      if (justes > 0 && justes / total < 0.5) candidats.add('stream.majorite-trompee');
     }
   }
 

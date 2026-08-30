@@ -10,7 +10,7 @@
 // place en pixels — pas au centre d'une tranche large de plusieurs unités, comme
 // c'était le cas quand « la cible » n'était qu'une barre colorée.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(90_000);
@@ -29,20 +29,14 @@ test.describe('L\'axe de l\'histogramme', () => {
 
   // Une question dont on connaît la cible : sans elle, l'axe ne serait comparable
   // à rien. Les questions livrées d'office ont des cibles très diverses.
+  // Décor posé par l'API (A15 : le studio ne crée plus de module). Ce que ce
+  // contrôle mesure est la GÉOMÉTRIE de l'axe, pas le formulaire du studio.
   async function jeuAvecCible(page, nom, cible, annee = false) {
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const ed = page.getByRole('complementary');
-    await expect(ed).toBeVisible();
-    await ed.getByLabel('Nom').fill(nom);
-    await ed.getByRole('radiogroup', { name: 'Type' }).getByRole('radio', { name: 'Estimation' }).click();
-    await ed.getByRole('button', { name: 'Ajouter une question' }).click();
-    await ed.getByPlaceholder('Rédige la question').fill(`Cible ${cible} ?`);
-    await ed.getByLabel('Cible').fill(String(cible));
-    if (annee) await ed.getByRole('radio', { name: 'Année' }).click();
-    await ed.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(ed.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    await creerJeu({
+      name: nom,
+      type: 'estimation',
+      questions: [{ text: `Cible ${cible} ?`, target: cible, ...(annee ? { nature: 'annee' } : {}) }],
+    });
   }
 
   async function jouer(browser, nom, valeurs) {

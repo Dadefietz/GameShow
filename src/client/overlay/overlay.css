@@ -251,6 +251,17 @@
 
   /* Voix de plateau : une seule ligne, à l'échelle de diffusion. Elle n'apparaît
      que sur les répartitions remarquables — le reste du temps, l'écran se tait. */
+  /* LA FENTE DE LA VOIX DE PLATEAU (A22) — sa hauteur est TENUE, pleine ou vide.
+     Une ligne de `--fs-st-400` à l'interlignage 1,1, plus la marge qui la sépare
+     de la réponse. Sans elle, l'apparition d'une phrase déplaçait tout le bloc de
+     répartition d'une manche à l'autre, devant l'antenne. */
+  .st-voix-fente {
+    margin-top: var(--sp-6);
+    min-height: calc(var(--fs-st-400) * 1.1);
+    display: flex;
+    align-items: flex-start;
+  }
+
   .st-voix {
     margin: 0;
     font: 600 var(--fs-st-400) / 1.1 var(--f-display);

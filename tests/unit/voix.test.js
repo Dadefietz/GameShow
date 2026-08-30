@@ -9,7 +9,7 @@
 // bonne. Qu'une phrase soit plate reste affaire de relecture humaine.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'node:fs';
-import { MOMENTS, SURFACES, LONGUEUR_MAX, PRIORITE_PLATEAU, dire, reinitialiserVoix, momentDePlateau } from '../../src/client/shared/voix.js';
+import { MOMENTS, SURFACES, LONGUEUR_MAX, PRIORITE_PLATEAU, dire, reperesDe, reinitialiserVoix, momentDePlateau } from '../../src/client/shared/voix.js';
 import { MODULE_TYPES } from '../../src/server/modules.js';
 
 beforeEach(() => reinitialiserVoix());
@@ -19,15 +19,11 @@ beforeEach(() => reinitialiserVoix());
 // côté soit une DÉCISION consignée ici, jamais un oubli — c'est ainsi que huit
 // d'entre eux ont dormi des mois.
 const MUETS_ASSUMES = [
-  // `reponse.envoyee` — « la réponse est enregistrée, la manche n'est pas révélée ».
-  //
-  // L'auteur a demandé de tout brancher « sauf les places, les réponses envoyées ».
-  // Ses six phrases sont pourtant CONSERVÉES dans le fichier corrigé. La
-  // contradiction est laissée telle quelle, en pleine lumière, plutôt que
-  // tranchée à sa place : soit on branche le moment sur l'écran de question après
-  // envoi, soit on retire ses six phrases. En attendant, il est le seul moment du
-  // registre que personne ne verra — et c'est écrit ici, pas oublié.
-  'reponse.envoyee',
+  // VIDE, et c'est le but. La seule entrée qu'elle ait jamais portée était
+  // `reponse.envoyee` — six phrases qui commentaient un écran (« Ta réponse est
+  // bien partie ») que l'auteur avait fait retirer. Une exception assumée est une
+  // dette : on la solde, on ne la garde pas. Le moment et ses phrases ont été
+  // supprimés avec l'écran (A11).
 ];
 
 describe('convention de la voix — contrôle bloquant', () => {
@@ -133,6 +129,57 @@ describe('convention de la voix — contrôle bloquant', () => {
     expect(muets, `moment(s) sans aucun chemin de code : ${muets.join(', ')}`).toEqual(MUETS_ASSUMES);
   });
 
+  // ===== LE CONTRAT DES VARIABLES (A30) =====
+  //
+  // `requiert` existait depuis l'origine et n'était lu par personne : un champ
+  // décoratif. `fin.podium` déclarait `requiert: ['rang']`, aucun appelant ne
+  // fournissait cette valeur, et sept phrases affichaient « {rang} » en clair à
+  // tout joueur classé, à chaque fin de partie. Ces deux contrôles font du champ
+  // un contrat : ce qu'une phrase écrit doit être déclaré, ce qui est déclaré
+  // doit être écrit.
+  // Le sens « écrit ⇒ déclaré » est déjà tenu plus haut par « les repères
+  // dynamiques sont DÉCLARÉS avant d'être employés ». Il était vert pendant tout
+  // le temps où `{rang}` s'affichait en clair : garantir qu'une variable est
+  // DÉCLARÉE ne dit rien de sa FOURNITURE. Ce sont les trois contrôles suivants
+  // qui manquaient.
+  it('tout `requiert` déclaré est employé par au moins une phrase', () => {
+    // Le revers : une déclaration orpheline ferait attendre une valeur que
+    // personne n'écrit — et le crochet, qui attend désormais les valeurs
+    // déclarées avant de servir, rendrait le moment définitivement muet.
+    for (const [id, m] of Object.entries(MOMENTS)) {
+      const ecrits = new Set(m.phrases.flatMap(reperesDe));
+      for (const cle of m.requiert || []) {
+        expect(ecrits.has(cle),
+          `« ${id} » déclare requiert:${cle} qu'aucune de ses phrases n'emploie`).toBe(true);
+      }
+    }
+  });
+
+  it('aucune accolade ne survit quand les valeurs sont fournies', () => {
+    // Le contrôle de bout en bout vérifie le câblage réel ; celui-ci vérifie la
+    // substitution elle-même, moment par moment, sans navigateur.
+    for (const [id, m] of Object.entries(MOMENTS)) {
+      const valeurs = Object.fromEntries((m.requiert || []).map((k) => [k, 'X']));
+      for (let n = 0; n < m.phrases.length; n += 1) {
+        const dite = dire(id, valeurs);
+        expect(dite, `« ${id} » ne dit rien alors que ses valeurs sont fournies`).toBeTruthy();
+        expect(/\{\w+\}/.test(dite), `accolade non substituée dans « ${id} » : ${dite}`).toBe(false);
+      }
+    }
+  });
+
+  it('une valeur manquante rend le moment muet, jamais bavard d\'une accolade', () => {
+    // `fin.podium` : quatre phrases, trois citent {rang}. Sans la valeur, seule
+    // celle qui n'en a pas besoin peut être servie — et jamais une accolade.
+    for (let n = 0; n < 6; n += 1) {
+      const dite = dire('fin.podium', {});
+      if (dite != null) expect(/\{\w+\}/.test(dite), `accolade servie : ${dite}`).toBe(false);
+    }
+    // `fin.classe` : les quatre phrases citent {rang}. Aucune n'est servable :
+    // le moment se tait au lieu d'écrire une accolade.
+    expect(dire('fin.classe', {})).toBeNull();
+  });
+
   it('l\'ordre de priorité du plateau ne cite que des moments existants', () => {
     for (const id of PRIORITE_PLATEAU) {
       expect(MOMENTS[id], `« ${id} » cité en priorité mais non déclaré`).toBeDefined();
@@ -151,9 +198,13 @@ describe('choix des phrases', () => {
   });
 
   it('remplit les repères déclarés', () => {
-    const p = dire('juste.serie', { serie: 4 });
-    expect(p).toContain('4');
-    expect(p).not.toContain('{serie}');
+    // Sur `fin.classe`, dont les quatre phrases citent {rang} : le contrôle porte
+    // ainsi sur la substitution quelle que soit la phrase tirée.
+    // (Il s'adossait à `juste.serie`, qui ne cite plus aucun repère depuis A7 : le
+    // marqueur de série porte le nombre, la voix ne le redit plus.)
+    const p = dire('fin.classe', { rang: '4e' });
+    expect(p).toContain('4e');
+    expect(p).not.toContain('{rang}');
   });
 
   it('rend null sur un moment inconnu plutôt que de casser l\'écran', () => {
@@ -192,6 +243,44 @@ describe('le plateau ne parle que sur le remarquable', () => {
     // Piège : une mauvaise option recueille plus de voix que la bonne.
     expect(momentDePlateau('quiz', { kind: 'options', tally: [2, 6, 0], total: 8 }, { correctIndex: 0 }))
       .toBe('stream.piege');
+  });
+
+  // ===== A13 / A14 — LES CAS QUE LE PLATEAU NE SAVAIT PAS DIRE =====
+  it('distingue l\'égalité PARFAITE d\'une seule voix d\'écart', () => {
+    // A14 — une même condition, « à une voix près », servait les deux cas : le
+    // plateau annonçait « Wow ! Égalité parfaite » sur un écart d'une voix.
+    expect(momentDePlateau('vote', { kind: 'options', tally: [3, 3], total: 6 }))
+      .toBe('stream.vote-egalite');
+    expect(momentDePlateau('vote', { kind: 'options', tally: [4, 3], total: 7 }))
+      .toBe('stream.vote-division');
+    // Et sur un quiz, l'égalité stricte seulement — plus « à une voix près ».
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [3, 3], total: 6 }, { correctIndex: 0 }))
+      .toBe('stream.egalite');
+  });
+
+  it('dit que la majorité s\'est trompée, même sans option piège dominante', () => {
+    // A13 — le piège ne se déclenchait que si UNE mauvaise option dépassait la
+    // bonne. Ici l'erreur se répartit sur trois options, chacune SOUS la bonne
+    // réponse : la majorité s'est pourtant trompée, et le plateau se taisait.
+    // 4 justes sur 12 — aucune mauvaise option ne dépasse 3.
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [4, 3, 3, 2], total: 12 }, { correctIndex: 0 }))
+      .toBe('stream.majorite-trompee');
+    // La majorité a raison : rien à signaler de ce côté.
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [7, 2, 2, 1], total: 12 }, { correctIndex: 0 }))
+      .not.toBe('stream.majorite-trompee');
+    // Quand une option piège domine, c'est ELLE l'histoire : le piège prime.
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [2, 8, 1, 1], total: 12 }, { correctIndex: 0 }))
+      .toBe('stream.piege');
+  });
+
+  it('compte les RÉPONSES DONNÉES, jamais les joueurs présents', () => {
+    // A13 — lecture retenue en réunion pour toutes les règles de seuil. Le serveur
+    // publie `total = rt.answers.size` : cinq réponses suffisent, même si le salon
+    // en compte vingt. Ce contrôle fige la lecture côté voix.
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [4, 0], total: 4 }, { correctIndex: 0 }),
+      'sous cinq RÉPONSES, le plateau se tait').toBeNull();
+    expect(momentDePlateau('quiz', { kind: 'options', tally: [5, 0], total: 5 }, { correctIndex: 0 }))
+      .toBe('stream.unanimite-juste');
   });
 
   it('une seule condition parle, selon la priorité', () => {

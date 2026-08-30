@@ -24,7 +24,7 @@
 // console le produisait aussi — mais aucun contrôle ne regardait la console
 // après une reconnexion. D'où le second contrôle, sur le score.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Un aller-retour complet coûte deux chargements de page et deux reprises de
@@ -170,21 +170,12 @@ test.describe('Le volet de navigation', () => {
     // on connaît la bonne réponse, plutôt que de cliquer au hasard et d'espérer.
     const JEU = 'Épreuve de podium';
     const BONNE = 'Braise-Podium';
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU);
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-    await editeur.getByPlaceholder('Rédige la question').fill('Quelle braise pour le podium ?');
-    await editeur.getByLabel('Option 1', { exact: true }).fill(BONNE);
-    await editeur.getByLabel('Option 2', { exact: true }).fill('Cendre-0000');
-    await editeur.getByLabel('Option 3', { exact: true }).fill('Fumée-1111');
-    await editeur.getByLabel('Option 4', { exact: true }).fill('Suie-2222');
-    await editeur.getByRole('radio', { name: 'Option 1 est la bonne réponse' }).click();
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
+    // Décor posé par l'API (A15). Ce contrôle mesure le volet de navigation.
+    await creerJeu({
+      name: JEU,
+      type: 'quiz',
+      questions: [{ text: 'Quelle braise pour le podium ?', options: [BONNE, 'Cendre-0000', 'Fumée-1111', 'Suie-2222'], correctIndex: 0 }],
+    });
 
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Podium');

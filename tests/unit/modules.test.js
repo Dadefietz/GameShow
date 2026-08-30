@@ -129,11 +129,11 @@ describe('estimation', () => {
     expect(exact.base).toBeGreaterThan(approx.base);
   });
 
-  // CHANTIER v4 — les paliers relatifs sont INCHANGÉS (décision 5.1), mais deux
-  // bonus s'y ajoutent désormais : 400 au plus proche (5.3) et 200 à l'exactitude
-  // (5.5), cumulables sans plafond (5.6). Ce contrôle isole donc le PALIER en
-  // écartant le plus proche du décompte, et un contrôle dédié plus bas éprouve les
-  // bonus eux-mêmes.
+  // CHANTIER v4 — les paliers relatifs sont INCHANGÉS (décision 5.1). Deux bonus
+  // s'y ajoutent : 200 à l'exactitude (5.5) et, DANS LE SEUL CAS OÙ PERSONNE
+  // N'ATTEINT DE PALIER, 400 au plus proche (5.3, resserrée par A4).
+  // Ici quelqu'un est dans une plage : le filet du plus proche ne joue pas, et
+  // chaque palier vaut exactement ses points.
   it('les paliers valent des points fixes', () => {
     const rt = round(modules.estimation, ES_Q);
     rt.answers.set('mille', { value: 101, at: rt.startedAt });   // 1 %
@@ -142,8 +142,9 @@ describe('estimation', () => {
     rt.answers.set('loin', { value: 128, at: rt.startedAt });    // 28 %
     rt.answers.set('hors', { value: 200, at: rt.startedAt });    // 100 %
     const { results } = modules.estimation.score(rt);
-    // « mille » est ici le plus proche : 1000 de palier + 400 de bonus.
-    expect(totalManche(results.get('mille'))).toBe(1000 + 400);
+    // « mille » est le plus proche, mais des joueurs sont dans une plage : le
+    // filet ne se déclenche pas. Son palier suffit.
+    expect(totalManche(results.get('mille'))).toBe(1000);
     expect(totalManche(results.get('proche'))).toBe(750);
     expect(totalManche(results.get('correct'))).toBe(500);
     expect(totalManche(results.get('loin'))).toBe(250);
@@ -178,9 +179,9 @@ describe('estimation', () => {
     rt.answers.set('juste', { value: 1_000_000, at: rt.startedAt });
     rt.answers.set('cent-mille-a-cote', { value: 1_100_000, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    // « juste » est exact ET le plus proche : 1000 de palier, +200 d'exactitude,
-    // +400 de plus proche (chantier v4, décisions 5.3, 5.5 et 5.6).
-    expect(totalManche(results.get('juste'))).toBe(1000 + 200 + 400);
+    // « juste » est exact : 1000 de palier + 200 d'exactitude. Pas de filet du
+    // plus proche — les deux joueurs sont dans une plage (A4).
+    expect(totalManche(results.get('juste'))).toBe(1000 + 200);
     expect(totalManche(results.get('cent-mille-a-cote'))).toBe(750); // pas 900 : l'écart se paie
   });
 
@@ -192,9 +193,9 @@ describe('estimation', () => {
     rt.answers.set('une-unite', { value: 4, at: rt.startedAt });
     rt.answers.set('loin', { value: 30, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
-    expect(totalManche(results.get('exact'))).toBe(1000 + 200 + 400);
+    expect(totalManche(results.get('exact'))).toBe(1000 + 200);
     // Être à une unité près reste le MEILLEUR PALIER — c'est ce que ce contrôle
-    // garde — mais sans l'exactitude ni le bonus du plus proche.
+    // garde — mais sans l'exactitude.
     expect(totalManche(results.get('une-unite'))).toBe(1000);
     expect(totalManche(results.get('loin'))).toBe(0);
   });

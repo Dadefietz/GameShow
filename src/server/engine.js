@@ -349,11 +349,18 @@ export function reveal(io, room) {
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
     io.to(room.code + ':host').emit('host:closest', {
       roundId: rt.roundId,
+      // `exact` VOYAGE AVEC LE NOM (A21). L'animateur a une phrase distincte selon
+      // qu'une personne est tombée PILE ou qu'elle s'est seulement le plus
+      // approchée : ce n'est pas le même événement, et il ne le commente pas de la
+      // même façon. Le déduire côté console en comparant la valeur à la cible
+      // aurait fabriqué une seconde définition de l'exactitude, à côté de celle du
+      // barème — c'est exactement ce que la décision 5.4 avait déjà refusé pour le
+      // « plus proche ».
       joueurs: prives.plusProches
         .map((pid) => {
           const p = room.players.get(pid);
           const a = rt.answers.get(pid);
-          return p ? { pseudo: p.pseudo, valeur: a ? a.value : null } : null;
+          return p ? { pseudo: p.pseudo, valeur: a ? a.value : null, exact: results.get(pid)?.exact === true } : null;
         })
         .filter(Boolean),
     });

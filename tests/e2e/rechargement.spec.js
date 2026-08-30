@@ -18,7 +18,7 @@
 //
 // Ce fichier appuie sur F5, aux six étapes, sur les trois surfaces.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Le rechargement de page', () => {
@@ -302,37 +302,19 @@ test.describe('L\'écran de fin', () => {
   async function questionSansBonneReponse(browser) {
     if (jeuPret) return;
     jeuPret = true;
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
-    await page.goto('/studio');
-    await page.getByLabel('Gestion des modules')
-      .getByRole('button', { name: 'Nouveau module' }).click();
-    const editeur = page.getByRole('complementary');
-    await expect(editeur).toBeVisible();
-    await editeur.getByLabel('Nom').fill(JEU_ZERO);
+    // Décor posé par l'API (A15 : le studio ne crée plus de module). Il fallait
+    // auparavant piloter une vingtaine de champs, et la manœuvre a valu au moins
+    // deux corrections — le formulaire n'est pas l'objet de ce contrôle.
+    //
     // DEUX QUESTIONS, pas une. L'arrivant tardif rejoint APRÈS la première manche
     // et doit pouvoir jouer la seconde : un module d'une seule question laisse
     // l'écran vide et le contrôle échoue sur le décor, pas sur son objet.
-    for (const [i, enonce] of ['Quelle braise personne ne choisira ?',
-      'Et quelle braise personne ne choisira non plus ?'].entries()) {
-      await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
-      // LE FORMULAIRE, PAS LA LIGNE. Les libellés des champs se répètent d'une
-      // question à l'autre : il faut s'y cantonner. Et `.qrow--open` ne convient
-      // pas — c'est l'en-tête pliable ; les champs vivent dans `.qform`, son
-      // FRÈRE. Cantonné à la ligne, `fill` attendait un champ qui n'y était pas,
-      // jusqu'à l'expiration du test.
-      const carte = editeur.locator('.qform');
-      await expect(carte, `question ${i + 1} non dépliée`).toHaveCount(1);
-      await carte.getByPlaceholder('Rédige la question').fill(enonce);
-      await carte.getByLabel('Option 1', { exact: true }).fill(BONNE);
-      await carte.getByLabel('Option 2', { exact: true }).fill(FAUSSE);
-      await carte.getByLabel('Option 3', { exact: true }).fill('Fumée-3333');
-      await carte.getByLabel('Option 4', { exact: true }).fill('Suie-4444');
-      await carte.getByRole('radio', { name: 'Option 1 est la bonne réponse' }).click();
-    }
-    await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();
-    await expect(editeur.locator('[data-bind="module.validation"]')).toHaveCount(0);
-    await ctx.close();
+    await creerJeu({
+      name: JEU_ZERO,
+      type: 'quiz',
+      questions: ['Quelle braise personne ne choisira ?', 'Et quelle braise personne ne choisira non plus ?']
+        .map((text) => ({ text, options: [BONNE, FAUSSE, 'Fumée-3333', 'Suie-4444'], correctIndex: 0 })),
+    });
   }
 
   async function partieAvecArrivantTardif(browser) {

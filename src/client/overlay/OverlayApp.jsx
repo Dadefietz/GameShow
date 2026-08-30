@@ -16,6 +16,7 @@ import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
 import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
+import { bipCompteRebours, sonFinDuTemps, sonRevelation } from '../shared/sons.js';
 import { CHAINONS } from '../shared/marque-lien.js';
 import './overlay.css';
 
@@ -314,6 +315,42 @@ function QuestionStage({ g }) {
   const voix = useVoixDePlateau(revealed ? reveal : null, stats, g.current?.roundId);
   const answer = revealText(reveal, current);
 
+  // LE SON DE L'ANTENNE (A25). C'est la source captée par OBS : ce qu'elle joue,
+  // toute la salle et tout le stream l'entendent. Le compte à rebours et la chute
+  // y ont donc plus de portée que partout ailleurs — c'est ici que « la fin des
+  // vingt secondes » se perçoit collectivement.
+  //
+  // La console de l'animateur, elle, reste MUETTE : il parle par-dessus, et un
+  // bip dans son casque pendant qu'il présente est une gêne, pas un signal. Il
+  // entend le stream comme tout le monde.
+  //
+  // Un navigateur ne joue aucun son sans geste préalable. Une source OBS n'en
+  // reçoit aucun : selon sa configuration, le son sortira ou ne sortira pas.
+  // C'est une limite du support, pas un défaut du code — et le contrôle visuel du
+  // chrono, lui, ne dépend de rien.
+  const derniereSeconde = useRef(null);
+  useEffect(() => {
+    if (revealed || typeof timeLeft !== 'number') { derniereSeconde.current = null; return; }
+    if (derniereSeconde.current === timeLeft) return;
+    const precedente = derniereSeconde.current;
+    derniereSeconde.current = timeLeft;
+    if (precedente == null) return;
+    if (timeLeft > 0 && timeLeft <= 5) bipCompteRebours();
+    else if (timeLeft === 0) sonFinDuTemps();
+  }, [timeLeft, revealed]);
+
+  // LA RÉVÉLATION — une seule fois par manche, à l'instant où le public découvre
+  // la réponse. Le repère est l'identifiant de manche : sans lui, le son
+  // repartirait à chaque re-rendu de l'écran de révélation.
+  const mancheSonnee = useRef(null);
+  useEffect(() => {
+    const id = g.current?.roundId;
+    if (!revealed || id == null) return;
+    if (mancheSonnee.current === id) return;
+    mancheSonnee.current = id;
+    sonRevelation();
+  }, [revealed, g.current?.roundId]);
+
   // Option(s) gagnante(s) d'un vote. Le serveur les DÉSIGNE désormais (action 18) :
   // faire partie de la majorité rapporte des points, et une égalité parfaite fait
   // deux camps gagnants — que le client ne saurait pas deviner en prenant « la
@@ -443,8 +480,6 @@ function QuestionStage({ g }) {
       ) : (
         /* Révélation : la répartition prend toute la place. */
         <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">
-          {/* Une phrase, seulement quand la répartition le mérite. */}
-          {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
           {stats?.kind === 'lien' ? (
             <LienResultats stats={stats} />
           ) : stats?.kind === 'numeric' ? (
@@ -489,6 +524,22 @@ function QuestionStage({ g }) {
               <span className="st-answer__value">{answer}</span>
             </div>
           ) : null}
+
+          {/* LA PHRASE DU PLATEAU, SOUS LA RÉPONSE ET DANS UNE PLACE RÉSERVÉE (A22).
+              Elle s'affichait AU-DESSUS de la répartition, et seulement quand elle
+              avait quelque chose à dire : son apparition poussait donc tout le
+              bloc vers le bas, d'une manche à l'autre, sur une toile de
+              1920 × 1080 calée au pixel. Deux corrections en une :
+                — elle passe SOUS la réponse, comme demandé, pour ne plus
+                  s'interposer entre le public et ce qu'il attend ;
+                — sa place est TENUE même quand elle se tait. La fente garde sa
+                  hauteur ; c'est le texte qui apparaît, jamais la mise en page qui
+                  bouge.
+              Le plateau se tait la plupart du temps (c'est une fonctionnalité) :
+              cette fente est donc vide bien plus souvent que pleine. */}
+          <div className="st-voix-fente" data-testid="voix-plateau-fente">
+            {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
+          </div>
         </div>
       )}
     </div>
