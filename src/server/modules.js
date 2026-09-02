@@ -1,4 +1,6 @@
-// Les 4 modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
+import { idsDuBassin, srcDeVisage } from './visages.js';
+
+// Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
 // Interface commune :
 //   meta: { type, name, icon, color, scored, malus }
 //     scored: le module alimente points/série (false = participation seule, ex. vote)
@@ -305,6 +307,112 @@ const BONUS_LIEN_PLANCHER = 50;
 export function bonusDeRang(rang) {
   if (!(rang >= 1)) return 0;
   return Math.max(BONUS_LIEN_PLANCHER, BONUS_LIEN_PREMIER - BONUS_LIEN_PAS * (rang - 1));
+}
+
+// ============================================================
+// « LES VISAGES » — retrouver celui qui est passé deux fois
+// ============================================================
+//
+// LA RÈGLE. Trente visages défilent, un toutes les deux secondes : vingt-huit
+// inconnus et UN SEUL qui revient. Les joueurs ont un buzz, un seul, et ne
+// gagnent que s'ils l'emploient PENDANT LA SECONDE APPARITION. Buzzer sur la
+// première, c'est avoir vu juste trop tôt — et c'est perdu : on ne peut pas
+// savoir qu'un visage reviendra avant qu'il ne revienne.
+const CADENCE_VISAGES = 2000;   // un visage toutes les 2 s
+const TOTAL_VISAGES = 30;       // 28 uniques + 1 visage doublé, qui occupe 2 places
+const BASE_VISAGES = 700;
+
+// LES QUATRE CONTRAINTES DE PLACEMENT, telles qu'elles ont été spécifiées. Elles
+// sont écrites ici en constantes plutôt qu'en chiffres au fil du code : c'est ce
+// qui permet au contrôle de les éprouver sur mille tirages sans les recopier.
+const VISAGES_PREMIERE_MIN = 1;    // la 1re apparition ne peut pas être avant le 1er
+const VISAGES_PREMIERE_MAX = 20;   // ni après le 20e
+const VISAGES_SECONDE_MIN = 10;    // la 2e ne peut pas être avant le 10e
+const VISAGES_SECONDE_MAX = 30;    // ni après le 30e
+// « au moins 5 photos ENTRE les deux apparitions » : cinq visages doivent
+// s'intercaler, donc les positions sont distantes d'au moins six. Lecture
+// littérale de la consigne — et c'est la lecture stricte, celle qui laisse le
+// plus de mémoire à effacer entre les deux passages.
+const VISAGES_ECART_MIN = 6;
+
+export const REGLES_VISAGES = {
+  cadenceMs: CADENCE_VISAGES,
+  total: TOTAL_VISAGES,
+  premiere: [VISAGES_PREMIERE_MIN, VISAGES_PREMIERE_MAX],
+  seconde: [VISAGES_SECONDE_MIN, VISAGES_SECONDE_MAX],
+  ecartMin: VISAGES_ECART_MIN,
+  points: BASE_VISAGES,
+};
+
+// LA SÉRIE — trente places, un visage doublé, vingt-huit figurants.
+//
+// `alea` est injectable : un tirage aléatoire qu'on ne peut pas fixer est un
+// tirage qu'on ne peut pas éprouver. Le contrôle s'en sert pour forcer les cas
+// limites ; la partie réelle emploie `Math.random`.
+//
+// Les positions sont rendues en 1..30 — celles que l'animateur lit sur son
+// graphique et que le public compte à l'écran. Le tableau, lui, est indexé à
+// partir de zéro comme tout tableau.
+// Fisher-Yates sur une COPIE — on ne remue jamais la liste d'origine. Le tirage
+// de la série et le mélange de la liste de préchargement s'en servent tous deux :
+// deux mélanges écrits à part finiraient par diverger.
+export function melanger(liste, alea = Math.random) {
+  const out = [...liste];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(alea() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+export function construireSerie(bassin, alea = Math.random) {
+  const uniques = [...new Set(bassin)];
+  if (uniques.length < TOTAL_VISAGES - 1) {
+    throw new Error(`bassin trop petit : ${uniques.length} visages pour ${TOTAL_VISAGES - 1} requis`);
+  }
+  const entier = (min, max) => min + Math.floor(alea() * (max - min + 1));
+
+  // La 1re apparition d'abord, la 2e ensuite dans ce que la 1re laisse possible.
+  // Aucune combinaison n'est impossible : le pire cas, 20, laisse encore 26..30.
+  const pos1 = entier(VISAGES_PREMIERE_MIN, VISAGES_PREMIERE_MAX);
+  const pos2 = entier(Math.max(VISAGES_SECONDE_MIN, pos1 + VISAGES_ECART_MIN), VISAGES_SECONDE_MAX);
+
+  const melange = melanger(uniques, alea);
+  const doubleId = melange[0];
+  const figurants = melange.slice(1, TOTAL_VISAGES - 1); // 28
+
+  const ordre = new Array(TOTAL_VISAGES).fill(null);
+  ordre[pos1 - 1] = doubleId;
+  ordre[pos2 - 1] = doubleId;
+  let k = 0;
+  for (let i = 0; i < TOTAL_VISAGES; i += 1) if (ordre[i] === null) ordre[i] = figurants[k++];
+
+  return { ordre, doubleId, pos1, pos2 };
+}
+
+// À QUELLE PLACE DE LA SÉRIE CE BUZZ CORRESPOND-IL ?
+//
+// LE SERVEUR SEUL EN DÉCIDE, et il le décide sur l'heure d'ARRIVÉE. Le client
+// pourrait annoncer le numéro qu'il affichait — ce serait plus juste au
+// millième — mais alors n'importe qui pourrait annoncer le numéro précédent une
+// fois la réponse comprise, et gagner après coup. Un jeu de buzz se joue sur
+// l'horloge de l'arbitre.
+//
+// LA GRÂCE. Un buzz met du temps à arriver : entre le doigt et le serveur, il y
+// a un réseau. Sans rien, un joueur qui réagit à la fin d'un visage se verrait
+// crédité du SUIVANT, et perdrait une manche qu'il a gagnée. On rend donc au
+// visage précédent les buzz arrivés dans les premières fractions de seconde du
+// suivant. Le risque symétrique — créditer au précédent quelqu'un qui visait
+// vraiment le nouveau visage — existe, mais il faudrait avoir buzzé sur un
+// visage ordinaire en moins de 350 ms : ce n'est pas un joueur qui gagne, c'est
+// un joueur qui se trompait déjà.
+const GRACE_VISAGES = 350;
+
+export function creneauDe(startedAt, at) {
+  const ecoule = at - startedAt - GRACE_VISAGES;
+  if (ecoule < 0) return 1; // avant la fin de la grâce, on est encore sur le 1er
+  const place = Math.floor(ecoule / CADENCE_VISAGES) + 1;
+  return Math.min(TOTAL_VISAGES, place);
 }
 
 // DEUX MOTS SONT LE MÊME MOT quand ils ne diffèrent que par la casse ou les
@@ -642,6 +750,121 @@ export const modules = {
         prives: {
           groupes: groupes.map((g) => ({ mot: g.mot, count: g.count, rang: g.rang, joueurs: g.pids })),
         },
+      };
+    },
+  },
+
+  // « LES VISAGES » — pas de banque de questions : la série est TIRÉE à chaque
+  // lancement. Comme « Le lien », le jeu se déclenche en deux temps (annonce,
+  // puis « Démarrer le jeu ») ; contrairement à lui, l'animateur n'a rien à
+  // saisir — il donne le départ, c'est tout.
+  visages: {
+    meta: {
+      type: 'visages', name: 'Les visages', icon: 'users', color: 'forest',
+      scored: true, malus: false,
+      // La vitesse ne joue AUCUN rôle : on ne gagne pas en buzzant vite, on gagne
+      // en buzzant sur le bon visage. Buzzer au plus tôt est même la faute du
+      // jeu — c'est la première apparition.
+      vitesse: false,
+      direct: true,
+    },
+    buildRound(q) {
+      const serie = construireSerie(q.bassin && q.bassin.length ? q.bassin : idsDuBassin());
+      return {
+        type: 'visages',
+        questionId: q.id,
+        // LA SÉRIE RESTE AU SERVEUR. Elle n'entre pas dans `publicQuestion` : un
+        // identifiant qui apparaît deux fois dans une charge utile, c'est la
+        // réponse lisible dans l'onglet réseau du navigateur. Les visages sont
+        // émis UN PAR UN, à leur seconde (voir `engine.js`).
+        ordre: serie.ordre,
+        doubleId: serie.doubleId,
+        pos1: serie.pos1,
+        pos2: serie.pos2,
+        text: 'Quel visage est passé deux fois ?',
+        durationMs: REGLES_VISAGES.total * REGLES_VISAGES.cadenceMs,
+      };
+    },
+    publicQuestion(rt) {
+      return {
+        type: 'visages',
+        questionId: rt.questionId,
+        text: rt.text,
+        cadenceMs: REGLES_VISAGES.cadenceMs,
+        total: REGLES_VISAGES.total,
+        // LES VINGT-NEUF VISAGES DE CETTE SÉRIE, MÉLANGÉS — pour que le client
+        // charge ses images d'avance.
+        //
+        // POURQUOI CE N'EST PAS UNE FUITE. C'est l'ORDRE qui porte la réponse, pas
+        // l'ensemble : savoir quels visages vont passer n'apprend rien sur celui
+        // qui repassera. Le mélange ôte jusqu'à l'indice de l'ordre de tirage.
+        //
+        // POURQUOI PAS LE BASSIN ENTIER. Il comptera environ quatre cents
+        // portraits : les envoyer tous ferait précharger quatre cents images pour
+        // en afficher trente, sur le téléphone d'un joueur, en soirée, parfois en
+        // 4G. Vingt-neuf suffisent, et ce sont exactement celles qui serviront.
+        //
+        // POURQUOI PRÉCHARGER TOUT COURT. Un visage reste deux secondes à
+        // l'écran. Une image qui arrive en retard, c'est un visage qu'on n'a pas
+        // vu — donc une manche faussée, sans que rien ne le signale.
+        // LES IDENTIFIANTS **DISTINCTS**, et c'est tout le sujet : mélanger
+        // l'ordre tel quel y laisserait le visage doublé DEUX FOIS. Il suffirait
+        // alors de compter les doublons de la liste de préchargement pour
+        // connaître la réponse avant le premier visage. Vingt-neuf entrées,
+        // chacune une seule fois.
+        bassin: melanger([...new Set(rt.ordre)]).map((id) => ({ id, src: srcDeVisage(id) })),
+      };
+    },
+    // UN BUZZ N'A PAS DE VALEUR : il a une HEURE, et le serveur l'horodate à
+    // l'arrivée. On accepte donc n'importe quoi et l'on n'en garde rien — ce que
+    // le client enverrait ne servirait qu'à mentir.
+    validateAnswer() {
+      return true;
+    },
+    score(rt) {
+      const results = new Map();
+      // Combien de buzz sur chacune des trente places : c'est le graphique de
+      // l'animateur et celui du stream.
+      const parPlace = new Array(REGLES_VISAGES.total).fill(0);
+
+      for (const [pid, a] of rt.answers) {
+        const place = creneauDe(rt.startedAt, a.at);
+        parPlace[place - 1] += 1;
+        const gagne = place === rt.pos2;
+        results.set(pid, {
+          base: gagne ? BASE_VISAGES : 0,
+          speed: 0,
+          // `correct` nourrit la série et le verdict de l'écran.
+          correct: gagne,
+          // De quoi écrire le résultat sans refaire le calcul côté client :
+          // la place buzzée, et si c'était la première apparition — le cas qu'il
+          // faut nommer, parce que le joueur a bien reconnu le visage, trop tôt.
+          place,
+          troppTot: place === rt.pos1,
+        });
+      }
+
+      const stats = {
+        kind: 'visages',
+        total: rt.answers.size,
+        ordre: rt.ordre,
+        // Les adresses des images, une fois la manche révélée : les graphiques de
+        // l'animateur et du stream redessinent la série entière, et doivent
+        // montrer LES MÊMES visages que ceux qui viennent de défiler. Un tableau
+        // de couples plutôt qu'une carte : c'est ce qui traverse un socket sans
+        // conversion.
+        adresses: [...new Set(rt.ordre)].map((id) => [id, srcDeVisage(id)]),
+        doubleId: rt.doubleId,
+        pos1: rt.pos1,
+        pos2: rt.pos2,
+        parPlace,
+        trouve: [...results.values()].filter((r) => r.correct).length,
+        troppTot: [...results.values()].filter((r) => r.troppTot).length,
+      };
+
+      return {
+        results,
+        reveal: { type: 'visages', text: rt.text, doubleId: rt.doubleId, pos1: rt.pos1, pos2: rt.pos2, stats },
       };
     },
   },

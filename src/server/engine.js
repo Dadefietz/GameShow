@@ -6,7 +6,8 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules, histogrammeBareme, plagesEstimation } from './modules.js';
+import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES } from './modules.js';
+import { srcDeVisage } from './visages.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
 // du barème. Un seul endroit la calcule ici comme à la révélation, pour que les
@@ -204,7 +205,39 @@ export function startModule(io, room, jeu, question) {
   // Chrono serveur : à l'échéance, fermeture + révélation AUTOMATIQUES (retour R7).
   if (room._timer) clearTimeout(room._timer);
   room._timer = setTimeout(() => reveal(io, room), rt.durationMs + 50);
+  // ---- « LES VISAGES » : LA SÉRIE PART UN VISAGE À LA FOIS ----
+  //
+  // Elle n'est JAMAIS envoyée d'un bloc. Trente identifiants dont un apparaît
+  // deux fois, c'est la réponse en clair dans l'onglet réseau du navigateur —
+  // et ce jeu ne consiste qu'à retrouver cette répétition. Le serveur reste donc
+  // seul à connaître l'ordre, et pousse chaque visage à sa seconde.
+  //
+  // Le premier part TOUT DE SUITE : attendre deux secondes laisserait un écran
+  // vide au démarrage, sur les trois surfaces à la fois.
+  if (room._visages) clearInterval(room._visages);
+  if (rt.type === 'visages') {
+    const pousser = (place) => {
+      if (room.currentModule !== rt || rt.revealed) return;
+      const id = rt.ordre[place - 1];
+      toRoom(io, room).emit('visages:visage', { roundId: rt.roundId, place, id, src: srcDeVisage(id) });
+    };
+    pousser(1);
+    let place = 1;
+    room._visages = setInterval(() => {
+      place += 1;
+      if (place > rt.ordre.length || room.currentModule !== rt) { clearInterval(room._visages); room._visages = null; return; }
+      pousser(place);
+    }, REGLES_VISAGES.cadenceMs);
+  }
+
   // Tick de compte à rebours (1s) pour toutes les surfaces.
+  //
+  // NE PAS TOUCHER AU DÉFILÉ DES VISAGES ICI. Partout ailleurs, arrêter le tick
+  // veut dire « la manche est finie » et doit arrêter le défilé avec lui. Ici
+  // NON : le défilé vient d'être armé quinze lignes plus haut, pour CETTE
+  // manche. Un nettoyage posé mécaniquement à côté de chaque arrêt de tick l'a
+  // éteint aussitôt né — la série restait figée sur son premier visage, et le
+  // jeu n'avait plus de réponse. Attrapé par le contrôle de bout en bout.
   if (room._tick) clearInterval(room._tick);
   room._tick = setInterval(() => {
     const rem = Math.max(0, Math.ceil((room.currentModule?.deadline - Date.now()) / 1000));
@@ -219,6 +252,7 @@ export function closeWindow(io, room) {
   if (!rt || rt.closed) return;
   rt.closed = true;
   if (room._tick) clearInterval(room._tick);
+  if (room._visages) { clearInterval(room._visages); room._visages = null; }
   toRoom(io, room).emit('module:closed', { answers: rt.answers.size });
 }
 
@@ -305,6 +339,23 @@ export function reveal(io, room) {
     p.score = Math.max(0, p.score + delta);
     perPlayer.set(pid, {
       base, bonusExact, bonusProche, bonusGroupe, speed, delta, streak: p.streak, palier: r ? r.palier : null,
+      // LE VERDICT DU SERVEUR, ENVOYÉ AU JOUEUR — il ne l'était pas.
+      //
+      // Ce drapeau existait, il ne servait qu'à la série. L'écran du joueur, lui,
+      // RECONSTITUAIT le verdict en comparant sa réponse à la révélation. Cela
+      // marche tant que la réponse est comparable à quelque chose de public : une
+      // option, un booléen, une cible.
+      //
+      // Deux jeux échappent à cette règle. « Le lien » se gagne en ayant partagé
+      // son mot ; « Les visages », en ayant buzzé au bon INSTANT — deux faits que
+      // la révélation ne permet pas de recalculer. Leur verdict restait donc
+      // indéterminé, et l'écran affichait une COCHE VERTE au-dessus de « Manche
+      // close » à un joueur qui venait de perdre.
+      correct: r ? r.correct === true : null,
+      // « Les visages » : avoir buzzé sur la PREMIÈRE apparition. Ce n'est ni une
+      // réussite ni une erreur ordinaire, et l'écran comme la voix le disent
+      // autrement.
+      troppTot: r ? r.troppTot === true : false,
       // Le rang du groupe et sa taille : l'écran les nomme, la voix les cite.
       rang: r ? r.rang ?? null : null, taille: r ? r.taille ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
@@ -372,7 +423,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, correct: null, troppTot: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -394,6 +445,9 @@ export function reveal(io, room) {
       // plus (décision 5.5) et n'a rien de commun avec « à deux pour cent près » :
       // l'écran lui doit ses propres mots.
       exact: d.exact === true,
+      // Le verdict, tel que le SERVEUR l'a établi — voir la note de `perPlayer`.
+      correct: d.correct ?? null,
+      troppTot: d.troppTot === true,
       placesDelta,
     };
     // Mémorisé pour les seuls participants : un absent n'a pas de résultat à
@@ -417,6 +471,7 @@ export function reveal(io, room) {
 export function backToLobby(io, room) {
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
+  if (room._visages) { clearInterval(room._visages); room._visages = null; }
   room.state = RoomState.WAITING;
   room.currentModule = null;
   room.history = [];
@@ -436,6 +491,7 @@ export function endGame(io, room) {
   room.state = RoomState.ENDED;
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
+  if (room._visages) { clearInterval(room._visages); room._visages = null; }
   const podium = roomManager.leaderboard(room, 3);
   // Fin de partie : le classement final devient public + récap des manches (B3,
   // question + révélation — jamais le détail par joueur).

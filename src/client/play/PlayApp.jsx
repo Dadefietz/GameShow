@@ -17,6 +17,8 @@ import { NOM_DU_JEU } from '../shared/marque.js';
 import { CHAINONS } from '../shared/marque-lien.js';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
+import { Visage, MasquesVisages, prechargerVisages } from '../shared/Visage.jsx';
+import { Flamme } from '../shared/Flamme.jsx';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -331,14 +333,33 @@ function Chainons({ s = 64 }) {
 // L'ANNONCE DU JEU — le jingle. L'animateur a choisi « Le lien » et saisit ses
 // deux mots ; le cercle patiente devant le nom du jeu. C'est un temps mort qui
 // n'en est pas un : il prépare l'attention, comme un générique.
-function AnnonceScreen({ nom }) {
+// L'ÉCRAN D'ANNONCE — le jingle d'un jeu qui se prépare à l'antenne.
+//
+// IL ÉTAIT ÉCRIT POUR « LE LIEN » SEUL : son emblème et sa règle étaient posés en
+// dur, si bien que « Les visages » aurait annoncé des chaînons et demandé de
+// trouver un mot. Chaque jeu en direct apporte donc désormais son emblème et sa
+// phrase — et un jeu inconnu retombe sur l'emblème de la marque plutôt que sur
+// celui du voisin.
+const ANNONCES = {
+  lien: {
+    emblem: <Chainons s={92} />,
+    regle: "Trouve le mot qui relie les deux mots de l'animateur.",
+  },
+  visages: {
+    emblem: <MasquesVisages taille={132} />,
+    regle: 'Un visage va passer deux fois. Buzze quand tu le revois.',
+  },
+};
+
+function AnnonceScreen({ nom, type }) {
+  const a = ANNONCES[type];
   return (
     <main className="screen screen--hearth" data-state="annonce" aria-labelledby="annonce-titre">
       <div className="screen__main screen__main--center">
-        <span className="annonce__emblem" aria-hidden="true"><Chainons s={92} /></span>
+        <span className="annonce__emblem" aria-hidden="true">{a ? a.emblem : <Flamme taille={92} />}</span>
         <p className="p-label">Prochaine épreuve</p>
         <h1 className="p-title" id="annonce-titre">{nom}</h1>
-        <p className="p-lead" role="status">Trouve le mot qui relie les deux mots de l'animateur.</p>
+        {a ? <p className="p-lead" role="status">{a.regle}</p> : null}
         <span className="p-dots" aria-hidden="true">
           <span className="p-dots__dot" /><span className="p-dots__dot" /><span className="p-dots__dot" />
         </span>
@@ -441,7 +462,23 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, visage }) {
+  // Le visage de CETTE manche, et d'aucune autre. Sans le garde sur l'identifiant
+  // de manche, un visage attardé de la manche précédente s'afficherait une
+  // fraction de seconde sur la nouvelle — et dans ce jeu, un visage vu est un
+  // visage qui compte.
+  // LES IMAGES SONT CHARGÉES D'AVANCE, dès l'arrivée de la question. Un visage
+  // reste deux secondes : une image qui arrive en retard est un visage qu'on n'a
+  // pas vu, donc une manche faussée que rien ne signale.
+  useEffect(() => {
+    if (current.type !== 'visages' || !Array.isArray(current.bassin)) return;
+    prechargerVisages(current.bassin.map((v) => v.id), (id) => current.bassin.find((v) => v.id === id)?.src);
+  }, [current.type, current.roundId]);
+
+  const visageOk = visage && visage.roundId === current.roundId;
+  const visageId = visageOk ? visage.id : null;
+  const visageSrc = visageOk ? visage.src : null;
+  const visagePlace = visageOk ? visage.place : null;
   const type = current.type || 'quiz';
   const options = Array.isArray(current.options) ? current.options : [];
   const index = current.index != null ? current.index : current.number;
@@ -556,6 +593,32 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer }) 
                 </button>
               );
             })
+          ) : type === 'visages' ? (
+            /* LES VISAGES. Le visage occupe l'écran, le buzz est dessous — et il
+               n'y a rien d'autre : c'est un jeu de reconnaissance, tout ce qui
+               entoure le visage détourne l'œil au moment où il faut regarder.
+
+               UN SEUL BUZZ, ET IL EST DÉFINITIF. Le bouton se fige dès qu'il est
+               employé (`disabled` porte déjà `answered`), et son libellé le dit —
+               un joueur qui ne verrait pas que son buzz est parti buzzerait deux
+               fois dans le vide en croyant jouer. */
+            <div className="vsg">
+              <div className="vsg__cadre" data-testid="visage-courant" data-place={visagePlace || ''}>
+                {visageId
+                  ? <Visage id={visageId} src={visageSrc} taille={260} titre={`Visage ${visagePlace}`} />
+                  : <span className="vsg__attente" aria-hidden="true" />}
+              </div>
+              <button
+                className="p-btn p-btn--primary p-btn--buzz"
+                type="button"
+                data-testid="answer-submit"
+                data-action="play:answer"
+                disabled={disabled}
+                onClick={() => onAnswer(true)}
+              >
+                {answered ? 'Buzz envoyé' : 'Déjà vu ce visage !'}
+              </button>
+            </div>
           ) : type === 'lien' ? (
             /* LE LIEN. Les deux mots sont l'énoncé : ils passent AVANT le champ,
                en évidence, parce que c'est sur eux que le joueur réfléchit. Le
@@ -684,6 +747,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isSondage = isVote && rv.poll === true;
   const isEstimation = (rv.type || current?.type) === 'estimation';
   const isLien = (rv.type || current?.type) === 'lien';
+  const isVisages = (rv.type || current?.type) === 'visages';
 
   // TROIS situations, pas deux (R12). L'absence de résultat ne signifie pas
   // « tu n'étais pas là » : elle peut aussi vouloir dire « pas encore révélé »,
@@ -727,6 +791,23 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // Lu sur `base`, son verdict repassait à « Raté » au-dessus de « +400 » —
     // exactement la contradiction qu'un contrôle existant interdit.
     else if (rv.target != null && myAnswer != null) correct = pointsDeLaManche(monResultat) > 0;
+    // LE DRAPEAU DU SERVEUR, EN DERNIER RECOURS — et c'est lui qui manquait.
+    //
+    // Les branches ci-dessus reconstituent le verdict côté client, à partir de la
+    // révélation et de ce que le joueur a répondu. Elles supposent toutes que la
+    // réponse est COMPARABLE à quelque chose de public : une option, un booléen,
+    // une cible.
+    //
+    // Deux jeux ne rentrent pas dans ce moule. « Le lien » se gagne en ayant
+    // partagé son mot — cela ne se lit pas dans la révélation. « Les visages » se
+    // gagne en ayant buzzé au bon INSTANT, ce que seule l'horloge du serveur
+    // sait. Faute de branche, leur verdict restait `null` : l'écran affichait une
+    // COCHE VERTE et « Manche close » à un joueur qui venait de perdre.
+    //
+    // Le serveur publie déjà ce drapeau dans le résultat personnel — il sert à la
+    // série depuis toujours. On le lit plutôt que de refabriquer une seconde
+    // définition de la réussite, qui finirait par diverger de la première.
+    else if (typeof monResultat?.correct === 'boolean') correct = monResultat.correct;
   } else if (!isSondage && Array.isArray(rv.winners) && typeof myAnswer === 'number') {
     correct = rv.winners.includes(myAnswer);
   }
@@ -749,6 +830,14 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     if (isLien) {
       if (!monResultat.rang) return 'lien.seul';
       return monResultat.rang === 1 ? 'lien.majorite' : 'lien.groupe';
+    }
+    // LES VISAGES. Trois issues, et la deuxième est celle qu'il fallait nommer :
+    // avoir buzzé sur la PREMIÈRE apparition, c'est avoir reconnu le bon visage
+    // avant qu'il ne revienne. Ce n'est pas la même chose que d'avoir buzzé au
+    // hasard, et le registre ne sert pas la même phrase.
+    if (isVisages) {
+      if (correct === true) return 'visages.trouve';
+      return monResultat.troppTot ? 'visages.trop-tot' : 'visages.rate';
     }
     if (isSondage) return 'vote.sondage';
     if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
@@ -872,9 +961,16 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     La contradiction trouvée par ce balayage était ailleurs — dans la
                     VOIX, qui disait « ça ne coûte rien » au-dessus d'un +400. Elle est
                     corrigée au moment `estimation.plus-proche`. */}
+                {/* LES VISAGES : trois issues, pas deux. Avoir buzzé sur la
+                    PREMIÈRE apparition n'est pas « Raté » — le joueur a reconnu
+                    le bon visage, il n'avait simplement aucun moyen de savoir
+                    qu'il reviendrait. C'est la faute que le jeu provoque, et le
+                    titre doit la nommer. */}
                 {isVote
                   ? (isSondage ? 'Voix comptée' : correct === true ? 'Avec la majorité' : correct === false ? 'À contre-courant' : 'Voix comptée')
-                  : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
+                  : isVisages
+                    ? (correct === true ? 'Bien vu' : monResultat?.troppTot ? 'Trop tôt' : 'Raté')
+                    : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
               {/* La voix du jeu remplace les commentaires figés : « Ça se
                   rattrape » disait la même chose à tout le monde, à chaque fois. */}
@@ -1495,7 +1591,7 @@ export function PlayApp() {
 
   // L'ANNONCE d'un jeu qui n'a pas encore démarré — le jingle du « Lien ».
   if (g.annonce && !g.current) {
-    return <AnnonceScreen nom={g.annonce.name} />;
+    return <AnnonceScreen nom={g.annonce.name} type={g.annonce.type} />;
   }
 
   // Question en cours (pas de bouton Quitter : l'écran reste focalisé sur la réponse).
@@ -1508,6 +1604,7 @@ export function PlayApp() {
         answered={g.answered === true}
         myAnswer={myAnswer}
         onAnswer={handleAnswer}
+        visage={g.visage}
       />
     );
   }

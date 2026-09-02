@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules } from './modules.js';
+import { MODULE_TYPES, modules, REGLES_VISAGES } from './modules.js';
+import { srcDeVisage } from './visages.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
 
@@ -374,6 +375,22 @@ io.on('connection', (socket) => {
         return moi.joinedAt <= cur.startedAt;
       })(),
     });
+    // « LES VISAGES » : LE VISAGE COURANT, REJOUÉ.
+    //
+    // Les visages sont poussés un par un et non portés par la question — sans
+    // quoi la série entière, donc la réponse, serait lisible dans la charge
+    // utile. Conséquence : un joueur qui recharge en pleine série ne recevrait
+    // plus RIEN jusqu'au visage suivant, et resterait deux secondes devant un
+    // écran vide au milieu d'un jeu qui dure une minute.
+    //
+    // On lui renvoie donc la place où en est la série — calculée sur l'horloge du
+    // serveur, la même que celle qui juge les buzz — et le visage qui l'occupe.
+    if (cur.type === 'visages' && Array.isArray(cur.ordre) && !cur.revealed) {
+      const place = Math.min(cur.ordre.length,
+        Math.max(1, Math.floor((Date.now() - cur.startedAt) / REGLES_VISAGES.cadenceMs) + 1));
+      const idVisage = cur.ordre[place - 1];
+      socket.emit('visages:visage', { roundId: cur.roundId, place, id: idVisage, src: srcDeVisage(idVisage) });
+    }
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur
     // conclut qu'il n'a pas participé — c'est l'origine unique de « manche jouée

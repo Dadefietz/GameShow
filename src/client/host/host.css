@@ -477,6 +477,28 @@
   /* La phrase de mise en avant (A21) : une formule prête à dire, pas une donnée.
      Elle se lit donc comme du texte courant, pas comme une étiquette technique. */
   .private__voix { margin: 0; font: 500 var(--fs-300) / 1.4 var(--f-ui); color: var(--c-ink); }
+
+  /* ===== LA SÉRIE DE VISAGES, À LA RÉVÉLATION (console) =====
+     Trente colonnes : le numéro de passage, le visage, le nombre de buzz. Elle
+     s'enroule sur plusieurs lignes plutôt que de défiler horizontalement —
+     l'animateur doit voir la série ENTIÈRE d'un coup d'œil pour la commenter,
+     pas la faire glisser en direct. */
+  .vsgraf {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3) var(--sp-2);
+    align-items: flex-end;
+  }
+  .vsgraf__col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .vsgraf__num { font: 500 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .vsgraf__col .visage { border-radius: var(--r-s); background: var(--c-surface-sunk); }
+  /* LES DEUX APPARITIONS DU VISAGE DOUBLÉ, plus grosses — et la SECONDE seule
+     porte la couleur de la réussite : c'est la seule place où buzzer rapportait.
+     Les distinguer l'une de l'autre est le cœur de ce graphique. */
+  .vsgraf__col--double .visage { box-shadow: 0 0 0 var(--bw-strong) var(--c-ember); }
+  .vsgraf__col--bonne .visage { box-shadow: 0 0 0 var(--bw-strong) var(--c-pine); }
+  .vsgraf__buzz { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink); }
+  .vsgraf__buzz--vide { color: var(--c-ink-4); }
   /* À la révélation, le panneau perd sa hachure : il est devenu public. */
   .private--public { box-shadow: var(--sh-edge); }
   .private--public::before { display: none; }

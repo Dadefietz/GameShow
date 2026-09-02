@@ -304,6 +304,68 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX INTIME : les visages ----------
+  //
+  // TROIS ISSUES, ET LA DEUXIÈME EST LA PLUS IMPORTANTE À NOMMER. Buzzer sur la
+  // PREMIÈRE apparition, c'est avoir reconnu un visage qui n'était pas encore
+  // revenu : le joueur n'a pas mal joué, il a joué trop tôt — et c'est même la
+  // faute que le jeu tend à provoquer. Lui servir la même phrase qu'à celui qui a
+  // buzzé au hasard serait faux, et le registre ne punit jamais.
+  'visages.trouve': {
+    surface: 'play',
+    quand: 'le joueur a buzzé pendant la SECONDE apparition du visage doublé',
+    phrases: [
+      'Tu l’as reconnu. Au bon moment, en plus.',
+      'Pile sur le revenant. Belle mémoire.',
+      'C’était bien lui, et tu ne t’es pas trompé(e) de passage.',
+      'Vu, et vu au bon moment. Chapeau.',
+      'Ton œil ne t’a pas menti.',
+    ],
+  },
+  'visages.trop-tot': {
+    surface: 'play',
+    quand: 'le joueur a buzzé sur la PREMIÈRE apparition du visage doublé',
+    phrases: [
+      'C’était le bon visage… mais il n’était pas encore revenu.',
+      'Tu avais raison trop tôt. Il fallait attendre son retour.',
+      'Le bon visage, le mauvais passage. De peu.',
+      'Presque : c’est à son RETOUR qu’il fallait buzzer.',
+    ],
+  },
+  'visages.rate': {
+    surface: 'play',
+    quand: 'le joueur a buzzé sur un visage qui n’était pas le doublé',
+    phrases: [
+      'Ce visage-là, tu ne l’avais jamais vu.',
+      'Fausse alerte. Ils se ressemblent tous, au bout d’un moment.',
+      'Non, celui-ci passait pour la première fois.',
+      'Le doute t’a eu(e). Ça arrive à tout le monde.',
+      'Raté — mais tu as regardé, c’est déjà ça.',
+    ],
+  },
+
+  // ---------- VOIX DE PLATEAU : les visages ----------
+  'stream.visages-personne': {
+    surface: 'overlay',
+    quand: 'les visages : personne n’a buzzé au bon moment',
+    phrases: [
+      'Le visage est passé deux fois. Personne ne l’a vu.',
+      'Il a traversé le cercle sans se faire prendre.',
+      'Aucun buzz au bon moment. Il était trop discret.',
+      'Le revenant a gagné cette manche.',
+    ],
+  },
+  'stream.visages-foule': {
+    surface: 'overlay',
+    quand: 'les visages : la moitié du cercle au moins a buzzé au bon moment',
+    phrases: [
+      'Le cercle a l’œil : ils l’ont presque tous vu revenir.',
+      'Pas discret du tout, finalement.',
+      'Repéré par la moitié du cercle.',
+      'Ce visage-là n’avait aucune chance.',
+    ],
+  },
+
   // ---------- VOIX INTIME : vote ----------
   'vote.majorite': {
     surface: 'play',
@@ -603,12 +665,19 @@ export const SEUILS = {
   // LE LIEN : « la moitié du cercle au moins ». Sous ce seuil, un groupe de tête
   // n'a rien d'exceptionnel — c'est le jeu qui fonctionne normalement.
   lienUnanime: 0.5,
+  // LES VISAGES : même lecture, même seuil. La moitié du cercle qui repère le
+  // revenant, c'est remarquable ; un tiers, c'est le jeu qui marche.
+  visagesFoule: 0.5,
 };
 
 // Ordre de PRIORITÉ : si plusieurs conditions se déclenchent, une seule parle.
 export const PRIORITE_PLATEAU = [
   'stream.lien-unanime',
   'stream.lien-disperse',
+  // L'échec collectif d'abord : qu'un visage traverse le cercle sans être vu est
+  // plus remarquable que de le voir repéré par beaucoup.
+  'stream.visages-personne',
+  'stream.visages-foule',
   'stream.unanimite-juste',
   'stream.personne',
   'stream.piege',
@@ -736,6 +805,14 @@ export function momentDePlateau(type, stats, reveal) {
       // en réunion pour toutes les règles de seuil.
       if (justes > 0 && justes / total < 0.5) candidats.add('stream.majorite-trompee');
     }
+  }
+
+  // LES VISAGES. Deux extrêmes seulement, comme partout ailleurs : le visage que
+  // personne n'a démasqué, et celui que la moitié du cercle a vu revenir. Entre
+  // les deux, une manche ordinaire — et le plateau se tait.
+  if (stats.kind === 'visages') {
+    if (stats.trouve === 0) candidats.add('stream.visages-personne');
+    else if (stats.trouve / total >= SEUILS.visagesFoule) candidats.add('stream.visages-foule');
   }
 
   // LE LIEN. Le plateau ne commente que deux situations remarquables : le cercle

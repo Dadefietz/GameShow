@@ -23,6 +23,7 @@ const MODULE_TYPES = {
   // EN DIRECT : sa question — deux mots — se tape à l'antenne. Il n'y a donc rien
   // à préparer ici, et le Studio ne doit pas prétendre le contraire.
   lien:       { label: 'Le lien',    subtitle: 'Deux mots, en direct', icon: 'link', color: 'info', direct: true },
+  visages:    { label: 'Les visages', subtitle: 'Le visage passé deux fois', icon: 'users', color: 'forest', direct: true },
   vote:       { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);

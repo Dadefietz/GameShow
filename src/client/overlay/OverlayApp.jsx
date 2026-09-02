@@ -17,6 +17,7 @@ import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
 import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { bipCompteRebours, sonFinDuTemps, sonRevelation } from '../shared/sons.js';
+import { Visage, MasquesVisages } from '../shared/Visage.jsx';
 import { CHAINONS } from '../shared/marque-lien.js';
 import './overlay.css';
 
@@ -312,6 +313,15 @@ function QuestionStage({ g }) {
   const over = !revealed && timeLeft === 0;
   const options = Array.isArray(current.options) ? current.options : [];
   const stats = reveal?.stats;
+  // Le visage courant, poussé un par un par le serveur — jamais porté par la
+  // question, dont la charge utile trahirait la répétition. Le garde sur
+  // l'identifiant de manche empêche un visage attardé de s'afficher sur la
+  // manche suivante.
+  const visageOk = g.visage && g.visage.roundId === g.current?.roundId;
+  const visageId = visageOk ? g.visage.id : null;
+  const visageSrc = visageOk ? g.visage.src : null;
+  const visagePlace = visageOk ? g.visage.place : null;
+
   const voix = useVoixDePlateau(revealed ? reveal : null, stats, g.current?.roundId);
   const answer = revealText(reveal, current);
 
@@ -466,7 +476,19 @@ function QuestionStage({ g }) {
 
       {/* Question en cours : les options, nues. */}
       {!revealed ? (
-        options.length > 0 ? (
+        current.type === 'visages' ? (
+          /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
+             c'est le jeu tout entier. Le compteur de réponses et le chrono vivent
+             déjà dans l'en-tête commune à tous les jeux.
+
+             Le numéro de passage N'EST PAS AFFICHÉ pendant la série — il donnerait
+             au public un repère de mémoire que les joueurs n'ont pas, et sur un
+             stream regardé à deux écrans, il transformerait le jeu en exercice
+             d'écriture. Il n'apparaît qu'à la révélation. */
+          <div className="st-visage" data-testid="stream-visage" data-place={visagePlace || ''}>
+            {visageId ? <Visage id={visageId} src={visageSrc} taille={420} /> : null}
+          </div>
+        ) : options.length > 0 ? (
           <div className="st-options" data-bind="module.options">
             {options.map((opt, i) => (
               <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
@@ -480,7 +502,9 @@ function QuestionStage({ g }) {
       ) : (
         /* Révélation : la répartition prend toute la place. */
         <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">
-          {stats?.kind === 'lien' ? (
+          {stats?.kind === 'visages' ? (
+            <SerieStream stats={stats} />
+          ) : stats?.kind === 'lien' ? (
             <LienResultats stats={stats} />
           ) : stats?.kind === 'numeric' ? (
             <>
@@ -564,13 +588,49 @@ function ChainonsStream({ s = 140 }) {
 // L'ANNONCE DU JEU — le même temps que sur les téléphones, à l'échelle de la
 // scène. Le cercle et le public voient la même chose au même instant : c'est ce
 // qui fait qu'un plateau tient.
-function AnnonceStage({ nom }) {
+// LE JINGLE, À L'ANTENNE. Il était écrit pour « Le lien » seul — emblème et règle
+// en dur —, si bien que « Les visages » aurait annoncé des chaînons devant tout
+// le public. Chaque jeu en direct apporte le sien.
+const ANNONCES_STREAM = {
+  lien: { emblem: <ChainonsStream s={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
+  visages: { emblem: <MasquesVisages taille={280} />, regle: 'Un visage va passer deux fois. Saurez-vous le reconnaître ?' },
+};
+
+function AnnonceStage({ nom, type }) {
+  const a = ANNONCES_STREAM[type];
   return (
     <div className="stream__stage stream__stage--centered" data-testid="stream-annonce" data-state="annonce">
-      <span className="st-annonce__emblem" aria-hidden="true"><ChainonsStream s={180} /></span>
+      {a ? <span className="st-annonce__emblem" aria-hidden="true">{a.emblem}</span> : null}
       <p className="st-kicker">Prochaine épreuve</p>
       <h2 className="st-title st-title--xl">{nom}</h2>
-      <p className="st-lead">Un mot pour relier les deux mots de l'animateur.</p>
+      {a ? <p className="st-lead">{a.regle}</p> : null}
+    </div>
+  );
+}
+
+// LA SÉRIE, À L'ANTENNE — le même graphique que sur la console, à l'échelle du
+// stream. Le tracé des visages est partagé : c'est la même série qu'on vient de
+// voir défiler, et la reconnaître est tout l'intérêt de l'écran.
+function SerieStream({ stats }) {
+  if (!stats || !Array.isArray(stats.ordre)) return null;
+  const adresse = new Map(stats.adresses || []);
+  return (
+    <div className="st-serie" data-testid="stream-visages-serie">
+      {stats.ordre.map((id, i) => {
+        const place = i + 1;
+        const premiere = place === stats.pos1;
+        const seconde = place === stats.pos2;
+        const doublee = premiere || seconde;
+        const buzz = stats.parPlace[i] || 0;
+        return (
+          <div className={`st-serie__col${doublee ? ' st-serie__col--double' : ''}${seconde ? ' st-serie__col--bonne' : ''}`}
+            key={place} data-place={place} data-role={seconde ? 'seconde' : premiere ? 'premiere' : 'figurant'}>
+            <span className="st-serie__num">{place}</span>
+            <Visage id={id} src={adresse.get(id)} taille={doublee ? 96 : 62} />
+            <span className={`st-serie__buzz${buzz ? '' : ' st-serie__buzz--vide'}`}>{fmt(buzz)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -825,7 +885,7 @@ export function OverlayApp() {
             le jingle au même instant, pas l'un le jeu et l'autre le salon. */}
         {ended ? <PodiumStage g={g} />
           : inRound ? <QuestionStage g={g} />
-            : g.annonce ? <AnnonceStage nom={g.annonce.name} />
+            : g.annonce ? <AnnonceStage nom={g.annonce.name} type={g.annonce.type} />
               : <WaitingStage g={g} />}
 
         {/* CONTRAT S1, RÉÉCRIT (actions 3, 4 et 5).

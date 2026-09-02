@@ -20,6 +20,12 @@ export function useGame(token) {
   // temps : le cercle voit le nom du jeu pendant que l'animateur saisit ses mots.
   const [annonce, setAnnonce] = useState(null);
   const [roomClosed, setRoomClosed] = useState(false);
+  // « LES VISAGES » : le visage à l'écran, poussé un par un par le serveur.
+  // Il ne vit PAS dans `current` : la série entière n'est jamais envoyée — un
+  // identifiant qui y figurerait deux fois donnerait la réponse à qui ouvre
+  // l'onglet réseau. Le serveur pousse, le client affiche, et personne ne sait
+  // ce qui vient.
+  const [visage, setVisage] = useState(null);      // { roundId, place, id }
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
   const [fatal, setFatal] = useState(null);               // salon mort / token invalide (irrécupérable)
@@ -46,6 +52,10 @@ export function useGame(token) {
     s.on('module:started', (m) => {
       // `answered` restauré par le serveur (reconnexion/retardataire : pas de double réponse).
       setCurrent(m); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
+      // Le visage de la manche PRÉCÉDENTE ne doit pas survivre au démarrage de la
+      // suivante : il resterait affiché jusqu'au premier visage de la nouvelle
+      // série, à l'écran, pendant deux secondes.
+      setVisage(null);
       // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
       // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
       setMonChoix(m.monChoix ?? null);
@@ -59,6 +69,7 @@ export function useGame(token) {
       setTick({ timeLeft: left, answers: 0 });
     });
     s.on('module:distribution', (d) => setDistribution(d));
+    s.on('visages:visage', (v) => setVisage(v && v.id ? v : null));
     s.on('host:error', (e) => setServerError({ ...e, at: Date.now() }));
     s.on('module:tick', (t) => setTick(t));
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
@@ -95,7 +106,7 @@ export function useGame(token) {
     socketRef.current?.off(event, handler);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, history, fatal, serverError, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, visage, history, fatal, serverError, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

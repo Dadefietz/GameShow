@@ -107,10 +107,26 @@ test.describe('Le lien', () => {
     expect(bonus, 'le bonus du groupe de tête').toBe(750);
     expect(base + bonus, 'le détail ne redonne pas le total').toBe(gagne);
 
+    // LE VERDICT DIT QU'IL A GAGNÉ — et il ne le disait pas.
+    //
+    // DÉFAUT TROUVÉ EN REGARDANT L'ÉCRAN, des semaines après la livraison de ce
+    // jeu. L'écran de résultat RECONSTITUAIT le verdict en comparant la réponse à
+    // la révélation : une option, un booléen, une cible. « Le lien » ne se compare
+    // à rien de tel — on y gagne en ayant PARTAGÉ son mot, ce que la révélation ne
+    // permet pas de recalculer. Le verdict restait donc indéterminé, et un joueur
+    // qui venait de rafler mille points lisait « Manche close » sous une pastille
+    // neutre. Le serveur publiait pourtant ce drapeau depuis toujours : il
+    // servait à la série, il ne partait pas au joueur.
+    await expect(j0.locator('#verdict'),
+      'le gagnant du lien n\'a pas de verdict').toHaveText('Bien joué');
+    await expect(j0.locator('.verdict__badge--good'),
+      'la pastille du gagnant n\'est pas celle de la réussite').toHaveCount(1);
+
     // LE SOLITAIRE ne marque rien, et on le lui dit sans le punir.
     const j2 = joueurs[2].page;
     await expect(j2.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
     expect(await lire(j2, 'points-gained'), 'être seul ne rapporte rien').toBe(0);
+    await expect(j2.locator('#verdict'), 'le solitaire non plus n\'a pas de verdict').toHaveText('Raté');
 
     // L'ANIMATEUR voit les groupes AVEC les noms — c'est lui qui commente.
     const groupes = hote.page.getByTestId('groupes-lien');

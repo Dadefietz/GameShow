@@ -18,6 +18,7 @@ import { shouldPurgeHostSession } from '../shared/hostSession.js';
 import { passwordErrorMessage, resetErrorMessage, masquerEmail } from '../shared/authErrors.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseDeManche } from '../shared/voix-hooks.js';
+import { Visage } from '../shared/Visage.jsx';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import './host.css';
 
@@ -300,6 +301,71 @@ function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
         </div>
       </form>
     </section>
+  );
+}
+
+// LE DÉPART DE « LES VISAGES » — l'animateur choisit son moment.
+//
+// Il n'a RIEN à saisir : la série est tirée par le serveur, qui seul la connaît.
+// Ce panneau existe pour une seule raison — le temps qui sépare l'annonce du
+// premier visage appartient à l'animateur, qui présente le jeu à l'antenne. Sans
+// lui, les visages commenceraient à défiler pendant qu'il finit sa phrase.
+function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Les visages" data-testid="depart-visages">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Trente visages, un toutes les deux secondes. Un seul repasse : ils buzzent
+        quand ils le revoient. Une minute de jeu — donne le départ quand tu es prêt.
+      </p>
+      <div className="lien-saisie__actions">
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerVisages" data-testid="visages-demarrer"
+          onClick={() => onDemarrer(jeu)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+// LE GRAPHIQUE DE LA SÉRIE, À LA RÉVÉLATION.
+//
+// Trente visages dans l'ordre où ils sont passés, leur numéro au-dessus, et le
+// nombre de buzz sous chacun. Le visage doublé est GROSSI à ses deux places :
+// c'est la seule chose que l'animateur doit voir en un coup d'œil pour commenter
+// — où il est passé, et si le cercle l'a vu revenir.
+//
+// LES DEUX APPARITIONS SE DISTINGUENT L'UNE DE L'AUTRE, et c'est le cœur du jeu :
+// buzzer sur la première est une erreur, sur la seconde une réussite. Les
+// afficher pareillement rendrait le graphique illisible au moment exact où
+// l'animateur en a besoin.
+function GraphiqueVisages({ stats, taille = 46 }) {
+  if (!stats || !Array.isArray(stats.ordre)) return null;
+  const max = Math.max(1, ...stats.parPlace);
+  const adresse = new Map(stats.adresses || []);
+  return (
+    <div className="vsgraf" data-testid="visages-graphique">
+      {stats.ordre.map((id, i) => {
+        const place = i + 1;
+        const premiere = place === stats.pos1;
+        const seconde = place === stats.pos2;
+        const doublee = premiere || seconde;
+        const buzz = stats.parPlace[i] || 0;
+        return (
+          <div className={`vsgraf__col${doublee ? ' vsgraf__col--double' : ''}${seconde ? ' vsgraf__col--bonne' : ''}`}
+            key={place} data-place={place} data-role={seconde ? 'seconde' : premiere ? 'premiere' : 'figurant'}>
+            <span className="vsgraf__num">{place}</span>
+            <Visage id={id} src={adresse.get(id)} taille={doublee ? Math.round(taille * 1.5) : taille}
+              titre={seconde ? `Visage ${place}, seconde apparition` : premiere ? `Visage ${place}, première apparition` : `Visage ${place}`} />
+            <span className={`vsgraf__buzz${buzz ? '' : ' vsgraf__buzz--vide'}`}>{buzz}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1378,7 +1444,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // ============================================================
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1494,12 +1560,26 @@ function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onAnnulerL
 
           {/* LA SAISIE DU LIEN prend la place de la scène tant que les deux mots
               ne sont pas diffusés : c'est LE geste de l'animateur à cet instant. */}
-          {prepare ? (
+          {prepare && prepare.type === 'lien' ? (
             <SaisieLien jeu={prepare} onDiffuser={onDiffuserLien} onAnnuler={onAnnulerLien} />
+          ) : null}
+          {prepare && prepare.type === 'visages' ? (
+            <DepartVisages jeu={prepare} onDemarrer={onDemarrerVisages} onAnnuler={onAnnulerLien} />
           ) : null}
 
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
+
+          {/* LA SÉRIE DE VISAGES, À LA RÉVÉLATION. Elle vient de `reveal.stats` et
+              non d'un canal réservé : une fois la manche révélée, la série n'a
+              plus rien de secret — le stream l'affiche aussi. Avant la
+              révélation, en revanche, elle n'existe nulle part côté client. */}
+          {revealed && reveal?.stats?.kind === 'visages' ? (
+            <section className="private private--public" aria-label="La série de visages">
+              <p className="private__title"><I.eye s={16} /> La série — public</p>
+              <GraphiqueVisages stats={reveal.stats} />
+            </section>
+          ) : null}
 
           {/* LA FILE, DANS LA COLONNE CENTRALE (chantier v2, décision 3.1).
               Elle vivait dans la colonne latérale de 336 px, où trois commandes
@@ -1789,7 +1869,12 @@ export function HostApp() {
     // mots que l'animateur tape à l'antenne : on ANNONCE le jeu — le cercle voit
     // le jingle — et la manche ne démarre qu'à la diffusion des mots. Le temps de
     // saisie ne doit pas être décompté du temps de jeu.
-    if (jeu?.type === 'lien') {
+    // « Les visages » suit le même chemin : l'annonce d'abord — le cercle voit le
+    // jingle et comprend à quoi il joue —, la série ensuite, quand l'animateur
+    // donne le départ. Ici il n'a rien à saisir : il choisit le MOMENT, ce qui
+    // suffit à justifier les deux temps. Lancer d'un clic ferait défiler les
+    // premiers visages pendant qu'il finit sa phrase.
+    if (jeu?.type === 'lien' || jeu?.type === 'visages') {
       setPrepare(jeu);
       g.emit('host:announceModule', { moduleId: jeu.id });
       return;
@@ -1806,6 +1891,18 @@ export function HostApp() {
     g.emit('host:startModule', {
       moduleId: jeu.id,
       question: { id: `lien-${Date.now()}`, text: `${mot1} · ${mot2}`, mot1, mot2 },
+    });
+  }, [g]);
+
+  // LE DÉPART DE LA SÉRIE DE VISAGES. Rien à transmettre : la série est TIRÉE
+  // par le serveur, qui seul la connaît. L'animateur n'envoie qu'un top.
+  const demarrerVisages = useCallback((jeu) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `visages-${Date.now()}`, text: 'Quel visage est passé deux fois ?' },
     });
   }, [g]);
 
@@ -1931,6 +2028,7 @@ export function HostApp() {
           overlayToken={session.overlayToken}
           prepare={prepare}
           onDiffuserLien={diffuserLien}
+          onDemarrerVisages={demarrerVisages}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

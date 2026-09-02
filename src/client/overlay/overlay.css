@@ -255,6 +255,37 @@
      Une ligne de `--fs-st-400` à l'interlignage 1,1, plus la marge qui la sépare
      de la réponse. Sans elle, l'apparition d'une phrase déplaçait tout le bloc de
      répartition d'une manche à l'autre, devant l'antenne. */
+  /* ===== LES VISAGES, À L'ANTENNE ===== */
+  .st-visage {
+    display: grid;
+    place-items: center;
+    margin-top: var(--sp-6);
+  }
+  .st-visage .visage {
+    border-radius: var(--r-l);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+
+  /* LA SÉRIE À LA RÉVÉLATION. Trente colonnes sur une toile de 1920 : elles
+     tiennent sur deux rangs. Le visage doublé est plus gros à ses deux places,
+     et la seconde — celle qui rapportait — porte le vert. */
+  .st-serie {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-4) var(--sp-3);
+    align-items: flex-end;
+    margin-top: var(--sp-5);
+  }
+  .st-serie__col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .st-serie__num { font: 500 var(--fs-st-100, 20px) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .st-serie__col .visage { border-radius: var(--r-s); background: var(--c-surface-sunk); }
+  .st-serie__col--double .visage { box-shadow: 0 0 0 3px var(--c-ember); }
+  .st-serie__col--bonne .visage { box-shadow: 0 0 0 4px var(--c-pine); }
+  .st-serie__buzz { font: 600 var(--fs-st-200, 24px) / 1 var(--f-mono); color: var(--c-ink); }
+  .st-serie__buzz--vide { color: var(--c-ink-4); }
+
   .st-voix-fente {
     margin-top: var(--sp-6);
     min-height: calc(var(--fs-st-400) * 1.1);
