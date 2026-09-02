@@ -270,13 +270,17 @@
   /* LA SÉRIE À LA RÉVÉLATION. Trente colonnes sur une toile de 1920 : elles
      tiennent sur deux rangs. Le visage doublé est plus gros à ses deux places,
      et la seconde — celle qui rapportait — porte le vert. */
+  /* LA SÉRIE PREND LA PLACE QU'ELLE A. Le panneau de répartition est aligné en
+     BAS — c'est juste pour trois options ou un histogramme, qui sont larges et
+     courts. La série, elle, est haute : collée en bas, elle laissait un tiers de
+     l'écran vide au-dessus d'elle, devant le public. */
+  .st-stats--serie { justify-content: center; }
   .st-serie {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: var(--sp-4) var(--sp-3);
     align-items: flex-end;
-    margin-top: var(--sp-5);
   }
   .st-serie__col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .st-serie__num { font: 500 var(--fs-st-100, 20px) / 1 var(--f-mono); color: var(--c-ink-3); }

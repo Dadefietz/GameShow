@@ -549,10 +549,21 @@
      Le visage occupe le haut de l'écran, le buzz est SOUS le pouce. Sur un
      téléphone tenu à une main, un bouton posé en haut se rate ; et ce jeu se
      gagne à la fraction de seconde. */
-  .vsg { display: flex; flex-direction: column; align-items: center; gap: var(--sp-6); width: 100%; }
+  /* LE VISAGE PREND TOUTE LA PLACE QU'ON PEUT LUI DONNER. C'est un jeu de
+     RECONNAISSANCE : chaque pixel de visage compte, et le vide au-dessus n'a
+     aucune fonction. Le buzz reste ancré en bas, sous le pouce. */
+  .vsg {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-6);
+    width: 100%;
+  }
   .vsg__cadre {
     width: 100%;
-    max-width: 300px;
+    max-width: min(360px, 86vw);
     aspect-ratio: 1;
     display: grid;
     place-items: center;

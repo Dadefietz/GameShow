@@ -501,7 +501,7 @@ function QuestionStage({ g }) {
         ) : null
       ) : (
         /* Révélation : la répartition prend toute la place. */
-        <div className="st-stats" data-bind="reveal.stats" data-testid="stats-panel">
+        <div className={`st-stats${stats?.kind === 'visages' ? ' st-stats--serie' : ''}`} data-bind="reveal.stats" data-testid="stats-panel">
           {stats?.kind === 'visages' ? (
             <SerieStream stats={stats} />
           ) : stats?.kind === 'lien' ? (
@@ -626,7 +626,7 @@ function SerieStream({ stats }) {
           <div className={`st-serie__col${doublee ? ' st-serie__col--double' : ''}${seconde ? ' st-serie__col--bonne' : ''}`}
             key={place} data-place={place} data-role={seconde ? 'seconde' : premiere ? 'premiere' : 'figurant'}>
             <span className="st-serie__num">{place}</span>
-            <Visage id={id} src={adresse.get(id)} taille={doublee ? 96 : 62} />
+            <Visage id={id} src={adresse.get(id)} taille={doublee ? 132 : 88} />
             <span className={`st-serie__buzz${buzz ? '' : ' st-serie__buzz--vide'}`}>{fmt(buzz)}</span>
           </div>
         );

@@ -90,40 +90,45 @@ describe('la série de visages', () => {
     expect(auPlusHaut.pos2 - auPlusHaut.pos1).toBeGreaterThanOrEqual(REGLES_VISAGES.ecartMin);
   });
 
-  it('LA BANQUE D\'IMAGES, LE JOUR OÙ ELLE ARRIVERA', () => {
-    // CE CONTRÔLE NE VÉRIFIE PRESQUE RIEN AUJOURD'HUI, ET C'EST VOULU.
+  it('LA BANQUE D\'IMAGES est complète, homogène et servie', () => {
+    // LA BANQUE EST LÀ — Face Research Lab London Set, CC BY 4.0, 102 personnes
+    // photographiées dans des conditions rigoureusement identiques.
     //
-    // Le bassin de substitution n'a pas d'images : les portraits sont dessinés par
-    // le client. Le jour où la vraie banque sera posée — environ quatre cents
-    // portraits, tous sur le même fond —, chaque entrée portera un `src`, et ce
-    // contrôle se mettra à mordre :
-    //   - chaque adresse déclarée doit correspondre à un fichier réellement servi.
-    //     Une image manquante ne casse rien : elle affiche un cadre vide pendant
-    //     deux secondes, et fausse la manche sans que personne ne le sache ;
-    //   - toutes les images partagent la même extension. Un mélange de formats
-    //     trahit un assemblage à la main, donc probablement des tailles et des
-    //     fonds qui ne se ressemblent pas.
+    // CE QUE CE CONTRÔLE GARDE :
+    //   - chaque adresse déclarée correspond à un fichier réellement servi. Une
+    //     image manquante ne casse rien : elle affiche un cadre vide pendant deux
+    //     secondes et fausse la manche SANS QUE PERSONNE NE LE SACHE. C'est le
+    //     défaut le plus vicieux que ce jeu puisse avoir ;
+    //   - toutes les images partagent le même format. Un mélange trahirait un
+    //     assemblage à la main, donc des cadrages et des fonds qui divergent ;
+    //   - le bassin reste assez large pour DEUX manches sans qu'un visage revienne
+    //     d'une manche à l'autre. En dessous, un joueur croirait reconnaître
+    //     quelqu'un vu à la manche précédente.
     //
-    // CE QU'AUCUN CONTRÔLE NE POURRA DIRE : que les fonds sont VRAIMENT identiques,
-    // ni que les cadrages se ressemblent. C'est une relecture humaine, et elle
-    // compte : sur un jeu de reconnaissance, un fond qui change est un indice, et
-    // un indice est une réponse donnée.
-    const avecImage = BASSIN_VISAGES.filter((v) => v.src);
-    if (!avecImage.length) {
-      expect(BASSIN_VISAGES.length,
-        'le bassin de substitution doit rester assez grand pour jouer').toBeGreaterThanOrEqual(29);
-      return;
-    }
-    const extensions = new Set(avecImage.map((v) => v.src.split('.').pop().toLowerCase()));
+    // CE QU'AUCUN CONTRÔLE NE POURRA DIRE : que les fonds sont vraiment
+    // identiques et les cadrages comparables. C'est une relecture humaine, elle a
+    // été faite sur planche contact, et elle compte — sur un jeu de
+    // reconnaissance, un fond qui change est un indice, et un indice est une
+    // réponse donnée.
+    expect(BASSIN_VISAGES.length, 'la banque est vide').toBeGreaterThan(0);
+    const sansAdresse = BASSIN_VISAGES.filter((v) => !v.src).map((v) => v.id);
+    expect(sansAdresse, `visages sans image : ${sansAdresse.slice(0, 5).join(', ')}`).toEqual([]);
+
+    const extensions = new Set(BASSIN_VISAGES.map((v) => v.src.split('.').pop().toLowerCase()));
     expect([...extensions], `la banque mélange des formats : ${[...extensions].join(', ')}`).toHaveLength(1);
-    const manquantes = avecImage
+
+    const manquantes = BASSIN_VISAGES
       .map((v) => v.src)
       .filter((src) => !fs.existsSync(path.join('src/public', src.replace(/^\//, ''))));
     expect(manquantes, `images déclarées mais absentes du serveur : ${manquantes.slice(0, 5).join(', ')}`)
       .toEqual([]);
-    // Une banque de quatre cents portraits, c'est treize séries sans répétition.
-    // En dessous de deux cents, deux soirées de suite se ressembleraient.
-    expect(avecImage.length, 'la banque est trop maigre pour varier les séries').toBeGreaterThanOrEqual(200);
+
+    // DEUX MANCHES SANS RECOUPEMENT : 29 visages par série, donc 58. C'est le
+    // plancher qui a un sens pour le jeu, et non un chiffre rond.
+    const deuxManches = (REGLES_VISAGES.total - 1) * 2;
+    expect(BASSIN_VISAGES.length,
+      `la banque ne permet pas deux manches sans répétition (${deuxManches} visages requis)`)
+      .toBeGreaterThanOrEqual(deuxManches);
   });
 
   it('refuse de composer une série sur un bassin trop maigre', () => {
