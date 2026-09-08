@@ -1,14 +1,21 @@
-// E2E — LE VOTE EST DEVENU UN JEU (action 18 du PLAN-CHANTIER-v1).
+// E2E — LE VOTE SE JOUE EN DEUX TOURS.
 //
-// Avant : le vote ne rapportait que des points de participation, sans notion de
-// bonne réponse, et servait uniquement à choisir la suite de la soirée.
-// Maintenant : la majorité l'emporte. Être minoritaire ne coûte rien — c'est un
-// pari perdu, pas une faute. Aucun complément de vitesse : on ne devine pas plus
-// vite ce que pense la salle, et la prime pousserait à cliquer avant d'avoir lu.
+// AVANT : un tour unique, et l'on marquait en faisant partie de la réponse
+// majoritaire. Le joueur qui votait sincèrement gagnait par chance ; celui qui
+// votait stratégiquement ne pouvait pas dire ce qu'il pensait.
 //
-// Ce que le changement coûte, et que l'interrupteur préserve : un vote noté n'est
-// plus un sondage. Le joueur ne répond plus ce qu'il pense mais ce qu'il croit que
-// les autres vont répondre. Chaque question peut donc rester un vrai sondage.
+// MAINTENANT : « Que penses-tu ? » puis « Que pense le cercle ? ». Le premier
+// tour désigne LA bonne réponse sans la montrer ; le second demande de la
+// deviner, et lui seul rapporte des points.
+//
+// CE QUE SEUL UN CONTRÔLE DE BOUT EN BOUT PEUT VOIR ICI :
+//   - LE SILENCE ENTRE LES DEUX TOURS. Si le décompte du premier atteignait un
+//     écran de joueur ou la toile du stream, le second n'aurait plus rien à
+//     deviner. Rien ne casserait : le jeu tournerait, vide.
+//   - L'ÉCRAN QUI SE REMET À NEUF au second tour. La sélection du premier restait
+//     cochée — le joueur arrivait sur « Que pense le cercle ? » avec sa réponse
+//     déjà en vert, et pouvait croire qu'il avait répondu.
+//   - LE BOUTON DE L'ANIMATEUR, qui ouvre le second tour au lieu de révéler.
 import { test, expect } from '@playwright/test';
 import { openHost, joinAsPlayer } from './helpers.js';
 import { terminerPartie } from './cloture.js';
@@ -18,31 +25,117 @@ test.describe('Module vote', () => {
   const joueurs = [];
 
   test.afterEach(async () => {
+    if (stream) { await stream.close().catch(() => {}); stream = null; }
     if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
     for (const j of joueurs.splice(0)) await j.ctx.close();
   });
 
-  test('la majorité marque, la minorité ne perd rien', async ({ browser }) => {
-    hote = await openHost(browser);
-    for (const nom of ['Majo1', 'Majo2', 'Mino']) {
-      joueurs.push(await joinAsPlayer(browser, hote.code, nom));
-    }
-    await expect(hote.page.getByTestId('player-count')).toHaveText('3');
+  let stream = null;
 
+  async function lancer(browser, pseudos) {
+    hote = await openHost(browser);
+    for (const nom of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, nom));
+    await expect(hote.page.getByTestId('player-count')).toHaveText(String(pseudos.length));
+    stream = await hote.ctx.newPage();
+    await stream.setViewportSize({ width: 1920, height: 1080 });
+    const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
+    await stream.goto(`/overlay?token=${token}`);
+    await expect(stream.getByTestId('stream-room-code')).toHaveText(hote.code);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
     await hote.page.getByRole('menuitem', { name: 'Lancer Vote' }).click();
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible();
+  }
 
-    // Deux voix sur la première option, une sur la seconde.
-    await joueurs[0].page.getByTestId('answer-option').nth(0).click();
-    await joueurs[1].page.getByTestId('answer-option').nth(0).click();
-    await joueurs[2].page.getByTestId('answer-option').nth(1).click();
-    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+  test('deux tours : le premier désigne la réponse, le second la fait deviner', async ({ browser }) => {
+    // PSEUDOS CHOISIS AVEC SOIN : le filtre du projet refuse tout ce qui contient
+    // « con » — « Contrariant » n'entrait jamais dans le salon, et le contrôle
+    // échouait sur un joueur absent en désignant l'écran de jeu.
+    await lancer(browser, ['Lucide', 'Suiveur', 'Rebelle']);
 
-    // Les majoritaires marquent la base d'une bonne réponse.
+    // TOUR 1 — « Que penses-tu ? », sur les trois surfaces.
+    for (const [nom, page] of [['le joueur', joueurs[0].page], ['le stream', stream]]) {
+      const consigne = page.getByTestId(nom === 'le stream' ? 'stream-vote-consigne' : 'vote-consigne');
+      await expect(consigne, `${nom} ne dit pas à quel tour il répond`).toContainText('Que penses-tu');
+      await expect(consigne).toContainText('Tour 1/2');
+    }
+
+    // Le cercle pense « B », à deux voix contre une.
+    await joueurs[0].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[1].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[2].page.getByTestId('answer-option').nth(0).click();
+
+    // LE BOUTON DE L'ANIMATEUR OUVRE LE SECOND TOUR, il ne révèle pas. S'il
+    // révélait, la bonne réponse s'afficherait avant qu'on ait demandé de la
+    // deviner — le second tour n'aurait plus d'objet.
+    await expect(hote.page.getByTestId('host-reveler')).toHaveText('Passer au tour 2');
+    await hote.page.getByTestId('host-reveler').click();
+
+    // TOUR 2 — la question ne change pas, la consigne si.
+    await expect(joueurs[0].page.getByTestId('vote-consigne')).toContainText('Que pense le cercle');
+    await expect(stream.getByTestId('stream-vote-consigne')).toContainText('Que pense le cercle');
+    // Et la manche n'est PAS révélée : aucun écran ne montre de résultat.
+    await expect(joueurs[0].page.getByTestId('points-gained')).toHaveCount(0);
+
+    // L'ÉCRAN EST NEUF. La réponse du premier tour ne doit plus être cochée : le
+    // joueur croirait avoir déjà répondu et laisserait passer le tour qui compte.
+    await expect(joueurs[0].page.locator('[data-testid="answer-option"][data-state="selected"]'),
+      'la réponse du premier tour est restée cochée').toHaveCount(0);
+
+    // Deux devinent « B » (juste), un devine « A ».
+    await joueurs[0].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[1].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[2].page.getByTestId('answer-option').nth(0).click();
+    await expect(hote.page.getByTestId('host-reveler')).toHaveText('Révéler maintenant');
+    await hote.page.getByTestId('host-reveler').click();
+
+    // ON NE GAGNE QU'AU SECOND TOUR, et en devinant.
     await expect(joueurs[0].page.getByTestId('points-gained')).toHaveText('+700');
-    // Le minoritaire ne marque rien — et ne perd rien : zéro, pas moins.
     await expect(joueurs[2].page.getByTestId('points-gained')).toHaveText('0');
+    // Et zéro, pas moins : mal lire le cercle n'est pas une faute.
+    await expect(joueurs[2].page.getByTestId('places-delta')).toBeVisible();
+
+    // LA RÉVÉLATION MONTRE LES DEUX DÉCOMPTES — c'est l'histoire de la manche :
+    // ce que le cercle pense, et ce qu'il croyait penser.
+    const deux = stream.getByTestId('stream-vote-deux-tours');
+    await expect(deux).toBeVisible();
+    await expect(deux).toContainText('Ce que le cercle pense');
+    await expect(deux).toContainText("Ce qu'il croyait penser");
+  });
+
+  test('LE PREMIER TOUR NE FUIT PAS avant la révélation', async ({ browser }) => {
+    // LA FAUTE DONT ON NE SE RELÈVE PAS. Le stream est capturé par OBS et souvent
+    // regardé en direct par des gens qui jouent : le décompte du premier tour qui
+    // y apparaîtrait donnerait la réponse à tout le monde, et le second tour
+    // n'aurait plus rien à deviner.
+    await lancer(browser, ['Un', 'Deux', 'Trois']);
+    // Le cercle pense « B », nettement : deux voix contre une.
+    await joueurs[0].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[1].page.getByTestId('answer-option').nth(1).click();
+    await joueurs[2].page.getByTestId('answer-option').nth(0).click();
+    await hote.page.getByTestId('host-reveler').click();
+    await expect(joueurs[0].page.getByTestId('vote-consigne')).toContainText('Que pense le cercle');
+
+    // CE QUE CE CONTRÔLE COUVRE, ET CE QU'IL NE COUVRE PAS. Il fouille le HTML
+    // rendu des deux surfaces publiques : il attrape un décompte AFFICHÉ, ou posé
+    // dans un attribut. Il n'attrape PAS une valeur reçue par le client et jamais
+    // dessinée — React ne la sérialise nulle part, et aucune inspection du DOM ne
+    // la verrait. C'est le contrôle unitaire de `publicQuestion` qui garde la
+    // charge utile ; les deux sont nécessaires, et ni l'un ni l'autre ne suffit.
+    for (const [nom, page] of [['le joueur', joueurs[0].page], ['le stream', stream]]) {
+      const html = await page.content();
+      expect(html, `un décompte du premier tour est lisible sur ${nom}`)
+        .not.toMatch(/answersTour|winners/);
+      // Et aucune des options ne porte de marque de tête : au second tour, rien à
+      // l'écran ne doit désigner la réponse.
+      const marques = await page.locator('[data-state="correct"], .st-opt--correct, .opt--correct').count();
+      expect(marques, `une réponse est déjà désignée sur ${nom}`).toBe(0);
+    }
+
+    // L'ANIMATEUR, LUI, DOIT L'AVOIR — sinon ce contrôle serait content d'un jeu
+    // où personne ne connaît la réponse. C'est lui qui commente à l'antenne.
+    await expect(hote.page.getByTestId('host-tour')).toContainText('Tour 2/2');
+    await expect(hote.page.getByTestId('host-tour-precedent'),
+      "l'animateur ne voit plus la réponse qu'il doit commenter").toBeVisible();
   });
 
   test('le studio permet de repasser une question en sondage', async ({ browser, page }) => {

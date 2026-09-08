@@ -266,40 +266,106 @@ describe('estimation', () => {
   });
 });
 
-describe('vote', () => {
-  const VO_Q = { id: 'vo1', text: 'Choix ?', options: ['X', 'Y'], durationSec: 15 };
+describe('vote — deux tours : ce que tu penses, puis ce que pense le cercle', () => {
+  const VO_Q = { id: 'vo1', text: 'Choix ?', options: ['X', 'Y', 'Z'], durationSec: 15 };
 
-  // LE VOTE EST DEVENU UN JEU (action 18) : faire partie de la majorité rapporte.
-  it('la majorité gagne, la minorité ne perd rien', () => {
+  // Fabrique une manche à deux tours DÉJÀ ARRIVÉE AU SECOND : le premier tour est
+  // mis de côté comme le fait le moteur (`tourSuivant`), le second vit dans
+  // `answers`. C'est l'état exact dans lequel `score` est appelé.
+  function deuxTours(sincere, pari) {
     const rt = round(modules.vote, VO_Q);
-    rt.answers.set('majo1', { value: 0, at: rt.startedAt });
-    rt.answers.set('majo2', { value: 0, at: rt.startedAt });
-    rt.answers.set('mino', { value: 1, at: rt.startedAt });
-    const { results, reveal } = modules.vote.score(rt);
+    rt.answersTour1 = new Map(Object.entries(sincere).map(([k, v]) => [k, { value: v, at: rt.startedAt }]));
+    rt.tour = 2;
+    rt.answers = new Map(Object.entries(pari).map(([k, v]) => [k, { value: v, at: rt.startedAt }]));
+    return rt;
+  }
 
-    expect(totalManche(results.get('majo1'))).toBe(700);
-    expect(results.get('majo1').correct).toBe(true);
-    // Minoritaire : zéro point, aucune pénalité. Un pari perdu n'est pas une faute.
-    expect(totalManche(results.get('mino'))).toBe(0);
-    expect(results.get('mino').correct).toBe(false);
+  it('LA BONNE RÉPONSE SORT DU PREMIER TOUR, les points du second', () => {
+    // L'exemple de l'énoncé, transposé : le cercle pense « Y » (deux voix contre
+    // une). Marquent ceux qui ont DEVINÉ « Y » au second tour — pas ceux qui
+    // l'avaient voté au premier.
+    const rt = deuxTours(
+      { a: 1, b: 1, c: 0 },        // ce que chacun pense : Y, Y, X → Y l'emporte
+      { a: 0, b: 1, c: 1 },        // ce que chacun devine : X, Y, Y
+    );
+    const { results, reveal } = modules.vote.score(rt);
+    expect(reveal.winners, 'la bonne réponse n\'est pas celle du premier tour').toEqual([1]);
+
+    // `a` pensait Y mais a parié X : il ne marque pas, alors qu'il avait raison
+    // au premier tour. C'est tout le jeu — on ne gagne pas en ayant bon goût.
+    expect(totalManche(results.get('a'))).toBe(0);
+    expect(results.get('a').correct).toBe(false);
+    // `c` pensait X et a parié Y : il marque, sans être d'accord avec le cercle.
+    expect(totalManche(results.get('c'))).toBe(700);
+    expect(results.get('c').correct).toBe(true);
+    // `b` a fait les deux : il pensait Y et l'a parié.
+    expect(totalManche(results.get('b'))).toBe(700);
+    expect(results.get('b').choixSincere).toBe(1);
     // Aucun complément de vitesse : on ne devine pas plus vite ce que pense la salle.
-    expect(results.get('majo1').speed).toBe(0);
-    expect(reveal.winners).toEqual([0]);
+    expect(results.get('b').speed).toBe(0);
   });
 
-  it('en cas d\'égalité parfaite, les deux camps gagnent', () => {
-    const rt = round(modules.vote, VO_Q);
-    rt.answers.set('a', { value: 0, at: rt.startedAt });
-    rt.answers.set('b', { value: 1, at: rt.startedAt });
+  it('ne compte QUE le second tour : voter sincèrement ne rapporte rien', () => {
+    // LE DÉFAUT GARDÉ : si `score` lisait `rt.answers` sans distinguer les tours,
+    // il paierait les électeurs du premier — l'ancienne règle, silencieusement
+    // remise en place.
+    const rt = deuxTours({ seul: 0, autre: 0 }, {});
+    const { results } = modules.vote.score(rt);
+    expect(results.size, 'un joueur a marqué sans avoir joué le second tour').toBe(0);
+  });
+
+  it('un joueur qui n\'a joué QUE le second tour peut marquer', () => {
+    // Il n'a pas dit ce qu'il pensait, il a quand même lu le cercle. Rien dans la
+    // règle ne l'en empêche.
+    const rt = deuxTours({ a: 0, b: 0 }, { tardif: 0 });
+    const { results } = modules.vote.score(rt);
+    expect(totalManche(results.get('tardif'))).toBe(700);
+    expect(results.get('tardif').choixSincere).toBeNull();
+  });
+
+  it('en cas d\'égalité au premier tour, les réponses de tête gagnent toutes', () => {
+    // Sinon une égalité ne produirait AUCUNE bonne réponse, et la manche ne
+    // rapporterait rien à personne quoi qu'on ait parié.
+    const rt = deuxTours({ a: 0, b: 1 }, { a: 0, b: 1, c: 2 });
     const { results, reveal } = modules.vote.score(rt);
-    // Sinon une égalité ne produirait aucun vainqueur : arbitraire et frustrant.
     expect(reveal.winners).toEqual([0, 1]);
     expect(results.get('a').correct).toBe(true);
     expect(results.get('b').correct).toBe(true);
+    expect(results.get('c').correct).toBe(false);
   });
 
-  it('en mode sondage, personne ne gagne et la participation suffit', () => {
+  it('publie les DEUX décomptes — c\'est l\'histoire de la manche', () => {
+    // Le premier dit ce que le cercle pense, le second s'il a su se reconnaître.
+    // Sans les deux, la révélation ne répond pas à la question qu'on vient de
+    // poser au cercle.
+    const rt = deuxTours({ a: 1, b: 1, c: 0 }, { a: 1, b: 0, c: 1 });
+    const { reveal } = modules.vote.score(rt);
+    expect(reveal.stats.tally, 'le décompte de référence est celui du premier tour').toEqual([1, 2, 0]);
+    expect(reveal.stats.pari.tally, 'le décompte du pari manque').toEqual([1, 2, 0]);
+    expect(reveal.stats.total).toBe(3);
+    expect(reveal.stats.pari.total).toBe(3);
+    expect(reveal.stats.deuxTours).toBe(true);
+  });
+
+  it('LE PREMIER TOUR NE FUIT PAS dans la question publique', () => {
+    // Si le décompte du premier tour atteignait un écran de joueur avant la
+    // révélation, le second tour n'aurait plus rien à deviner : le jeu entier
+    // tient sur ce silence.
+    const rt = round(modules.vote, VO_Q);
+    rt.answers.set('a', { value: 1, at: rt.startedAt });
+    const publique = modules.vote.publicQuestion(rt);
+    expect(JSON.stringify(publique)).not.toMatch(/tally|winners|answersTour/);
+    // L'écran doit en revanche savoir À QUEL TOUR il répond, sans quoi le joueur
+    // ne sait pas ce qu'on lui demande.
+    expect(publique.tour).toBe(1);
+    expect(publique.tours).toBe(2);
+  });
+
+  it('en mode sondage, un seul tour, personne ne gagne', () => {
+    // Un sondage n'a rien à deviner : demander « que pense le cercle ? » après
+    // « que penses-tu ? » sans compter les points n'aurait aucun sens.
     const rt = round(modules.vote, { ...VO_Q, poll: true });
+    expect(rt.tours, 'un sondage ne doit avoir qu\'un tour').toBe(1);
     rt.answers.set('p1', { value: 0, at: rt.startedAt });
     rt.answers.set('p2', { value: 1, at: rt.startedAt });
     const { results, reveal } = modules.vote.score(rt);

@@ -135,22 +135,53 @@ describe('engine.reveal', () => {
     expect(ya.streak).toBe(3); // ni nourrie, ni rompue
   });
 
-  it('un VOTE-JEU nourrit la série pour la majorité, la rompt pour la minorité', () => {
+  it('un VOTE-JEU nourrit la série pour qui a LU LE CERCLE, la rompt pour les autres', () => {
+    // LE VOTE SE JOUE EN DEUX TOURS. Le premier dit ce que le cercle pense, le
+    // second demande de le deviner — et c'est le second seul qui compte. Ce
+    // contrôle vérifiait l'ancienne règle (« être dans la majorité ») ; il vérifie
+    // maintenant la nouvelle, sur le même mécanisme de série.
     a.streak = 2; b.streak = 2;
     const VO = { id: 'vo', text: '?', options: ['X', 'Y'], durationSec: 10 };
-    setRound(room, 'vote', VO, [
-      [a.id, { value: 0, at: Date.now() - 3000 }],
-      [b.id, { value: 1, at: Date.now() - 3000 }],
+    // Le second tour est celui que porte `answers` — le premier a été mis de côté.
+    const rt = setRound(room, 'vote', VO, [
+      [a.id, { value: 0, at: Date.now() - 3000 }],   // devine X — juste
+      [b.id, { value: 1, at: Date.now() - 3000 }],   // devine Y — à côté
       [c.id, { value: 0, at: Date.now() - 2000 }],
+    ]);
+    rt.tour = 2;
+    rt.answersTour1 = new Map([
+      [a.id, { value: 0, at: 0 }],
+      [b.id, { value: 0, at: 0 }],   // le cercle pense X, à deux voix contre une
+      [c.id, { value: 1, at: 0 }],
     ]);
     engine.reveal(io, room);
     const ya = youOf(a), yb = youOf(b);
-    expect(ya.streak).toBe(3);  // majoritaire : la série continue
-    expect(yb.streak).toBe(0);  // minoritaire : elle se rompt
+    expect(ya.streak).toBe(3);  // a deviné juste : la série continue
+    expect(yb.streak).toBe(0);  // a mal lu le cercle : elle se rompt
     // Mais elle ne coûte aucun point : zéro, pas moins que zéro.
     expect(yb.delta).toBe(0);
-    // Et aucun supplément de rapidité, même pour le premier majoritaire arrivé.
+    // Et aucun supplément de rapidité, même pour le premier arrivé.
     expect(ya.speed).toBe(0);
+  });
+
+  it('LE PREMIER TOUR NE RÉVÈLE RIEN : il ouvre le second', () => {
+    // LE DÉFAUT GARDÉ, ET IL VIDERAIT LE JEU. L'échéance du chrono révélait
+    // jusqu'ici la manche ; sur un vote, elle doit ouvrir le second tour. Si elle
+    // révélait, la bonne réponse s'afficherait avant qu'on ait demandé de la
+    // deviner — le second tour n'aurait plus d'objet.
+    const VO = { id: 'vo2', text: '?', options: ['X', 'Y'], durationSec: 10 };
+    const rt = setRound(room, 'vote', VO, [[a.id, { value: 0, at: Date.now() }]]);
+    expect(rt.tour).toBe(1);
+    engine.finDeFenetre(io, room);
+    expect(rt.revealed, 'le premier tour a révélé la réponse').toBeFalsy();
+    expect(rt.tour, 'le second tour ne s\'est pas ouvert').toBe(2);
+    // Les réponses du premier tour sont MISES DE CÔTÉ, jamais perdues : elles
+    // portent la bonne réponse.
+    expect(rt.answersTour1.size).toBe(1);
+    expect(rt.answers.size, 'le second tour ne repart pas à zéro').toBe(0);
+    // Et la seconde fin de fenêtre, elle, révèle.
+    engine.finDeFenetre(io, room);
+    expect(rt.revealed).toBe(true);
   });
 
   it('submitAnswer refuse à la deadline exacte, les doublons et les inconnus', () => {

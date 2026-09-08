@@ -512,6 +512,11 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
   const [mot, setMot] = useState('');
   const isVote = type === 'vote';
+  // LES DEUX TOURS DU VOTE. Le premier demande ce que le joueur pense, le second
+  // ce qu'il croit que le cercle a répondu. Un sondage n'a qu'un tour et se tait.
+  const consigneDuTour = isVote && current.tours > 1
+    ? (current.tour === 2 ? 'Que pense le cercle ?' : 'Que penses-tu ?')
+    : null;
 
   // ---- « LE JUSTE TEMPS » : LE COMPTE À REBOURS FIN ----
   //
@@ -565,7 +570,14 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   // y annoncerait une manche finie alors qu'il en reste cinquante secondes. C'est
   // le compteur de buzz, sous le bouton, qui accuse réception.
   const status = answered && !buzzMultiple
-    ? { closed: false, text: isVote ? 'Ta voix est enregistrée' : 'Réponse envoyée' }
+    ? {
+      closed: false,
+      // Sur le premier tour d'un vote, « ta voix est enregistrée » laisserait
+      // croire la manche finie. Il en reste la moitié, et c'est celle qui compte.
+      text: isVote
+        ? (consigneDuTour && current.tour === 1 ? 'Voix enregistrée — le cercle va être sondé' : 'Ta voix est enregistrée')
+        : 'Réponse envoyée',
+    }
     : timeUp
       ? { closed: true, text: isVote ? 'Vote clos' : "Temps écoulé — tu n'as pas répondu" }
       : null;
@@ -625,6 +637,20 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
 
         <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
           data-bind="module.text" data-testid="question-text">{current.text}</p>
+
+        {/* LA CONSIGNE DU TOUR — « Vote » se joue en deux temps, et la question ne
+            change pas entre les deux : c'est CE QU'ON DEMANDE qui change. Sans
+            cette ligne, le joueur voit deux fois le même écran et répond deux fois
+            la même chose — le second tour n'aurait plus d'objet.
+
+            Elle ne s'affiche que sur un vote à deux tours : un sondage n'en a
+            qu'un, et n'a rien à préciser. */}
+        {consigneDuTour ? (
+          <p className="q-consigne" data-testid="vote-consigne" data-tour={current.tour}>
+            <span className="q-consigne__tour">Tour {current.tour}/{current.tours}</span>
+            {consigneDuTour}
+          </p>
+        ) : null}
 
         <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {type === 'true_false' ? (
@@ -872,6 +898,9 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // Il peut rester un SONDAGE, question par question — auquel cas personne ne
   // gagne et l'écran ne doit surtout pas annoncer de points.
   const isSondage = isVote && rv.poll === true;
+  // Un vote NOTÉ se joue en deux tours ; un sondage n'en a qu'un. Les deux ne
+  // disent pas la même chose du même bloc à l'écran.
+  const deuxTours = isVote && rv.stats?.deuxTours === true;
   const isEstimation = (rv.type || current?.type) === 'estimation';
   const isLien = (rv.type || current?.type) === 'lien';
   const isVisages = (rv.type || current?.type) === 'visages';
@@ -986,7 +1015,9 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
       return (monResultat.brut || 0) > 0 ? 'retour.marque' : 'retour.brule';
     }
     if (isSondage) return 'vote.sondage';
-    if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
+    // LE VOTE SE GAGNE EN DEVINANT LE CERCLE, plus en faisant partie de sa
+    // majorité : les deux moments ont changé de nom avec la règle.
+    if (isVote) return correct ? 'vote.devine' : 'vote.manque';
     // LA RÉPONSE EXACTE D'ABORD. Elle tombait dans `estimation.mille`, le palier
     // des 2 %, alors qu'elle vaut 200 points de plus et n'a rien de commun avec
     // « à deux pour cent près ».
@@ -1113,7 +1144,10 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     qu'il reviendrait. C'est la faute que le jeu provoque, et le
                     titre doit la nommer. */}
                 {isVote
-                  ? (isSondage ? 'Voix comptée' : correct === true ? 'Avec la majorité' : correct === false ? 'À contre-courant' : 'Voix comptée')
+                  // « Avec la majorité » décrivait l'ancienne règle. On ne gagne
+                  // plus en y étant, mais en l'ayant devinée — et l'on peut la
+                  // deviner en pensant tout autrement.
+                  ? (isSondage ? 'Voix comptée' : correct === true ? 'Tu as lu le cercle' : correct === false ? 'Le cercle t’a surpris' : 'Voix comptée')
                   : isVisages
                     ? (correct === true ? 'Bien vu' : monResultat?.troppTot ? 'Trop tôt' : 'Raté')
                   : isRetour
@@ -1312,7 +1346,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
           <div className="answer-reveal answer-reveal--mine">
             <span className="answer-reveal__badge" aria-hidden="true">{KEYS[myAnswer] || myAnswer + 1}</span>
             <div className="answer-reveal__body">
-              <p className="answer-reveal__label">Ton choix</p>
+              <p className="answer-reveal__label">{deuxTours ? 'Ton pari' : 'Ton choix'}</p>
               <p className="answer-reveal__value">{current.options[myAnswer]}</p>
             </div>
           </div>
@@ -1331,7 +1365,15 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
               {isVote ? <Ico.up /> : <Ico.check s={17} w={3} />}
             </span>
             <div className="answer-reveal__body">
-              <p className="answer-reveal__label">{isVote ? 'En tête' : 'Bonne réponse'}</p>
+              {/* « EN TÊTE » DÉCRIVAIT L'ANCIENNE RÈGLE — un sondage dont on
+                  regardait le vainqueur. Sur un vote à deux tours, ce bloc porte
+                  la BONNE RÉPONSE : celle qu'on venait de demander au joueur de
+                  deviner. L'appeler « en tête » la ferait passer pour une
+                  information de contexte. Un sondage, lui, n'a pas de bonne
+                  réponse et garde le mot juste. */}
+              <p className="answer-reveal__label">
+                {deuxTours ? 'La réponse du cercle' : isVote ? 'En tête' : 'Bonne réponse'}
+              </p>
               <p className="answer-reveal__value">{answerLabel}</p>
             </div>
           </div>
@@ -1698,8 +1740,17 @@ export function PlayApp() {
     setNotice("Ce salon n'existe plus — il a peut-être expiré. Demande un nouveau code à l'animateur.");
   }, [g.fatal, playerToken, code]);
 
-  // Réinitialise la sélection locale à chaque nouvelle manche.
-  const roundKey = g.current ? (g.current.index ?? g.current.id ?? g.current.text) : null;
+  // RÉINITIALISE LA SÉLECTION LOCALE À CHAQUE FENÊTRE DE RÉPONSE — et non à
+  // chaque manche.
+  //
+  // LA NUANCE N'EN ÉTAIT PAS UNE JUSQU'ICI : une manche, une fenêtre. « Vote »
+  // en compte deux, et le repère employé — l'index de progression, qui ne bouge
+  // pas entre les tours — laissait la réponse du premier tour COCHÉE au second.
+  // Vu à l'écran : le joueur arrivait sur « Que pense le cercle ? » avec « Thé »
+  // déjà sélectionné en vert, et pouvait croire qu'il avait déjà répondu.
+  //
+  // Le repère est donc l'identité de la fenêtre : la manche ET son tour.
+  const roundKey = g.current ? `${g.current.roundId}#${g.current.tour ?? 1}` : null;
   const prevRound = useRef(roundKey);
   useEffect(() => {
     if (prevRound.current !== roundKey) {

@@ -1389,6 +1389,35 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
   );
 }
 
+// UNE LIGNE DE RÉPARTITION — une option, sa barre, son décompte.
+//
+// ELLE EST À PART depuis que « Vote » se joue en deux tours : la console en
+// affiche alors DEUX jeux, le tour en cours et la réponse du cercle. Deux copies
+// du même balisage auraient divergé au premier ajustement — la barre a déjà été
+// corrigée une fois (voir la note sur `--om-to`).
+function DistLigne({ lettre, label, count, total, showKey, correct }) {
+  // Part du TOTAL, jamais de l'option en tête : la barre et l'étiquette chiffrée
+  // posée juste à côté doivent raconter la même chose. Cadrer sur le maximum
+  // mettait l'option de tête à 100 % quoi qu'il arrive, à côté d'une étiquette
+  // qui affichait « 75 % ».
+  const pct = total ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className={`dist__row${correct ? ' dist__row--correct' : ''}`}>
+      {showKey ? <span className="dist__key" aria-hidden="true">{lettre}</span> : <span />}
+      <span className="dist__track">
+        {/* --om-to est le CONTRAT du système de design (tokens.css:324) :
+            l'animation pousse la barre de 0 jusqu'à cette valeur et y reste, et la
+            règle CSS lit la même valeur pour la largeur. Sans elle, l'animation
+            retombait sur sa valeur par défaut (100 %) et écrasait la largeur —
+            toutes les barres finissaient pleines. */}
+        <span className="dist__fill" style={{ '--om-to': `${pct}%` }} aria-hidden="true" />
+        <span className="dist__opt" title={String(label)}>{label}</span>
+      </span>
+      <span className="dist__count">{count} · {pct}%</span>
+    </div>
+  );
+}
+
 // ============================================================
 // Répartition des réponses — RÉSERVÉE à l'animateur (prune + hachure),
 // devient publique à la révélation.
@@ -1546,6 +1575,13 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     );
   }
 
+  // LE RAPPEL DU TOUR PRÉCÉDENT — « Vote », second tour, animateur seul.
+  //
+  // Ce panneau montre le tour EN COURS. Au second tour d'un vote, c'est le tour
+  // des paris : la bonne réponse, elle, est sortie du premier. Sans ce rappel,
+  // l'animateur commenterait à l'antenne un jeu dont il ignore la réponse.
+  const precedent = !revealed && dist.precedent && dist.precedent.total > 0 ? dist.precedent : null;
+
   let options; let showKey = true;
   if (type === 'true_false') { options = ['Faux', 'Vrai']; showKey = false; }
   else options = current.options || [];
@@ -1561,29 +1597,38 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     ? (reveal?.type === 'quiz' ? reveal.correctIndex
       : reveal?.type === 'true_false' ? (reveal.correct ? 1 : 0) : -1)
     : -1;
+  // LES DEUX BLOCS DU SECOND TOUR, quand il y a un tour précédent à rappeler.
+  // Le tour en cours d'abord — c'est celui que l'animateur regarde vivre — et la
+  // réponse du cercle en dessous, plus discrète, comme une antisèche.
+  if (precedent) {
+    const teteP = Math.max(0, ...precedent.counts);
+    const gagnantesP = precedent.counts.map((n, i) => (n === teteP && n > 0 ? i : -1)).filter((i) => i >= 0);
+    return (
+      <>
+        <div className="dist">
+          {options.map((opt, i) => (
+            <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={counts[i] || 0}
+              total={Math.max(1, counts.reduce((a, b) => a + b, 0))} showKey={showKey} />
+          ))}
+        </div>
+        <div className="dist dist--precedent" data-testid="host-tour-precedent">
+          <p className="private__hint">La réponse du cercle — tour 1, toi seul la connais</p>
+          {options.map((opt, i) => (
+            <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={precedent.counts[i] || 0}
+              total={Math.max(1, precedent.total)} showKey={showKey}
+              correct={gagnantesP.includes(i)} />
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="dist">
       {options.map((opt, i) => {
-        const c = counts[i] || 0;
-        // Part du TOTAL, jamais de l'option en tête : la barre et l'étiquette
-        // chiffrée posée juste à côté doivent raconter la même chose. Cadrer sur
-        // le maximum mettait l'option de tête à 100 % quoi qu'il arrive, à côté
-        // d'une étiquette qui affichait « 75 % ».
-        const pct = total ? Math.round((c / total) * 100) : 0;
         return (
-          <div className={`dist__row${i === correctIndex ? ' dist__row--correct' : ''}`} key={i}>
-            {showKey ? <span className="dist__key" aria-hidden="true">{KEYS[i] || i + 1}</span> : <span />}
-            <span className="dist__track">
-              {/* --om-to est le CONTRAT du système de design (tokens.css:324) :
-                  l'animation pousse la barre de 0 jusqu'à cette valeur et y reste,
-                  et la règle CSS lit la même valeur pour la largeur. Sans elle,
-                  l'animation retombait sur sa valeur par défaut (100 %) et écrasait
-                  la largeur — toutes les barres finissaient pleines. */}
-              <span className="dist__fill" style={{ '--om-to': `${pct}%` }} aria-hidden="true" />
-              <span className="dist__opt" title={String(opt)}>{opt}</span>
-            </span>
-            <span className="dist__count">{c} · {pct}%</span>
-          </div>
+          <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={counts[i] || 0}
+            total={total} showKey={showKey} correct={i === correctIndex} />
         );
       })}
     </div>
@@ -1701,6 +1746,12 @@ function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour,
             <p className="private__title">
               <I.eye s={16} />
               {revealed ? 'Répartition — affichée sur le stream' : 'Répartition en direct — visible par toi seul'}
+              {/* LE TOUR EN COURS. L'animateur commente à l'antenne : il doit
+                  savoir si le cercle est en train de dire ce qu'il pense ou de
+                  parier sur lui-même. Rien d'autre à l'écran ne le lui dit. */}
+              {!revealed && current?.tours > 1 ? (
+                <span className="private__count" data-testid="host-tour">Tour {current.tour}/{current.tours}</span>
+              ) : null}
             </p>
             <AnswerDistribution current={current} distribution={g.distribution}
               answersCount={answersCount} revealed={revealed} reveal={reveal} />
@@ -1805,7 +1856,18 @@ function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour,
         ) : (
           <>
             <button className="button button--primary button--lg" type="button"
-              data-action="host:reveal" onClick={() => g.emit('host:reveal')}>Révéler maintenant</button>
+              data-action="host:reveal" onClick={() => g.emit('host:reveal')}
+              data-testid="host-reveler">
+              {/* LE BOUTON NE RÉVÈLE PAS TOUJOURS. Sur une manche à deux tours —
+                  « Vote » — il OUVRE LE SECOND tant qu'il en reste un : révéler la
+                  bonne réponse au milieu du premier tour viderait le jeu. Le
+                  serveur tranche seul (`finDeFenetre`) ; l'écran dit seulement ce
+                  qui va se passer, pour que l'animateur ne l'apprenne pas en
+                  cliquant. */}
+              {current && current.tours > 1 && current.tour < current.tours
+                ? `Passer au tour ${current.tour + 1}`
+                : 'Révéler maintenant'}
+            </button>
             <ModuleMenu jeux={jeux} currentId={current && current.moduleId} onPick={onChangeModule} />
           </>
         )}

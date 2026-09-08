@@ -80,7 +80,7 @@ describe('convention de la voix — contrôle bloquant', () => {
       quiz: ['juste.simple', 'faux'],
       true_false: ['juste.simple', 'faux'],
       estimation: ['estimation.mille', 'estimation.proche', 'estimation.correct', 'estimation.loin', 'estimation.hors'],
-      vote: ['vote.majorite', 'vote.minorite', 'vote.sondage'],
+      vote: ['vote.devine', 'vote.manque', 'vote.sondage'],
       lien: ['lien.seul', 'lien.majorite', 'lien.groupe'],
       visages: ['visages.trouve', 'visages.trop-tot', 'visages.rate'],
       // « LE JUSTE TEMPS » PARTAGE LA FAMILLE DES PALIERS avec l'estimation, sur

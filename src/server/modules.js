@@ -691,9 +691,26 @@ export function grouperLesMots(answers) {
 
 // Répartition des réponses sur des options indexées (quiz, vote) ou binaires (vrai/faux).
 function tallyOptions(runtime, size) {
+  return compterOptions(runtime.answers, size);
+}
+
+// Le décompte d'un LOT de réponses, quel qu'il soit. « Vote » se joue en deux
+// tours et doit compter les deux : le tour en cours vit dans `rt.answers`, le
+// précédent a été mis de côté par le moteur.
+function compterOptions(reponses, size) {
   const tally = new Array(size).fill(0);
-  for (const [, a] of runtime.answers) tally[Number(a.value)] += 1;
+  for (const [, a] of reponses) tally[Number(a.value)] += 1;
   return tally;
+}
+
+// Les options de tête d'un décompte. EN CAS D'ÉGALITÉ, ELLES GAGNENT TOUTES —
+// sinon une égalité parfaite ne produirait aucune bonne réponse, et la manche ne
+// rapporterait rien à personne quoi qu'on ait répondu. C'est la règle que ce
+// module tenait déjà ; elle vaut désormais pour « la réponse que le cercle a
+// donnée », et non plus pour « le camp gagnant ».
+function optionsDeTete(tally) {
+  const meilleur = Math.max(0, ...tally);
+  return tally.map((n, i) => (n === meilleur && n > 0 ? i : -1)).filter((i) => i >= 0);
 }
 
 export const modules = {
@@ -1367,28 +1384,68 @@ export const modules = {
     },
   },
 
+  // ============================================================
+  // « VOTE » — ce que tu penses, puis ce que pense le cercle
+  // ============================================================
+  //
+  // LA RÈGLE A CHANGÉ, ET AVEC ELLE LA NATURE DU JEU.
+  //
+  // AVANT : un tour unique, et l'on marquait en faisant partie de la réponse
+  // majoritaire. Le joueur qui votait sincèrement gagnait par chance ; celui qui
+  // votait stratégiquement ne pouvait pas dire ce qu'il pensait. Les deux gestes
+  // se confondaient dans un seul clic.
+  //
+  // MAINTENANT : DEUX TOURS, et ils séparent ces deux gestes.
+  //   1. « Que penses-tu ? » — chacun répond sincèrement. La réponse qui récolte
+  //      le plus de voix devient LA bonne réponse. Elle n'est montrée à personne.
+  //   2. « Que pense le cercle ? » — chacun tente de désigner cette réponse-là.
+  //      Ceux qui la trouvent marquent ; les autres ne perdent rien.
+  //
+  // C'EST LE PREMIER MODULE DU PROJET À SE JOUER EN DEUX TOURS. Tout le moteur
+  // était bâti sur « une question, une fenêtre, une révélation » — voir
+  // `finDeFenetre` et `tourSuivant` dans engine.js, où cette exception est portée
+  // par le module et non par son nom.
+  //
+  // ET LA BONNE RÉPONSE NE DOIT SURTOUT PAS FUIR ENTRE LES DEUX. Le décompte du
+  // premier tour ne quitte pas le canal de l'animateur avant la révélation : s'il
+  // atteignait un écran de joueur ou la toile du stream, le second tour n'aurait
+  // plus rien à deviner.
   vote: {
-    // `scored` par défaut : un vote est désormais un JEU (action 18) — faire
-    // partie de la majorité rapporte des points. Chaque question peut néanmoins
-    // repasser en sondage (`poll: true`), et c'est le runtime qui tranche.
+    // `scored` par défaut. Chaque question peut néanmoins repasser en SONDAGE
+    // (`poll: true`) : on demande alors sincèrement à la salle, un seul tour,
+    // personne ne marque — et c'est le runtime qui tranche, pas le type.
     meta: { type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info', scored: true, malus: false, vitesse: false },
     buildRound(q) {
+      const poll = !!q.poll;
       return {
         type: 'vote',
         questionId: q.id,
         text: q.text,
         options: q.options,
-        // SONDAGE ou JEU, question par question. Un vote noté n'est plus un
-        // sondage : le joueur ne répond plus ce qu'il pense mais ce qu'il croit
-        // que les autres vont répondre. L'interrupteur préserve les deux usages —
-        // demander sincèrement à la salle, ou en faire un pari collectif.
-        poll: !!q.poll,
-        scored: !q.poll,
+        poll,
+        scored: !poll,
+        // DEUX TOURS POUR LE JEU, UN SEUL POUR LE SONDAGE. Un sondage n'a rien à
+        // deviner : demander « que pense le cercle ? » après avoir demandé « que
+        // penses-tu ? » sans jamais compter les points n'aurait aucun sens, et
+        // doublerait la durée d'une question posée pour elle-même.
+        tours: poll ? 1 : 2,
+        tour: 1,
         durationMs: (q.durationSec || 15) * 1000,
       };
     },
     publicQuestion(rt) {
-      return { type: 'vote', questionId: rt.questionId, text: rt.text, options: rt.options };
+      return {
+        type: 'vote',
+        questionId: rt.questionId,
+        text: rt.text,
+        options: rt.options,
+        // LE TOUR EN COURS, ET COMBIEN IL Y EN A. C'est ce qui fait écrire « Que
+        // penses-tu ? » puis « Que pense le cercle ? » sur les trois surfaces. Le
+        // joueur qui ignorerait à quel tour il répond jouerait à un autre jeu.
+        tour: rt.tour,
+        tours: rt.tours,
+        // Le DÉCOMPTE du premier tour ne part pas : c'est la réponse.
+      };
     },
     validateAnswer(rt, value) {
       const i = Number(value);
@@ -1396,30 +1453,71 @@ export const modules = {
     },
     score(rt) {
       const results = new Map();
-      const tally = tallyOptions(rt, rt.options.length);
-      const stats = { kind: 'options', options: rt.options, tally, total: rt.answers.size };
 
       if (rt.poll) {
         // SONDAGE : pas de bonne réponse, pas de gagnant. Participation seule, et
         // la série n'est ni nourrie ni rompue (le runtime n'est pas noté).
+        const tally = tallyOptions(rt, rt.options.length);
+        const stats = { kind: 'options', options: rt.options, tally, total: rt.answers.size };
         for (const [pid] of rt.answers) results.set(pid, { base: 100, speed: 0, correct: null });
         return { results, reveal: { tally, options: rt.options, text: rt.text, poll: true, stats } };
       }
 
-      // JEU : la majorité l'emporte. En cas d'ÉGALITÉ entre deux options de tête,
-      // les deux camps gagnent — sinon une égalité parfaite ne produirait aucun
-      // vainqueur, ce qui serait arbitraire et frustrant.
-      const meilleur = Math.max(0, ...tally);
-      const gagnantes = tally.map((n, i) => (n === meilleur && n > 0 ? i : -1)).filter((i) => i >= 0);
-      for (const [pid, a] of rt.answers) {
-        const gagne = gagnantes.includes(a.value);
-        // Base fixe, aucun complément de vitesse : on ne devine pas plus vite ce
-        // que pense la salle, et récompenser la rapidité pousserait à cliquer
-        // avant d'avoir lu. Aucune pénalité pour les minoritaires : être minoritaire
-        // n'est pas une faute, c'est un pari perdu.
-        results.set(pid, { base: gagne ? BASE_BONNE_REPONSE : 0, speed: 0, correct: gagne });
+      // LES DEUX TOURS. Le premier a été mis de côté par le moteur au moment de
+      // passer au second ; le second est celui qui vit encore dans `rt.answers`.
+      // Le repli protège un cas qui ne devrait pas arriver — une manche révélée
+      // avant son second tour : la sincérité tient alors lieu de pari, et
+      // personne n'est lésé.
+      const sincere = rt.answersTour1 || rt.answers;
+      const pari = rt.answersTour1 ? rt.answers : new Map();
+
+      const tallySincere = compterOptions(sincere, rt.options.length);
+      const tallyPari = compterOptions(pari, rt.options.length);
+      // LA BONNE RÉPONSE EST CELLE DU PREMIER TOUR : ce que le cercle pense
+      // vraiment. Le second tour ne la fabrique pas, il la cherche.
+      const gagnantes = optionsDeTete(tallySincere);
+
+      for (const [pid, a] of pari) {
+        const trouve = gagnantes.includes(a.value);
+        results.set(pid, {
+          // Base fixe, aucun complément de vitesse : on ne devine pas plus vite
+          // ce que pense la salle, et récompenser la rapidité pousserait à
+          // cliquer avant d'avoir lu. Aucune pénalité pour qui se trompe : mal
+          // lire le cercle n'est pas une faute, c'est un pari perdu.
+          base: trouve ? BASE_BONNE_REPONSE : 0,
+          speed: 0,
+          correct: trouve,
+          // CE QUE LE JOUEUR AVAIT RÉPONDU SINCÈREMENT. Il ne sert pas au calcul :
+          // il sert à l'écran et à la voix, qui distinguent « le cercle pense
+          // comme toi » de « tu as su lire le cercle sans être d'accord ». Ce sont
+          // deux moments très différents pour qui joue, et un seul mot les
+          // séparerait mal.
+          choixSincere: sincere.get(pid)?.value ?? null,
+        });
       }
-      return { results, reveal: { tally, options: rt.options, text: rt.text, winners: gagnantes, stats } };
+
+      const stats = {
+        kind: 'options',
+        options: rt.options,
+        // `tally` reste LE décompte de référence — celui du premier tour, dont
+        // sortent la bonne réponse et les phrases de plateau. Les écrans qui ne
+        // connaissent pas les deux tours continuent donc d'afficher la vérité.
+        tally: tallySincere,
+        total: sincere.size,
+        // ET LE SECOND TOUR À CÔTÉ, qui est l'histoire du jeu : le cercle
+        // s'est-il reconnu ? Sans lui, la révélation ne dirait pas si la salle a
+        // su se lire, c'est-à-dire ce qu'on vient de lui demander.
+        pari: { tally: tallyPari, total: pari.size },
+        deuxTours: true,
+      };
+
+      return {
+        results,
+        reveal: {
+          tally: tallySincere, options: rt.options, text: rt.text,
+          winners: gagnantes, stats,
+        },
+      };
     },
   },
 };

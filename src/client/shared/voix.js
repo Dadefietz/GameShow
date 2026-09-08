@@ -423,28 +423,37 @@ export const MOMENTS = {
   },
 
   // ---------- VOIX INTIME : vote ----------
-  'vote.majorite': {
+  // ---------- VOIX INTIME : le vote, DEUX TOURS ----------
+  //
+  // LA RÈGLE A CHANGÉ, ET CES DEUX MOMENTS AVEC ELLE. Ils s'appelaient
+  // `vote.majorite` et `vote.minorite`, et disaient « tu es dans le camp le plus
+  // fourni ». On ne gagne plus en FAISANT PARTIE de la majorité : on gagne en la
+  // DEVINANT. Un joueur peut désormais marquer en pariant contre son propre avis,
+  // et repartir bredouille avec l'avis du cercle. Garder les anciens noms aurait
+  // laissé deux moments dont la condition déclarée était fausse — exactement ce
+  // que le contrôle de la voix existe pour empêcher.
+  'vote.devine': {
     surface: 'play',
-    quand: 'vote noté, le joueur est dans un camp gagnant',
+    quand: 'vote noté, second tour : le joueur a désigné la réponse que le cercle a choisie au premier',
     phrases: [
-      "T'es avec le cercle !",
+      'Tu lis dans le cercle.',
       'Tu sais où souffle le vent ! Et le feu aime le vent.',
-      'Le cercle pensait comme toi.',
-      "Peu importe si c'est ce que tu penses vraiment, t'es là où il faut.",
-      'Dans le camp le plus fourni.',
-      'Bien vu : le cercle t’a suivi.',
+      'Tu as vu venir le cercle.',
+      "Peu importe si c'est ce que tu penses vraiment : tu as visé juste.",
+      'Le cercle n’a pas de secret pour toi.',
+      'Bien lu. C’est exactement ce que le cercle a répondu.',
     ],
   },
-  'vote.minorite': {
+  'vote.manque': {
     surface: 'play',
-    quand: 'vote noté, le joueur est minoritaire',
+    quand: 'vote noté, second tour : le joueur a désigné une autre réponse que celle du cercle',
     phrases: [
-      'Seul contre le cercle. Courageux.',
-      'Le cercle en a décidé autrement. Montre lui de quel bois tu te chauffes.',
-      'À contre-courant.',
+      'Le cercle a répondu autrement. Il te surprend encore.',
+      'Tu le croyais ailleurs. Il était là.',
+      'Mal lu, cette fois. Ça ne coûte rien.',
       "C'est comme se sentir seul... mais en pire.",
-      'Minoritaire, et assumé. Tu vas te refaire.',
-      'Le cercle a penché ailleurs.',
+      'Le cercle a penché ailleurs. Tu te refais à la prochaine.',
+      'Pas cette fois. Le cercle est plus difficile à lire qu’il n’en a l’air.',
     ],
   },
   'vote.sondage': {
@@ -710,6 +719,30 @@ export const MOMENTS = {
     ],
   },
 
+  // LE VOTE À DEUX TOURS. La question du jeu n'est plus « qu'est-ce que le cercle
+  // pense ? » mais « le cercle se connaît-il ? ». Ces deux moments-là sont les
+  // seuls qui y répondent, et aucune phrase existante ne le disait.
+  'stream.vote-lucide': {
+    surface: 'overlay',
+    quand: 'vote : la grande majorité du cercle a deviné sa propre réponse',
+    phrases: [
+      'Le cercle se connaît. Un peu trop bien, même.',
+      'Tout le monde savait ce que tout le monde allait dire.',
+      'Aucune surprise : le cercle s’était vu venir.',
+      'Le cercle a lu dans ses propres pensées.',
+    ],
+  },
+  'stream.vote-illusion': {
+    surface: 'overlay',
+    quand: 'vote : le cercle a majoritairement parié sur une AUTRE réponse que la sienne',
+    phrases: [
+      'Le cercle s’est trompé sur lui-même.',
+      'Il croyait se connaître. Raté.',
+      'Personne ne pensait que le cercle penserait ça.',
+      'Le cercle a parié contre lui-même, et il a perdu.',
+    ],
+  },
+
   'stream.podium': {
     surface: 'overlay',
     quand: 'podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer',
@@ -771,6 +804,10 @@ export const PRIORITE_PLATEAU = [
   'stream.estim-exact-unique',
   'stream.estim-personne-proche',
   'stream.vote-egalite',
+  // Le cercle qui se trompe sur lui-même passe avant celui qui se devine :
+  // l'échec collectif est plus remarquable, comme partout ailleurs.
+  'stream.vote-illusion',
+  'stream.vote-lucide',
   'stream.egalite',
   'stream.vote-division',
   // La majorité trompée passe APRÈS le piège : quand une mauvaise option domine,
@@ -874,6 +911,19 @@ export function momentDePlateau(type, stats, reveal) {
       if (exAequo) candidats.add('stream.vote-egalite');
       if (uneVoix) candidats.add('stream.vote-division');
       if (trie[0] / total >= SEUILS.consensusVote) candidats.add('stream.vote-consensus');
+      // LE SECOND TOUR — le cercle s'est-il reconnu ? `stats.pari` ne voyage que
+      // sur un vote noté à deux tours ; un sondage n'en a pas, et se tait ici.
+      const pari = stats.pari;
+      if (pari && pari.total >= SEUILS.reponsesMin) {
+        const gagnantes = tally.map((n, i) => (n === trie[0] && n > 0 ? i : -1)).filter((i) => i >= 0);
+        const devines = gagnantes.reduce((s2, i) => s2 + (pari.tally[i] || 0), 0);
+        if (devines / pari.total >= SEUILS.consensusVote) candidats.add('stream.vote-lucide');
+        // « Majoritairement à côté » : la réponse la plus PARIÉE n'est pas celle
+        // que le cercle a donnée. C'est le cas le plus drôle du jeu.
+        const meilleurPari = Math.max(0, ...pari.tally);
+        const paris = pari.tally.map((n, i) => (n === meilleurPari && n > 0 ? i : -1)).filter((i) => i >= 0);
+        if (paris.length && !paris.some((i) => gagnantes.includes(i))) candidats.add('stream.vote-illusion');
+      }
     } else {
       if (exAequo) candidats.add('stream.egalite');
       const iJuste = type === 'quiz' ? reveal?.correctIndex : (reveal?.correct ? 0 : 1);

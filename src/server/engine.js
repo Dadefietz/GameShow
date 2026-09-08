@@ -93,11 +93,30 @@ function toHost(io, room) {
 export function answerDistribution(rt) {
   if (!rt) return null;
   if (rt.type === 'quiz' || rt.type === 'vote') {
-    const counts = new Array((rt.options || []).length).fill(0);
-    for (const a of rt.answers.values()) {
-      if (Number.isInteger(a.value) && a.value >= 0 && a.value < counts.length) counts[a.value] += 1;
-    }
-    return { kind: 'options', counts, total: rt.answers.size };
+    const compter = (reponses) => {
+      const counts = new Array((rt.options || []).length).fill(0);
+      for (const a of reponses.values()) {
+        if (Number.isInteger(a.value) && a.value >= 0 && a.value < counts.length) counts[a.value] += 1;
+      }
+      return counts;
+    };
+    return {
+      kind: 'options',
+      counts: compter(rt.answers),
+      total: rt.answers.size,
+      tour: rt.tour ?? 1,
+      tours: rt.tours ?? 1,
+      // LE TOUR PRÉCÉDENT, POUR L'ANIMATEUR SEUL — et il lui est indispensable.
+      //
+      // Pendant le second tour d'un vote, ce panneau montre les PARIS. La bonne
+      // réponse, elle, est sortie du premier tour : sans ce rappel, l'animateur
+      // commenterait à l'antenne un jeu dont il ignore la réponse. Ce panneau ne
+      // part que sur son canal (`toHost`), jamais vers les joueurs ni le stream —
+      // c'est la même frontière que le nom du plus proche à l'estimation.
+      precedent: rt.answersTour1
+        ? { counts: compter(rt.answersTour1), total: rt.answersTour1.size }
+        : null,
+    };
   }
   if (rt.type === 'true_false') {
     let t = 0, f = 0;
@@ -257,8 +276,9 @@ export function startModule(io, room, jeu, question) {
   emitDistribution(io, room); // remet la répartition à zéro côté animateur
 
   // Chrono serveur : à l'échéance, fermeture + révélation AUTOMATIQUES (retour R7).
-  if (room._timer) clearTimeout(room._timer);
-  room._timer = setTimeout(() => reveal(io, room), rt.durationMs + 50);
+  // « Vote » y ajoute une nuance — voir `finDeFenetre` : à la fin du PREMIER tour,
+  // l'échéance ouvre le second au lieu de révéler.
+  armerLaFenetre(io, room, rt);
   // ---- « LES VISAGES » : LA SÉRIE PART UN VISAGE À LA FOIS ----
   //
   // Elle n'est JAMAIS envoyée d'un bloc. Trente identifiants dont un apparaît
@@ -303,13 +323,86 @@ export function startModule(io, room, jeu, question) {
   // manche. Un nettoyage posé mécaniquement à côté de chaque arrêt de tick l'a
   // éteint aussitôt né — la série restait figée sur sa première image, et le
   // jeu n'avait plus de réponse. Attrapé par le contrôle de bout en bout.
+  return rt;
+}
+
+// L'ARMEMENT D'UNE FENÊTRE DE RÉPONSE — l'échéance et le tick de compte à rebours.
+//
+// IL EST À PART parce qu'il sert DEUX FOIS dans la même manche depuis que « Vote »
+// se joue en deux tours. Le recopier aurait donné deux minuteries à corriger le
+// jour où l'une se révélera fautive — et celle du défilé l'a déjà été une fois.
+//
+// LE DÉFILÉ N'EST PAS ARMÉ ICI, et c'est voulu : il appartient au LANCEMENT d'une
+// manche, pas à l'ouverture d'une fenêtre. Un second tour ne rejoue pas la série.
+function armerLaFenetre(io, room, rt) {
+  if (room._timer) clearTimeout(room._timer);
+  room._timer = setTimeout(() => finDeFenetre(io, room), rt.durationMs + 50);
   if (room._tick) clearInterval(room._tick);
   room._tick = setInterval(() => {
     const rem = Math.max(0, Math.ceil((room.currentModule?.deadline - Date.now()) / 1000));
     toRoom(io, room).emit('module:tick', { timeLeft: rem, answers: room.currentModule?.answers.size || 0 });
     if (rem <= 0) clearInterval(room._tick);
   }, 1000);
-  return rt;
+}
+
+// LA FIN D'UNE FENÊTRE DE RÉPONSE : soit on passe au tour suivant, soit on révèle.
+//
+// C'EST LE SEUL ENDROIT QUI TRANCHE, et il tranche sur ce que la MANCHE déclare —
+// jamais sur le nom d'un jeu. Trois chemins y mènent : l'échéance du chrono, la
+// révélation anticipée de l'animateur, et rien d'autre. S'ils ne passaient pas
+// tous par ici, l'animateur pourrait révéler la bonne réponse au milieu du
+// premier tour et le second n'aurait plus rien à deviner.
+export function finDeFenetre(io, room) {
+  const rt = room.currentModule;
+  if (!rt || rt.revealed) return;
+  if ((rt.tours || 1) > (rt.tour || 1)) return tourSuivant(io, room);
+  return reveal(io, room);
+}
+
+// LE TOUR SUIVANT, DANS LA MÊME MANCHE.
+//
+// Ce n'est PAS une nouvelle manche : même `roundId`, même progression, même
+// question. Ce qui change, c'est ce qu'on demande — « que penses-tu ? » puis
+// « que pense le cercle ? » — et la fenêtre qui se rouvre.
+//
+// LES RÉPONSES DU TOUR QUI S'ACHÈVE SONT MISES DE CÔTÉ, jamais effacées : ce sont
+// elles qui portent la bonne réponse, et le module les relira à la révélation.
+//
+// ON NE FERME PAS LA FENÊTRE (`closeWindow`) : « manche close » annoncerait aux
+// trois surfaces que tout est fini, alors qu'il reste la moitié du jeu.
+function tourSuivant(io, room) {
+  const rt = room.currentModule;
+  const mod = modules[rt.type];
+  rt[`answersTour${rt.tour}`] = rt.answers;
+  rt.tour += 1;
+  rt.answers = new Map();
+  rt.startedAt = Date.now();
+  rt.deadline = rt.startedAt + rt.durationMs;
+  rt.closed = false;
+  roomManager.touch(room);
+
+  // On rejoue le lancement à l'identique — c'est ce qui remet les écrans à zéro
+  // (choix oublié, chrono neuf, bandeau de statut effacé) sans qu'aucune surface
+  // ait besoin de connaître la notion de tour autrement que par ce champ.
+  toRoom(io, room).emit('module:started', {
+    ...mod.publicQuestion(rt),
+    roundId: rt.roundId,
+    moduleId: rt.moduleId,
+    durationMs: rt.durationMs,
+    deadline: rt.deadline,
+    resteMs: rt.durationMs,
+    meta: { ...mod.meta, name: rt.moduleName || mod.meta.name },
+    index: room.progression.index,
+    total: room.progression.total,
+    // PERSONNE N'A ENCORE RÉPONDU À CE TOUR-CI. Sans ces deux champs, l'écran du
+    // joueur resterait verrouillé sur la réponse qu'il vient de donner au tour
+    // précédent — il regarderait passer le second tour sans pouvoir y jouer.
+    answered: false,
+    monChoix: null,
+  });
+  emitRoomState(io, room);
+  emitDistribution(io, room);
+  armerLaFenetre(io, room, rt);
 }
 
 export function closeWindow(io, room) {

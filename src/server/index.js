@@ -544,7 +544,11 @@ io.on('connection', (socket) => {
       dureeCompteMs: modules[m.type]?.meta?.dureeCompteMs ?? null,
     })));
   });
-  socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.reveal(io, r); });
+  // RÉVÉLATION ANTICIPÉE — qui, sur une manche à deux tours, OUVRE LE SECOND au
+  // lieu de révéler tant qu'il reste un tour à jouer. Si ce bouton révélait la
+  // bonne réponse au milieu du premier tour, le second n'aurait plus rien à
+  // deviner : c'est `finDeFenetre` qui tranche, à un seul endroit.
+  socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.finDeFenetre(io, r); });
   // La commande host:adjustScore a été supprimée avec le panneau « Bonus / Malus »
   // de l'écran animateur (action 8) : correction manuelle sans règle ni trace.
   socket.on('host:nextModule', () => {

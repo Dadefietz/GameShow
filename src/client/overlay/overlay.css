@@ -270,6 +270,44 @@
      de la réponse. Sans elle, l'apparition d'une phrase déplaçait tout le bloc de
      répartition d'une manche à l'autre, devant l'antenne. */
   /* ===== LES VISAGES, À L'ANTENNE ===== */
+  /* LA CONSIGNE DU TOUR, À L'ANTENNE — voir la surface joueur. */
+  .st-consigne {
+    margin: var(--sp-4) 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--gap-st);
+    font: 600 var(--fs-st-300) / 1.2 var(--f-ui);
+    color: var(--c-ink);
+  }
+  .st-consigne__tour {
+    padding: 4px var(--sp-5);
+    border-radius: var(--r-full);
+    background: var(--c-ember-wash);
+    font: 600 var(--fs-st-100, 20px) / 1.4 var(--f-mono);
+    letter-spacing: var(--tr-label);
+    color: var(--c-ember-bright);
+  }
+  .st-consigne[data-tour="2"] { color: var(--c-ember-bright); }
+
+  /* LES DEUX DÉCOMPTES DU VOTE, côte à côte : ce que le cercle pense, et ce qu'il
+     croyait penser. C'est la seule mise en regard qui répond à la question du
+     jeu — l'un sous l'autre, sur une toile de 1080 de haut, ne tiendrait pas. */
+  .st-deuxtours {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-st);
+    align-items: start;
+  }
+  .st-deuxtours__bloc { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+  .st-deuxtours__titre {
+    margin: 0;
+    font: 600 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+
   /* ===== « LE JUSTE TEMPS » — LE CADRAN DE LA SCÈNE =====
      Les chiffres seuls, en très grand : le public compte avec le cercle. La place
      est TENUE quand le chrono se consume — sur une toile calée au pixel, un bloc

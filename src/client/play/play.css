@@ -580,6 +580,29 @@
   /* LE VISAGE PREND TOUTE LA PLACE QU'ON PEUT LUI DONNER. C'est un jeu de
      RECONNAISSANCE : chaque pixel de visage compte, et le vide au-dessus n'a
      aucune fonction. Le buzz reste ancré en bas, sous le pouce. */
+  /* LA CONSIGNE DU TOUR — « Vote ». La question ne change pas d'un tour à
+     l'autre : c'est cette ligne qui porte tout le sens du second, et elle doit se
+     lire AVANT les options, pas après. */
+  .q-consigne {
+    margin: var(--sp-3) 0 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    font: 600 var(--fs-400) / 1.3 var(--f-ui);
+    color: var(--c-ink);
+  }
+  .q-consigne__tour {
+    flex: none;
+    padding: 3px var(--sp-3);
+    border-radius: var(--r-full);
+    background: var(--c-ember-wash);
+    font: 600 var(--fs-100) / 1.4 var(--f-mono);
+    letter-spacing: var(--tr-label);
+    color: var(--c-ember-bright);
+  }
+  /* Le second tour est celui qui compte : il porte la couleur du feu. */
+  .q-consigne[data-tour="2"] { color: var(--c-ember-bright); }
+
   /* ===== « RETOUR DE FLAMME » ÉPOUSE L'ÉCRAN DES VISAGES =====
      Les deux jeux montrent une image qui défile et un bouton dessous : ils
      partagent donc `.vsg`. Ce qui s'ajoute ici leur est propre.

@@ -338,6 +338,11 @@ function QuestionStage({ g }) {
   const urgent = !revealed && typeof timeLeft === 'number' && timeLeft > 0 && timeLeft <= 5;
   const over = !revealed && timeLeft === 0;
   const options = Array.isArray(current.options) ? current.options : [];
+  // LES DEUX TOURS DU VOTE — voir la surface joueur, même règle et mêmes mots :
+  // l'antenne et le cercle ne peuvent pas demander deux choses différentes.
+  const consigneDuTour = current.type === 'vote' && current.tours > 1
+    ? (current.tour === 2 ? 'Que pense le cercle ?' : 'Que penses-tu ?')
+    : null;
   const stats = reveal?.stats;
   // Le visage courant, poussé un par un par le serveur — jamais porté par la
   // question, dont la charge utile trahirait la répétition. Le garde sur
@@ -525,6 +530,16 @@ function QuestionStage({ g }) {
         </p>
       )}
 
+      {/* LA CONSIGNE DU TOUR, À L'ANTENNE. Le public suit un jeu qui pose DEUX FOIS
+          la même question : sans cette ligne, la seconde passerait pour un bug de
+          l'écran. Elle disparaît à la révélation, où il n'y a plus de tour en cours. */}
+      {!revealed && consigneDuTour ? (
+        <p className="st-consigne" data-testid="stream-vote-consigne" data-tour={current.tour}>
+          <span className="st-consigne__tour">Tour {current.tour}/{current.tours}</span>
+          {consigneDuTour}
+        </p>
+      ) : null}
+
       {/* Question en cours : les options, nues. */}
       {!revealed ? (
         current.type === 'juste_temps' ? (
@@ -619,12 +634,31 @@ function QuestionStage({ g }) {
               </div>
             </>
           ) : stats?.kind === 'options' ? (
-            <OptionBreakdown
-              stats={stats}
-              correctIndex={reveal.type === 'quiz' ? reveal.correctIndex
-                : reveal.type === 'true_false' ? (reveal.correct ? 0 : 1) : -1}
-              leadingIndexes={leadingIndexes}
-            />
+            stats.deuxTours ? (
+              // LE VOTE À DEUX TOURS MONTRE LES DEUX, et c'est l'histoire de la
+              // manche : ce que le cercle pense, puis ce qu'il croyait penser. Un
+              // seul des deux ne répondrait pas à la question qu'on vient de lui
+              // poser — a-t-il su se reconnaître ?
+              <div className="st-deuxtours" data-testid="stream-vote-deux-tours">
+                <div className="st-deuxtours__bloc">
+                  <p className="st-deuxtours__titre">Ce que le cercle pense</p>
+                  <OptionBreakdown stats={stats} correctIndex={-1} leadingIndexes={leadingIndexes} />
+                </div>
+                <div className="st-deuxtours__bloc">
+                  <p className="st-deuxtours__titre">Ce qu'il croyait penser</p>
+                  <OptionBreakdown
+                    stats={{ options: stats.options, tally: stats.pari.tally, total: stats.pari.total }}
+                    correctIndex={-1} leadingIndexes={leadingIndexes} />
+                </div>
+              </div>
+            ) : (
+              <OptionBreakdown
+                stats={stats}
+                correctIndex={reveal.type === 'quiz' ? reveal.correctIndex
+                  : reveal.type === 'true_false' ? (reveal.correct ? 0 : 1) : -1}
+                leadingIndexes={leadingIndexes}
+              />
+            )
           ) : answer != null ? (
             <div className="st-answer" data-testid="reveal-value">
               <span className="st-answer__label">Bonne réponse</span>
