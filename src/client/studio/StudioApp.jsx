@@ -27,6 +27,8 @@ const MODULE_TYPES = {
   // EN DIRECT lui aussi : sa série est tirée par le serveur au lancement, et son
   // MODE — retour −2 ou −3 — se choisit à l'antenne, juste avant de démarrer.
   retour_flamme: { label: 'Retour de flamme', subtitle: 'L\'image déjà vue', icon: 'shuffle', color: 'fire', direct: true },
+  // EN DIRECT lui aussi : sa proportion cible se saisit à l'antenne.
+  coupe_buche: { label: 'Coupe ta bûche', subtitle: 'Couper à la bonne proportion', icon: 'zap', color: 'fire', direct: true },
   // EN DIRECT lui aussi : ses deux temps — le cache et la cible — se saisissent
   // à l'antenne, sur la console. Rien à préparer ici.
   juste_temps: { label: 'Le juste temps', subtitle: 'Arrêter un chrono qu\'on ne voit plus', icon: 'clock', color: 'flame', direct: true },

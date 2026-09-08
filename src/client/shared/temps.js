@@ -13,6 +13,7 @@
 // récompense plus ». Un écran qui connaîtrait la durée par cœur finirait par
 // décompter quinze secondes là où le serveur en accorde vingt.
 import { useEffect, useRef, useState } from 'react';
+import { pourcent as pourcentDeProportion } from './proportion.js';
 
 // ---------------------------------------------------------------------------
 // ÉCRITURE
@@ -41,7 +42,12 @@ export function secondes(valeur) {
 // ET le juste temps : c'est la seule chose qui les distingue à l'écran. Le
 // serveur dit laquelle des deux il envoie (`stats.unite`) ; l'écran ne devine pas.
 export function formatteurDe(stats, formatParDefaut) {
-  return stats && stats.unite === 'secondes' ? secondes : formatParDefaut;
+  if (stats && stats.unite === 'secondes') return secondes;
+  // « Coupe ta bûche » écrit ses valeurs en points de pourcentage. Le format vit
+  // avec le curseur (`proportion.js`), pas ici : c'est le même fichier qui décide
+  // comment une proportion se dessine et comment elle s'écrit.
+  if (stats && stats.unite === 'pourcent') return pourcentDeProportion;
+  return formatParDefaut;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
-import { BASSIN_RETOUR } from './symboles.js';
+import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 
 // Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
 // Interface commune :
@@ -105,6 +105,21 @@ export function auCentieme(x) {
   return Math.round(x * 100) / 100;
 }
 
+// PALIERS DE « COUPE TA BÛCHE ».
+//
+// Écarts ABSOLUS, en POINTS DE POURCENTAGE — et non en pourcentage du
+// pourcentage. « À 3 % de la cible » veut dire trois points d'écart, que la cible
+// soit 8 % ou 80 % : c'est la seule lecture qui garde le même geste à l'écran, où
+// un point de proportion vaut toujours la même longueur de bûche.
+//
+// Les cinq valeurs viennent de l'énoncé, telles quelles.
+const PALIERS_PROPORTION = [
+  { nom: 'mille',    ecartMax: 1,  points: 1000 },
+  { nom: 'proche',   ecartMax: 3,  points: 750 },
+  { nom: 'correct',  ecartMax: 5,  points: 500 },
+  { nom: 'loin',     ecartMax: 10, points: 250 },
+];
+
 // PALIERS DES ANNÉES (chantier v4, décision 5.8).
 //
 // POURQUOI UN SECOND JEU. Un pourcentage n'a aucun sens sur une année : 2 % de
@@ -150,6 +165,7 @@ export function estUneReussite(nomDePalier) {
 function paliersDe(nature) {
   if (nature === 'annee') return PALIERS_ANNEE;
   if (nature === 'temps') return PALIERS_TEMPS;
+  if (nature === 'proportion') return PALIERS_PROPORTION;
   return PALIERS_ESTIMATION;
 }
 
@@ -167,6 +183,10 @@ function palierEstimation(valeur, cible, nature) {
   if (nature === 'temps') {
     const ecart = auCentieme(ecartAbsolu);
     return PALIERS_TEMPS.find((p) => ecart <= p.ecartMax) || HORS;
+  }
+  // COUPE TA BÛCHE : écarts absolus en points de pourcentage, entiers.
+  if (nature === 'proportion') {
+    return PALIERS_PROPORTION.find((p) => Math.round(ecartAbsolu) <= p.ecartMax) || HORS;
   }
   if (ecartAbsolu <= TOLERANCE_ABSOLUE) return PALIERS_ESTIMATION[0];
   const ecart = ecartAbsolu / Math.max(Math.abs(cible), 1);
@@ -324,7 +344,7 @@ export function histogrammeBareme(values, cible, plages, marge) {
 // barème ne récompense plus — le même piège que la double définition du « plus
 // proche » (décision 6.1). Un seul calcul, ici, à côté des constantes.
 export function plagesEstimation(cible, nature) {
-  const absolu = nature === 'annee' || nature === 'temps';
+  const absolu = nature === 'annee' || nature === 'temps' || nature === 'proportion';
   return paliersDe(nature).map((p) => {
     // Même règle que `palierEstimation` : en relatif, la tolérance absolue d'une
     // unité l'emporte quand elle est plus large que le pourcentage.
@@ -341,7 +361,11 @@ export function plagesEstimation(cible, nature) {
         ? (p.ecartMax === 0 ? 'exact' : `± ${p.ecartMax} ans`)
         : nature === 'temps'
           ? `± ${String(p.ecartMax).replace('.', ',')} s`
-          : `± ${Math.round(p.ecartMax * 100)} %`,
+          // Un POINT de pourcentage, pas un pourcentage du pourcentage : sur une
+          // bûche, un point vaut toujours la même longueur.
+          : nature === 'proportion'
+            ? `± ${p.ecartMax} pt`
+            : `± ${Math.round(p.ecartMax * 100)} %`,
       // Bornes arrondies au centième POUR LES SEULS TEMPS : c'est là que le
       // flottant se voit — « 4,42 » écrit « 4,4200000000000004 » sur l'axe du
       // graphique, à l'antenne. Les deux autres natures gardent leurs bornes
@@ -361,6 +385,13 @@ export function plagesEstimation(cible, nature) {
 // deux temps que saisit l'animateur s'y logent, et l'écran de saisie borne ses
 // champs sur cette valeur.
 export const DUREE_JUSTE_TEMPS = 15;
+
+// LE CLASSEMENT DE MANCHE, POUR L'ANIMATEUR SEUL — trente lignes.
+//
+// Trente parce que c'est ce qui a été demandé, et parce que c'est ce qu'un écran
+// de console peut montrer sans devenir une liste qu'on fait défiler en direct.
+// Au-delà, l'animateur ne lit plus : il cherche.
+export const CLASSEMENT_MANCHE = 30;
 
 // La fenêtre de réponse dépasse le compte à rebours — voir `buildRound`.
 const MARGE_JUSTE_TEMPS = 1200;
@@ -418,6 +449,70 @@ export function valeurDuBuzz(rt, reponse) {
     : arbitre;
   const borne = Math.min(Math.max(annonce, arbitre), arbitre + TOLERANCE_RESEAU);
   return auCentieme(Math.min(DUREE_JUSTE_TEMPS, Math.max(0, borne)));
+}
+
+// ============================================================
+// « COUPE TA BÛCHE » — LE CURSEUR QUI VA ET VIENT
+// ============================================================
+//
+// LA RÈGLE. Une bûche est posée à l'écran ; un curseur la balaie d'un bout à
+// l'autre, une seconde par trajet. Les joueurs frappent quand ils croient le
+// curseur sur la proportion demandée. Dix secondes, donc cinq allers-retours.
+export const DUREE_COUPE = 10;          // secondes de jeu
+export const PERIODE_COUPE = 2000;      // un aller-retour complet
+const MARGE_COUPE = 1200;               // voir `buildRound` du juste temps
+export const TOLERANCE_COUPE_MS = 750;  // ce que le réseau a le droit de coûter
+
+// LA POSITION DU CURSEUR À UN INSTANT DONNÉ — une onde triangulaire.
+//
+// Il part à gauche, atteint la droite en une seconde, revient en une seconde. La
+// proportion lue est la part de bûche À GAUCHE du curseur, en pourcentage.
+//
+// CE CALCUL EXISTE DEUX FOIS : ici, qui arbitre, et dans
+// `src/client/shared/proportion.js`, qui dessine. Les deux ne peuvent pas
+// s'importer sans faire entrer du code serveur dans le paquet du navigateur —
+// même situation que l'icône d'onglet et la marque, ou que les signes de
+// « Retour de flamme ». Un contrôle automatique les confronte sur deux mille
+// instants : s'ils divergeaient, le joueur couperait à un endroit et le serveur
+// en compterait un autre, sans que rien ne le signale.
+export function positionDuCurseur(ecouleMs, periodeMs = PERIODE_COUPE) {
+  const demi = periodeMs / 2;
+  const t = ((ecouleMs % periodeMs) + periodeMs) % periodeMs;
+  return t <= demi ? (t / demi) * 100 : (2 - t / demi) * 100;
+}
+
+// La proportion saisie par l'animateur, ramenée dans la bûche et à l'entier.
+export function borneDeProportion(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(Math.min(100, Math.max(0, n)));
+}
+
+// LÀ OÙ LE JOUEUR A COUPÉ.
+//
+// MÊME DOCTRINE QUE « LE JUSTE TEMPS », et elle est ici encore plus nécessaire :
+// le curseur parcourt CENT POINTS PAR SECONDE. Cent millisecondes de réseau, ce
+// sont dix points de bûche — dix fois le palier le plus haut. Arbitrer sur la
+// seule heure d'arrivée ne mesurerait plus l'adresse du joueur mais la latence de
+// sa liaison.
+//
+// Le client annonce donc l'INSTANT auquel il a frappé, compté depuis sa propre
+// réception du départ ; l'arbitre le borne entre sa propre horloge et cette
+// horloge diminuée de la tolérance réseau. Un joueur honnête tombe toujours dans
+// cette fenêtre, dont la largeur EST son aller-retour ; un menteur n'en sort pas.
+//
+// ON BORNE LE TEMPS, PAS LA POSITION — et c'est le point délicat. Le curseur
+// oscille : deux instants éloignés peuvent donner la même position, et deux
+// instants voisins des positions opposées. Une tolérance exprimée en points de
+// bûche n'aurait aucun sens ; en millisecondes, elle en a un.
+export function coupeDuJoueur(rt, reponse) {
+  const plafond = DUREE_COUPE * 1000;
+  const arrivee = Math.min(plafond, Math.max(0, reponse.at - rt.startedAt));
+  const annonce = typeof reponse.value === 'number' && reponse.value !== SANS_ANNONCE
+    ? reponse.value
+    : arrivee;
+  const t = Math.min(Math.max(annonce, arrivee - TOLERANCE_COUPE_MS), arrivee);
+  return Math.round(positionDuCurseur(Math.min(plafond, Math.max(0, t))));
 }
 
 // ============================================================
@@ -1189,10 +1284,20 @@ export const modules = {
         text: rt.text,
         cache: rt.cache,
         dureeCompteMs: DUREE_JUSTE_TEMPS * 1000,
-        // LA CIBLE NE PART JAMAIS. C'est toute la partie : elle n'existe que sur
-        // la console de l'animateur et dans la mémoire du serveur, jusqu'à la
-        // révélation. Rien de ce qui suit ne la déduit non plus — le temps de
-        // cache est indépendant d'elle.
+        // LA CIBLE EST PUBLIQUE, ET J'AVAIS EU TORT DE LA CACHER.
+        //
+        // Je l'avais retenue au serveur en la prenant pour la réponse — comme le
+        // visage doublé ou la série de « Retour de flamme ». C'était un
+        // contresens : ici la cible est la CONSIGNE, pas la solution. Un joueur
+        // qui l'ignore ne peut pas jouer du tout — on lui demande d'arrêter un
+        // chrono sur un temps qu'on ne lui a pas dit. Le jeu était injouable, et
+        // rien ne le signalait : les manches se déroulaient, les points se
+        // calculaient sur des buzz au hasard.
+        //
+        // CE QUI RESTE CACHÉ, ET QUI EST LE VRAI JEU : le chrono lui-même, une
+        // fois passé le temps de cache. On sait ce qu'il faut viser ; on ne sait
+        // plus où en est l'aiguille.
+        cible: rt.target,
       };
     },
     // UN BUZZ A UNE HEURE. Ce que le client annonce n'est qu'un APPOINT, borné
@@ -1262,7 +1367,22 @@ export const modules = {
         cache: rt.cache,
       };
 
-      return { results, reveal: { type: 'juste_temps', target: rt.target, cache: rt.cache, text: rt.text, stats } };
+      // LE CLASSEMENT DES TRENTE MEILLEURS — POUR L'ANIMATEUR SEUL.
+      //
+      // Il commente à l'antenne : le graphique lui dit COMMENT le cercle s'est
+      // réparti, pas QUI a fait quoi. Sans les noms, il ne peut féliciter
+      // personne. Les noms ne partent jamais vers le stream — même frontière que
+      // le plus proche de l'estimation (décision 6.2 du chantier v4).
+      const classement = [...results.entries()]
+        .map(([pid, r]) => ({ pid, valeur: r.valeur, ecart: auCentieme(Math.abs(r.valeur - rt.target)) }))
+        .sort((a, b) => a.ecart - b.ecart)
+        .slice(0, CLASSEMENT_MANCHE);
+
+      return {
+        results,
+        reveal: { type: 'juste_temps', target: rt.target, cache: rt.cache, text: rt.text, stats },
+        prives: { classement },
+      };
     },
   },
 
@@ -1281,15 +1401,25 @@ export const modules = {
       defile: { cadenceMs: CADENCE_RETOUR, total: TOTAL_RETOUR },
       // PLUSIEURS BUZZ PAR JOUEUR, et c'est le seul module du projet dans ce cas.
       multi: true,
-      // Les deux modes, publiés pour que la console les propose sans les recopier.
+      // Les deux modes ET les deux familles d'image, publiés pour que la console
+      // les propose sans les recopier.
       ecarts: ECARTS_RETOUR,
+      familles: FAMILLES_RETOUR,
+      // CE QUE VAUT UN BUZZ, publié avec le reste de la meta. L'écran de résultat
+      // l'affiche en toutes lettres — « +200 » / « −200 » — et le recopier côté
+      // client donnerait deux barèmes qui finiraient par différer, celui de
+      // l'écran ayant toujours tort.
+      points: POINTS_RETOUR,
     },
     buildRound(q) {
       const ecart = ECARTS_RETOUR.includes(Number(q.ecart)) ? Number(q.ecart) : ECARTS_RETOUR[0];
-      const serie = construireSerieRetour(ecart, BASSIN_RETOUR);
+      // UNE SÉRIE N'EMPLOIE QU'UNE FAMILLE : chiffres OU figures, jamais les deux.
+      const famille = FAMILLES_RETOUR.includes(q.famille) ? q.famille : FAMILLES_RETOUR[0];
+      const serie = construireSerieRetour(ecart, bassinDe(famille));
       return {
         type: 'retour_flamme',
         questionId: q.id,
+        famille,
         // LA SÉRIE RESTE AU SERVEUR. Elle n'entre pas dans `publicQuestion` :
         // trente identifiants dont six répètent celui d'il y a deux places, c'est
         // la réponse en clair pour qui sait lire une charge utile.
@@ -1313,6 +1443,9 @@ export const modules = {
         // réponse. Un joueur qui ignorerait s'il joue en −2 ou en −3 ne pourrait
         // pas jouer du tout.
         ecart: rt.ecart,
+        // La famille est PUBLIQUE : c'est la règle du jeu, pas la réponse. Elle
+        // dit au joueur ce qu'il va voir défiler.
+        famille: rt.famille,
         retoursAttendus: RETOURS_PAR_SERIE,
       };
     },
@@ -1367,6 +1500,7 @@ export const modules = {
         ordre: rt.ordre,
         retours: rt.retours,
         ecart: rt.ecart,
+        famille: rt.famille,
         parPlace,
         // Combien de joueurs ont marqué, et combien ont fait le sans-faute : les
         // deux chiffres que le plateau commente.
@@ -1377,9 +1511,17 @@ export const modules = {
         retoursTrouves: rt.retours.filter((p) => parPlace[p - 1] > 0).length,
       };
 
+      // LE CLASSEMENT DES TRENTE MEILLEURS — POUR L'ANIMATEUR SEUL, comme au
+      // juste temps. Le graphique dit où le cercle a buzzé ; il ne dit pas qui.
+      const classement = [...results.entries()]
+        .map(([pid, r]) => ({ pid, score: r.base, bons: r.bons, rates: r.rates }))
+        .sort((a, b) => b.score - a.score || b.bons - a.bons || a.rates - b.rates)
+        .slice(0, CLASSEMENT_MANCHE);
+
       return {
         results,
         reveal: { type: 'retour_flamme', text: rt.text, ecart: rt.ecart, retours: rt.retours, stats },
+        prives: { classement },
       };
     },
   },
@@ -1410,6 +1552,108 @@ export const modules = {
   // premier tour ne quitte pas le canal de l'animateur avant la révélation : s'il
   // atteignait un écran de joueur ou la toile du stream, le second tour n'aurait
   // plus rien à deviner.
+  // « COUPE TA BÛCHE » — voir la règle plus haut, à côté de son curseur.
+  coupe_buche: {
+    meta: {
+      type: 'coupe_buche', name: 'Coupe ta bûche', icon: 'zap', color: 'fire',
+      scored: true, malus: false,
+      // La rapidité ne joue aucun rôle : on frappe au bon endroit ou pas.
+      vitesse: false,
+      // La proportion se saisit à l'antenne : pas de banque de questions.
+      direct: true,
+      // La durée et la période du curseur, publiées pour que les écrans dessinent
+      // le MÊME balayage que celui sur lequel le serveur arbitre.
+      dureeCoupeMs: DUREE_COUPE * 1000,
+      periodeMs: PERIODE_COUPE,
+    },
+    buildRound(q) {
+      return {
+        type: 'coupe_buche',
+        questionId: q.id,
+        // `target` porte la cible : c'est le nom que lisent l'histogramme, les
+        // plages et le moteur.
+        target: borneDeProportion(q.cible),
+        nature: 'proportion',
+        text: 'Coupe la bûche à la bonne proportion.',
+        durationMs: DUREE_COUPE * 1000 + MARGE_COUPE,
+      };
+    },
+    publicQuestion(rt) {
+      return {
+        type: 'coupe_buche',
+        questionId: rt.questionId,
+        text: rt.text,
+        // LA CIBLE EST PUBLIQUE : c'est la consigne, pas la réponse. Le joueur
+        // doit savoir où couper — l'écran l'écrit en toutes lettres, « Coupe
+        // cette bûche à 80 % ».
+        cible: rt.target,
+        dureeCoupeMs: DUREE_COUPE * 1000,
+        periodeMs: PERIODE_COUPE,
+      };
+    },
+    // UN COUP A UNE HEURE. Ce que le client annonce — l'instant local de sa
+    // frappe — n'est qu'un appoint, borné par l'horloge de l'arbitre.
+    validateAnswer(rt, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return SANS_ANNONCE;
+      return Math.min(DUREE_COUPE * 1000, Math.max(0, n));
+    },
+    score(rt) {
+      const results = new Map();
+      const valeurs = [];
+      let closest = null;
+
+      for (const [pid, a] of rt.answers) {
+        const valeur = coupeDuJoueur(rt, a);
+        valeurs.push(valeur);
+        const palier = palierEstimation(valeur, rt.target, 'proportion');
+        const exact = valeur === rt.target;
+        results.set(pid, {
+          base: palier.points,
+          bonusExact: exact ? BONUS_EXACTITUDE : 0,
+          speed: 0,
+          correct: estUneReussite(palier.nom),
+          palier: palier.nom,
+          exact,
+          // LA COUPE RETENUE, envoyée au joueur avec son résultat : son écran ne
+          // peut pas la recalculer, c'est l'arbitre qui l'a arrêtée.
+          valeur,
+        });
+        if (closest === null || Math.abs(valeur - rt.target) < Math.abs(closest - rt.target)) closest = valeur;
+      }
+
+      const plages = plagesEstimation(rt.target, 'proportion');
+      const margeBareme = Math.max(0, ...plages.map((p) => p.haut - rt.target));
+      valeurs.sort((a, b) => a - b);
+      const avg = valeurs.length ? Math.round(valeurs.reduce((s2, v) => s2 + v, 0) / valeurs.length) : null;
+      const median = valeurs.length ? valeurs[Math.floor(valeurs.length / 2)] : null;
+
+      const stats = {
+        kind: 'numeric',
+        unite: 'pourcent',
+        total: valeurs.length,
+        avg,
+        median,
+        closest,
+        target: rt.target,
+        histogramme: histogrammeBareme(valeurs, rt.target, plages, margeBareme),
+        plages,
+        nature: 'proportion',
+      };
+
+      const classement = [...results.entries()]
+        .map(([pid, r]) => ({ pid, valeur: r.valeur, ecart: Math.abs(r.valeur - rt.target) }))
+        .sort((a, b) => a.ecart - b.ecart)
+        .slice(0, CLASSEMENT_MANCHE);
+
+      return {
+        results,
+        reveal: { type: 'coupe_buche', target: rt.target, text: rt.text, stats },
+        prives: { classement },
+      };
+    },
+  },
+
   vote: {
     // `scored` par défaut. Chaque question peut néanmoins repasser en SONDAGE
     // (`poll: true`) : on demande alors sincèrement à la salle, un seul tour,

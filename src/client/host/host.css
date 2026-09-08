@@ -1289,6 +1289,33 @@
     margin-top: var(--sp-4);
   }
 
+  /* LE CLASSEMENT DE MANCHE — jusqu'à trente lignes, lues en direct par
+     l'animateur pendant qu'il parle. Densité assumée : ce n'est pas un écran
+     qu'on contemple, c'est une liste qu'on balaie. */
+  /* Le nombre de colonnes vient du JSX : il dépend du jeu — deux pour le juste
+     temps, trois pour retour de flamme. La valeur par défaut est déclarée ici
+     pour que le jeton existe même si personne ne le pose. */
+  .clsm { --clsm-cols: 3; display: flex; flex-direction: column; }
+  .clsm__ligne {
+    display: grid;
+    grid-template-columns: var(--sp-6) minmax(0, 1fr) repeat(var(--clsm-cols, 3), minmax(0, 6ch));
+    align-items: baseline;
+    gap: var(--sp-3);
+    padding: 3px 0;
+    font: 500 var(--fs-200) / 1.4 var(--f-ui);
+  }
+  .clsm__ligne--tete {
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+    padding-bottom: var(--sp-2);
+  }
+  .clsm__ligne:nth-child(even of :not(.clsm__ligne--tete)) { background: var(--c-surface-sunk); }
+  .clsm__rang { font: 500 var(--fs-100) / 1.4 var(--f-mono); color: var(--c-ink-3); text-align: right; }
+  .clsm__nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink); }
+  .clsm__col { font: 500 var(--fs-200) / 1.4 var(--f-mono); color: var(--c-ink-2); text-align: right; }
+
   .groupes { display: flex; flex-direction: column; gap: var(--sp-3); }
   .groupes__bloc {
     padding: var(--sp-3);

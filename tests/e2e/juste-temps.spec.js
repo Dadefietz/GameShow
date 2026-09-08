@@ -11,7 +11,7 @@
 // C'est le jeu tout entier, et c'est la seule faute dont on ne se relève pas en
 // direct.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(120_000);
@@ -41,7 +41,7 @@ test.describe('Le juste temps', () => {
     await stream.goto(`/overlay?token=${token}`);
     await expect(stream.getByTestId('stream-room-code')).toHaveText(hote.code);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
   }
 
   test('l\'annonce précède le jeu, et la diffusion attend le temps cible', async ({ browser }) => {
@@ -139,31 +139,41 @@ test.describe('Le juste temps', () => {
     }
   });
 
-  test('LE TEMPS CIBLE N\'ATTEINT AUCUN ÉCRAN avant la révélation', async ({ browser }) => {
-    // LA FAUTE DONT ON NE SE RELÈVE PAS. Le stream est une source capturée par
-    // OBS, souvent regardée en direct par des gens qui jouent. La cible qui y
-    // apparaîtrait donnerait la réponse à tout le monde, et la manche serait
-    // perdue sans que rien ne le signale.
+  test('LE TEMPS CIBLE EST ANNONCÉ AU CERCLE, et le temps de cache jamais', async ({ browser }) => {
+    // CE CONTRÔLE DISAIT LE CONTRAIRE, ET IL AVAIT TORT.
     //
-    // On ne se contente pas de regarder le texte affiché : on fouille le HTML
-    // ENTIER des deux surfaces publiques. Une cible transportée dans un attribut,
-    // un `data-` ou une charge utile inerte serait tout aussi lisible par qui
-    // ouvre l'inspecteur — et c'est là qu'elle se cacherait.
+    // Il gardait la cible comme un secret : « le temps cible n'atteint aucun
+    // écran ». C'était ma lecture de l'énoncé, et elle rendait le jeu injouable —
+    // on demandait au cercle d'arrêter un chrono à un instant que personne ne lui
+    // avait dit. La règle est explicite : « il faut afficher le Temps cible sur
+    // l'écran du joueur et du stream lorsque le compte à rebours descend ». La
+    // cible est une CONSIGNE, comme la proportion de « Coupe ta bûche ».
+    //
+    // CE QUI RESTE CACHÉ, c'est le TEMPS DE CACHE : l'instant où le chrono
+    // s'efface. Annoncé, il donnerait au joueur un repère à soustraire, et il
+    // n'aurait plus qu'à compter à partir de là — le jeu ne mesurerait plus rien.
     await annoncer(browser);
     await hote.page.getByTestId('jt-cache').fill(CACHE);
     await hote.page.getByTestId('jt-cible').fill(CIBLE);
     await hote.page.getByTestId('jt-diffuser').click();
     await expect(joueurs[0].page.getByTestId('jt-chrono')).toBeVisible({ timeout: 15_000 });
 
+    // LA CIBLE EST LÀ, sur les deux surfaces publiques, dans les mêmes termes.
+    await expect(joueurs[0].page.getByTestId('jt-cible-joueur')).toContainText('11,50 s');
+    await expect(stream.getByTestId('stream-jt-cible')).toContainText('11,50 s');
+
+    // LE CACHE N'Y EST PAS. On ne se contente pas de regarder le texte affiché :
+    // on fouille le HTML ENTIER. Un temps transporté dans un attribut, un `data-`
+    // ou une charge utile inerte serait tout aussi lisible par qui ouvre
+    // l'inspecteur — et c'est là qu'il se cacherait.
     for (const [nom, page] of [['le joueur', joueurs[0].page], ['le stream', stream]]) {
       const html = await page.content();
-      expect(html, `la cible est lisible sur ${nom}`).not.toContain('11.5');
-      expect(html, `la cible est lisible sur ${nom}`).not.toContain('11,5');
+      expect(html, `le temps de cache est lisible sur ${nom}`).not.toContain('14.00');
+      expect(html, `le temps de cache est lisible sur ${nom}`).not.toContain('14,00');
     }
 
-    // L'ANIMATEUR, LUI, DOIT L'AVOIR — sinon ce contrôle serait content d'un jeu
-    // où personne ne connaît la réponse. C'est lui qui commente à l'antenne, et
-    // son panneau de répartition la porte dès la première réponse (canal
+    // L'ANIMATEUR, LUI, A LES DEUX. C'est lui qui commente à l'antenne, et son
+    // panneau de répartition porte la cible dès la première réponse (canal
     // animateur seul). Le panneau de SAISIE, lui, a disparu avec la diffusion :
     // c'est le graphique qui prend le relais.
     await joueurs[0].page.getByTestId('answer-submit').click();

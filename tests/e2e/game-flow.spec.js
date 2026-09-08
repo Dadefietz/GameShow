@@ -2,7 +2,7 @@
 // Deux contextes navigateur : l'animateur sur /host, les joueurs sur /.
 // Sélecteurs stables (data-testid) partout où le texte peut évoluer avec le design.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 
 test.describe('Partie complète animateur + joueurs', () => {
   test('création salon -> join -> quiz -> réponse -> révélation -> module suivant -> fin', async ({ browser }) => {
@@ -18,7 +18,7 @@ test.describe('Partie complète animateur + joueurs', () => {
 
     // ---- M4/M7 : l'animateur choisit et lance un module librement ----
     await host.getByRole('button', { name: 'Lancer la partie' }).click();
-    await host.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(host, 'Quiz');
 
     // ---- M11/M9 : la joueuse voit la question et répond depuis sa manette ----
     await expect(p1.getByTestId('question-text')).toBeVisible();
@@ -53,6 +53,10 @@ test.describe('Partie complète animateur + joueurs', () => {
     // ---- M4/M5 : enchaîner librement sur un AUTRE module (Vrai/Faux) via le menu ----
     await host.getByRole('button', { name: 'Changer de module' }).click();
     await host.getByRole('menuitem', { name: 'Vrai / Faux' }).click();
+    // Changer de module l'ANNONCE d'abord : le cercle voit le jingle du nouveau
+    // jeu avant que la question ne tombe. Le départ suit, sur le panneau à un
+    // bouton.
+    await host.getByTestId('simple-demarrer').click();
     await expect(p1.getByTestId('answer-option')).toHaveCount(2); // deux tuiles
     await p1.getByTestId('answer-option').first().click();
     await host.getByRole('button', { name: 'Révéler maintenant' }).click();
@@ -92,7 +96,7 @@ test.describe('Après la fin de partie', () => {
     const { ctx: pCtx, page: p } = await joinAsPlayer(browser, code, 'Lea');
 
     await host.getByRole('button', { name: 'Lancer la partie' }).click();
-    await host.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(host, 'Quiz');
     await p.getByTestId('answer-option').first().click();
     await host.getByRole('button', { name: 'Révéler maintenant' }).click();
 

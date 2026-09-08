@@ -20,7 +20,7 @@
 // crée donc une question à réponse CONNUE, pour que le joueur gagne à coup sûr :
 // répondre au hasard laisserait le défaut hors de portée une fois sur quatre.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 const JEU = 'Épreuve de voix';
@@ -68,7 +68,7 @@ test.describe('La voix du résultat', () => {
     joueur = await joinAsPlayer(browser, hote.code, 'Voix');
     await expect(hote.page.getByTestId('player-count')).toContainText('1');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
 
     await expect(joueur.page.getByTestId('question-text')).toHaveText(ENONCE);
     await joueur.page.getByRole('button', { name: BONNE }).click();
@@ -94,7 +94,7 @@ test.describe('La voix du résultat', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Voix2');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
 
     const phrases = [];
     for (let manche = 0; manche < 3; manche += 1) {

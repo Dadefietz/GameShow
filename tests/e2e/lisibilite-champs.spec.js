@@ -21,7 +21,7 @@
 // entre l'encre RÉELLEMENT calculée et le fond RÉELLEMENT peint dit si un être
 // humain peut lire ce qu'il tape. On mesure le rendu, pas l'intention.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(120_000);
@@ -153,7 +153,7 @@ test.describe('La lisibilité des champs de saisie', () => {
     joueurs.push(await joinAsPlayer(browser, hote.code, 'Lisible'));
     await expect(hote.page.getByTestId('player-count')).toHaveText('1');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Le lien' }).first().click();
+    await lancerJeu(hote.page, 'Le lien');
     await expect(hote.page.getByTestId('saisie-lien')).toBeVisible({ timeout: 15_000 });
 
     // On remplit : un champ vide peut masquer le défaut, l'encre ne se voyant

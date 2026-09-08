@@ -14,7 +14,7 @@
 // contrôle unitaire ne peut voir : que les écrans existent, qu'ils s'enchaînent,
 // que les visages défilent vraiment, et que la série ne fuit pas.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 // LES RÈGLES VIENNENT DE LEUR SOURCE, elles ne sont pas recopiées ici. Ce fichier
 // affirmait « trente places », « 1re jusqu'au 20e », « 2e jusqu'au 30e » : le
@@ -39,7 +39,7 @@ test.describe('Les visages', () => {
     for (const p of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText(String(pseudos.length));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Les visages' }).first().click();
+    await lancerJeu(hote.page, 'Les visages');
   }
 
   test('l\'annonce précède la série, et le départ appartient à l\'animateur', async ({ browser }) => {

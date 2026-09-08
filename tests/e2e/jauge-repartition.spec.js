@@ -14,7 +14,7 @@
 //
 // Ce test mesure la géométrie réelle, en pixels, et la compare au décompte.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Répartition chez l\'animateur', () => {
@@ -37,7 +37,7 @@ test.describe('Répartition chez l\'animateur', () => {
     await expect(hote.page.getByTestId('player-count')).toHaveText('3');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Vrai / Faux' }).click();
+    await lancerJeu(hote.page, 'Vrai / Faux');
 
     // Deux votent « Faux », un vote « Vrai » — répartition 2/3 contre 1/3.
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Répartition chez l\'animateur', () => {
     await expect(hote.page.getByTestId('player-count')).toHaveText('1');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Vrai / Faux' }).click();
+    await lancerJeu(hote.page, 'Vrai / Faux');
     await joueurs[0].page.getByTestId('answer-option').first().click();
     await expect(hote.page.getByTestId('answers-count')).toHaveText('1');
 

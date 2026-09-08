@@ -18,7 +18,7 @@
 //
 // Ce fichier appuie sur F5, aux six étapes, sur les trois surfaces.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Le rechargement de page', () => {
@@ -61,7 +61,7 @@ test.describe('Le rechargement de page', () => {
     await verifier('salle d\'attente');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
     await verifier('question posée');
 
@@ -78,6 +78,9 @@ test.describe('Le rechargement de page', () => {
 
     await hote.page.getByRole('button', { name: 'Question suivante' }).click();
     await hote.page.getByRole('menuitem').first().click({ timeout: 1500 }).catch(() => {});
+    // Le départ, s'il y a un panneau à un bouton — ce contrôle tolère l'absence
+    // de manche suivante, il tolère donc aussi l'absence de panneau.
+    await hote.page.getByTestId('simple-demarrer').click({ timeout: 1500 }).catch(() => {});
     await j.page.waitForTimeout(600);
     await verifier('entre deux manches');
 
@@ -93,7 +96,7 @@ test.describe('Le rechargement de page', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Podium');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await j.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Menu' }).click();
@@ -146,7 +149,7 @@ test.describe('Le rechargement de page', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Actualise');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
 
     // LE RECHARGEMENT, puis la réponse — dans cet ordre, c'est tout l'objet.
@@ -184,7 +187,7 @@ test.describe('Le rechargement de page', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Verdict');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
     await j.page.getByTestId('answer-option').first().click();
     await j.page.waitForTimeout(600);
@@ -217,7 +220,7 @@ test.describe('Le rechargement de page', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Chevauche');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
 
     // La seconde liaison s'ouvre pendant que la première vit encore.
@@ -323,7 +326,7 @@ test.describe('L\'écran de fin', () => {
     const tot = await joinAsPlayer(browser, hote.code, 'Premier');
     joueurs.push(tot);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU_ZERO}` }).first().click();
+    await lancerJeu(hote.page, JEU_ZERO);
     await tot.page.getByRole('button', { name: FAUSSE }).click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.waitForTimeout(400);
@@ -333,6 +336,9 @@ test.describe('L\'écran de fin', () => {
     joueurs.push(tard);
     await hote.page.getByRole('button', { name: 'Question suivante' }).click();
     await hote.page.getByRole('menuitem').first().click({ timeout: 1500 }).catch(() => {});
+    // Le départ, s'il y a un panneau à un bouton — ce contrôle tolère l'absence
+    // de manche suivante, il tolère donc aussi l'absence de panneau.
+    await hote.page.getByTestId('simple-demarrer').click({ timeout: 1500 }).catch(() => {});
     await expect(tard.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 10_000 });
     // Les deux questions partagent leurs libellés d'options : la mauvaise réponse
     // porte le même nom à la seconde manche.

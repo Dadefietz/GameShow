@@ -21,7 +21,7 @@
 // seule disposition qui prouve qu'ils ne se ressemblent pas. Deux parties
 // séparées auraient pu afficher le même écran sans qu'on s'en aperçoive.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { MOMENTS } from '../../src/client/shared/voix.js';
 
@@ -54,7 +54,7 @@ test.describe('Les deux absences', () => {
     await expect(hote.page.getByTestId('player-count')).toContainText('1');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
+    await lancerJeu(hote.page, 'Quiz');
     await expect(present.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 15_000 });
 
     // L'ARRIVANT : il rejoint APRÈS le lancement. C'est la borne — le
@@ -105,7 +105,7 @@ test.describe('Les deux absences', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Repond');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
+    await lancerJeu(hote.page, 'Quiz');
     await expect(j.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 15_000 });
     await j.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();

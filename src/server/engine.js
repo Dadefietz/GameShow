@@ -6,7 +6,7 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, auCentieme, creneauDe as creneauSerie } from './modules.js';
+import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, coupeDuJoueur, auCentieme, creneauDe as creneauSerie } from './modules.js';
 import { srcDeVisage } from './visages.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
@@ -19,7 +19,7 @@ function plagesDe(rt) {
 // La nature de la réponse, blanchie. Trois valeurs, et rien d'autre : un champ
 // venu d'une question mal formée ne doit pas choisir un barème au hasard.
 function natureDe(rt) {
-  return rt.nature === 'annee' || rt.nature === 'temps' ? rt.nature : 'nombre';
+  return ['annee', 'temps', 'proportion'].includes(rt.nature) ? rt.nature : 'nombre';
 }
 // L'ADRESSE D'UNE IMAGE DE DÉFILÉ, quand elle en a une. « Les visages » sert des
 // fichiers ; « Retour de flamme » dessine ses signes et n'a rien à servir. Le
@@ -133,9 +133,15 @@ export function answerDistribution(rt) {
     // retenu (`valeurDuBuzz`). C'est la MÊME fonction qu'à la révélation — le
     // graphique sur lequel l'animateur décide est donc bien celui qu'il commente
     // une seconde plus tard, ce qui est la raison d'être de ce panneau.
+    // La valeur d'une réponse n'est pas toujours ce que le joueur a envoyé : deux
+    // jeux la font arbitrer par l'horloge du serveur. C'est la MÊME fonction qu'à
+    // la révélation — le graphique sur lequel l'animateur décide est donc bien
+    // celui qu'il commente une seconde plus tard.
     const vals = rt.type === 'juste_temps'
       ? [...rt.answers.values()].map((a) => valeurDuBuzz(rt, a))
-      : [...rt.answers.values()].map((a) => a.value);
+      : rt.type === 'coupe_buche'
+        ? [...rt.answers.values()].map((a) => coupeDuJoueur(rt, a))
+        : [...rt.answers.values()].map((a) => a.value);
     if (!vals.length) return { kind: 'numeric', total: 0 };
     const sum = vals.reduce((s, v) => s + v, 0);
     return {
@@ -151,7 +157,8 @@ export function answerDistribution(rt) {
         ? auCentieme(sum / vals.length)
         : Math.round(sum / vals.length),
       // L'UNITÉ, pour que l'écran sache écrire « 4,72 s » plutôt que « 5 ».
-      unite: natureDe(rt) === 'temps' ? 'secondes' : undefined,
+      unite: natureDe(rt) === 'temps' ? 'secondes'
+        : natureDe(rt) === 'proportion' ? 'pourcent' : undefined,
       // LA MÊME ÉCHELLE, ET LES MÊMES REPÈRES, DÈS LE DIRECT.
       //
       // Ce panneau ne part QUE sur le canal de l'animateur (`toHost`, plus haut) :
@@ -461,6 +468,23 @@ export function submitAnswer(io, room, playerId, rawValue) {
   toRoom(io, room).emit('module:answersCount', { count: rt.answers.size });
   // Répartition détaillée par option — animateur seulement.
   emitDistribution(io, room);
+
+  // LE TRAIT DE COUPE, EN DIRECT — vers l'animateur et le stream, jamais vers les
+  // joueurs. « Idéalement, l'écran du stream voit en temps réel les coupes
+  // réalisées par les joueurs. »
+  //
+  // POURQUOI PAS AUX JOUEURS. Voir où les autres ont coupé pendant qu'on joue
+  // encore, c'est la réponse d'à côté : les derniers à frapper viseraient le trait
+  // le plus fourni plutôt que la proportion. Le canal `staff` porte déjà cette
+  // frontière — c'est celui du classement.
+  //
+  // ET SANS AUCUN NOM : le stream est une source capturée par OBS.
+  if (rt.type === 'coupe_buche') {
+    toStaff(io, room).emit('coupe:trait', {
+      roundId: rt.roundId,
+      position: coupeDuJoueur(rt, rt.answers.get(playerId)),
+    });
+  }
   return { ok: true };
 }
 
@@ -595,6 +619,29 @@ export function reveal(io, room) {
         rang: g.rang,
         joueurs: g.joueurs.map((pid) => room.players.get(pid)?.pseudo).filter(Boolean),
       })),
+    });
+  }
+
+  // LE CLASSEMENT DE MANCHE, AVEC LES NOMS — CANAL ANIMATEUR SEUL.
+  //
+  // Le graphique dit comment le cercle s'est réparti ; il ne dit pas QUI. Sans
+  // les noms, l'animateur ne peut féliciter personne — et c'est son métier. Le
+  // stream, lui, ne les reçoit jamais : même frontière que le plus proche de
+  // l'estimation et que les groupes du lien.
+  //
+  // Le module compose ses propres colonnes (un écart et un temps ici, un score et
+  // des buzz ailleurs) ; le moteur n'y ajoute que le pseudo, qu'il est seul à
+  // pouvoir résoudre.
+  if (prives && Array.isArray(prives.classement) && prives.classement.length) {
+    io.to(room.code + ':host').emit('host:classement', {
+      roundId: rt.roundId,
+      type: rt.type,
+      lignes: prives.classement
+        .map(({ pid, ...reste }) => {
+          const p = room.players.get(pid);
+          return p ? { pseudo: p.pseudo, ...reste } : null;
+        })
+        .filter(Boolean),
     });
   }
 

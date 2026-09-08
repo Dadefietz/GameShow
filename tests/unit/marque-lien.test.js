@@ -103,12 +103,18 @@ describe('l\'emblème du lien n\'a qu\'un rendu', () => {
     const jourEnPixels = (t) => ((jourDuMaillon() - TRAIT) / 2 / GRILLE) * t;
     expect(jourEnPixels(TAILLE_MIN_AMORCE)).toBeGreaterThanOrEqual(3);
 
-    // Et les tailles réellement demandées tombent du bon côté : la marque en
-    // ligne du joueur (34) sans amorce, les trois autres avec.
+    // Et les tailles réellement demandées tombent du bon côté du seuil.
+    //
+    // LA MARQUE EN LIGNE DU JOUEUR EST PASSÉE DE 34 À 56 : les deux mots du
+    // « Lien » ne s'affichent plus qu'une fois sur son écran, au milieu, séparés
+    // par l'emblème. Celui-ci n'est plus un rappel discret sous un énoncé répété —
+    // il EST l'énoncé. À 56 il retrouve donc son amorce, tout juste : c'est le
+    // plancher, mesuré, en dessous duquel le maillon se referme.
     const appelees = SURFACES.flatMap((f) =>
       [...fs.readFileSync(f, 'utf8').matchAll(/<Chainons taille=\{(\d+)\}/g)]
         .map((m) => Number(m[1])));
-    expect(appelees.sort((x, y) => x - y)).toEqual([34, 64, 92, 180]);
-    expect(appelees.filter((t) => t >= TAILLE_MIN_AMORCE)).toEqual([64, 92, 180]);
+    expect(appelees.sort((x, y) => x - y)).toEqual([56, 64, 92, 180]);
+    expect(appelees.every((t) => t >= TAILLE_MIN_AMORCE),
+      'une taille appelée est passée sous le plancher de l\'amorce').toBe(true);
   });
 });

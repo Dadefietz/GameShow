@@ -26,7 +26,7 @@
 // classe qui la porte : c'est précisément ainsi que la correction du commit
 // 2712880 s'est évaporée quand `.join-panel__url` a été supprimée.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // L'adresse de production, en dur et assumée : c'est elle qui doit tenir, pas
@@ -102,7 +102,7 @@ test.describe('La pastille du stream', () => {
 
     // 3. QUESTION — l'écran le plus haut : énoncé plus quatre options.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(stream.getByTestId('stream-question')).toBeVisible();
     fautes.push(...await recouvrements('question'));
 
@@ -221,7 +221,7 @@ test.describe('L\'adresse dans la pastille', () => {
     const j = await joinAsPlayer(browser, hote.code, 'Un');
     joueurs.push(j);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await j.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Voir le classement' }).click();

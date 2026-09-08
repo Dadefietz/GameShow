@@ -15,7 +15,7 @@
 // C'est pourquoi ce test COUPE VRAIMENT le réseau (setOffline) au lieu de recharger
 // la page : un rechargement ne reproduit pas le scénario qui casse en vrai.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Reconnexion en cours de partie', () => {
@@ -35,7 +35,7 @@ test.describe('Reconnexion en cours de partie', () => {
 
     // Une manche jouée normalement : question, réponse, révélation.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(joueur.page.getByTestId('question-text')).toBeVisible();
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
@@ -70,7 +70,7 @@ test.describe('Reconnexion en cours de partie', () => {
 
     // Manche 1 : le joueur répond et voit ses points.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await expect(joueur.page.getByTestId('points-gained')).toBeVisible();

@@ -102,3 +102,34 @@ export async function retirerJeux(...noms) {
     // Un nettoyage ne doit JAMAIS faire échouer le contrôle qui vient de finir.
   }
 }
+
+// LANCER UN JEU DEPUIS LE MENU DE L'ANIMATEUR.
+//
+// POURQUOI CE DÉTOUR EXISTE. « Chaque module doit comporter un écran d'attente
+// lorsque l'animateur le lance. » Les quatre jeux classiques — quiz, vrai/faux,
+// estimation, vote — partaient jusqu'ici d'un seul clic : la question tombait sur
+// les téléphones avant qu'on ait dit à quoi on jouait. Ils passent désormais par
+// le même chemin que les autres : ANNONCE d'abord, DÉPART ensuite.
+//
+// Le clic du menu n'ouvre donc plus une manche, il ouvre un PANNEAU. Lequel
+// dépend du jeu : les uns demandent une saisie (les deux mots du lien, les temps
+// du juste temps, la proportion de la bûche), les autres n'ont qu'un bouton.
+//
+// CE QUE FAIT CETTE FONCTION : elle attend le panneau, quel qu'il soit, et ne
+// clique que s'il s'agit du panneau à un bouton. Un contrôle qui prépare
+// lui-même sa saisie retrouve son panneau intact.
+//
+// SANS ELLE, TRENTE CONTRÔLES ATTENDAIENT QUINZE SECONDES un écran de jeu resté
+// sur son jingle — un rouge massif qui ne désignait pas la faute.
+export async function lancerJeu(page, nom) {
+  const entree = nom
+    ? page.getByRole('menuitem', { name: `Lancer ${nom}` })
+    : page.getByRole('menuitem');
+  await entree.first().click();
+  // N'IMPORTE LEQUEL DES PANNEAUX DE PRÉPARATION : on ne devine pas le type du
+  // jeu depuis le contrôle, c'est l'écran qui le dit.
+  await page.locator('[data-testid^="saisie-"], [data-testid^="depart-"]').first()
+    .waitFor({ state: 'visible', timeout: 15_000 });
+  const bouton = page.getByTestId('simple-demarrer');
+  if (await bouton.isVisible()) await bouton.click();
+}

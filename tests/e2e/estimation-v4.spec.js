@@ -29,7 +29,7 @@
 //      les pixels rendus, sur les deux écrans, et l'on vérifie qu'ils sont
 //      proportionnels à des effectifs CONNUS D'AVANCE.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { MOMENTS } from '../../src/client/shared/voix.js';
 
@@ -53,7 +53,7 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const p of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText(String(pseudos.length));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Estimation' }).click();
+    await lancerJeu(hote.page, 'Estimation');
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
   }
 
@@ -187,7 +187,7 @@ test.describe('L\'estimation du chantier v4', () => {
     // `.first()` : sur une seconde tentative, le module créé au premier passage
     // existe encore et le menu en propose deux du même nom. Ce n'est pas ce que
     // ce contrôle mesure.
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
 
     const stream = await hote.ctx.newPage();
@@ -265,7 +265,7 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const p of ['Proche', 'Loin']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText('2');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
 
     // Les deux sont HORS de toute plage — 400 % et 800 % d'écart. Seul le premier
@@ -333,7 +333,7 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const p of PSEUDOS) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText('4');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
     for (const j of joueurs) await repondre(j, CIBLE * 4);
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
@@ -376,7 +376,7 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const p of ['Pile', 'Loin']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText('2');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueurs[0].page.getByLabel('Ta réponse')).toBeVisible({ timeout: 15_000 });
     await repondre(joueurs[0], CIBLE);        // exact ET le plus proche
     await repondre(joueurs[1], CIBLE * 8);    // hors de tout
@@ -444,7 +444,7 @@ test.describe('L\'estimation du chantier v4', () => {
     for (const p of ['Moins', 'Plus']) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText('2');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueurs[0].page.getByLabel('Ta réponse')).toBeVisible({ timeout: 15_000 });
 
     // LES DEUX SONT HORS DE TOUTE PLAGE — 400 % et 900 % d'écart.

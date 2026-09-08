@@ -10,7 +10,7 @@
 // place en pixels — pas au centre d'une tranche large de plusieurs unités, comme
 // c'était le cas quand « la cible » n'était qu'une barre colorée.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(90_000);
@@ -44,7 +44,7 @@ test.describe('L\'axe de l\'histogramme', () => {
     for (const [i] of valeurs.entries()) joueurs.push(await joinAsPlayer(browser, hote.code, `J${i}`));
     await expect(hote.page.getByTestId('player-count')).toHaveText(String(valeurs.length));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${nom}` }).first().click();
+    await lancerJeu(hote.page, nom);
     const stream = await hote.ctx.newPage();
     const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
     await stream.goto(`/overlay?token=${token}`);

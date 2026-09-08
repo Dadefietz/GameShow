@@ -13,7 +13,7 @@
 //   - le barème est ÉNONCÉ au joueur, ce qu'il n'était nulle part (action 8) ;
 //   - le panneau « Bonus / Malus » de l'animateur est supprimé (action 8).
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Barème', () => {
@@ -61,7 +61,7 @@ test.describe('Barème', () => {
     joueur = await joinAsPlayer(browser, hote.code, 'Compte');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await expect(joueur.page.getByTestId('points-gained')).toBeVisible();
@@ -85,7 +85,7 @@ test.describe('Barème', () => {
     joueur = await joinAsPlayer(browser, hote.code, 'Intouchable');
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
 

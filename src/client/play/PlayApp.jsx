@@ -17,7 +17,11 @@ import { NOM_DU_JEU } from '../shared/marque.js';
 import { Chainons } from '../shared/Chainons.jsx';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
+import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
+import { BucheHache } from '../shared/BucheHache.jsx';
+import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { Symbole } from '../shared/Symbole.jsx';
+import { useBlancEntreImages } from '../shared/defile.js';
 import { chronoAffiche, secondes, useCompteARebours } from '../shared/temps.js';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
@@ -129,8 +133,12 @@ function correctAnswerLabel(reveal, current) {
   if (!reveal) return null;
   const rv = reveal;
   if (rv.type === 'true_false' || typeof rv.correct === 'boolean') return rv.correct ? 'Vrai' : 'Faux';
-  // Une cible de temps s'écrit en secondes — « 4,72 s », jamais « 5 ».
-  if (rv.target != null) return rv.type === 'juste_temps' ? secondes(rv.target) : fmtNum(rv.target);
+  // Chaque nature écrit sa cible dans son unité — « 4,72 s », « 80 % », « 330 ».
+  if (rv.target != null) {
+    if (rv.type === 'juste_temps') return secondes(rv.target);
+    if (rv.type === 'coupe_buche') return pourcent(rv.target);
+    return fmtNum(rv.target);
+  }
   if (rv.correctIndex != null) {
     const opts = rv.options || current?.options;
     const opt = Array.isArray(opts) ? opts[rv.correctIndex] : null;
@@ -333,6 +341,25 @@ function JoinScreen({ initialCode, onJoin, notice }) {
 // phrase — et un jeu inconnu retombe sur l'emblème de la marque plutôt que sur
 // celui du voisin.
 const ANNONCES = {
+  // LES QUATRE JEUX CLASSIQUES ONT DÉSORMAIS LEUR JINGLE, eux aussi. Ils
+  // démarraient d'un clic : la question tombait sur les téléphones avant qu'on ait
+  // dit à quoi on jouait. « Chaque module doit comporter un écran d'attente. »
+  quiz: {
+    emblem: <EmblemeJeu type="quiz" taille={120} />,
+    regle: 'Quatre réponses, une seule bonne. Le plus rapide marque le plus.',
+  },
+  true_false: {
+    emblem: <EmblemeJeu type="true_false" taille={112} />,
+    regle: 'Vrai ou faux. Rien entre les deux, et il faut trancher vite.',
+  },
+  estimation: {
+    emblem: <EmblemeJeu type="estimation" taille={140} />,
+    regle: 'Un nombre à deviner. Seule la justesse compte, pas la vitesse.',
+  },
+  vote: {
+    emblem: <EmblemeJeu type="vote" taille={112} />,
+    regle: 'Deux tours : ce que tu penses, puis ce que pense le cercle.',
+  },
   lien: {
     emblem: <Chainons taille={92} />,
     regle: "Trouve le mot qui relie les deux mots de l'animateur.",
@@ -340,6 +367,10 @@ const ANNONCES = {
   visages: {
     emblem: <MasquesVisages taille={132} />,
     regle: 'Un visage va passer deux fois. Buzze quand tu le revois.',
+  },
+  coupe_buche: {
+    emblem: <BucheHache taille={170} />,
+    regle: 'Un curseur balaie la bûche. Coupe-la à la bonne proportion.',
   },
   retour_flamme: {
     // L'EMBLÈME DÉPEND DU MODE : trois tuiles en −2, quatre en −3. C'est la règle
@@ -493,8 +524,37 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   const options = Array.isArray(current.options) ? current.options : [];
   const index = current.index != null ? current.index : current.number;
   const total = current.total;
-  const timeLeft = tick?.timeLeft;
-  const totalSec = Math.max(1, Math.round((current.durationMs || 0) / 1000));
+  // LE CHRONO AFFICHÉ EST CELUI DU JEU, pas celui de la fenêtre de réponse.
+  //
+  // Les deux diffèrent sur « Coupe ta bûche » : le serveur laisse une marge après
+  // les dix secondes pour qu'une coupe partie à 9,9 s ne soit pas refusée par le
+  // réseau. L'anneau affichait donc 12 là où l'énoncé demande « un chronomètre de
+  // 10 secondes » — et le joueur croyait avoir deux secondes de plus qu'il n'en a.
+  const timeLeftBrut = tick?.timeLeft;
+
+  // ---- « COUPE TA BÛCHE » : LE CURSEUR ----
+  //
+  // Il ne se déduit d'aucune donnée : il est CALCULÉ, à partir d'une durée envoyée
+  // par le serveur et de l'horloge monotone du navigateur. La formule est la même
+  // que celle de l'arbitre, et un contrôle les confronte — sans quoi le joueur
+  // couperait à un endroit et le serveur en compterait un autre.
+  //
+  // IL EST DÉCLARÉ ICI, AVANT LE CHRONO, et pas plus bas avec le reste du jeu :
+  // c'est de lui que le compte à rebours affiché se déduit, et une constante ne
+  // peut pas se lire avant sa déclaration.
+  const estBuche = type === 'coupe_buche';
+  const ecouleBuche = useBalayage(current, estBuche);
+  const positionBuche = estBuche && current.periodeMs
+    ? positionDuCurseur(ecouleBuche, current.periodeMs)
+    : 0;
+  // Le chrono du JEU pour la bûche — dix secondes, décomptées du même balayage
+  // que le curseur, donc parfaitement d'accord avec lui.
+  const timeLeft = estBuche && current.dureeCoupeMs != null
+    ? Math.max(0, Math.ceil((current.dureeCoupeMs - ecouleBuche) / 1000))
+    : timeLeftBrut;
+  // La durée de référence de la jauge suit le même principe : celle du JEU.
+  const totalSec = Math.max(1, Math.round(
+    ((estBuche ? current.dureeCoupeMs : current.durationMs) || 0) / 1000));
   const frac = timeLeft != null ? Math.max(0, Math.min(1, timeLeft / totalSec)) : 1;
   const urgent = timeLeft != null && timeLeft > 0 && timeLeft <= 5;
   // Verrouillage à 0 : plus aucune réponse possible (le serveur refuse de toute
@@ -507,6 +567,9 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   // premier buzz, et le joueur regardait passer les cinq retours suivants sans
   // rien pouvoir faire. Ici, seul le CHRONO ferme.
   const buzzMultiple = type === 'retour_flamme';
+  // LE BLANC ENTRE DEUX IMAGES — sans lui, deux images identiques qui se suivent
+  // ne se distinguent pas, et c'est exactement le moment où il faut buzzer.
+  const blanc = useBlancEntreImages(buzzMultiple ? visagePlace : null);
   const disabled = (answered && !buzzMultiple) || timeUp;
   const [estimate, setEstimate] = useState('');
   // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
@@ -588,7 +651,8 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   }
 
   return (
-    <main className="screen" data-state={state} aria-labelledby="q-text">
+    <main className="screen" data-state={state}
+      aria-labelledby={type === 'lien' ? 'lien-mots' : 'q-text'}>
       <div className="screen__main">
         <div className="q-hud">
           <span className={`p-cap${disabled ? ' p-cap--sunk' : ' p-cap--accent'}`} data-bind="module.meta.name">
@@ -635,8 +699,19 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           )}
         </div>
 
-        <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
-          data-bind="module.text" data-testid="question-text">{current.text}</p>
+        {/* L'ÉNONCÉ — SAUF QUAND L'ÉCRAN LE DIT DÉJÀ AILLEURS.
+            « Le lien » affichait ses deux mots DEUX FOIS sur le même écran : ici,
+            collés par un point médian, et au milieu de l'écran en grand, séparés
+            par l'emblème. C'est ce second affichage qui est le jeu — on lit les
+            deux mots ET ce qui pourrait les relier. Le premier n'ajoutait rien et
+            volait le haut de l'écran à la question. */}
+        {/* « COUPE TA BÛCHE » suit la même règle que « Le lien » : sa consigne est
+            écrite au-dessus de la bûche, avec la proportion en chiffres. L'énoncé
+            générique la répéterait en moins précis. */}
+        {type === 'lien' || type === 'coupe_buche' ? null : (
+          <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
+            data-bind="module.text" data-testid="question-text">{current.text}</p>
+        )}
 
         {/* LA CONSIGNE DU TOUR — « Vote » se joue en deux temps, et la question ne
             change pas entre les deux : c'est CE QU'ON DEMANDE qui change. Sans
@@ -713,8 +788,9 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                son doigt a été entendu — et il n'apprend rien : le joueur sait déjà
                combien de fois il a appuyé. Il ne dit PAS s'ils étaient justes. */
             <div className="vsg">
-              <div className="vsg__cadre" data-testid="retour-image" data-place={visagePlace || ''}>
-                {visageId
+              <div className="vsg__cadre" data-testid="retour-image" data-place={visagePlace || ''}
+                data-blanc={blanc || undefined}>
+                {visageId && !blanc
                   ? <Symbole id={visageId} taille={240} />
                   : <span className="vsg__attente" aria-hidden="true" />}
               </div>
@@ -732,6 +808,38 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                 {buzz > 0 ? `${buzz} buzz envoyé${buzz > 1 ? 's' : ''}` : 'Aucun buzz pour l’instant'}
               </p>
             </div>
+          ) : type === 'coupe_buche' ? (
+            /* COUPE TA BÛCHE. La consigne en haut, la bûche au milieu, le bouton
+               dessous — et rien d'autre : c'est un jeu de timing, tout ce qui
+               entoure la bûche détourne l'œil au moment où il faut frapper.
+
+               CE QUE LE BOUTON ENVOIE : l'INSTANT local de la frappe, pas la
+               position. Le serveur la recalcule par la même formule après avoir
+               borné cet instant par sa propre horloge (voir `coupeDuJoueur`). Le
+               curseur parcourt cent points de bûche par seconde : arbitrer sur la
+               seule heure d'arrivée mesurerait la latence de la liaison, pas
+               l'adresse du joueur. */
+            <div className="cbj">
+              <p className="cbj__consigne" data-testid="cb-consigne">
+                Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
+              </p>
+              <div className="cbj__buche" data-testid="cb-buche"
+                role="img" aria-label={`Bûche, curseur à ${Math.round(positionBuche)} %`}>
+                {/* LE TRAIT DU CURSEUR — la seule chose qui bouge. Sa position est
+                    une PROPORTION : la part de bûche à sa gauche. */}
+                <span className="cbj__curseur" style={{ left: `${positionBuche}%` }} aria-hidden="true" />
+              </div>
+              <button
+                className="p-btn p-btn--primary p-btn--buzz"
+                type="button"
+                data-testid="answer-submit"
+                data-action="play:answer"
+                disabled={disabled}
+                onClick={() => onAnswer(Math.round(ecouleBuche))}
+              >
+                {answered ? 'Coupe envoyée' : 'COUPE !'}
+              </button>
+            </div>
           ) : type === 'juste_temps' ? (
             /* LE JUSTE TEMPS. Le chrono occupe l'écran, le STOP est dessous, et
                il n'y a rien d'autre : tout ce qui entoure les chiffres détourne
@@ -748,6 +856,16 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                annonce, l'aller-retour réseau serait décompté du temps du joueur,
                et il le serait toujours aux mêmes. */
             <div className="jtj">
+              {/* LA CIBLE, EN CLAIR ET AU-DESSUS DU CADRAN.
+                  Elle avait été retenue au serveur, prise pour la réponse. C'était
+                  un contresens : c'est la CONSIGNE. Un joueur qui l'ignore ne peut
+                  pas jouer — on lui demandait d'arrêter un chrono sur un temps
+                  qu'on ne lui avait pas dit. Ce qui reste caché, et qui est le
+                  jeu, c'est le chrono lui-même une fois passé le temps de cache. */}
+              <p className="jtj__cible" data-testid="jt-cible-joueur">
+                <span className="jtj__cible-label">Arrête-le à</span>
+                <span className="jtj__cible-val">{secondes(current.cible)}</span>
+              </p>
               <div className={`jtj__cadran${chronoCache ? ' jtj__cadran--cache' : ''}`}
                 data-testid="jt-chrono" data-cache={chronoCache || undefined}
                 role="timer" aria-label={chronoCache ? 'Chrono masqué' : `Chrono ${chronoAffiche(chronoSec)}`}>
@@ -777,9 +895,12 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                en évidence, parce que c'est sur eux que le joueur réfléchit. Le
                chrono et le compteur restent ceux de tous les jeux. */
             <form className="lien" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
-              <div className="lien__mots">
+              {/* LES DEUX MOTS, en grand, séparés par l'emblème. Ils portent
+                  désormais l'étiquette de l'écran : c'est le seul énoncé qui reste,
+                  et un écran sans nom n'est pas annonçable. */}
+              <div className="lien__mots" id="lien-mots" data-testid="question-text">
                 <span className="lien__mot">{current.mots?.[0]}</span>
-                <span className="lien__chainons" aria-hidden="true"><Chainons taille={34} /></span>
+                <span className="lien__chainons" aria-hidden="true"><Chainons taille={56} /></span>
                 <span className="lien__mot">{current.mots?.[1]}</span>
               </div>
               <label className="p-label" htmlFor="lien">Le mot qui les relie</label>
@@ -905,12 +1026,14 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isLien = (rv.type || current?.type) === 'lien';
   const isVisages = (rv.type || current?.type) === 'visages';
   const isJusteTemps = (rv.type || current?.type) === 'juste_temps';
+  const isBuche = (rv.type || current?.type) === 'coupe_buche';
   const isRetour = (rv.type || current?.type) === 'retour_flamme';
+  const pointsRetour = current?.meta?.points ?? null;
   // LES DEUX JEUX QUI SE GAGNENT PAR PALIERS DE PROXIMITÉ. Tout ce qui suit —
   // la voix, le verdict, la comparaison chiffrée, la ligne d'exactitude — leur
   // est commun : c'est la même expérience à l'unité près, et l'auteur a demandé
   // pour le second de reprendre les phrases du premier.
-  const parPaliers = isEstimation || isJusteTemps;
+  const parPaliers = isEstimation || isJusteTemps || isBuche;
 
   // TROIS situations, pas deux (R12). L'absence de résultat ne signifie pas
   // « tu n'étais pas là » : elle peut aussi vouloir dire « pas encore révélé »,
@@ -1217,12 +1340,23 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                   <span className="p-label p-label--tiny">Buzz à côté</span>
                   <span className={`rfbil__value${monResultat.rates ? ' rfbil__value--rate' : ''}`}>{monResultat.rates}</span>
                 </div>
-                <div className="rfbil__cell">
-                  <span className="p-label p-label--tiny">Solde</span>
-                  <span className="rfbil__value">
-                    {monResultat.brut > 0 ? `+${fmtNum(monResultat.brut)}` : fmtNum(monResultat.brut)}
-                  </span>
-                </div>
+                {/* CE QUE CHAQUE BUZZ VAUT, sous le compte qu'il concerne. Les deux
+                    lignes rendent le calcul lisible sans l'expliquer : six trouvés
+                    à +200, quatre à côté à −200, et le total juste en dessous.
+                    LA VALEUR VIENT DU SERVEUR (`meta.points`) : la recopier ici
+                    donnerait deux barèmes, et c'est l'écran qui aurait tort. */}
+                {pointsRetour ? (
+                  <>
+                    <div className="rfbil__cell rfbil__cell--unite">
+                      <span className="p-label p-label--tiny">Base réussite</span>
+                      <span className="rfbil__value rfbil__value--bon">+{fmtNum(pointsRetour)}</span>
+                    </div>
+                    <div className="rfbil__cell rfbil__cell--unite">
+                      <span className="p-label p-label--tiny">Base échec</span>
+                      <span className="rfbil__value rfbil__value--rate">−{fmtNum(pointsRetour)}</span>
+                    </div>
+                  </>
+                ) : null}
               </div>
             ) : null}
             {/* Un solde négatif ne coûte rien, et il faut le DIRE là où le joueur
@@ -1231,6 +1365,22 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
               <p className="join__hint" style={{ textAlign: 'center' }} data-testid="retour-filet">
                 Ton score total ne baisse pas : au pire, une manche ne rapporte rien.
               </p>
+            ) : null}
+
+            {/* COUPE TA BÛCHE : ta coupe face à la proportion demandée. Comme au
+                juste temps, la valeur affichée est celle que l'ARBITRE a retenue —
+                pas celle que l'écran montrait au moment du doigt. */}
+            {isBuche && monResultat?.valeur != null ? (
+              <div className="est-compare">
+                <div className="est-compare__cell">
+                  <span className="p-label p-label--tiny">Ta coupe</span>
+                  <span className="est-compare__value">{pourcent(monResultat.valeur)}</span>
+                </div>
+                <div className="est-compare__cell est-compare__cell--target" data-bind="reveal.target" data-testid="reveal-value">
+                  <span className="p-label p-label--tiny" style={{ color: 'var(--c-pine)' }}>Proportion cible</span>
+                  <span className="est-compare__value">{pourcent(rv.target)}</span>
+                </div>
+              </div>
             ) : null}
 
             {/* LE JUSTE TEMPS : ton chrono face au temps cible.
@@ -1259,7 +1409,25 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                 pénalité n'existe dans aucun jeu.
                 Chaque ligne ne s'affiche que si elle vaut quelque chose — un écran
                 de résultat n'a pas à aligner des zéros. */}
-            {!isVote && (monResultat.base || monResultat.speed
+            {/* LE TOTAL DE « RETOUR DE FLAMME » — à la place qu'occupait « Base ».
+                Il vaut le SOLDE, négatif compris : c'est ce que le joueur a fait.
+                La ligne « Points gagnés », plus haut, dit ce que son score
+                encaisse — zéro quand le solde est négatif. Les deux nombres
+                diffèrent, et c'est exactement ce qu'il faut montrer : sans le
+                total, le zéro du haut serait incompréhensible. */}
+            {isRetour && monResultat?.brut != null ? (
+              <div className="breakdown">
+                <div className="breakdown__cell">
+                  <span className="p-label p-label--tiny">Total</span>
+                  <span className={`breakdown__value${monResultat.brut < 0 ? ' breakdown__value--rate' : ''}`}
+                    data-testid="retour-total">
+                    {monResultat.brut > 0 ? `+${fmtNum(monResultat.brut)}` : fmtNum(monResultat.brut)}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            {!isVote && !isRetour && (monResultat.base || monResultat.speed
               || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe) ? (
               <div className="breakdown">
                 {monResultat.base ? (
@@ -1453,6 +1621,7 @@ function historyAnswer(h) {
   if (h.type === 'true_false') return rv.correct ? 'Vrai' : 'Faux';
   if (h.type === 'estimation') return rv.target != null ? fmtNum(rv.target) : null;
   if (h.type === 'juste_temps') return rv.target != null ? secondes(rv.target) : null;
+  if (h.type === 'coupe_buche') return rv.target != null ? pourcent(rv.target) : null;
   if (h.type === 'retour_flamme') {
     return Array.isArray(rv.retours) ? `retours aux images ${rv.retours.join(', ')}` : null;
   }

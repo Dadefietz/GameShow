@@ -24,7 +24,7 @@
 // console le produisait aussi — mais aucun contrôle ne regardait la console
 // après une reconnexion. D'où le second contrôle, sur le score.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Un aller-retour complet coûte deux chargements de page et deux reprises de
@@ -104,9 +104,15 @@ test.describe('Le volet de navigation', () => {
     joueur = await joinAsPlayer(browser, hote.code, 'Direct');
     await expect(hote.page.getByTestId('player-count')).toContainText('1');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
-    await expect(hote.page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
-    const enonce = (await hote.page.getByTestId('question-text').textContent())?.trim();
+    await lancerJeu(hote.page, 'Quiz');
+    // ON ATTEND LA VRAIE QUESTION, pas le gabarit. La console affiche « En attente
+    // de la question… » entre l'annonce du jeu et son départ : relever l'énoncé à
+    // cet instant compare ensuite une phrase d'attente à une question, et le
+    // contrôle accuse l'aller-retour d'une faute qui n'est pas la sienne.
+    const enonceEl = hote.page.getByTestId('question-text');
+    await expect(enonceEl).toBeVisible({ timeout: 15_000 });
+    await expect(enonceEl).not.toContainText('En attente', { timeout: 15_000 });
+    const enonce = (await enonceEl.textContent())?.trim();
 
     const volet = await ouvrirVolet(hote.page);
     // LE CONTRÔLE QUI ÉCHOUE SUR LE DÉFAUT D'ORIGINE. En direct, la console ne
@@ -137,7 +143,7 @@ test.describe('Le volet de navigation', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Marqueur');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     await expect(joueur.page.getByTestId('answer-option').first()).toBeVisible({ timeout: 15_000 });
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
@@ -180,7 +186,7 @@ test.describe('Le volet de navigation', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Podium');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(joueur.page.getByRole('button', { name: BONNE })).toBeVisible({ timeout: 15_000 });
     await joueur.page.getByRole('button', { name: BONNE }).click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();

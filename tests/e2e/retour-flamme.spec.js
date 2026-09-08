@@ -11,7 +11,7 @@
 //     devant le public.
 //   - la SÉRIE QUI NE DOIT PAS FUIR avant la révélation.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { TOTAL_RETOUR, RETOURS_PAR_SERIE, CADENCE_RETOUR } from '../../src/server/modules.js';
 
@@ -23,6 +23,15 @@ test.describe('Retour de flamme', () => {
   let hote = null;
   const joueurs = [];
   let stream = null;
+  // CE QUE L'ANTENNE A JETÉ. Un écran de stream qui plante ne dit rien : il
+  // devient NOIR. La console de l'animateur, elle, continue de fonctionner — il
+  // ne peut donc ni le voir ni le comprendre, et le public regarde du vide.
+  //
+  // LE DÉFAUT QUE CE RELEVÉ A ATTRAPÉ : le blanc entre deux images lisait la place
+  // de l'image AVANT que celle-ci ne soit déclarée. Comme la place n'est lue que
+  // sur ce jeu-là, l'antenne ne s'éteignait que sur « Retour de flamme » —
+  // « ReferenceError: Cannot access before initialization », jetée à chaque rendu.
+  let jetees = [];
 
   test.afterEach(async () => {
     if (stream) { await stream.close().catch(() => {}); stream = null; }
@@ -34,12 +43,14 @@ test.describe('Retour de flamme', () => {
     hote = await openHost(browser);
     for (const p of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     stream = await hote.ctx.newPage();
+    jetees = [];
+    stream.on('pageerror', (e) => jetees.push(String(e.message)));
     await stream.setViewportSize({ width: 1920, height: 1080 });
     const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
     await stream.goto(`/overlay?token=${token}`);
     await expect(stream.getByTestId('stream-room-code')).toHaveText(hote.code);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
   }
 
   test('l\'écran d\'attente MONTRE le mode, et le suit quand l\'animateur en change', async ({ browser }) => {
@@ -134,6 +145,11 @@ test.describe('Retour de flamme', () => {
     await expect(graf).toBeVisible({ timeout: 15_000 });
     await expect(graf.locator('.vsgraf__col')).toHaveCount(TOTAL_RETOUR);
     await expect(graf.locator('[data-role="retour"]')).toHaveCount(RETOURS_PAR_SERIE);
+
+    // L'ANTENNE N'A RIEN JETÉ. À vérifier AVANT de chercher le graphique : une
+    // page morte ne montre rien, et l'absence du graphique serait alors le
+    // symptôme, pas la faute.
+    expect(jetees, `l'antenne a planté : ${jetees.join(' · ')}`).toEqual([]);
 
     // L'ANTENNE, la même chose.
     const serie = stream.getByTestId('stream-retour-serie');

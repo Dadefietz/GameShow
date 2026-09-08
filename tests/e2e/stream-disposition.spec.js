@@ -17,7 +17,7 @@
 // décoratif — et personne ne signale qu'il n'arrive pas à scanner, les gens
 // abandonnent en silence.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 import { segmentsAdresse } from '../../src/client/shared/adresse.js';
 
@@ -72,7 +72,7 @@ test.describe('Disposition du stream', () => {
     // La scène ne dessine JAMAIS sous la pastille : contrainte de mise en page,
     // pas espoir de non-recouvrement.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(stream.getByTestId('stream-question')).toBeVisible();
 
     // On mesure ce qui est DESSINÉ, pas le conteneur : la scène est un bloc en
@@ -105,7 +105,7 @@ test.describe('Disposition du stream', () => {
       // choses se superposent devant le public.
       await ouvrirStream(browser, ['Annonce']);
       await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-      await hote.page.getByRole('menuitem', { name: `Lancer ${jeu}` }).first().click();
+      await lancerJeu(hote.page, jeu);
       await expect(stream.getByTestId('stream-annonce')).toBeVisible({ timeout: 15_000 });
 
       const m = await stream.evaluate(() => {
@@ -153,7 +153,7 @@ test.describe('Disposition du stream', () => {
     await ouvrirStream(browser, ['Un', 'Deux', 'Trois']);
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     for (const j of joueurs) await j.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Voir le classement' }).click();
@@ -180,7 +180,7 @@ test.describe('Disposition du stream', () => {
     await ouvrirStream(browser, ['Un']);
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await joueurs[0].page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Voir le classement' }).click();

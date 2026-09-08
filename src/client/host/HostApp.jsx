@@ -10,7 +10,8 @@
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
-import { formatteurDe } from '../shared/temps.js';
+import { formatteurDe, secondes as secondesFr } from '../shared/temps.js';
+import { pourcent } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
 import { Symbole } from '../shared/Symbole.jsx';
 import QRCode from 'qrcode';
@@ -387,6 +388,86 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
   );
 }
 
+// LA SAISIE DE LA PROPORTION — « Coupe ta bûche ».
+//
+// Un seul champ, et le bouton reste inerte tant qu'il est vide : « ne s'active
+// que si le champ "Proportion cible" n'est pas vide ». Diffuser sans proportion
+// lancerait une manche que personne ne peut gagner, et l'animateur le
+// découvrirait devant son public.
+function SaisieBuche({ jeu, onDiffuser, onAnnuler }) {
+  const [cible, setCible] = useState('');
+  const dansLaBuche = cible !== '' && Number.isFinite(Number(cible))
+    && Number(cible) >= 0 && Number(cible) <= 100;
+  return (
+    <section className="private lien-saisie" aria-label="Préparer Coupe ta bûche" data-testid="saisie-buche">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Un curseur balaie la bûche, un aller-retour par seconde. Le cercle frappe
+        quand il le croit sur la proportion demandée. Dix secondes de jeu.
+      </p>
+      <form className="lien-saisie__form fields"
+        onSubmit={(e) => { e.preventDefault(); if (dansLaBuche) onDiffuser(jeu, Number(cible)); }}>
+        <div className="frow">
+          <div className="fgroup fgroup--short">
+            <label className="flabel" htmlFor="cb-cible">Proportion cible</label>
+            <div className="input-suffix">
+              <input className={`input${cible === '' || dansLaBuche ? '' : ' input--invalid'}`}
+                id="cb-cible" type="number" inputMode="numeric" step="1" min="0" max="100"
+                placeholder="0" value={cible} onChange={(e) => setCible(e.target.value)}
+                data-testid="cb-cible" />
+              <span className="input-suffix__unit">%</span>
+            </div>
+          </div>
+        </div>
+        <p className="fhint">
+          La part de bûche <strong>à gauche</strong> du trait. Le cercle la voit
+          écrite pendant toute la manche : c'est la consigne, pas la réponse.
+        </p>
+        <div className="lien-saisie__actions">
+          <button className="button button--primary" type="submit" disabled={!dansLaBuche}
+            data-action="host:diffuserBuche" data-testid="cb-diffuser">
+            Diffusion aux joueurs
+          </button>
+          {onAnnuler ? (
+            <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// LE DÉPART D'UN JEU ORDINAIRE — rien à préparer, juste le moment.
+//
+// POURQUOI IL EXISTE MAINTENANT. Les quatre jeux « en direct » s'annonçaient déjà
+// avant de démarrer, parce qu'ils demandent une saisie. Les quatre autres
+// partaient d'un clic : la question tombait sur les téléphones sans qu'on ait dit
+// à quoi on jouait. La consigne est désormais générale — « chaque module doit
+// comporter un écran d'attente lorsque l'animateur le lance » — et ce panneau est
+// ce qui la rend possible : le cercle voit le jingle pendant que l'animateur
+// présente, puis l'animateur donne le départ quand il a fini sa phrase.
+function DepartSimple({ jeu, onDemarrer, onAnnuler }) {
+  return (
+    <section className="private lien-saisie" aria-label={`Démarrer ${jeu.name}`} data-testid="depart-simple">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Le cercle voit l'écran d'attente. Présente le jeu, puis donne le départ :
+        la première question part à ce moment-là, et le chrono avec.
+      </p>
+      <div className="lien-saisie__actions">
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerSimple" data-testid="simple-demarrer"
+          onClick={() => onDemarrer(jeu)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 // LE DÉPART DE « RETOUR DE FLAMME » — le mode, puis le top.
 //
 // L'énoncé ne demande qu'« un bouton Démarrer le jeu ». Il faut pourtant que le
@@ -397,7 +478,7 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
 // LE CHOIX PART TOUT DE SUITE VERS L'ANNONCE, avant même le départ : l'écran
 // d'attente du cercle montre la règle en image — trois tuiles ou quatre. Un mode
 // annoncé qui ne serait pas celui joué serait pire que pas d'image du tout.
-function DepartRetour({ jeu, ecart, onMode, onDemarrer, onAnnuler }) {
+function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAnnuler }) {
   return (
     <section className="private lien-saisie" aria-label="Démarrer Retour de flamme" data-testid="depart-retour">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
@@ -405,22 +486,47 @@ function DepartRetour({ jeu, ecart, onMode, onDemarrer, onAnnuler }) {
         Trente images, une toutes les deux secondes. Le cercle buzze quand une image
         revient {ecart === 3 ? 'trois' : 'deux'} images plus tard — il y en a six, ni
         plus ni moins. Une minute de jeu.
+        {famille === 'figures' ? ' Cinq figures : le jeu est plus serré.' : ' Dix chiffres.'}
       </p>
-      <div className="frow" role="group" aria-label="Mode de jeu">
-        {[2, 3].map((e) => (
-          <button key={e} type="button"
-            className={`button ${ecart === e ? 'button--primary' : 'button--quiet'}`}
-            aria-pressed={ecart === e}
-            data-testid={`retour-mode-${e}`}
-            onClick={() => onMode(e)}>
-            Retour −{e}
-          </button>
-        ))}
+      <div className="fields">
+        <div className="fgroup">
+          <span className="flabel">Mode</span>
+          <div className="frow" role="group" aria-label="Mode de jeu">
+            {[2, 3].map((e) => (
+              <button key={e} type="button"
+                className={`button ${ecart === e ? 'button--primary' : 'button--quiet'}`}
+                aria-pressed={ecart === e}
+                data-testid={`retour-mode-${e}`}
+                onClick={() => onMode(e)}>
+                Retour −{e}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* LE STYLE D'IMAGE. Une série n'emploie qu'une famille : dix chiffres ou
+            cinq figures, jamais les deux mélangés. Le choix est ici parce qu'il
+            change la difficulté autant que le mode — cinq signes se retiennent
+            plus facilement que dix, et un chiffre au milieu de figures donnerait à
+            l'œil un repère gratuit qui remplacerait la mémoire du signe. */}
+        <div className="fgroup">
+          <span className="flabel">Style d'image</span>
+          <div className="frow" role="group" aria-label="Style d'image">
+            {[['chiffres', 'Chiffres'], ['figures', 'Figures']].map(([f, label]) => (
+              <button key={f} type="button"
+                className={`button ${famille === f ? 'button--primary' : 'button--quiet'}`}
+                aria-pressed={famille === f}
+                data-testid={`retour-famille-${f}`}
+                onClick={() => onFamille(f)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="lien-saisie__actions">
         <button className="button button--primary" type="button"
           data-action="host:demarrerRetour" data-testid="retour-demarrer"
-          onClick={() => onDemarrer(jeu, ecart)}>
+          onClick={() => onDemarrer(jeu, ecart, famille)}>
           Démarrer le jeu
         </button>
         {onAnnuler ? (
@@ -505,6 +611,70 @@ function GraphiqueRetour({ stats, taille = 40 }) {
           titre={role ? `Image ${place}, retour de flamme` : `Image ${place}`} />
       )}
     />
+  );
+}
+
+// LE CLASSEMENT DE MANCHE — POUR L'ANIMATEUR SEUL.
+//
+// POURQUOI IL EXISTE. Le graphique de répartition dit COMMENT le cercle s'est
+// réparti ; il ne dit pas QUI a fait quoi. L'animateur commente à l'antenne :
+// sans les noms, il ne peut féliciter personne, et c'est son métier. Les noms ne
+// partent jamais vers le stream — même frontière que le plus proche de
+// l'estimation et que les groupes du lien.
+//
+// UN SEUL COMPOSANT POUR LES DEUX JEUX QUI EN ONT UN. « Le juste temps » y montre
+// l'écart et le temps d'arrêt, « Retour de flamme » le score et les buzz : ce
+// sont les COLONNES qui changent, pas le tableau. Le serveur compose les lignes,
+// l'écran les nomme.
+const COLONNES_CLASSEMENT = {
+  juste_temps: [
+    ['Écart', (l) => secondesFr(l.ecart)],
+    ['Arrêté à', (l) => secondesFr(l.valeur)],
+  ],
+  coupe_buche: [
+    ['Écart', (l) => `${l.ecart} pt`],
+    ['Coupé à', (l) => pourcent(l.valeur)],
+  ],
+  retour_flamme: [
+    ['Score', (l) => fmt(l.score)],
+    ['Réussis', (l) => fmt(l.bons)],
+    ['Ratés', (l) => fmt(l.rates)],
+  ],
+};
+
+function ClassementManche({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  useEffect(() => {
+    const onClassement = (d) => setDonnee(d && Array.isArray(d.lignes) ? d : null);
+    g.on('host:classement', onClassement);
+    return () => g.off('host:classement', onClassement);
+  }, [g]);
+  // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
+  // manche antérieure ferait commenter des noms qui ne sont plus à l'antenne.
+  if (!revealed || !donnee || donnee.roundId !== roundId) return null;
+  const colonnes = COLONNES_CLASSEMENT[donnee.type];
+  if (!colonnes || !donnee.lignes.length) return null;
+  return (
+    <section className="private" aria-label="Classement de la manche" data-testid="classement-manche">
+      <p className="private__title">
+        <I.eye s={16} /> Classement de la manche — toi seul
+        <span className="private__count">{fmt(donnee.lignes.length)}</span>
+      </p>
+      <div className="clsm" style={{ '--clsm-cols': colonnes.length }}>
+        <div className="clsm__ligne clsm__ligne--tete">
+          <span className="clsm__rang" />
+          <span className="clsm__nom">Joueur</span>
+          {colonnes.map(([titre]) => <span className="clsm__col" key={titre}>{titre}</span>)}
+        </div>
+        {donnee.lignes.map((l, i) => (
+          <div className="clsm__ligne" key={`${l.pseudo}-${i}`}>
+            <span className="clsm__rang">{i + 1}</span>
+            <span className="clsm__nom" title={l.pseudo}>{l.pseudo}</span>
+            {colonnes.map(([titre, lire]) => <span className="clsm__col" key={titre}>{lire(l)}</span>)}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1435,7 +1605,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
   // VRAIMENT — même composant, même géométrie, même serveur qui la calcule — et
   // n'en diffère que par l'écriture des nombres, que `formatteurDe` choisit sur
   // l'unité annoncée par le serveur.
-  if (type === 'estimation' || type === 'juste_temps') {
+  if (type === 'estimation' || type === 'juste_temps' || type === 'coupe_buche') {
     const has = stats?.kind === 'numeric' || dist.kind === 'numeric';
     if (!has || !total) return <p className="dist__empty">Les estimations s'afficheront ici, en direct.</p>;
     const cells = stats?.kind === 'numeric'
@@ -1636,9 +1806,21 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 }
 
 // ============================================================
+// LES JEUX QUI APPORTENT LEUR PANNEAU DE PRÉPARATION.
+//
+// Ceux-là ont quelque chose à saisir ou à choisir avant de partir : les deux mots
+// du lien, les deux temps du juste temps, la proportion de la bûche, le mode de
+// « Retour de flamme », le top des visages. Les autres n'ont qu'un bouton.
+//
+// LA LISTE SERT À DEUX ENDROITS et doit rester la même : le choix du panneau à
+// l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
+// sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
+// verrait la manche repartir avec les mots de la précédente.
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche'];
+
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1767,8 +1949,17 @@ function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour,
             <SaisieJusteTemps jeu={prepare} duree={(prepare.dureeCompteMs ?? 15000) / 1000}
               onDiffuser={onDiffuserJusteTemps} onAnnuler={onAnnulerLien} />
           ) : null}
+          {/* TOUT JEU S'ANNONCE AVANT DE PARTIR. Ceux qui n'ont rien à préparer
+              n'ont besoin que d'un bouton ; les autres apportent leur panneau. */}
+          {prepare && prepare.type === 'coupe_buche' ? (
+            <SaisieBuche jeu={prepare} onDiffuser={onDiffuserBuche} onAnnuler={onAnnulerLien} />
+          ) : null}
+          {prepare && !JEUX_A_PREPARER.includes(prepare.type) ? (
+            <DepartSimple jeu={prepare} onDemarrer={onDemarrerSimple} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
-            <DepartRetour jeu={prepare} ecart={ecartRetour} onMode={onModeRetour}
+            <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
+              onMode={onModeRetour} onFamille={onFamilleRetour}
               onDemarrer={onDemarrerRetour} onAnnuler={onAnnulerLien} />
           ) : null}
           {prepare && prepare.type === 'visages' ? (
@@ -1777,6 +1968,7 @@ function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour,
 
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
+          <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA SÉRIE DE VISAGES, À LA RÉVÉLATION. Elle vient de `reveal.stats` et
               non d'un canal réservé : une fois la manche révélée, la série n'a
@@ -2008,6 +2200,9 @@ export function HostApp() {
   // manche à l'autre : un animateur qui enchaîne trois séries en −3 ne veut pas
   // le rechoisir à chaque fois.
   const [ecartRetour, setEcartRetour] = useState(2);
+  // La famille d'images, choisie avec le mode. Elle survit d'une manche à l'autre
+  // pour la même raison : on enchaîne rarement chiffres puis figures.
+  const [familleRetour, setFamilleRetour] = useState('chiffres');
   const [home, setHome] = useState(null);           // 'closed' | 'expired'
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState(null);
@@ -2101,26 +2296,36 @@ export function HostApp() {
   const startModule = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
-    // LES JEUX « EN DIRECT » NE SE LANCENT PAS D'UN CLIC. « Le lien » attend deux
-    // mots que l'animateur tape à l'antenne : on ANNONCE le jeu — le cercle voit
-    // le jingle — et la manche ne démarre qu'à la diffusion des mots. Le temps de
-    // saisie ne doit pas être décompté du temps de jeu.
-    // « Les visages » suit le même chemin : l'annonce d'abord — le cercle voit le
-    // jingle et comprend à quoi il joue —, la série ensuite, quand l'animateur
-    // donne le départ. Ici il n'a rien à saisir : il choisit le MOMENT, ce qui
-    // suffit à justifier les deux temps. Lancer d'un clic ferait défiler les
-    // premiers visages pendant qu'il finit sa phrase.
-    // « Le juste temps » suit le même chemin, et pour la même raison que « Le
-    // lien » : ses deux temps se saisissent à l'antenne, et le temps de saisie ne
-    // doit pas être décompté du compte à rebours.
-    if (jeu?.type === 'lien' || jeu?.type === 'visages' || jeu?.type === 'juste_temps'
-      || jeu?.type === 'retour_flamme') {
-      setPrepare(jeu);
-      // Le mode part avec l'annonce pour les jeux qui en ont un : l'écran
-      // d'attente du cercle montre alors la règle en image.
-      g.emit('host:announceModule', { moduleId: jeu.id, ecart: ecartRetour });
-      return;
-    }
+    // AUCUN JEU NE SE LANCE PLUS D'UN CLIC.
+    //
+    // Les jeux « en direct » — le lien, les visages, le juste temps, retour de
+    // flamme — s'annonçaient déjà : le cercle voit le jingle pendant que
+    // l'animateur saisit ses mots ou choisit son mode, et le temps de saisie n'est
+    // pas décompté du temps de jeu.
+    //
+    // Les quatre autres partaient sans rien dire : la question tombait sur les
+    // téléphones avant qu'on ait annoncé le jeu. Ils passent désormais par le même
+    // chemin — annonce d'abord, départ ensuite — avec un panneau qui n'a qu'un
+    // bouton, puisqu'ils n'ont rien à préparer.
+    setPrepare(jeu);
+    g.emit('host:announceModule', { moduleId: jeu.id, ecart: ecartRetour });
+    return;
+  }, [g, ecartRetour]);
+
+  // LA DIFFUSION DE LA PROPORTION : c'est ELLE qui démarre la manche et lance le
+  // balayage du curseur.
+  const diffuserBuche = useCallback((jeu, cible) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', { moduleId: jeu.id, question: { id: `cb-${Date.now()}`, cible } });
+  }, [g]);
+
+  // LE DÉPART D'UN JEU ORDINAIRE : le serveur tire la question dans la réserve du
+  // jeu, comme avant. Seul le MOMENT change de main.
+  const demarrerSimple = useCallback((jeu) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
     setPrepare(null);
     g.emit('host:startModule', { moduleId: jeu?.id, moduleType: jeu?.type });
   }, [g]);
@@ -2163,13 +2368,13 @@ export function HostApp() {
     if (prepare?.type === 'retour_flamme') g.emit('host:announceModule', { moduleId: prepare.id, ecart: e });
   }, [g, prepare]);
 
-  const demarrerRetour = useCallback((jeu, ecart) => {
+  const demarrerRetour = useCallback((jeu, ecart, famille) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
     setPrepare(null);
     g.emit('host:startModule', {
       moduleId: jeu.id,
-      question: { id: `rf-${Date.now()}`, ecart },
+      question: { id: `rf-${Date.now()}`, ecart, famille },
     });
   }, [g]);
 
@@ -2306,10 +2511,14 @@ export function HostApp() {
           code={code}
           overlayToken={session.overlayToken}
           prepare={prepare}
+          onDemarrerSimple={demarrerSimple}
+          onDiffuserBuche={diffuserBuche}
           onDiffuserLien={diffuserLien}
           onDiffuserJusteTemps={diffuserJusteTemps}
           ecartRetour={ecartRetour}
+          familleRetour={familleRetour}
           onModeRetour={changerModeRetour}
+          onFamilleRetour={setFamilleRetour}
           onDemarrerRetour={demarrerRetour}
           onDemarrerVisages={demarrerVisages}
           onAnnulerLien={() => setPrepare(null)}
@@ -2318,8 +2527,21 @@ export function HostApp() {
           onCloseRoom={closeRoom}
           onEndGame={endGame}
           onNextQuestion={() => {
-            if (jeuEnCours?.type === 'lien') { setPrepare(jeuEnCours); return; }
-            startModule(jeuEnCours);
+            // « QUESTION SUIVANTE » CONTINUE LE JEU EN COURS — elle ne le lance
+            // pas. Le jingle marque le LANCEMENT d'un jeu ; le remettre entre
+            // deux questions arrêterait l'émission toutes les vingt secondes pour
+            // annoncer ce qu'on est déjà en train de jouer.
+            //
+            // CE QUE CE DÉTOUR A COÛTÉ : passées par l'annonce, les manches
+            // suivantes n'arrivaient plus jamais aux téléphones — l'écran restait
+            // sur le jingle et le contrôle attendait quinze secondes une question
+            // qui ne tomberait pas. Six contrôles rouges, aucun ne désignant la
+            // faute.
+            //
+            // Les jeux qui SAISISSENT rouvrent leur panneau : la manche suivante
+            // a besoin de nouveaux mots, de nouveaux temps, d'une autre proportion.
+            if (JEUX_A_PREPARER.includes(jeuEnCours?.type)) { setPrepare(jeuEnCours); return; }
+            demarrerSimple(jeuEnCours);
           }}
           onChangeModule={(t) => startModule(t)}
           connLost={connLost}

@@ -10,7 +10,7 @@
 // Ce qui les remplace n'est pas un autre bouton : quand l'animateur relance, le
 // serveur ramène les joueurs au salon d'attente tout seul.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Fin de partie côté joueur', () => {
@@ -28,7 +28,7 @@ test.describe('Fin de partie côté joueur', () => {
 
     // Une manche jouée, puis la partie terminée (podium affiché aux joueurs).
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await joueur.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Voir le classement' }).click();
@@ -63,7 +63,7 @@ test.describe('Fin de partie côté joueur', () => {
 
     // Question en cours.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(joueur.page.getByTestId('question-text')).toBeVisible();
     await expect(joueur.page.locator('[data-action="leave"]')).toHaveCount(0);
 

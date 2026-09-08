@@ -14,7 +14,7 @@
 //    tranches. L'animateur voyait trois chiffres : où était le groupe, mais pas
 //    s'il était groupé ou éparpillé.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Module estimation', () => {
@@ -31,7 +31,7 @@ test.describe('Module estimation', () => {
     for (const p of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText(String(pseudos.length));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Estimation' }).click();
+    await lancerJeu(hote.page, 'Estimation');
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible();
   }
 

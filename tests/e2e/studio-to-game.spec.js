@@ -18,7 +18,7 @@
 // Il a été vu échouer, puis vu passer. Il garde désormais le pont : si quelqu'un
 // réintroduit un aplatissement par type, c'est ici que ça se saura.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, retirerJeux, creerJeu } from './helpers.js';
+import { openHost, joinAsPlayer, retirerJeux, creerJeu, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 // Marqueurs volontairement improbables : s'ils apparaissent à l'écran, ils ne
@@ -99,7 +99,9 @@ test.describe('Studio → partie (le pont)', () => {
     // Le menu liste les JEUX de la bibliothèque, sous leur nom.
     const entree = hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` });
     await expect(entree).toBeVisible({ timeout: 3_000 });
-    await entree.click();
+    // Le clic du menu ANNONCE le jeu ; le départ se donne ensuite, sur le panneau
+    // à un bouton — voir `lancerJeu` dans les aides.
+    await lancerJeu(hote.page, JEU);
 
     // ---- 3. Joueur : la question du Studio, sous le nom du jeu du Studio ----
     await expect(joueur.page.getByTestId('question-text')).toHaveText(ENONCE);

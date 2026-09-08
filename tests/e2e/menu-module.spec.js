@@ -10,7 +10,7 @@
 // mais pas la même barre. Le menu de sortie vit en HAUT et doit continuer de
 // s'ouvrir vers le bas. Ce test vérifie les deux.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Menus de l\'écran animateur', () => {
@@ -28,7 +28,7 @@ test.describe('Menus de l\'écran animateur', () => {
 
     // Il faut une manche en cours : c'est le seul écran qui porte ce menu.
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(joueur.page.getByTestId('question-text')).toBeVisible();
 
     const declencheur = hote.page.getByRole('button', { name: 'Changer de module' });

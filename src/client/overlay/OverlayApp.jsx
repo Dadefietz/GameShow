@@ -22,8 +22,12 @@ import { Chainons } from '../shared/Chainons.jsx';
 import { segmentsAdresse } from '../shared/adresse.js';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
+import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
+import { BucheHache } from '../shared/BucheHache.jsx';
+import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
 import { Symbole } from '../shared/Symbole.jsx';
+import { useBlancEntreImages } from '../shared/defile.js';
 import { chronoAffiche, secondes, formatteurDe, useCompteARebours } from '../shared/temps.js';
 import './overlay.css';
 
@@ -208,6 +212,7 @@ function revealText(reveal, current) {
     case 'true_false': return reveal.correct ? 'Vrai' : 'Faux';
     case 'estimation': return fmt(reveal.target);
     case 'juste_temps': return secondes(reveal.target);
+    case 'coupe_buche': return pourcent(reveal.target);
     default: return null; // vote : pas de bonne réponse, la répartition parle
   }
 }
@@ -340,6 +345,27 @@ function QuestionStage({ g }) {
   const options = Array.isArray(current.options) ? current.options : [];
   // LES DEUX TOURS DU VOTE — voir la surface joueur, même règle et mêmes mots :
   // l'antenne et le cercle ne peuvent pas demander deux choses différentes.
+  // ---- « COUPE TA BÛCHE » : LE CURSEUR, ET LES TRAITS DÉJÀ POSÉS ----
+  //
+  // LE MÊME CROCHET QUE LES TÉLÉPHONES : le public et le cercle doivent voir le
+  // curseur au même endroit au même instant. Deux calculs distincts dériveraient,
+  // et l'antenne montrerait une bûche coupée ailleurs que celle du cercle.
+  const estBuche = current.type === 'coupe_buche';
+  const ecouleBuche = useBalayage(current, estBuche && !revealed);
+  const positionBuche = estBuche && current.periodeMs
+    ? positionDuCurseur(ecouleBuche, current.periodeMs)
+    : 0;
+  // Les coupes déjà faites, poussées une par une par le serveur sur le canal du
+  // staff. Aucun nom ne les accompagne — le stream est capturé par OBS.
+  const [traits, setTraits] = useState([]);
+  useEffect(() => {
+    const onTrait = (t) => setTraits((prev) => (
+      t && t.roundId === g.current?.roundId ? [...prev, t.position] : prev
+    ));
+    g.on('coupe:trait', onTrait);
+    return () => g.off('coupe:trait', onTrait);
+  }, [g, g.current?.roundId]);
+  useEffect(() => { setTraits([]); }, [g.current?.roundId]);
   const consigneDuTour = current.type === 'vote' && current.tours > 1
     ? (current.tour === 2 ? 'Que pense le cercle ?' : 'Que penses-tu ?')
     : null;
@@ -352,6 +378,17 @@ function QuestionStage({ g }) {
   const visageId = elementOk ? g.element.id : null;
   const visageSrc = elementOk ? g.element.src : null;
   const visagePlace = elementOk ? g.element.place : null;
+
+  // LE BLANC ENTRE DEUX IMAGES — à l'antenne aussi, et pour la même raison : deux
+  // images identiques qui se suivent ne se distinguent pas sans lui, et le public
+  // ne verrait pas ce que le cercle doit repérer.
+  //
+  // IL SE DÉCLARE ICI, APRÈS LA PLACE, et pas plus haut : il la LIT. Écrit avant
+  // elle, il jetait une « ReferenceError: Cannot access before initialization » —
+  // et comme la place n'est lue que sur « Retour de flamme », l'antenne ne
+  // s'éteignait que sur ce jeu-là. Écran noir devant le public, rien sur la
+  // console de l'animateur, qui ne pouvait ni le voir ni le comprendre.
+  const blancDefile = useBlancEntreImages(current.type === 'retour_flamme' ? visagePlace : null);
 
   const voix = useVoixDePlateau(revealed ? reveal : null, stats, g.current?.roundId);
   const answer = revealText(reveal, current);
@@ -442,7 +479,7 @@ function QuestionStage({ g }) {
 
   // État du stage avec variantes selon le type de révélation
   const revealedState = revealed ? (() => {
-    const typeMap = { true_false: 'boolean', estimation: 'numeric', juste_temps: 'numeric', vote: 'vote' };
+    const typeMap = { true_false: 'boolean', estimation: 'numeric', juste_temps: 'numeric', coupe_buche: 'numeric', vote: 'vote' };
     const typeSuffix = typeMap[reveal.type] || '';
     return typeSuffix ? `revealed ${typeSuffix}` : 'revealed';
   })() : (urgent ? 'live urgent' : 'live');
@@ -552,10 +589,35 @@ function QuestionStage({ g }) {
              n'apparaît qu'à la révélation, avec le graphique. */
           <div className={`st-jt${chronoCache ? ' st-jt--cache' : ''}`} data-testid="stream-jt-chrono"
             data-cache={chronoCache || undefined}>
+            {/* LA CIBLE, À L'ANTENNE AUSSI. Le public suit le jeu : sans le temps
+                à viser, il regarde des chiffres défiler sans savoir ce qui se
+                joue. Voir la note de la surface joueur — c'est la consigne, pas la
+                réponse. */}
+            <p className="st-jt__cible" data-testid="stream-jt-cible">
+              <span className="st-jt__cible-label">Arrêter à</span>
+              <span className="st-jt__cible-val">{secondes(current.cible)}</span>
+            </p>
             <span className={`st-jt__valeur${chronoCache ? ' consume' : ''}`}>{chronoAffiche(chronoSec)}</span>
             <span className="st-jt__legende">
               {chronoCache ? 'Il court toujours' : 'Retenez le rythme'}
             </span>
+          </div>
+        ) : current.type === 'coupe_buche' ? (
+          /* LA BÛCHE, À L'ANTENNE. La consigne, le rondin, le curseur — et les
+             traits des coupes déjà faites, qui apparaissent au fil de la manche.
+             C'est le seul jeu du projet où le public voit les réponses arriver en
+             direct ; elles n'atteignent pas les joueurs, qui viseraient le trait le
+             plus fourni plutôt que la proportion. */
+          <div className="st-buche" data-testid="stream-buche">
+            <p className="st-buche__consigne">
+              Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
+            </p>
+            <div className="st-buche__corps">
+              {traits.map((p, i) => (
+                <span key={i} className="st-buche__trait" style={{ left: `${p}%` }} aria-hidden="true" />
+              ))}
+              <span className="st-buche__curseur" style={{ left: `${positionBuche}%` }} aria-hidden="true" />
+            </div>
           </div>
         ) : current.type === 'retour_flamme' ? (
           /* LE DÉFILÉ, À L'ANTENNE. L'image seule, en grand, et rien d'autre :
@@ -564,8 +626,9 @@ function QuestionStage({ g }) {
              public un repère de mémoire que les joueurs n'ont pas, et sur un
              stream regardé à deux écrans il transformerait le jeu en exercice
              d'écriture. */
-          <div className="st-visage" data-testid="stream-retour-image" data-place={visagePlace || ''}>
-            {visageId ? <Symbole id={visageId} taille={380} /> : null}
+          <div className="st-visage" data-testid="stream-retour-image" data-place={visagePlace || ''}
+            data-blanc={blancDefile || undefined}>
+            {visageId && !blancDefile ? <Symbole id={visageId} taille={380} /> : null}
           </div>
         ) : current.type === 'visages' ? (
           /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
@@ -603,7 +666,8 @@ function QuestionStage({ g }) {
             <>
               <div className="st-answer" data-bind="reveal.target" data-testid="reveal-value">
                 <span className="st-answer__label">
-                  {stats.unite === 'secondes' ? 'Temps cible' : 'Bonne réponse'}
+                  {stats.unite === 'secondes' ? 'Temps cible'
+                    : stats.unite === 'pourcent' ? 'Proportion cible' : 'Bonne réponse'}
                 </span>
                 <span className="st-answer__value">{formatteurDe(stats, fmt)(reveal.target)}</span>
               </div>
@@ -615,7 +679,7 @@ function QuestionStage({ g }) {
                 plages={stats.plages} cible={stats.target}
                 ecrire={formatteurDe(stats, fmt)}
                 ecrireAxe={formatteurDe(stats, (v) => fmt(Math.round(v)))}
-                legende={stats.unite === 'secondes' ? 'réponse' : 'estimation'} />
+                legende={stats.unite ? 'réponse' : 'estimation'} />
               <div className="st-facts">
                 <div className="st-fact">
                   <span className="st-fact__label">Le plus proche</span>
@@ -697,8 +761,15 @@ function QuestionStage({ g }) {
 // en dur —, si bien que « Les visages » aurait annoncé des chaînons devant tout
 // le public. Chaque jeu en direct apporte le sien.
 const ANNONCES_STREAM = {
+  // Les quatre jeux classiques ont leur jingle à l'antenne aussi — mêmes mots que
+  // sur les téléphones, à l'échelle de la scène.
+  quiz: { emblem: <EmblemeJeu type="quiz" taille={260} />, regle: 'Quatre réponses, une seule bonne. Le plus rapide marque le plus.' },
+  true_false: { emblem: <EmblemeJeu type="true_false" taille={240} />, regle: 'Vrai ou faux. Rien entre les deux, et il faut trancher vite.' },
+  estimation: { emblem: <EmblemeJeu type="estimation" taille={300} />, regle: 'Un nombre à deviner. Seule la justesse compte, pas la vitesse.' },
+  vote: { emblem: <EmblemeJeu type="vote" taille={240} />, regle: 'Deux tours : ce que le cercle pense, puis ce qu\'il croit penser.' },
   lien: { emblem: <Chainons taille={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
   visages: { emblem: <MasquesVisages taille={280} />, regle: 'Un visage va passer deux fois. Saurez-vous le reconnaître ?' },
+  coupe_buche: { emblem: <BucheHache taille={280} />, regle: 'Un curseur balaie la bûche. Le cercle doit la couper à la bonne proportion.' },
   // L'EMBLÈME DÉPEND DU MODE : trois tuiles en −2, quatre en −3. C'est la règle
   // montrée en image, et elle change avec le choix de l'animateur.
   retour_flamme: {

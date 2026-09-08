@@ -187,16 +187,43 @@ describe('le graphique du juste temps', () => {
     expect(reveal.stats.avg).not.toBe(Math.round(reveal.stats.avg));
   });
 
-  it('LA CIBLE NE PART JAMAIS dans la question publique', () => {
-    // C'est tout le jeu. Le temps de CACHE, lui, est public : le client doit
-    // savoir quand effacer, et le connaître n'apprend rien sur la cible.
+  it('LA CIBLE EST PUBLIQUE — c\'est la consigne, pas la réponse', () => {
+    // CE CONTRÔLE DISAIT L'INVERSE, ET IL AVAIT TORT.
+    //
+    // J'avais retenu la cible au serveur en la prenant pour la solution, comme le
+    // visage doublé de « Les visages ». Contresens : ici la cible est ce qu'on
+    // DEMANDE au joueur de viser. Sans elle il ne peut pas jouer du tout — on lui
+    // demandait d'arrêter un chrono sur un temps qu'on ne lui avait pas dit. Le
+    // jeu tournait, les points se calculaient sur des buzz au hasard, et rien ne
+    // le signalait.
+    //
+    // CE QUI RESTE CACHÉ, et qui est le vrai jeu : le chrono lui-même, une fois
+    // passé le temps de cache. On sait ce qu'il faut viser ; on ne sait plus où en
+    // est l'aiguille. Ce silence-là est gardé par le contrôle de bout en bout
+    // « AUCUN AUTRE CHRONO ne trahit le temps caché ».
     const rt = jt.buildRound({ id: 'q', cache: 9.5, cible: 4.72 });
     const publique = jt.publicQuestion(rt);
-    expect(JSON.stringify(publique)).not.toContain('4.72');
+    expect(publique.cible, 'le joueur ne saurait pas quoi viser').toBe(4.72);
     expect(publique.cache).toBe(9.5);
     expect(publique.dureeCompteMs).toBe(DUREE_JUSTE_TEMPS * 1000);
-    // Et l'énoncé lui-même ne la porte pas : il s'affiche sur le stream.
-    expect(rt.text).not.toContain('4');
+  });
+
+  it('classe les trente meilleurs pour l\'animateur, jamais pour le stream', () => {
+    // Il commente à l'antenne : le graphique dit comment le cercle s'est réparti,
+    // pas QUI a fait quoi. Les noms restent sur son canal — le moteur les résout,
+    // le module ne connaît que des identifiants.
+    const buzz = {};
+    for (let i = 0; i < 35; i += 1) buzz[`p${i}`] = aSec(auCentieme(7 + i * 0.05));
+    const rt = manche(7.0, Object.values(buzz));
+    const { reveal, prives } = jt.score(rt);
+    expect(prives.classement.length, 'le classement doit être borné à trente').toBe(30);
+    // Trié du plus proche au plus loin, avec l'écart et le temps retenu.
+    const ecarts = prives.classement.map((l) => l.ecart);
+    expect([...ecarts].sort((a, b) => a - b)).toEqual(ecarts);
+    expect(prives.classement[0]).toHaveProperty('valeur');
+    expect(prives.classement[0]).toHaveProperty('pid');
+    // ET RIEN DE TOUT CELA DANS LA RÉVÉLATION, qui part à tout le salon.
+    expect(JSON.stringify(reveal)).not.toContain('classement');
   });
 
   it('la fenêtre de réponse dépasse le cadran, sinon buzzer à zéro serait impossible', () => {

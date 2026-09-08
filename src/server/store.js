@@ -58,7 +58,7 @@ function uid(prefixe) {
 // LA RÈGLE : chaque fichier porte le NUMÉRO DE SEMENCE avec lequel il a été
 // écrit. Une montée n'ajoute que les types QUI N'EXISTAIENT PAS à ce numéro-là :
 // des jeux que l'animateur n'a pas pu supprimer, puisqu'il ne les a jamais eus.
-const SEMENCE = 3;
+const SEMENCE = 4;
 // LES TYPES QUI EXISTAIENT À LA PREMIÈRE SEMENCE. C'est un fait historique, pas
 // une configuration : un fichier écrit avant l'existence des numéros de semence
 // contient ceux-là, et rien d'autre. Cette liste NE SE MODIFIE PLUS — un jeu
@@ -69,6 +69,7 @@ const TYPES_SEMENCE_1 = ['quiz', 'true_false', 'estimation', 'lien', 'visages', 
 const APPORTS = {
   2: ['juste_temps'],
   3: ['retour_flamme'],
+  4: ['coupe_buche'],
 };
 
 // Les jeux livrés d'office, construits depuis les questions d'exemple.

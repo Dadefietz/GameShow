@@ -15,7 +15,7 @@
 // La couverture existante se réduisait à UNE ligne comparant deux questions
 // consécutives — un contrôle de bon fonctionnement, pas une preuve.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('File d\'attente et non-répétition', () => {
@@ -29,7 +29,7 @@ test.describe('File d\'attente et non-répétition', () => {
 
   async function lancerPremierJeu() {
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
   }
 
   test('la file montre ce qui vient, et se réordonne', async ({ browser }) => {

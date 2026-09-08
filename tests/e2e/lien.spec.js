@@ -10,7 +10,7 @@
 // vérifie ce qu'aucun test unitaire ne peut voir : que les écrans existent, qu'ils
 // s'enchaînent, et que les noms des joueurs ne franchissent pas la frontière.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(120_000);
@@ -29,7 +29,7 @@ test.describe('Le lien', () => {
     for (const p of pseudos) joueurs.push(await joinAsPlayer(browser, hote.code, p));
     await expect(hote.page.getByTestId('player-count')).toHaveText(String(pseudos.length));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Le lien' }).first().click();
+    await lancerJeu(hote.page, 'Le lien');
   }
 
   test('l\'annonce précède les mots, et le chrono ne court pas encore', async ({ browser }) => {

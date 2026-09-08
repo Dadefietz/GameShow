@@ -7,7 +7,7 @@
 // reste affiché en toute phase : le salon demeure ouvert cinq minutes après le
 // podium, et un code seul suffit à revenir.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 
 test.describe('Page stream (M8)', () => {
   test('moyen de rejoindre pendant la partie, question live, stats à la révélation', async ({ browser }) => {
@@ -30,7 +30,7 @@ test.describe('Page stream (M8)', () => {
     const { ctx: p1Ctx, page: p1 } = await joinAsPlayer(browser, code, 'Viewer');
 
     await host.getByRole('button', { name: 'Lancer la partie' }).click();
-    await host.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(host, 'Quiz');
     await expect(stream.getByTestId('stream-question')).toBeVisible();
     // QR + code toujours affichés pendant la question.
     await expect(stream.getByTestId('stream-room-code')).toHaveText(code);

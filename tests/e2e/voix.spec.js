@@ -8,7 +8,7 @@
 // La règle éditoriale maîtresse est vérifiée ici aussi : on peut taquiner en
 // privé, jamais en public. Le stream ne nomme personne.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('La voix du jeu', () => {
@@ -50,7 +50,7 @@ test.describe('La voix du jeu', () => {
     const page = joueurs[0].page;
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     await page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
 
@@ -74,7 +74,7 @@ test.describe('La voix du jeu', () => {
     const page = joueurs[0].page;
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Vrai / Faux' }).click();
+    await lancerJeu(hote.page, 'Vrai / Faux');
     // On répond aux deux options possibles selon la question : on veut juste un
     // résultat, quel qu'il soit, et vérifier le registre.
     await page.getByTestId('answer-option').first().click();
@@ -94,7 +94,7 @@ test.describe('La voix du jeu', () => {
     await stream.goto(`/overlay?token=${token}`);
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     for (const j of joueurs) await j.page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await expect(stream.getByTestId('stats-panel')).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('La voix dans les cas limites', () => {
     joueurs.push(await joinAsPlayer(browser, hote.code, 'Present'));
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem').first().click();
+    await lancerJeu(hote.page);
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible();
 
     // LE RETARDATAIRE arrive alors que la manche est déjà lancée.

@@ -603,6 +603,52 @@
   /* Le second tour est celui qui compte : il porte la couleur du feu. */
   .q-consigne[data-tour="2"] { color: var(--c-ember-bright); }
 
+  /* ===== « COUPE TA BÛCHE » — L'ÉCRAN DE JEU DU JOUEUR =====
+     La consigne en haut, la bûche au milieu, le bouton dessous. Rien d'autre :
+     c'est un jeu de timing, et tout ce qui entoure la bûche détourne l'œil au
+     moment où il faut frapper. */
+  .cbj {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-6);
+    width: 100%;
+  }
+  .cbj__consigne {
+    margin: 0;
+    font: 500 var(--fs-400) / 1.35 var(--f-ui);
+    color: var(--c-ink-2);
+    text-align: center;
+  }
+  .cbj__consigne strong { color: var(--c-ember-bright); font-weight: 700; }
+  /* LA BÛCHE — « elle doit faire un peu moins de la largeur de l'écran de
+     téléphone ». Le rondin est un bloc plein aux bouts arrondis : c'est sur LUI
+     que le curseur se lit, et un contour vide se lirait comme une jauge. */
+  .cbj__buche {
+    position: relative;
+    width: 88%;
+    height: 96px;
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+  /* LE CURSEUR — un trait franc, et rien d'autre. Il traverse toute la hauteur du
+     rondin : c'est la coupe qu'il annonce, pas une position sur une règle.
+     `translateX(-50%)` le centre sur sa proportion — sans quoi le trait serait
+     décalé de sa propre épaisseur, soit un point de bûche entier près des bords. */
+  .cbj__curseur {
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    width: 5px;
+    margin-left: -2.5px;
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    box-shadow: 0 0 12px var(--c-ember-ring);
+  }
+
   /* ===== « RETOUR DE FLAMME » ÉPOUSE L'ÉCRAN DES VISAGES =====
      Les deux jeux montrent une image qui défile et un bouton dessous : ils
      partagent donc `.vsg`. Ce qui s'ajoute ici leur est propre.
@@ -623,9 +669,13 @@
      Il existe parce que la ligne « Points gagnés » affiche 0 pour un joueur à
      −600 : son score total ne baisse pas, et ce zéro serait incompréhensible
      sans le calcul en face. */
+  /* LE BILAN — DEUX COLONNES, DEUX RANGÉES. Les deux comptes en haut, ce que
+     chaque buzz vaut juste dessous : le calcul se lit en descendant, sans être
+     expliqué. Il était sur trois colonnes tant que le solde y figurait ; le solde
+     est descendu à la place de « Base », sous le nom de « Total ». */
   .rfbil {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--sp-3);
     margin-top: var(--sp-5);
     width: 100%;
@@ -643,6 +693,11 @@
   .rfbil__value { font: 700 var(--fs-600) / 1 var(--f-mono); color: var(--c-ink); }
   .rfbil__value--bon { color: var(--c-fern); }
   .rfbil__value--rate { color: var(--c-bad); }
+  /* Les deux valeurs unitaires sont une LÉGENDE du barème, pas un résultat :
+     plus discrètes que les comptes qu'elles expliquent. */
+  .rfbil__cell--unite { background: var(--c-surface-sunk); box-shadow: none; }
+  .rfbil__cell--unite .rfbil__value { font-size: var(--fs-400); }
+  .breakdown__value--rate { color: var(--c-bad); }
   .rfbil__sur { font: 500 var(--fs-300) / 1 var(--f-mono); color: var(--c-ink-3); }
 
   /* ===== « LE JUSTE TEMPS » — L'ÉCRAN DE JEU DU JOUEUR =====
@@ -657,6 +712,23 @@
     gap: var(--sp-5);
     width: 100%;
   }
+  /* LA CIBLE — la consigne du jeu, au-dessus du cadran. Elle doit se lire d'un
+     coup d'œil et ne plus quitter l'écran : c'est le seul repère qui reste quand
+     le chrono s'efface. */
+  .jtj__cible {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+  }
+  .jtj__cible-label {
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .jtj__cible-val { font: 700 var(--fs-600) / 1 var(--f-mono); color: var(--c-fern); }
+
   .jtj__cadran {
     width: 100%;
     max-width: min(360px, 86vw);
@@ -847,6 +919,9 @@
     color: var(--c-ink);
     text-align: center;
   }
+  /* L'EMBLÈME GAGNE EN TAILLE depuis que les deux mots ne s'affichent plus qu'ici :
+     il n'est plus un rappel discret au milieu d'un écran qui répète l'énoncé, il
+     EST l'énoncé, avec les deux mots qu'il sépare. */
   .lien__chainons { display: grid; place-items: center; color: var(--c-ember-bright); }
   .est__input--mot { text-align: center; font-family: var(--f-ui); }
 

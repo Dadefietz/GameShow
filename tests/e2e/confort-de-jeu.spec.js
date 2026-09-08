@@ -11,7 +11,7 @@
 //   A26 — « le bouton de validation du clavier du téléphone devrait envoyer
 //         directement la réponse ».
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer, creerJeu, retirerJeux } from './helpers.js';
+import { openHost, joinAsPlayer, creerJeu, retirerJeux, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(120_000);
@@ -37,7 +37,7 @@ test.describe('Le confort de jeu', () => {
     hote = await openHost(browser);
     joueurs.push(await joinAsPlayer(browser, hote.code, 'Clavier'));
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
 
     const champ = joueurs[0].page.getByLabel('Ta réponse');
     await expect(champ).toBeVisible({ timeout: 15_000 });
@@ -68,7 +68,7 @@ test.describe('Le confort de jeu', () => {
     joueurs.push(await joinAsPlayer(browser, hote.code, 'Loin'));
     await expect(hote.page.getByTestId('player-count')).toHaveText('2');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
 
     for (const [i, valeur] of [CIBLE, CIBLE * 7].entries()) {
       const champ = joueurs[i].page.getByLabel('Ta réponse');
@@ -153,7 +153,7 @@ test.describe('Le confort de jeu', () => {
     joueurs.push({ ctx, page });
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await expect(page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
 
     // Rien ne doit sonner AVANT les cinq dernières secondes : un bip par seconde
@@ -213,7 +213,7 @@ test.describe('Le confort de jeu', () => {
     await stream.goto(`/overlay?token=${jeton}`);
 
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: `Lancer ${JEU}` }).first().click();
+    await lancerJeu(hote.page, JEU);
     await joueurs[0].page.getByTestId('answer-option').first().click();
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await expect(stream.getByTestId('stats-panel')).toBeVisible({ timeout: 15_000 });

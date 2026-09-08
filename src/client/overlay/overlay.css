@@ -270,6 +270,44 @@
      de la réponse. Sans elle, l'apparition d'une phrase déplaçait tout le bloc de
      répartition d'une manche à l'autre, devant l'antenne. */
   /* ===== LES VISAGES, À L'ANTENNE ===== */
+  /* ===== « COUPE TA BÛCHE » — LA BÛCHE DE LA SCÈNE =====
+     Le public suit le curseur avec le cercle, et voit les traits des coupes
+     apparaître au fil de la manche. */
+  .st-buche { display: grid; place-items: center; gap: var(--gap-st); margin-top: var(--sp-6); }
+  .st-buche__consigne { margin: 0; font: 500 var(--fs-st-300) / 1.2 var(--f-ui); color: var(--c-ink-2); }
+  .st-buche__consigne strong { color: var(--c-ember-bright); font-weight: 700; }
+  .st-buche__corps {
+    position: relative;
+    width: 1200px;
+    height: 180px;
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+  .st-buche__curseur {
+    position: absolute;
+    top: -14px;
+    bottom: -14px;
+    width: 8px;
+    margin-left: -4px;
+    border-radius: var(--r-full);
+    background: var(--c-ember-bright);
+    box-shadow: 0 0 24px var(--c-ember-ring);
+  }
+  /* LES COUPES DÉJÀ FAITES — plus fines et plus sobres que le curseur : ce sont
+     des traces, pas ce qui bouge. Elles s'accumulent, et leur amas raconte à lui
+     seul où le cercle a visé. */
+  .st-buche__trait {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    margin-left: -2px;
+    border-radius: var(--r-full);
+    background: var(--c-ink-3);
+    opacity: 0.75;
+  }
+
   /* LA CONSIGNE DU TOUR, À L'ANTENNE — voir la surface joueur. */
   .st-consigne {
     margin: var(--sp-4) 0 0;
@@ -320,6 +358,15 @@
     align-content: center;
     margin-top: var(--sp-6);
   }
+  .st-jt__cible { margin: 0; display: flex; align-items: baseline; gap: var(--gap-st); }
+  .st-jt__cible-label {
+    font: 500 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .st-jt__cible-val { font: 700 var(--fs-st-400) / 1 var(--f-mono); color: var(--c-fern); }
+
   .st-jt__valeur {
     font: 700 var(--fs-st-700) / 1 var(--f-mono);
     font-variant-numeric: tabular-nums;

@@ -17,7 +17,7 @@
 // C'est la règle du projet depuis le chantier v2 : on mesure le rendu, pas
 // l'intention.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(90_000);
@@ -35,7 +35,7 @@ test.describe('La police de la console', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Police');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
     await expect(hote.page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
 
     // Les deux piles, telles que le navigateur les résout — jamais recopiées à la
@@ -93,7 +93,7 @@ test.describe('La police de la console', () => {
     const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
     await stream.goto(`/overlay?token=${token}`);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).click();
+    await lancerJeu(hote.page, 'Quiz');
 
     const enonce = stream.locator('[data-bind="module.text"]').first();
     await expect(enonce).toBeVisible({ timeout: 15_000 });

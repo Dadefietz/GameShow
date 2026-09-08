@@ -17,7 +17,7 @@
 //     déjà en vert, et pouvait croire qu'il avait répondu.
 //   - LE BOUTON DE L'ANIMATEUR, qui ouvre le second tour au lieu de révéler.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.describe('Module vote', () => {
@@ -42,7 +42,7 @@ test.describe('Module vote', () => {
     await stream.goto(`/overlay?token=${token}`);
     await expect(stream.getByTestId('stream-room-code')).toHaveText(hote.code);
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await hote.page.getByRole('menuitem', { name: 'Lancer Vote' }).click();
+    await lancerJeu(hote.page, 'Vote');
     await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible();
   }
 

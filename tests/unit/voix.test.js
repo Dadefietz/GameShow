@@ -99,6 +99,10 @@ describe('convention de la voix — contrôle bloquant', () => {
       // score total. Aucune phrase existante ne dit cela, et le laisser retomber
       // sur « faux » ferait croire au joueur qu'il a été puni.
       retour_flamme: ['retour.parfait', 'retour.marque', 'retour.brule'],
+      // « COUPE TA BÛCHE » partage lui aussi la famille des paliers : troisième
+      // jeu à se gagner en s'approchant d'une cible.
+      coupe_buche: ['estimation.exact', 'estimation.mille', 'estimation.proche',
+        'estimation.correct', 'estimation.loin', 'estimation.hors'],
       juste_temps: ['estimation.exact', 'estimation.mille', 'estimation.proche',
         'estimation.correct', 'estimation.loin', 'estimation.hors'],
     };

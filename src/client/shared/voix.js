@@ -260,6 +260,14 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX INTIME : coupe ta bûche ----------
+  //
+  // ELLE PARTAGE LA FAMILLE DES PALIERS avec l'estimation et le juste temps : les
+  // trois jeux se gagnent de la même façon — s'approcher d'une cible, par paliers,
+  // avec un bonus d'exactitude — et le serveur nomme ces paliers pareillement.
+  // Rien à ajouter ici : les conditions déclarées de cette famille couvrent déjà
+  // les trois barèmes (voir `estimation.mille` et ses voisins).
+
   // ---------- VOIX INTIME : retour de flamme ----------
   //
   // TROIS ISSUES, ET LA TROISIÈME EST CELLE QU'IL FALLAIT NOMMER. Ce jeu est le

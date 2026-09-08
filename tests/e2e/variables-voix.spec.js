@@ -23,7 +23,7 @@
 // quatre. Ce qu'on affirme n'est pas « telle phrase est là » mais « aucune
 // accolade nulle part » — c'est exactement la garantie qu'on veut.
 import { test, expect } from '@playwright/test';
-import { openHost, joinAsPlayer } from './helpers.js';
+import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
 
 test.setTimeout(120_000);
@@ -67,7 +67,7 @@ test.describe('Les variables de la voix', () => {
     // la condition de `juste.serie`, donc de {serie}. Une seule manche ne
     // l'atteindrait pas, et le contrôle passerait sans avoir rien regardé.
     for (let manche = 1; manche <= 3; manche += 1) {
-      if (manche === 1) await hote.page.getByRole('menuitem', { name: 'Lancer Quiz' }).first().click();
+      if (manche === 1) await lancerJeu(hote.page, 'Quiz');
       else await hote.page.getByRole('button', { name: 'Question suivante' }).click();
 
       await expect(joueurs[0].page.getByTestId('question-text')).toBeVisible({ timeout: 15_000 });
