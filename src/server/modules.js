@@ -313,22 +313,26 @@ export function bonusDeRang(rang) {
 // « LES VISAGES » — retrouver celui qui est passé deux fois
 // ============================================================
 //
-// LA RÈGLE. Trente visages défilent, un toutes les deux secondes : vingt-huit
+// LA RÈGLE. Vingt visages défilent, un toutes les deux secondes : dix-huit
 // inconnus et UN SEUL qui revient. Les joueurs ont un buzz, un seul, et ne
 // gagnent que s'ils l'emploient PENDANT LA SECONDE APPARITION. Buzzer sur la
 // première, c'est avoir vu juste trop tôt — et c'est perdu : on ne peut pas
 // savoir qu'un visage reviendra avant qu'il ne revienne.
 const CADENCE_VISAGES = 2000;   // un visage toutes les 2 s
-const TOTAL_VISAGES = 30;       // 28 uniques + 1 visage doublé, qui occupe 2 places
+// VINGT PLACES, ET NON PLUS TRENTE. La manche passe donc de soixante à quarante
+// secondes. Une minute d'attention soutenue sur un défilé de visages était longue
+// — pour les joueurs comme pour l'antenne, qui n'a rien à commenter pendant ce
+// temps-là.
+const TOTAL_VISAGES = 20;       // 18 uniques + 1 visage doublé, qui occupe 2 places
 const BASE_VISAGES = 700;
 
 // LES QUATRE CONTRAINTES DE PLACEMENT, telles qu'elles ont été spécifiées. Elles
 // sont écrites ici en constantes plutôt qu'en chiffres au fil du code : c'est ce
 // qui permet au contrôle de les éprouver sur mille tirages sans les recopier.
 const VISAGES_PREMIERE_MIN = 1;    // la 1re apparition ne peut pas être avant le 1er
-const VISAGES_PREMIERE_MAX = 20;   // ni après le 20e
-const VISAGES_SECONDE_MIN = 10;    // la 2e ne peut pas être avant le 10e
-const VISAGES_SECONDE_MAX = 30;    // ni après le 30e
+const VISAGES_PREMIERE_MAX = 12;   // ni après le 12e
+const VISAGES_SECONDE_MIN = 9;     // la 2e ne peut pas être avant le 9e
+const VISAGES_SECONDE_MAX = 20;    // ni après le 20e (dernier)
 // « au moins 5 photos ENTRE les deux apparitions » : cinq visages doivent
 // s'intercaler, donc les positions sont distantes d'au moins six. Lecture
 // littérale de la consigne — et c'est la lecture stricte, celle qui laisse le
@@ -344,7 +348,7 @@ export const REGLES_VISAGES = {
   points: BASE_VISAGES,
 };
 
-// LA SÉRIE — trente places, un visage doublé, vingt-huit figurants.
+// LA SÉRIE — vingt places, un visage doublé, dix-huit figurants.
 //
 // `alea` est injectable : un tirage aléatoire qu'on ne peut pas fixer est un
 // tirage qu'on ne peut pas éprouver. Le contrôle s'en sert pour forcer les cas
@@ -374,7 +378,18 @@ export function construireSerie(bassin, alea = Math.random) {
 
   // La 1re apparition d'abord, la 2e ensuite dans ce que la 1re laisse possible.
   // Aucune combinaison n'est impossible : le pire cas, 20, laisse encore 26..30.
-  const pos1 = entier(VISAGES_PREMIERE_MIN, VISAGES_PREMIERE_MAX);
+  // LA 1re APPARITION NE PEUT PAS ÊTRE TIRÉE SEULE. Sur la grille d'origine —
+  // 30 places, 1re jusqu'au 20e — n'importe quel tirage laissait de la place à la
+  // seconde. Sur la nouvelle grille, 12 + 6 = 18 ≤ 20 : ça passe encore, mais la
+  // marge est de deux places. On borne donc explicitement la 1re par ce que la 2e
+  // exige, plutôt que de compter sur l'arithmétique — le jour où une borne bouge
+  // d'une unité, le tirage refuserait de servir au lieu de produire une série
+  // silencieusement fausse.
+  const premiereMax = Math.min(VISAGES_PREMIERE_MAX, VISAGES_SECONDE_MAX - VISAGES_ECART_MIN);
+  if (premiereMax < VISAGES_PREMIERE_MIN) {
+    throw new Error('bornes incompatibles : la seconde apparition n\'a nulle part où tomber');
+  }
+  const pos1 = entier(VISAGES_PREMIERE_MIN, premiereMax);
   const pos2 = entier(Math.max(VISAGES_SECONDE_MIN, pos1 + VISAGES_ECART_MIN), VISAGES_SECONDE_MAX);
 
   const melange = melanger(uniques, alea);
@@ -792,16 +807,16 @@ export const modules = {
         text: rt.text,
         cadenceMs: REGLES_VISAGES.cadenceMs,
         total: REGLES_VISAGES.total,
-        // LES VINGT-NEUF VISAGES DE CETTE SÉRIE, MÉLANGÉS — pour que le client
+        // LES VISAGES DE CETTE SÉRIE, MÉLANGÉS — pour que le client
         // charge ses images d'avance.
         //
         // POURQUOI CE N'EST PAS UNE FUITE. C'est l'ORDRE qui porte la réponse, pas
         // l'ensemble : savoir quels visages vont passer n'apprend rien sur celui
         // qui repassera. Le mélange ôte jusqu'à l'indice de l'ordre de tirage.
         //
-        // POURQUOI PAS LE BASSIN ENTIER. Il comptera environ quatre cents
-        // portraits : les envoyer tous ferait précharger quatre cents images pour
-        // en afficher trente, sur le téléphone d'un joueur, en soirée, parfois en
+        // POURQUOI PAS LE BASSIN ENTIER. Il compte deux cents portraits : les
+        // envoyer tous ferait précharger deux cents images pour
+        // en afficher vingt, sur le téléphone d'un joueur, en soirée, parfois en
         // 4G. Vingt-neuf suffisent, et ce sont exactement celles qui serviront.
         //
         // POURQUOI PRÉCHARGER TOUT COURT. Un visage reste deux secondes à
@@ -823,7 +838,7 @@ export const modules = {
     },
     score(rt) {
       const results = new Map();
-      // Combien de buzz sur chacune des trente places : c'est le graphique de
+      // Combien de buzz sur chacune des places : c'est le graphique de
       // l'animateur et celui du stream.
       const parPlace = new Array(REGLES_VISAGES.total).fill(0);
 

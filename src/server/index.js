@@ -381,7 +381,7 @@ io.on('connection', (socket) => {
     // quoi la série entière, donc la réponse, serait lisible dans la charge
     // utile. Conséquence : un joueur qui recharge en pleine série ne recevrait
     // plus RIEN jusqu'au visage suivant, et resterait deux secondes devant un
-    // écran vide au milieu d'un jeu qui dure une minute.
+    // écran vide au milieu d'une manche qui n'en dure que quarante.
     //
     // On lui renvoie donc la place où en est la série — calculée sur l'horloge du
     // serveur, la même que celle qui juge les buzz — et le visage qui l'occupe.

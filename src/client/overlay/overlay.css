@@ -62,6 +62,20 @@
   }
   .stream__stage--centered { justify-content: center; }
 
+  /* L'ÉCRAN D'ANNONCE LAISSE LA PLACE À LA PASTILLE « REJOINDRE ».
+     Le bloc d'annonce est aligné à gauche et la pastille est ancrée en bas à
+     gauche : la phrase de règle passait DERRIÈRE la plaque, coupée en deux.
+     Mesuré sur « Les visages » ; sur « Le lien » elle s'arrêtait cinq pixels
+     au-dessus — ce n'est pas une marge, c'est un hasard, et une phrase un peu
+     plus longue l'aurait franchi.
+     On réserve donc la largeur de la pastille à gauche de tout le bloc plutôt
+     que de la seule phrase : une phrase décalée sous un titre qui ne l'est pas
+     se lirait comme un défaut d'alignement. La réserve est calculée à partir des
+     jetons de la pastille — elle suivra si celle-ci change de taille. */
+  .stream__stage[data-state="annonce"] {
+    padding-left: calc(var(--pad-st) + var(--pastille-st) + var(--sp-6));
+  }
+
 
   /* PASTILLE POUR REJOINDRE — ancrée en bas à GAUCHE.
      Pourquoi ce coin : le système impose UN SEUL geste lumineux par écran, et il
@@ -275,12 +289,14 @@
      courts. La série, elle, est haute : collée en bas, elle laissait un tiers de
      l'écran vide au-dessus d'elle, devant le public. */
   .st-stats--serie { justify-content: center; }
+  /* DEUX RANGÉES ÉGALES — voir la note jumelle dans host.css. À l'antenne, une
+     rangée de treize suivie d'une de sept se lisait comme un débordement. */
   .st-serie {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(var(--colonnes, 10), auto);
     justify-content: center;
     gap: var(--sp-4) var(--sp-3);
-    align-items: flex-end;
+    align-items: end;
   }
   .st-serie__col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .st-serie__num { font: 500 var(--fs-st-100, 20px) / 1 var(--f-mono); color: var(--c-ink-3); }

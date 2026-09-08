@@ -315,8 +315,9 @@ function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
     <section className="private lien-saisie" aria-label="Démarrer Les visages" data-testid="depart-visages">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
       <p className="lien-saisie__aide">
-        Trente visages, un toutes les deux secondes. Un seul repasse : ils buzzent
-        quand ils le revoient. Une minute de jeu — donne le départ quand tu es prêt.
+        Vingt visages, un toutes les deux secondes. Un seul repasse : ils buzzent
+        quand ils le revoient. Quarante secondes de jeu — donne le départ quand tu
+        es prêt.
       </p>
       <div className="lien-saisie__actions">
         <button className="button button--primary" type="button"
@@ -334,7 +335,7 @@ function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
 
 // LE GRAPHIQUE DE LA SÉRIE, À LA RÉVÉLATION.
 //
-// Trente visages dans l'ordre où ils sont passés, leur numéro au-dessus, et le
+// La série dans l'ordre où elle est passée, chaque numéro au-dessus, et le
 // nombre de buzz sous chacun. Le visage doublé est GROSSI à ses deux places :
 // c'est la seule chose que l'animateur doit voir en un coup d'œil pour commenter
 // — où il est passé, et si le cercle l'a vu revenir.
@@ -348,7 +349,8 @@ function GraphiqueVisages({ stats, taille = 46 }) {
   const max = Math.max(1, ...stats.parPlace);
   const adresse = new Map(stats.adresses || []);
   return (
-    <div className="vsgraf" data-testid="visages-graphique">
+    <div className="vsgraf" data-testid="visages-graphique"
+      style={{ '--colonnes': Math.ceil(stats.ordre.length / 2) }}>
       {stats.ordre.map((id, i) => {
         const place = i + 1;
         const premiere = place === stats.pos1;

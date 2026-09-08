@@ -615,7 +615,8 @@ function SerieStream({ stats }) {
   if (!stats || !Array.isArray(stats.ordre)) return null;
   const adresse = new Map(stats.adresses || []);
   return (
-    <div className="st-serie" data-testid="stream-visages-serie">
+    <div className="st-serie" data-testid="stream-visages-serie"
+      style={{ '--colonnes': Math.ceil(stats.ordre.length / 2) }}>
       {stats.ordre.map((id, i) => {
         const place = i + 1;
         const premiere = place === stats.pos1;

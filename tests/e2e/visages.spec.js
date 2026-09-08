@@ -1,12 +1,13 @@
 // E2E — « LES VISAGES », de l'annonce au graphique de la série.
 //
 // CE QUE CE JEU A DE PARTICULIER, ET QU'AUCUN CONTRÔLE EXISTANT NE COUVRAIT :
-//   - sa question n'est pas un texte mais une SÉRIE de trente visages, poussés un
-//     par un par le serveur, une toutes les deux secondes ;
+//   - sa question n'est pas un texte mais une SÉRIE de visages, poussés un par un
+//     par le serveur, une toutes les deux secondes ;
 //   - la réponse ne se lit pas dans ce qu'on répond mais dans QUAND on répond ;
-//   - et surtout : la série ne doit JAMAIS atteindre le client d'un bloc. Trente
-//     identifiants dont un figure deux fois, c'est la réponse en clair dans
-//     l'onglet réseau — et ce jeu ne consiste qu'à retrouver cette répétition.
+//   - et surtout : la série ne doit JAMAIS atteindre le client d'un bloc. Une
+//     liste d'identifiants dont un figure deux fois, c'est la réponse en clair
+//     dans l'onglet réseau — et ce jeu ne consiste qu'à retrouver cette
+//     répétition.
 //
 // Le tirage et le barème sont vérifiés au chiffre près dans
 // `tests/unit/visages.test.js`, sur mille séries. Ici on vérifie ce qu'aucun
@@ -15,6 +16,12 @@
 import { test, expect } from '@playwright/test';
 import { openHost, joinAsPlayer } from './helpers.js';
 import { terminerPartie } from './cloture.js';
+// LES RÈGLES VIENNENT DE LEUR SOURCE, elles ne sont pas recopiées ici. Ce fichier
+// affirmait « trente places », « 1re jusqu'au 20e », « 2e jusqu'au 30e » : le
+// passage à vingt places a démenti d'un coup quatre attendus, alors que le jeu
+// se comportait exactement comme demandé. Un contrôle qui répète la règle qu'il
+// garde n'en garde rien — il oblige seulement à l'écrire deux fois.
+import { REGLES_VISAGES } from '../../src/server/modules.js';
 
 test.setTimeout(120_000);
 
@@ -98,10 +105,10 @@ test.describe('Les visages', () => {
     // ferait pour couper court à l'antenne.
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
 
-    // ---- LA CONSOLE : la série entière, trente places ----
+    // ---- LA CONSOLE : la série entière ----
     const graf = hote.page.getByTestId('visages-graphique');
     await expect(graf, 'le graphique de la série manque à la console').toBeVisible({ timeout: 15_000 });
-    await expect(graf.locator('.vsgraf__col')).toHaveCount(30);
+    await expect(graf.locator('.vsgraf__col')).toHaveCount(REGLES_VISAGES.total);
 
     // Les deux apparitions du visage doublé sont MARQUÉES, et distinguées l'une
     // de l'autre : buzzer sur la première est une erreur, sur la seconde une
@@ -117,12 +124,14 @@ test.describe('Les visages', () => {
     // LES QUATRE CONTRAINTES, VÉRIFIÉES SUR UNE VRAIE PARTIE et pas seulement sur
     // le générateur : c'est le seul endroit où l'on constate que la série jouée
     // est bien celle que le générateur promet.
-    expect(places[0], '1re apparition hors bornes').toBeGreaterThanOrEqual(1);
-    expect(places[0], '1re apparition hors bornes').toBeLessThanOrEqual(20);
-    expect(places[1], '2e apparition hors bornes').toBeGreaterThanOrEqual(10);
-    expect(places[1], '2e apparition hors bornes').toBeLessThanOrEqual(30);
-    expect(places[1] - places[0] - 1, 'moins de cinq visages entre les deux apparitions')
-      .toBeGreaterThanOrEqual(5);
+    const [pMin, pMax] = REGLES_VISAGES.premiere;
+    const [sMin, sMax] = REGLES_VISAGES.seconde;
+    expect(places[0], `1re apparition hors de [${pMin}, ${pMax}]`).toBeGreaterThanOrEqual(pMin);
+    expect(places[0], `1re apparition hors de [${pMin}, ${pMax}]`).toBeLessThanOrEqual(pMax);
+    expect(places[1], `2e apparition hors de [${sMin}, ${sMax}]`).toBeGreaterThanOrEqual(sMin);
+    expect(places[1], `2e apparition hors de [${sMin}, ${sMax}]`).toBeLessThanOrEqual(sMax);
+    expect(places[1] - places[0] - 1, 'pas assez de visages entre les deux apparitions')
+      .toBeGreaterThanOrEqual(REGLES_VISAGES.ecartMin - 1);
 
     // ---- LE STREAM : la même série, à l'échelle de l'antenne ----
     const stream = await hote.ctx.newPage();
@@ -130,7 +139,7 @@ test.describe('Les visages', () => {
     await stream.goto(`/overlay?token=${jeton}`);
     const serie = stream.getByTestId('stream-visages-serie');
     await expect(serie, 'la série manque à l\'antenne').toBeVisible({ timeout: 15_000 });
-    await expect(serie.locator('.st-serie__col')).toHaveCount(30);
+    await expect(serie.locator('.st-serie__col')).toHaveCount(REGLES_VISAGES.total);
     await expect(serie.locator('[data-role="seconde"]')).toHaveCount(1);
 
     // Les deux surfaces racontent la MÊME série : un désaccord ici voudrait dire

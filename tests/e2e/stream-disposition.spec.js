@@ -86,6 +86,55 @@ test.describe('Disposition du stream', () => {
     }
   });
 
+  for (const jeu of ['Le lien', 'Les visages']) {
+    test(`l'écran d'annonce de « ${jeu} » laisse la pastille tranquille`, async ({ browser }) => {
+      // CE QUI A ÉTÉ RAPPORTÉ : « déplacer la phrase d'explication du jeu sur
+      // l'écran de stream vers la droite pour qu'elle ne soit pas superposée au
+      // QR code. »
+      //
+      // CE QUE C'ÉTAIT. Le bloc d'annonce est aligné à gauche, la pastille est
+      // ancrée en bas à gauche : sur « Les visages », la phrase de règle passait
+      // DERRIÈRE la plaque et se lisait coupée en deux. Sur « Le lien », elle
+      // s'arrêtait cinq pixels au-dessus — pas une marge, un hasard : un emblème
+      // un peu plus haut ou une phrase un peu plus longue l'y faisait entrer.
+      //
+      // POURQUOI CE CONTRÔLE MESURE UN RECOUVREMENT DE BOÎTES et non une marge
+      // gauche : c'est le défaut réel. Une règle de CSS peut changer, la
+      // pastille peut grossir ; ce qui ne doit jamais arriver, c'est que deux
+      // choses se superposent devant le public.
+      await ouvrirStream(browser, ['Annonce']);
+      await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+      await hote.page.getByRole('menuitem', { name: `Lancer ${jeu}` }).first().click();
+      await expect(stream.getByTestId('stream-annonce')).toBeVisible({ timeout: 15_000 });
+
+      const m = await stream.evaluate(() => {
+        const boite = (s) => {
+          const e = document.querySelector(s);
+          if (!e) return null;
+          const r = e.getBoundingClientRect();
+          return { g: Math.round(r.left), d: Math.round(r.right), h: Math.round(r.top), b: Math.round(r.bottom) };
+        };
+        const past = boite('.rejoindre');
+        const morceaux = {};
+        for (const [nom, sel] of [['phrase', '.st-lead'], ['titre', '.st-title'], ['kicker', '.st-kicker'], ['emblème', '.st-annonce__emblem']]) {
+          const r = boite(sel);
+          if (!r) continue;
+          morceaux[nom] = {
+            recouvre: !!(past && r.g < past.d && r.d > past.g && r.h < past.b && r.b > past.h),
+            marge: past ? r.g - past.d : null,
+          };
+        }
+        return { pastille: past, morceaux };
+      });
+
+      expect(m.pastille, 'la pastille a disparu de l\'annonce').not.toBeNull();
+      for (const [nom, r] of Object.entries(m.morceaux)) {
+        console.log(`  ${jeu} · ${nom} → ${r.recouvre ? 'RECOUVRE' : 'dégagé'} (${r.marge} px de la pastille)`);
+        expect(r.recouvre, `« ${nom} » passe derrière la pastille sur l'annonce de ${jeu}`).toBe(false);
+      }
+    });
+  }
+
   test('le QR garde une taille scannable', async ({ browser }) => {
     await ouvrirStream(browser, []);
     const scene = await stream.locator('.stream').boundingBox();

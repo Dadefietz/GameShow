@@ -483,11 +483,17 @@
      s'enroule sur plusieurs lignes plutôt que de défiler horizontalement —
      l'animateur doit voir la série ENTIÈRE d'un coup d'œil pour la commenter,
      pas la faire glisser en direct. */
+  /* DEUX RANGÉES ÉGALES, et non un retour à la ligne au hasard. En laissant le
+     flux décider, vingt places se rangeaient seize puis quatre — une rangée
+     pleine et un moignon décentré, sur l'écran que l'animateur commente. Le
+     nombre de colonnes est la moitié de la série, calculé au rendu : il suivra
+     si le nombre de places change encore. */
   .vsgraf {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(var(--colonnes, 10), auto);
+    justify-content: center;
     gap: var(--sp-3) var(--sp-2);
-    align-items: flex-end;
+    align-items: end;
   }
   .vsgraf__col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .vsgraf__num { font: 500 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-3); }

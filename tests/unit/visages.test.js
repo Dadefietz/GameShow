@@ -79,20 +79,52 @@ describe('la série de visages', () => {
   it('tient ses bornes dans les cas EXTRÊMES du tirage', () => {
     // Les mille tirages ci-dessus explorent le milieu ; ici on force les bouts,
     // là où une borne fausse d'une unité se cache.
+    //
+    // LES ATTENDUS SE DÉDUISENT DES RÈGLES, ils ne les recopient pas. Ils étaient
+    // écrits en chiffres — 1, 10, 20, 30 — et le passage de trente à vingt places
+    // les a tous démentis d'un coup. Un contrôle qui répète la règle qu'il garde
+    // ne garde rien : il oblige seulement à l'écrire deux fois.
+    const [pMin, pMax] = REGLES_VISAGES.premiere;
+    const [sMin, sMax] = REGLES_VISAGES.seconde;
+    // La 1re est bornée par ce que la 2e exige : il faut lui laisser l'écart.
+    const premiereMax = Math.min(pMax, sMax - REGLES_VISAGES.ecartMin);
+
     const auPlusBas = construireSerie(idsDuBassin(), () => 0);
-    expect(auPlusBas.pos1, 'le tirage le plus bas ne donne pas la 1re place').toBe(1);
-    expect(auPlusBas.pos2, 'avec pos1 = 1, la 2e ne peut pas être avant le 10e').toBe(10);
+    expect(auPlusBas.pos1, 'le tirage le plus bas ne donne pas la première place').toBe(pMin);
+    expect(auPlusBas.pos2, 'la 2e la plus précoce possible')
+      .toBe(Math.max(sMin, pMin + REGLES_VISAGES.ecartMin));
 
     // `0.999…` pousse chaque tirage à son maximum.
     const auPlusHaut = construireSerie(idsDuBassin(), () => 0.9999999);
-    expect(auPlusHaut.pos1).toBe(20);
-    expect(auPlusHaut.pos2).toBe(30);
-    expect(auPlusHaut.pos2 - auPlusHaut.pos1).toBeGreaterThanOrEqual(REGLES_VISAGES.ecartMin);
+    expect(auPlusHaut.pos1, 'la 1re la plus tardive possible').toBe(premiereMax);
+    expect(auPlusHaut.pos2, 'la 2e la plus tardive possible').toBe(sMax);
+    expect(auPlusHaut.pos2 - auPlusHaut.pos1, 'les deux extrêmes se touchent trop')
+      .toBeGreaterThanOrEqual(REGLES_VISAGES.ecartMin);
+  });
+
+  it('LES BORNES SONT COMPATIBLES ENTRE ELLES', () => {
+    // LE CONTRÔLE QUI MANQUAIT, ET QUE LE CHANGEMENT DE GRILLE A RENDU NÉCESSAIRE.
+    //
+    // Sur trente places — 1re jusqu'au 20e, 2e jusqu'au 30e — n'importe quelle
+    // première apparition laissait de la place à la seconde. Sur vingt places, la
+    // marge tombe à deux : 12 + 6 = 18, pour un dernier visage au 20e. Une borne
+    // déplacée d'une unité de trop rendrait une série impossible à composer, et
+    // le tirage produirait alors une série silencieusement fausse plutôt qu'une
+    // erreur. Ce contrôle interdit ce réglage.
+    const [pMin, pMax] = REGLES_VISAGES.premiere;
+    const [sMin, sMax] = REGLES_VISAGES.seconde;
+    expect(pMax + REGLES_VISAGES.ecartMin,
+      `1re jusqu'au ${pMax}e + écart de ${REGLES_VISAGES.ecartMin} dépasse la dernière place (${sMax})`)
+      .toBeLessThanOrEqual(sMax);
+    expect(sMax, 'la 2e apparition peut tomber après la fin de la série')
+      .toBeLessThanOrEqual(REGLES_VISAGES.total);
+    expect(sMin, 'la 2e apparition pourrait précéder la 1re').toBeGreaterThan(pMin);
+    expect(pMin, 'la 1re apparition commence hors de la série').toBeGreaterThanOrEqual(1);
   });
 
   it('LA BANQUE D\'IMAGES est complète, homogène et servie', () => {
-    // LA BANQUE EST LÀ — Face Research Lab London Set, CC BY 4.0, 102 personnes
-    // photographiées dans des conditions rigoureusement identiques.
+    // 200 portraits fournis par l'auteur, en remplacement du Face Research Lab
+    // London Set (102) qui servait jusqu'ici.
     //
     // CE QUE CE CONTRÔLE GARDE :
     //   - chaque adresse déclarée correspond à un fichier réellement servi. Une
@@ -107,8 +139,8 @@ describe('la série de visages', () => {
     //
     // CE QU'AUCUN CONTRÔLE NE POURRA DIRE : que les fonds sont vraiment
     // identiques et les cadrages comparables. C'est une relecture humaine, elle a
-    // été faite sur planche contact, et elle compte — sur un jeu de
-    // reconnaissance, un fond qui change est un indice, et un indice est une
+    // été faite sur planche contact avant intégration, et elle compte — sur un jeu
+    // de reconnaissance, un fond qui change est un indice, et un indice est une
     // réponse donnée.
     expect(BASSIN_VISAGES.length, 'la banque est vide').toBeGreaterThan(0);
     const sansAdresse = BASSIN_VISAGES.filter((v) => !v.src).map((v) => v.id);
@@ -123,8 +155,19 @@ describe('la série de visages', () => {
     expect(manquantes, `images déclarées mais absentes du serveur : ${manquantes.slice(0, 5).join(', ')}`)
       .toEqual([]);
 
-    // DEUX MANCHES SANS RECOUPEMENT : 29 visages par série, donc 58. C'est le
-    // plancher qui a un sens pour le jeu, et non un chiffre rond.
+    // AUCUN FICHIER ORPHELIN dans le dossier servi : une image qui traîne sans
+    // être déclarée, c'est le reliquat d'une banque précédente. Celle d'avant en
+    // comptait 102, celle-ci 200 — sans ce contrôle, les deux auraient pu
+    // cohabiter, et des visages de deux séances différentes se seraient croisés
+    // dans la même série.
+    const surDisque = fs.readdirSync('src/public/visages').filter((f) => f.endsWith('.webp'));
+    const declarees = new Set(BASSIN_VISAGES.map((v) => v.src.split('/').pop()));
+    const orphelines = surDisque.filter((f) => !declarees.has(f));
+    expect(orphelines, `fichiers servis mais non déclarés : ${orphelines.slice(0, 5).join(', ')}`)
+      .toEqual([]);
+
+    // DEUX MANCHES SANS RECOUPEMENT : (places - 1) visages par série, donc le
+    // double. C'est le plancher qui a un sens pour le jeu, et non un chiffre rond.
     const deuxManches = (REGLES_VISAGES.total - 1) * 2;
     expect(BASSIN_VISAGES.length,
       `la banque ne permet pas deux manches sans répétition (${deuxManches} visages requis)`)
@@ -149,7 +192,10 @@ describe('à quelle place un buzz correspond', () => {
     // fixe cette limite-là, et c'est le comportement voulu).
     expect(creneauDe(t0, t0 + pas + pas / 2)).toBe(2);
     expect(creneauDe(t0, t0 + pas * 9 + 1200)).toBe(10);
-    expect(creneauDe(t0, t0 + pas * 29 + 1900)).toBe(30);
+    // LA DERNIÈRE PLACE, déduite du nombre de places et non recopiée : ce
+    // contrôle affirmait « 30 » et le passage à vingt places l'a démenti.
+    const derniere = REGLES_VISAGES.total;
+    expect(creneauDe(t0, t0 + pas * (derniere - 1) + pas - 100)).toBe(derniere);
   });
 
   it('ne dépasse jamais la dernière place, même après la fin', () => {

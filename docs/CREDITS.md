@@ -8,60 +8,41 @@ ressource sous CC BY employée sans attribution est employée sans licence.
 
 ## Les visages du jeu « Les visages »
 
-**Face Research Lab London Set**
-Lisa DeBruine et Benedict Jones — Face Research Lab, université de Glasgow.
-102 personnes photographiées en studio, expression neutre, de face.
+**200 portraits fournis par l'auteur.** Les droits et la licence de ces images
+relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si une attribution
+est due à leur source, elle se pose ici.
 
-- Source : https://doi.org/10.6084/m9.figshare.5047666.v5
-- Licence : **Creative Commons Attribution 4.0 International (CC BY 4.0)**
-  https://creativecommons.org/licenses/by/4.0/
+**Traitement appliqué** : conversion en WebP, et rien d'autre. Les images sont
+livrées en 512 × 512, déjà cadrées de façon homogène — fond gris uniforme,
+t-shirt blanc, expression neutre, cadrage frontal. Ni le fond, ni la lumière, ni
+les visages n'ont été touchés.
 
-**Ce que la licence exige** : citer les auteurs, indiquer la licence, et signaler
-les modifications apportées. Elle autorise l'usage commercial et la diffusion
-publique — ce qui, sur ce sujet, est rare.
+**Pourquoi cette homogénéité compte** : sur un jeu de reconnaissance, un fond qui
+change ou un vêtement reconnaissable sont des repères de mémoire qui remplacent
+la reconnaissance des visages par celle des décors. Le jeu mesurerait alors autre
+chose que ce qu'il prétend mesurer. Cette régularité a été vérifiée à l'œil, sur
+planche contact, avant intégration — aucun contrôle automatique ne peut la juger.
 
-**Modifications apportées** : recadrage carré à 80 % du cadre d'origine, calé
-au-dessus du centre pour conserver la chevelure ; redimensionnement à 512 px ;
-conversion en WebP. Aucune retouche du fond, de la lumière ni des visages.
+### Ce qui servait avant, et pourquoi ce n'est plus là
 
-**Où cette attribution doit apparaître** : ici, et dans
-`src/server/visages.js`, qui est le fichier de la banque. Une mention à
-l'antenne — générique de fin, ou description de la diffusion — est la lecture la
-plus sûre de « in any reasonable manner » pour un programme diffusé. **Point à
-trancher.**
+**Face Research Lab London Set** (DeBruine & Jones, université de Glasgow, CC BY
+4.0, https://doi.org/10.6084/m9.figshare.5047666.v5) a servi de banque pendant une
+séance. 102 personnes seulement — le plafond de ce qui existait sous une licence
+autorisant la diffusion publique — et une composition très déséquilibrée : 69
+personnes blanches sur 102. Les 200 portraits fournis par l'auteur lèvent les deux
+limites d'un coup.
 
-### Pourquoi celle-là et pas une autre
+Les autres bases de visages à fond uniforme avaient été écartées pour leur
+licence : FEI l'écrit noir sur blanc (« research purposes only ») ; la Chicago
+Face Database interdit explicitement la publication et la redistribution sans
+accord écrit de l'université de Chicago ; KDEF et Radboud sont réservées à un
+usage non commercial.
 
-Presque toutes les bases de visages à fond uniforme sont réservées à la
-recherche, ce qu'un jeu diffusé en public n'est pas :
-
-| Base | Personnes | Fond | Licence | Diffusion publique |
-| --- | --- | --- | --- | --- |
-| **Face Research Lab London** | **102** | uniforme | **CC BY 4.0** | **oui** |
-| Chicago Face Database | 597 | blanc uniforme | recherche ; autre usage sur demande | sur autorisation |
-| FEI (Brésil) | 200 | blanc uniforme | « research purposes only » | non |
-| KDEF | 70 | uniforme | non commercial | non |
-| Radboud (RaFD) | 67 | uniforme | recherche, sur candidature | non |
-
-La Chicago Face Database est la piste pour aller au-delà de 102 : mêmes
-conditions de studio, 597 personnes, et son équipe accorde l'usage hors recherche
-sur demande. C'est une lettre à écrire. Le jour où l'autorisation arrive, seul
-`src/server/visages.js` change.
-
-### Ce qui a été écarté, et pourquoi
-
-**SFHQ** (Synthetic Faces High Quality, ~425 000 visages synthétiques) a été
-examiné en premier : aucune personne réelle, donc aucun droit à l'image, et un
-effectif sans limite. Deux raisons l'ont fait écarter :
-
-- **les fonds varient d'une image à l'autre** — il est dérivé de StyleGAN2, donc
-  de photographies. Sur un jeu de reconnaissance, un fond distinctif est un
-  repère de mémoire qui remplace la reconnaissance du visage : le jeu mesurerait
-  autre chose que ce qu'il prétend mesurer ;
-- une partie du corpus n'est pas photoréaliste (visages peints, rendus 3D,
-  illustrations), ce qui rend certaines images immédiatement mémorables.
-
----
+**SFHQ** (visages synthétiques) avait été examiné en premier et écarté après
+essai : ses fonds varient d'une image à l'autre, une partie du corpus n'est pas
+photoréaliste, et la normalisation du fond par masque ovale — essayée, mesurée —
+laissait des morceaux de décor, amputait les chevelures et ne corrigeait ni la
+pose ni la lumière.
 
 ## Polices
 

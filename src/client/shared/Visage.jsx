@@ -21,7 +21,7 @@ import { MASQUES } from './marque-visages.js';
 // signale ni côté joueur ni côté serveur. C'est le défaut le plus vicieux que ce
 // jeu puisse avoir : il ne casse rien, il fausse.
 //
-// On charge donc les vingt-neuf images dès l'annonce, pendant que l'animateur
+// On charge donc les images de la série dès l'annonce, pendant que l'animateur
 // présente le jeu. Le navigateur les garde en cache ; l'affichage devient
 // instantané. Sans `src` — tant que la vraie base n'est pas livrée — il n'y a
 // rien à charger, et la fonction ne fait rien.
