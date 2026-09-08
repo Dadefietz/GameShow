@@ -4,10 +4,10 @@
 // D'OÙ VIENNENT CES PORTRAITS
 // ============================================================================
 //
-// 200 portraits FOURNIS PAR L'AUTEUR, en remplacement du Face Research Lab
-// London Set qui servait jusqu'ici. Les droits et la licence de ces images
-// relèvent de lui ; ce dépôt les sert, il ne les revendique pas.
-// Voir docs/CREDITS.md.
+// 150 portraits FOURNIS PAR L'AUTEUR — deuxième banque, en remplacement de la
+// précédente (elle-même succédant au Face Research Lab London Set). Les droits et
+// la licence de ces images relèvent de lui ; ce dépôt les sert, il ne les
+// revendique pas. Voir docs/CREDITS.md.
 //
 // CE QU'ILS ONT DE JUSTE POUR CE JEU, et c'est ce qui a été vérifié à l'œil sur
 // planche contact avant intégration : fond gris uniforme, t-shirt blanc pour
@@ -26,12 +26,22 @@
 // L'EFFECTIF
 // ============================================================================
 //
-// 200 visages. Une série en consomme 19 :
-//   - cinq manches dans une soirée sans qu'un seul visage se répète ;
+// 150 visages, et ce n'est PAS l'effectif prévu.
+//
+// La banque annoncée en compte deux cents ; trois archives sur quatre ont été
+// livrées — 001 à 100 et 151 à 200. Les cinquante portraits 101 à 150 manquent, et
+// leurs identifiants sont simplement absents de la liste ci-dessous : la
+// NUMÉROTATION DE L'AUTEUR EST CONSERVÉE, avec son trou, plutôt que renumérotée en
+// une suite continue. Le jour où l'archive arrive, il n'y aura que cinquante
+// lignes à ajouter — une renumérotation aurait obligé à tout redécaler et aurait
+// effacé la trace de ce qui manquait.
+//
+// Une série en consomme 19 :
+//   - sept manches dans une soirée sans qu'un seul visage se répète ;
 //   - au-delà, des visages reviendront d'une manche à l'autre. Rien ne casse —
 //     le visage doublé se tire dans chaque manche indépendamment — mais un
 //     joueur peut croire reconnaître quelqu'un vu à la manche précédente.
-// C'est presque le double de ce que permettait la banque précédente (102).
+// C'est au-dessus des 102 de la banque académique d'origine, sous les 200 prévus.
 
 export const BASSIN_VISAGES = [
   { id: 'v001', src: '/visages/v001.webp' },
@@ -134,56 +144,6 @@ export const BASSIN_VISAGES = [
   { id: 'v098', src: '/visages/v098.webp' },
   { id: 'v099', src: '/visages/v099.webp' },
   { id: 'v100', src: '/visages/v100.webp' },
-  { id: 'v101', src: '/visages/v101.webp' },
-  { id: 'v102', src: '/visages/v102.webp' },
-  { id: 'v103', src: '/visages/v103.webp' },
-  { id: 'v104', src: '/visages/v104.webp' },
-  { id: 'v105', src: '/visages/v105.webp' },
-  { id: 'v106', src: '/visages/v106.webp' },
-  { id: 'v107', src: '/visages/v107.webp' },
-  { id: 'v108', src: '/visages/v108.webp' },
-  { id: 'v109', src: '/visages/v109.webp' },
-  { id: 'v110', src: '/visages/v110.webp' },
-  { id: 'v111', src: '/visages/v111.webp' },
-  { id: 'v112', src: '/visages/v112.webp' },
-  { id: 'v113', src: '/visages/v113.webp' },
-  { id: 'v114', src: '/visages/v114.webp' },
-  { id: 'v115', src: '/visages/v115.webp' },
-  { id: 'v116', src: '/visages/v116.webp' },
-  { id: 'v117', src: '/visages/v117.webp' },
-  { id: 'v118', src: '/visages/v118.webp' },
-  { id: 'v119', src: '/visages/v119.webp' },
-  { id: 'v120', src: '/visages/v120.webp' },
-  { id: 'v121', src: '/visages/v121.webp' },
-  { id: 'v122', src: '/visages/v122.webp' },
-  { id: 'v123', src: '/visages/v123.webp' },
-  { id: 'v124', src: '/visages/v124.webp' },
-  { id: 'v125', src: '/visages/v125.webp' },
-  { id: 'v126', src: '/visages/v126.webp' },
-  { id: 'v127', src: '/visages/v127.webp' },
-  { id: 'v128', src: '/visages/v128.webp' },
-  { id: 'v129', src: '/visages/v129.webp' },
-  { id: 'v130', src: '/visages/v130.webp' },
-  { id: 'v131', src: '/visages/v131.webp' },
-  { id: 'v132', src: '/visages/v132.webp' },
-  { id: 'v133', src: '/visages/v133.webp' },
-  { id: 'v134', src: '/visages/v134.webp' },
-  { id: 'v135', src: '/visages/v135.webp' },
-  { id: 'v136', src: '/visages/v136.webp' },
-  { id: 'v137', src: '/visages/v137.webp' },
-  { id: 'v138', src: '/visages/v138.webp' },
-  { id: 'v139', src: '/visages/v139.webp' },
-  { id: 'v140', src: '/visages/v140.webp' },
-  { id: 'v141', src: '/visages/v141.webp' },
-  { id: 'v142', src: '/visages/v142.webp' },
-  { id: 'v143', src: '/visages/v143.webp' },
-  { id: 'v144', src: '/visages/v144.webp' },
-  { id: 'v145', src: '/visages/v145.webp' },
-  { id: 'v146', src: '/visages/v146.webp' },
-  { id: 'v147', src: '/visages/v147.webp' },
-  { id: 'v148', src: '/visages/v148.webp' },
-  { id: 'v149', src: '/visages/v149.webp' },
-  { id: 'v150', src: '/visages/v150.webp' },
   { id: 'v151', src: '/visages/v151.webp' },
   { id: 'v152', src: '/visages/v152.webp' },
   { id: 'v153', src: '/visages/v153.webp' },

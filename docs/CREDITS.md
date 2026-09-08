@@ -8,9 +8,20 @@ ressource sous CC BY employée sans attribution est employée sans licence.
 
 ## Les visages du jeu « Les visages »
 
-**200 portraits fournis par l'auteur.** Les droits et la licence de ces images
-relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si une attribution
-est due à leur source, elle se pose ici.
+**Portraits fournis par l'auteur, deuxième banque.** Les droits et la licence de
+ces images relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si une
+attribution est due à leur source, elle se pose ici.
+
+**150 portraits sur 200 sont en place** : `v001`–`v100` et `v151`–`v200`.
+L'archive des cinquante portraits `101`–`150` n'est pas parvenue avec les trois
+autres. LA NUMÉROTATION DE L'AUTEUR EST CONSERVÉE, TROU COMPRIS — c'est
+délibéré : renuméroter à la suite ferait tenir les cinquante manquants pour
+inexistants, et leur arrivée obligerait alors à renuméroter une seconde fois
+cent cinquante fichiers. Ici, ils se glisseront à leur place sans rien déplacer.
+Le serveur ne suppose aucune continuité : il tire dans la liste qu'il a.
+
+Cette banque REMPLACE celle de la première séance, également fournie par
+l'auteur ; les fichiers portent les mêmes noms et le même format.
 
 **Traitement appliqué** : conversion en WebP, et rien d'autre. Les images sont
 livrées en 512 × 512, déjà cadrées de façon homogène — fond gris uniforme,
