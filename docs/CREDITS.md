@@ -8,22 +8,25 @@ ressource sous CC BY employée sans attribution est employée sans licence.
 
 ## Les visages du jeu « Les visages »
 
-**Portraits fournis par l'auteur, deuxième banque.** Les droits et la licence de
-ces images relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si une
-attribution est due à leur source, elle se pose ici.
+**200 portraits fournis par l'auteur, deuxième banque.** Les droits et la licence
+de ces images relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si
+une attribution est due à leur source, elle se pose ici.
 
-**150 portraits sur 200 sont en place** : `v001`–`v100` et `v151`–`v200`.
-L'archive des cinquante portraits `101`–`150` n'est pas parvenue avec les trois
-autres. LA NUMÉROTATION DE L'AUTEUR EST CONSERVÉE, TROU COMPRIS — c'est
-délibéré : renuméroter à la suite ferait tenir les cinquante manquants pour
-inexistants, et leur arrivée obligerait alors à renuméroter une seconde fois
-cent cinquante fichiers. Ici, ils se glisseront à leur place sans rien déplacer.
-Le serveur ne suppose aucune continuité : il tire dans la liste qu'il a.
+La banque est arrivée en quatre archives, la dernière — `101`–`150` — avec un
+jour de retard sur les trois autres. Pendant ce temps la liste a tourné à 150
+visages, avec un trou entre `v100` et `v151` : la numérotation de l'auteur a été
+conservée telle quelle. Les cinquante manquants se sont glissés à leur place sans
+qu'une ligne existante ne bouge.
 
 Cette banque REMPLACE celle de la première séance, également fournie par
 l'auteur ; les fichiers portent les mêmes noms et le même format.
 
-**Traitement appliqué** : conversion en WebP, et rien d'autre. Les images sont
+**Traitement appliqué** : conversion en WebP — qualité 82, méthode 6 — et rien
+d'autre. Le réglage est écrit ici parce qu'il a fallu le RETROUVER pour convertir
+la dernière archive : les cinquante fichiers rendus à un autre réglage auraient
+pesé et grainé autrement que les cent cinquante autres, et rien ne l'aurait
+signalé. Il a été vérifié en réencodant deux portraits déjà intégrés et en
+comparant les fichiers OCTET PAR OCTET aux versions du dépôt. Les images sont
 livrées en 512 × 512, déjà cadrées de façon homogène — fond gris uniforme,
 t-shirt blanc, expression neutre, cadrage frontal. Ni le fond, ni la lumière, ni
 les visages n'ont été touchés.

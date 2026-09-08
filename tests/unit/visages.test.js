@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { construireSerie, creneauDe, REGLES_VISAGES, modules } from '../../src/server/modules.js';
 import { idsDuBassin, BASSIN_VISAGES } from '../../src/server/visages.js';
 
@@ -165,6 +166,46 @@ describe('la série de visages', () => {
     const orphelines = surDisque.filter((f) => !declarees.has(f));
     expect(orphelines, `fichiers servis mais non déclarés : ${orphelines.slice(0, 5).join(', ')}`)
       .toEqual([]);
+
+    // DEUX FOIS LE MÊME VISAGE SOUS DEUX IDENTIFIANTS : la faute qui viderait le
+    // jeu de son sens.
+    //
+    // Ce jeu demande de repérer le visage qui repasse. Si deux entrées servaient
+    // la même image, une série pourrait montrer « deux personnes différentes »
+    // parfaitement identiques : le joueur qui buzze a raison de ce qu'il voit, et
+    // l'arbitre le compte faux. Rien ne casse, rien ne s'affiche de travers — la
+    // manche est simplement injuste, et personne ne peut le savoir.
+    //
+    // LE RISQUE EST RÉEL, PAS THÉORIQUE : la banque est arrivée en QUATRE
+    // archives, à un jour d'intervalle pour la dernière, converties séparément.
+    // Un fichier recopié d'une archive à l'autre passerait tous les autres
+    // contrôles — il est déclaré, il est servi, il a le bon format.
+    const empreintes = new Map();
+    for (const v of BASSIN_VISAGES) {
+      const octets = fs.readFileSync(path.join('src/public', v.src.replace(/^\//, '')));
+      const somme = crypto.createHash('md5').update(octets).digest('hex');
+      empreintes.set(somme, [...(empreintes.get(somme) || []), v.id]);
+    }
+    const jumeaux = [...empreintes.values()].filter((ids) => ids.length > 1);
+    expect(jumeaux, `le même portrait sert sous plusieurs identifiants : ${jumeaux.map((g) => g.join('=')).join(', ')}`)
+      .toEqual([]);
+
+    // TOUTES CARRÉES ET DE MÊME CÔTÉ. Une image plus petite que les autres serait
+    // agrandie par le navigateur, donc plus floue — et le flou est un repère de
+    // mémoire aussi sûr qu'un fond différent. Le côté se lit dans l'en-tête WebP
+    // sans décoder l'image.
+    const cotes = new Set();
+    for (const v of BASSIN_VISAGES) {
+      const t = fs.readFileSync(path.join('src/public', v.src.replace(/^\//, '')));
+      // WebP simple (VP8) : la largeur et la hauteur tiennent sur 14 bits chacune,
+      // à l'octet 26 du fichier.
+      expect(t.subarray(0, 4).toString('ascii'), `${v.id} n'est pas un fichier WebP`).toBe('RIFF');
+      const l = t.readUInt16LE(26) & 0x3fff;
+      const h = t.readUInt16LE(28) & 0x3fff;
+      expect([l, h], `${v.id} n'est pas carré : ${l} × ${h}`).toEqual([l, l]);
+      cotes.add(l);
+    }
+    expect([...cotes], `la banque mélange des tailles : ${[...cotes].join(', ')}`).toHaveLength(1);
 
     // DEUX MANCHES SANS RECOUPEMENT : (places - 1) visages par série, donc le
     // double. C'est le plancher qui a un sens pour le jeu, et non un chiffre rond.
