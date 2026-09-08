@@ -21,6 +21,9 @@ const rf = modules.retour_flamme;
 // La série de l'énoncé, mode −2, telle qu'elle y est écrite.
 const EXEMPLE_2 = [7, 8, 9, 8, 4, 2, 5, 7, 5, 3, 2, 6, 8, 9, 4, 7, 4, 6, 5, 6, 0, 9, 8, 7, 9, 7, 7, 7, 0, 1];
 
+// La seconde série de l'énoncé, mode −3, relevée sur le tableau fourni.
+const EXEMPLE_3 = [7, 8, 9, 8, 8, 2, 5, 7, 5, 6, 2, 5, 8, 9, 5, 7, 4, 0, 5, 6, 0, 9, 6, 7, 9, 7, 7, 7, 0, 1];
+
 // Fabrique une manche et ses buzz. `buzz` est une carte pseudo → places désignées.
 function manche(ecart, buzz, serie) {
   const rt = rf.buildRound({ id: 'q', ecart });
@@ -36,6 +39,27 @@ describe('la règle du retour', () => {
     // demande elle-même, en nombres. « Les joueurs doivent buzzer aux images 4, 9,
     // 17, 20, 26, 28. »
     expect(retoursDeLaSerie(EXEMPLE_2, 2)).toEqual([4, 9, 17, 20, 26, 28]);
+  });
+
+  it('applique la règle au second exemple de l\'énoncé — QUI EN COMPTE SEPT', () => {
+    // L'ÉNONCÉ SE CONTREDIT ICI, ET C'EST LA RÈGLE QUI A ÉTÉ SUIVIE.
+    //
+    // « Les joueurs doivent buzzer aux images 5, 12, 15, 21, 25, 27 » — six
+    // retours, comme l'exige la règle qui suit (« Il doit y avoir 6 Retour
+    // d'image dans une série, pas plus, pas moins »). Mais la série fournie en
+    // contient SEPT : l'image 23 vaut 6, comme l'image 20 trois places plus tôt.
+    // Relevé deux fois sur le tableau, à huit fois la taille.
+    //
+    // La liste de l'énoncé oublie donc un retour que sa propre définition
+    // désigne. Ce contrôle fige la LECTURE RETENUE : la règle prime sur
+    // l'exemple. Le tirage, lui, n'a jamais ce problème — il construit des
+    // séries à exactement six retours, et le contrôle suivant le vérifie.
+    expect(retoursDeLaSerie(EXEMPLE_3, 3)).toEqual([5, 12, 15, 21, 23, 25, 27]);
+    // Les six que l'énoncé cite en font tous partie : rien n'a été perdu, un
+    // septième s'y ajoute.
+    for (const place of [5, 12, 15, 21, 25, 27]) {
+      expect(retoursDeLaSerie(EXEMPLE_3, 3)).toContain(place);
+    }
   });
 
   it('lit bien « la même image qu\'il y a N », et pas « la même qu\'avant »', () => {

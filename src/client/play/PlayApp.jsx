@@ -705,10 +705,20 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
             par l'emblème. C'est ce second affichage qui est le jeu — on lit les
             deux mots ET ce qui pourrait les relier. Le premier n'ajoutait rien et
             volait le haut de l'écran à la question. */}
-        {/* « COUPE TA BÛCHE » suit la même règle que « Le lien » : sa consigne est
-            écrite au-dessus de la bûche, avec la proportion en chiffres. L'énoncé
-            générique la répéterait en moins précis. */}
-        {type === 'lien' || type === 'coupe_buche' ? null : (
+        {/* « COUPE TA BÛCHE » N'A PAS D'ÉNONCÉ GÉNÉRIQUE : sa consigne EST la
+            proportion demandée, et elle prend la place de l'énoncé — « en haut de
+            l'écran, la proportion demandée par l'animateur est précisé avec la
+            phrase "Coupe cette bûche à Proportion cible" ».
+
+            ELLE ÉTAIT ÉCRITE COLLÉE À LA BÛCHE, tout en bas : le haut de l'écran
+            restait vide sur les deux tiers de la hauteur, et la consigne — la
+            seule chose à lire avant de frapper — se trouvait là où l'œil ne va
+            qu'après. Vu à l'écran, corrigé ici. */}
+        {type === 'coupe_buche' ? (
+          <p className="q-text cbj__consigne" id="q-text" data-testid="cb-consigne">
+            Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
+          </p>
+        ) : type === 'lien' ? null : (
           <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
             data-bind="module.text" data-testid="question-text">{current.text}</p>
         )}
@@ -727,7 +737,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}`} data-bind="module.options" data-testid="answer-zone">
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {type === 'true_false' ? (
             [['Vrai', true], ['Faux', false]].map(([label, val]) => {
               const chosen = myAnswer === val;
@@ -820,9 +830,6 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                seule heure d'arrivée mesurerait la latence de la liaison, pas
                l'adresse du joueur. */
             <div className="cbj">
-              <p className="cbj__consigne" data-testid="cb-consigne">
-                Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
-              </p>
               <div className="cbj__buche" data-testid="cb-buche"
                 role="img" aria-label={`Bûche, curseur à ${Math.round(positionBuche)} %`}>
                 {/* LE TRAIT DU CURSEUR — la seule chose qui bouge. Sa position est

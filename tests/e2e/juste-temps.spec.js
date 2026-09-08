@@ -180,6 +180,42 @@ test.describe('Le juste temps', () => {
     await expect(hote.page.getByTestId('histo-cible')).toContainText('11,50 s', { timeout: 15_000 });
   });
 
+  test("LA RELANCE ne renvoie personne à l'écran d'attente", async ({ browser }) => {
+    // « Après cela, l'animateur peut relancer, et dans ce cas, il passe sur
+    // l'écran avec les 2 champs à remplir, mais les joueurs et le stream restent
+    // sur les écrans de résultat, pas nécessaire de les ramener sur l'écran
+    // d'attente. » La même phrase figure dans l'énoncé de « Coupe ta bûche ».
+    //
+    // CE QUE CE CONTRÔLE A COÛTÉ DE NE PAS EXISTER. En donnant un écran d'attente
+    // aux quatre jeux classiques, j'ai fait passer TOUTES les relances par
+    // l'annonce — celle-ci comprise. L'animateur reprenait ses deux champs comme
+    // prévu, mais le cercle et l'antenne retournaient au jingle : le résultat
+    // qu'ils étaient en train de commenter disparaissait sous eux, en direct.
+    await annoncer(browser);
+    await hote.page.getByTestId('jt-cache').fill('2.00');
+    await hote.page.getByTestId('jt-cible').fill('13.00');
+    await hote.page.getByTestId('jt-diffuser').click();
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('answer-submit')).toBeVisible({ timeout: 15_000 });
+    await j.getByTestId('answer-submit').click();
+    await hote.page.getByRole('button', { name: /Révéler/ }).first().click();
+    await expect(j.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
+
+    // L'ANIMATEUR RELANCE : ses deux champs reviennent.
+    await hote.page.getByRole('button', { name: 'Question suivante' }).click();
+    await expect(hote.page.getByTestId('saisie-juste-temps')).toBeVisible({ timeout: 15_000 });
+
+    // LE CERCLE ET L'ANTENNE N'ONT PAS BOUGÉ. On laisse passer un instant : un
+    // écran qui retournerait au jingle le ferait dans la seconde, et un contrôle
+    // qui regarde trop tôt ne verrait rien.
+    await j.waitForTimeout(800);
+    await expect(j.getByTestId('points-gained'),
+      'le joueur a été renvoyé à l\'écran d\'attente').toBeVisible();
+    await expect(j.getByRole('heading', { name: JEU })).toHaveCount(0);
+    await expect(stream.getByTestId('stream-annonce'),
+      'l\'antenne est retournée au jingle en pleine analyse').toHaveCount(0);
+  });
+
   test('le STOP part une seule fois, et la révélation rend le graphique du barème', async ({ browser }) => {
     // PSEUDOS CHOISIS AVEC SOIN : « Second » est refusé par le filtre de pseudos
     // du projet, qui rejette tout ce qui contient « con ». Le contrôle échouait

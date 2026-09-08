@@ -18,7 +18,12 @@ export function BucheHache({ taille = 160, className = '' }) {
       <rect x={buche.x} y={buche.y} width={buche.largeur} height={buche.hauteur} rx={buche.rayon} />
       {cernes.map((d) => <path key={d} d={d} />)}
       <path d={manche} />
-      <path d={fer} />
+      {/* LE FER EST PLEIN, pas tracé — et c'est ce qui le fait lire.
+          Dessiné au trait, ce petit contour fermé devenait un ANNEAU : la hache
+          entière se lisait comme une LOUPE, manche compris. La référence fournie
+          est un dessin plein ; un tranchant est une masse, pas un cerne. Le
+          projet mêle déjà les deux (les pavés du quiz, le moyeu du cadran). */}
+      <path d={fer} fill="currentColor" stroke="none" />
     </svg>
   );
 }

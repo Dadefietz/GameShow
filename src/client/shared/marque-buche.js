@@ -13,41 +13,55 @@
 export const GRILLE = { largeur: 120, hauteur: 92 };
 export const TRAIT = 6;
 
-// LA BÛCHE — un rondin couché, aux bouts arrondis.
-export const BUCHE = { x: 6, y: 44, largeur: 108, hauteur: 40, rayon: 20 };
-// Les cernes du bout gauche : c'est ce qui fait lire « bois coupé » plutôt que
-// « gélule ». Deux anneaux concentriques suffisent ; trois brouillent à petite
+// LE RONDIN — couché, aux bouts arrondis, occupant la moitié gauche et basse.
+export const BUCHE = { x: 6, y: 46, largeur: 78, hauteur: 40, rayon: 20 };
+
+// LES CERNES DU BOUT GAUCHE — ce qui fait lire « bois coupé » plutôt que
+// « gélule ». Deux anneaux FERMÉS et concentriques ; trois brouillent à petite
 // taille.
+//
+// LES PREMIERS ÉTAIENT DES ARCS OUVERTS vers la droite : à l'écran, ils se
+// lisaient « C » et « c » emboîtés — une oreille, ou une spirale. Un bout de
+// rondin montre des anneaux COMPLETS, et l'ovale dit en plus que la coupe est vue
+// de biais.
 export const CERNES = [
-  'M30 50a14 14 0 000 28',
-  'M30 58a6 6 0 000 12',
+  'M26 54a10 12 0 1 0 0 24a10 12 0 1 0 0-24',
+  'M26 61a3.5 5 0 1 0 0 10a3.5 5 0 1 0 0-10',
 ];
 
-// LA HACHE — le manche en biais, le fer à son extrémité haute.
+// CE QUE LA RÉFÉRENCE PORTE ET QUE CE DESSIN NE REPREND PAS : les entailles
+// d'écorce dans le corps du rondin, et le coin planté dans son dos.
 //
-// ELLE MORD LA BÛCHE SANS LA TRAVERSER : le tranchant s'arrête au-dessus du
-// rondin. Une hache qui le coupe déjà raconte la fin du geste ; on veut l'instant
-// d'avant, celui où le joueur choisit où frapper.
-export const MANCHE = 'M60 49L86 17';
+// Essayés, tracés, REGARDÉS : à un trait de six sur une grille de cent vingt, ces
+// deux ajouts ne sont pas des détails, ce sont des BARRES. Les entailles se
+// collaient aux cernes et l'ensemble devenait une masse ; le coin se lisait comme
+// la queue d'une citrouille. La référence est un dessin PLEIN, aux lignes fines :
+// elle peut porter cinq éléments, un tracé au trait épais n'en porte que deux.
+// On garde donc ce qui fait le sens — le rondin, ses cernes, la hache.
 
-// LE FER — une lame qui s'évase, pas un losange.
+// LA HACHE — À CÔTÉ DU RONDIN, PAS DEDANS, comme sur la référence.
 //
-// LE PREMIER DESSIN ÉTAIT UN PARALLÉLOGRAMME posé en biais sur le manche : tracé,
-// il se lisait comme un NŒUD PAPILLON — deux triangles qui se touchent par la
-// pointe. Vu à l'écran, sans ambiguïté. Une hache se reconnaît à son tranchant :
-// un dos droit contre le manche, et une lame qui s'ouvre en courbe.
+// TROIS DESSINS FAUTIFS AVANT CELUI-CI, tous vus à l'écran.
+//   1. Un PARALLÉLOGRAMME en biais sur le manche : il se lisait comme un nœud
+//      papillon, deux triangles se touchant par la pointe.
+//   2. Une lame évasée AU BOUT du manche, plantée dans le rondin : l'emblème
+//      entier se lisait « PELLE ». Une hache ne se reconnaît ni à sa masse ni à
+//      son manche, mais au rapport entre un talon étroit et un tranchant large.
+//   3. Le même godet retourné : toujours une pelle.
 //
-// LA HACHE EST DESCENDUE DE TROIS UNITÉS après mesure : le sommet du fer tombait
-// à y = 2, et le trait de six l'emmenait à −1. L'emblème sortait de sa grille par
-// le haut, donc arrivait ROGNÉ — le navigateur ne signale rien, il recadre. Un
-// pixel sur cent vingt à l'écran de saisie ; à trois cents pixels sur la toile du
-// stream, un coin de lame coupé net.
-export const FER = 'M80 11l14-6a20 20 0 019 24l-13 8z';
+// CE QUI LE CORRIGE, ET IL FALLAIT REGARDER LA RÉFÉRENCE POUR LE VOIR : le
+// tranchant est à GAUCHE, en arc, le talon à droite, et le manche part vers le
+// BAS-DROIT. La hache ne touche pas le rondin — elle est posée au-dessus, à
+// côté. C'est cette silhouette-là qu'on reconnaît, pas une lame plantée.
+export const FER = 'M76 8a15 15 0 000 24l24-4v-16z';
+export const MANCHE = 'M99 20L112 40';
 
 // LA BOÎTE DE L'ENCRE, trait compris — même convention que les quatre emblèmes
-// classiques. Tout est tracé ici : trois unités au-delà de chaque coordonnée
-// extrême. À gauche et à droite, la bûche ; en haut, le fer ; en bas, la bûche.
-export const BOITE = { g: 3, d: 117, h: 2, b: 87 };
+// classiques. Tout est tracé : trois unités au-delà de chaque coordonnée extrême.
+// À gauche le rondin, en haut le fer, à droite le manche, en bas le rondin.
+// Le fer est PLEIN : son encre s'arrête à ses coordonnées, sans demi-trait —
+// même convention que les quatre emblèmes classiques.
+export const BOITE = { g: 3, d: 115, h: 8, b: 89 };
 
 // Ce qui reste de la grille autour du dessin.
 export function margeDeGrille() {

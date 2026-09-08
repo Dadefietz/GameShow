@@ -106,10 +106,28 @@ test.describe('Coupe ta bûche', () => {
     await hote.page.getByTestId('cb-diffuser').click();
 
     const j = joueurs[0].page;
+    await j.setViewportSize({ width: 390, height: 844 });
     await expect(j.getByTestId('cb-consigne')).toContainText('80 %', { timeout: 15_000 });
     await expect(stream.getByTestId('stream-buche')).toContainText('80 %');
-    // La phrase générique de question a disparu de cet écran.
-    await expect(j.locator('#q-text')).toHaveCount(0);
+    // La phrase générique de question a disparu : la consigne EST l'énoncé.
+    await expect(j.getByTestId('question-text')).toHaveCount(0);
+
+    // ET ELLE EST EN HAUT, LA BÛCHE AU MILIEU — « en haut de l'écran, la
+    // proportion demandée par l'animateur est précisé », « la bûche se trouve au
+    // milieu de l'écran ». Les deux étaient collées en bas de l'écran, sous deux
+    // tiers de vide : la seule chose à lire avant de frapper se trouvait là où
+    // l'œil ne va qu'après. Mesuré, parce qu'une position ne se relit pas.
+    const m = await j.evaluate(() => {
+      const b = (s) => { const e = document.querySelector(s); const r = e.getBoundingClientRect(); return { h: r.top, b: r.bottom }; };
+      return { ecran: window.innerHeight, consigne: b('[data-testid="cb-consigne"]'), buche: b('.cbj__buche'), bouton: b('.p-btn--buzz') };
+    });
+    expect(m.consigne.b, 'la consigne passe sous la bûche').toBeLessThan(m.buche.h);
+    expect(m.consigne.h, 'la consigne n\'est pas dans le haut de l\'écran').toBeLessThan(m.ecran * 0.4);
+    const milieuBuche = (m.buche.h + m.buche.b) / 2;
+    expect(milieuBuche, 'la bûche est trop haut').toBeGreaterThan(m.ecran * 0.35);
+    expect(milieuBuche, 'la bûche est trop bas').toBeLessThan(m.ecran * 0.7);
+    // Le bouton reste au bas de l'écran, là où est le pouce.
+    expect(m.bouton.b, 'le bouton flotte loin du bord').toBeGreaterThan(m.ecran * 0.9);
   });
 
   test('la coupe part une seule fois, et la révélation rend le graphique du barème', async ({ browser }) => {

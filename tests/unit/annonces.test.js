@@ -43,6 +43,24 @@ describe("l'écran d'attente", () => {
     });
   }
 
+  for (const surface of SURFACES) {
+    it(`porte un logo ET une explication sur ${surface.nom}, pour chaque jeu`, () => {
+      // « L'écran d'attente doit au moins comporter : le titre du jeu,
+      // l'explication du jeu, le logo. » Le titre vient du nom du module ; les
+      // deux autres sont déclarés ici, jeu par jeu. Une entrée qui n'aurait que
+      // son emblème passerait le contrôle précédent sans rien expliquer au
+      // cercle — et l'écran dirait « Prochaine épreuve » sans dire à quoi on joue.
+      for (const type of MODULE_TYPES) {
+        const debut = surface.bloc.search(new RegExp(`^\\s*${type}:`, 'm'));
+        const suite = surface.bloc.slice(debut + 1);
+        const fin = suite.search(/^\s{2}\w+:/m);
+        const entree = fin > -1 ? suite.slice(0, fin) : suite;
+        expect(entree.includes('emblem'), `« ${type} » n'a pas de logo sur ${surface.nom}`).toBe(true);
+        expect(entree.includes('regle'), `« ${type} » n'explique pas le jeu sur ${surface.nom}`).toBe(true);
+      }
+    });
+  }
+
   it('annonce le même jeu des deux côtés, et pas un de plus', () => {
     // Un registre qui annoncerait un type que le serveur ne sert plus laisserait
     // un emblème mort : personne ne le verrait jamais, et il survivrait aux

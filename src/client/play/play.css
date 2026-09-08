@@ -366,6 +366,19 @@
 
   .q-zone { margin-top: auto; padding-top: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-3); }
   .q-zone--tiles { flex-direction: row; }
+  /* « COUPE TA BÛCHE » : « la bûche se trouve au milieu de l'écran ».
+     La zone de réponse est ancrée en bas partout ailleurs — c'est là que se
+     trouve le pouce, et c'est juste pour des options qu'on lit puis qu'on touche.
+     Ici on ne lit rien : on REGARDE le curseur, et le regard ne descend pas au
+     ras du bord. La zone occupe donc toute la hauteur restante et centre la
+     bûche dedans, le bouton dessous. */
+  .q-zone--buche { margin-top: 0; flex: 1; }
+  /* LES DEUX MARGES AUTOMATIQUES se partagent la hauteur libre : la bûche
+     descend au milieu, le bouton reste au bas de l'écran, là où est le pouce.
+     Sans la seconde, l'action flottait à deux cents pixels du bord — la seule
+     chose à toucher, posée là où personne ne va la chercher. */
+  .cbj__buche { margin-top: auto; }
+  .cbj .p-btn--buzz { margin-top: auto; }
 
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {
@@ -616,12 +629,8 @@
     gap: var(--sp-6);
     width: 100%;
   }
-  .cbj__consigne {
-    margin: 0;
-    font: 500 var(--fs-400) / 1.35 var(--f-ui);
-    color: var(--c-ink-2);
-    text-align: center;
-  }
+  /* La consigne porte `q-text` (elle EST l'énoncé de ce jeu) et n'ajoute ici que
+     la mise en avant de la proportion. */
   .cbj__consigne strong { color: var(--c-ember-bright); font-weight: 700; }
   /* LA BÛCHE — « elle doit faire un peu moins de la largeur de l'écran de
      téléphone ». Le rondin est un bloc plein aux bouts arrondis : c'est sur LUI
