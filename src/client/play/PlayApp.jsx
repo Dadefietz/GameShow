@@ -22,7 +22,7 @@ import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { Symbole } from '../shared/Symbole.jsx';
 import { useBlancEntreImages } from '../shared/defile.js';
-import { chronoAffiche, secondes, useCompteARebours } from '../shared/temps.js';
+import { chronoAffiche, secondes, useCompteARebours, ecouleMaintenant } from '../shared/temps.js';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
 import { Visage, MasquesVisages, prechargerVisages } from '../shared/Visage.jsx';
@@ -842,7 +842,10 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                 data-testid="answer-submit"
                 data-action="play:answer"
                 disabled={disabled}
-                onClick={() => onAnswer(Math.round(ecouleBuche))}
+                onClick={() => onAnswer(Math.round(Math.min(
+                  current.dureeCoupeMs,
+                  ecouleMaintenant(current) ?? ecouleBuche,
+                )))}
               >
                 {answered ? 'Coupe envoyée' : 'COUPE !'}
               </button>
@@ -892,7 +895,17 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                 data-testid="answer-submit"
                 data-action="play:answer"
                 disabled={disabled}
-                onClick={() => onAnswer(chronoSec != null ? Number(chronoSec.toFixed(2)) : 0)}
+                onClick={() => {
+                  // LA VALEUR DU GESTE, PAS CELLE DE LA DERNIÈRE IMAGE — voir
+                  // `ecouleMaintenant`. Le chrono affiché a l'âge du dernier
+                  // rendu ; à 60 Hz cela fait deux centièmes, sur un jeu qui se
+                  // juge au centième.
+                  const e = ecouleMaintenant(current);
+                  const reste = e != null && current.dureeCompteMs != null
+                    ? Math.max(0, current.dureeCompteMs - e) / 1000
+                    : chronoSec;
+                  onAnswer(reste != null ? Number(reste.toFixed(2)) : 0);
+                }}
               >
                 {answered ? 'Temps envoyé' : 'STOP'}
               </button>

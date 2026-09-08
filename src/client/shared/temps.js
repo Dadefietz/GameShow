@@ -54,6 +54,36 @@ export function formatteurDe(stats, formatParDefaut) {
 // MESURE
 // ---------------------------------------------------------------------------
 
+// L'ÉCOULÉ À L'INSTANT DU GESTE — et non celui de la dernière image dessinée.
+//
+// POURQUOI IL EXISTE. Les deux jeux d'adresse — le juste temps et la bûche —
+// annonçaient au serveur la valeur AFFICHÉE, celle que le dernier rendu avait
+// posée dans l'état de React. Or cette valeur a l'âge de la dernière image :
+// jusqu'à 17 ms sur un écran à 60 Hz, 8 sur un écran à 120 Hz.
+//
+// CE QUE ÇA COÛTAIT, ET C'EST EXACTEMENT LA QUESTION POSÉE : deux téléphones qui
+// frappent au même instant n'annoncent pas la même chose s'ils ne rafraîchissent
+// pas à la même cadence. Sur la bûche, où le curseur parcourt CENT POINTS PAR
+// SECONDE, une image de retard vaut 1,7 point de bûche — et le palier le plus
+// haut n'en fait qu'un. Le joueur au vieux téléphone était systématiquement
+// avantagé d'un demi-point sur celui qui a un écran rapide, sans que rien ne le
+// dise.
+//
+// Ici on ne lit aucun rendu : on relit l'horloge monotone au moment même du
+// geste. Deux appareils quelconques annoncent alors la même chose pour le même
+// geste, quel que soit leur écran.
+export function ecouleMaintenant(current) {
+  const recuA = current?.recuA ?? null;
+  if (recuA == null) return null;
+  // Ce qui s'était déjà écoulé de la fenêtre à la réception — non nul au rejeu
+  // d'une reconnexion en pleine manche.
+  const dejaEcoule = current?.durationMs != null && current?.resteMs != null
+    ? current.durationMs - current.resteMs
+    : 0;
+  const maintenant = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  return Math.max(0, dejaEcoule + (maintenant - recuA));
+}
+
 // LE COMPTE À REBOURS, EN MILLISECONDES RESTANTES.
 //
 // POURQUOI IL NE COMPARE PAS DEUX HORLOGES. La manche porte une `deadline`, qui

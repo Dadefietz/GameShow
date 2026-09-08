@@ -422,10 +422,27 @@ export function borneDeChrono(v) {
 // reçoit tous les portraits, il peut donc calculer la réponse tout seul et
 // mentir dans la bonne direction.
 //
-// ICI, RIEN DE TEL. La cible ne quitte jamais le serveur — ni dans la question
-// publique, ni dans l'énoncé, ni sur le stream avant la révélation. Un tricheur
-// qui décalerait son annonce ne sait pas de quel côté aller : il joue à pile ou
-// face contre lui-même. Le mensonge ne rapporte rien.
+// CE RAISONNEMENT ÉTAIT VRAI, ET IL NE L'EST PLUS. Il disait : la cible ne quitte
+// jamais le serveur, donc un tricheur qui décalerait son annonce ne sait pas de
+// quel côté aller — il joue à pile ou face contre lui-même, et le mensonge ne
+// rapporte rien.
+//
+// LA CIBLE EST DÉSORMAIS AFFICHÉE. Le document de la séance le demande
+// explicitement : « il faut afficher le Temps cible sur l'écran du joueur et du
+// stream lorsque le compte à rebours descend ». Sans elle le jeu était injouable —
+// on demandait d'arrêter un chrono à un instant que personne n'avait dit — mais
+// la conséquence est nette : UN CLIENT MODIFIÉ PEUT MENTIR UTILEMENT. Il lui
+// suffit de buzzer un peu après la cible et d'annoncer la cible elle-même ; tant
+// qu'elle tombe dans la fenêtre de tolérance, l'arbitre l'accepte, et le joueur
+// touche le palier maximum à tous les coups.
+//
+// CE QUI EST ASSUMÉ, ET POURQUOI. Réduire la fenêtre ne supprime pas la triche,
+// elle la déplace : ce qu'on retire au menteur, on le retire aussi au joueur en
+// 4G, et celui-là est réel. La fenêtre reste donc calée sur le réseau, pas sur la
+// fraude. Ce qui la contient : il faut un client modifié — pas un réglage, du
+// code — et l'animateur voit le classement de manche, où un joueur à l'écart nul
+// à chaque manche ne passe pas inaperçu. « Coupe ta bûche » est dans le même cas,
+// et sa proportion cible a toujours été publique.
 //
 // EN REVANCHE, L'HORLOGE SEULE COÛTE CHER. Le compte à rebours part sur le
 // téléphone à la RÉCEPTION du départ, et le buzz revient au serveur après un
@@ -439,7 +456,8 @@ export function borneDeChrono(v) {
 //     l'écoulé réel reviendrait à prétendre avoir buzzé avant d'avoir buzzé ;
 //   - jamais plus que son horloge augmentée de la tolérance réseau.
 // Un honnête joueur tombe toujours dans cette fenêtre, dont la largeur EST son
-// aller-retour. Un menteur n'en sort pas, et n'y gagne rien.
+// aller-retour. Un menteur n'en sort pas — mais depuis que la cible est affichée,
+// il n'a plus besoin d'en sortir : voir plus haut.
 export function valeurDuBuzz(rt, reponse) {
   const ecoule = Math.max(0, reponse.at - rt.startedAt) / 1000;
   // Ce que l'arbitre a vu : le plancher de la fenêtre.
