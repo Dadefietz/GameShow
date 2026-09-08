@@ -19,6 +19,7 @@
 import { test, expect } from '@playwright/test';
 import { openHost, joinAsPlayer } from './helpers.js';
 import { terminerPartie } from './cloture.js';
+import { segmentsAdresse } from '../../src/client/shared/adresse.js';
 
 test.describe('Disposition du stream', () => {
   let hote = null;
@@ -241,6 +242,79 @@ test.describe('Lisibilité de la pastille', () => {
       // C'est une limite ASSUMÉE, pas un oubli : le code reste lisible, et
       // l'animateur peut toujours annoncer l'adresse à l'oral.
       if (t.largeur >= 844) expect(lien).toBeGreaterThanOrEqual(10);
+
+      // L'ADRESSE N'EST JAMAIS COUPÉE AU MILIEU D'UN MOT.
+      //
+      // CE QUI A ÉTÉ VU : « localhost:8788/pl » puis « ay » sur la ligne
+      // suivante, sur toutes les captures de stream. Ce n'est pas un défaut de
+      // la seule adresse locale : l'arithmétique du jeton --pastille-st compte
+      // « show.onrender.com » (348 px) comme le plus long segment insécable de
+      // l'adresse d'hébergement — ce qui suppose une coupure possible APRÈS la
+      // barre oblique. CSS n'en offre aucune : le segment réel est
+      // « show.onrender.com/play », 450 px, plus large que la plaque. La plaque
+      // a donc été dimensionnée sur une hypothèse que le navigateur ne tient pas,
+      // et `overflow-wrap: break-word` tranche là où il peut, en plein mot.
+      //
+      // POURQUOI MESURER LA COUPURE ET NON LE NOMBRE DE LIGNES : trois lignes
+      // sont VOULUES (décision 2.3, chiffrée dans tokens.css). Ce qui n'est pas
+      // voulu, c'est où la coupure tombe.
+      // LA MESURE, POSÉE DANS LA PAGE et appelée deux fois : sur l'adresse
+      // réelle de cette exécution, puis sur celle de l'hébergement.
+      await stream.evaluate(() => {
+        window.__coupures = (el) => {
+          // TOUS les nœuds de texte, dans l'ordre du document : l'adresse est
+          // découpée en segments séparés par des <wbr>, elle n'est plus un seul
+          // nœud. Lire `el.firstChild` seul ne verrait que le premier segment — le
+          // contrôle passerait au vert en n'ayant rien regardé.
+          const parcours = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          const lettres = [];
+          for (let n = parcours.nextNode(); n; n = parcours.nextNode()) {
+            for (let i = 0; i < n.textContent.length; i += 1) lettres.push([n, i]);
+          }
+          // Le haut de chaque caractère : un changement de haut = un retour à la
+          // ligne. On relève alors le couple de caractères qu'il sépare.
+          const plage = document.createRange();
+          const faute = [];
+          let hautPrecedent = null;
+          for (let k = 0; k < lettres.length; k += 1) {
+            const [noeud, i] = lettres[k];
+            plage.setStart(noeud, i);
+            plage.setEnd(noeud, i + 1);
+            const haut = plage.getBoundingClientRect().top;
+            if (hautPrecedent !== null && Math.abs(haut - hautPrecedent) > 1) {
+              const [nPrec, iPrec] = lettres[k - 1];
+              faute.push(`${nPrec.textContent[iPrec]}|${noeud.textContent[i]}`);
+            }
+            hautPrecedent = haut;
+          }
+          return faute;
+        };
+      });
+      const coupures = await stream.locator('.rejoindre__lien').evaluate((el) => window.__coupures(el));
+
+      // Une coupure LÉGITIME sépare deux segments d'adresse : elle suit un
+      // séparateur. Une coupure entre deux caractères ordinaires est la faute.
+      const illegitimes = coupures.filter((c) => !/[-.:/]/.test(c[0]));
+      expect(illegitimes, `l'adresse est coupée en plein mot : ${illegitimes.join(', ')}`)
+        .toEqual([]);
+
+      // ET SURTOUT L'ADRESSE D'HÉBERGEMENT — celle que voit le public. L'adresse
+      // locale est plus courte : elle ne prouve pas le cas qui compte. On pose
+      // donc la vraie dans la vraie plaque, découpée par la MÊME règle que
+      // l'application (importée, pas recopiée), et on remesure.
+      const coupuresProd = await stream.locator('.rejoindre__lien').evaluate((el, segments) => {
+        el.replaceChildren();
+        segments.forEach((seg, i) => {
+          el.append(document.createTextNode(seg));
+          if (i < segments.length - 1) el.append(document.createElement('wbr'));
+        });
+        return window.__coupures(el);
+      }, segmentsAdresse('project-game-show.onrender.com/play'));
+
+      const illegitimesProd = coupuresProd.filter((c) => !/[-.:/]/.test(c[0]));
+      expect(illegitimesProd,
+        `l'adresse d'hébergement est coupée en plein mot : ${illegitimesProd.join(', ')}`)
+        .toEqual([]);
 
       await terminerPartie(hote.page);
       await stream.close();

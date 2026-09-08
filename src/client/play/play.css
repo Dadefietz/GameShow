@@ -154,26 +154,54 @@
   }
   .code-boxes--error .code-boxes__input { box-shadow: var(--sh-inset), inset 0 0 0 var(--bw-field) var(--c-bad); }
 
+  /* LA PLAQUE DU PSEUDO — et la cible qu'elle promet.
+     Elle fait 335 × 68 px : large, visible, engageante. Le champ qu'elle
+     contenait n'en offrait que 27 de haut. `align-items: center` posait
+     l'`<input>` à sa hauteur de TEXTE au milieu d'une plaque quatre fois plus
+     haute ; le compteur « 0/20 » prenait son coin ; et la plaque, simple `<div>`,
+     ne renvoyait rien au champ. Les 41 px restants ne faisaient rien.
+     Le plancher du projet est pourtant écrit : --row-form vaut 52 px.
+
+     C'est le PREMIER geste du jeu, sur un téléphone, souvent debout. Et une
+     plaque peinte qui ne réagit pas est pire qu'une petite cible : elle en
+     PROMET une grande, le joueur vise ce qu'il voit, rien ne se passe, et il
+     croit l'écran figé. Personne ne le signale : on n'entre pas dans la partie,
+     c'est tout.
+
+     LE CHAMP OCCUPE DONC TOUTE LA PLAQUE, bord à bord, et le compteur se pose
+     PAR-DESSUS sans intercepter le doigt. Faire de la plaque un `<label>` aurait
+     été plus court, mais l'étiquette « Ton pseudo » est déjà là : un second
+     label collerait « 0/20 » au nom accessible du champ. */
   .field-shell {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
+    position: relative;
     height: var(--hit-lg);
-    padding: 0 var(--sp-4);
     border-radius: var(--r-m);
     background: var(--c-surface);
     box-shadow: var(--sh-inset);
   }
   .field-shell--error { box-shadow: var(--sh-inset), inset 0 0 0 var(--bw-field) var(--c-bad); }
   .field-shell__input {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+    height: 100%;
+    /* La réserve de droite est celle du compteur : le texte saisi ne passe
+       jamais dessous, alors même que le champ s'étend jusqu'au bord. */
+    padding: 0 calc(var(--sp-4) + var(--sp-3) + 4ch) 0 var(--sp-4);
     border: 0;
+    border-radius: inherit;
     background: transparent;
     font: 500 var(--fs-500) / 1 var(--f-ui);
     color: var(--c-ink);
   }
-  .field-shell__count { font: 400 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .field-shell__count {
+    position: absolute;
+    right: var(--sp-4);
+    top: 50%;
+    transform: translateY(-50%);
+    /* INERTE : sans cela, le coin du compteur reste un trou dans la cible. */
+    pointer-events: none;
+    font: 400 var(--fs-200) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+  }
 
   /* Erreur rattachée à SON champ (jamais un message global pour une faute de saisie). */
   .field-error {

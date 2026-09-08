@@ -19,6 +19,7 @@ import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { bipCompteRebours, sonFinDuTemps, sonRevelation } from '../shared/sons.js';
 import { Visage, MasquesVisages } from '../shared/Visage.jsx';
 import { Chainons } from '../shared/Chainons.jsx';
+import { segmentsAdresse } from '../shared/adresse.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -58,6 +59,16 @@ function CheckIcon({ size = 34 }) {
 // ============================================================
 
 
+// L'ADRESSE DE LA PASTILLE. Le découpage en segments sécables — et la raison
+// pour laquelle il existe — sont dans `shared/adresse.js` : le contrôle a besoin
+// de la même règle pour mesurer la vraie adresse d'hébergement dans la plaque.
+function Adresse({ texte }) {
+  const segments = segmentsAdresse(texte);
+  return segments.map((seg, i) => (
+    <React.Fragment key={i}>{seg}{i < segments.length - 1 ? <wbr /> : null}</React.Fragment>
+  ));
+}
+
 // La PASTILLE pour rejoindre — QR, code, adresse — remplace le panneau latéral
 // de 460 px qui occupait un quart de l'écran en permanence.
 //
@@ -91,7 +102,7 @@ function PastilleRejoindre({ code, podium }) {
     return (
       <aside className="rejoindre rejoindre--mince" data-state="podium" aria-label="Rejoindre la partie">
         <p className="rejoindre__ligne">
-          <span className="rejoindre__lien">{lienAffiche}</span>
+          <span className="rejoindre__lien"><Adresse texte={lienAffiche} /></span>
           <span className="rejoindre__sep" aria-hidden="true">·</span>
           <span className="rejoindre__code" data-bind="room.code" data-testid="stream-room-code">{code || '—'}</span>
         </p>
@@ -108,7 +119,7 @@ function PastilleRejoindre({ code, podium }) {
         <span className="rejoindre__qr rejoindre__qr--vide" aria-hidden="true" />
       )}
       <p className="rejoindre__code" data-bind="room.code" data-testid="stream-room-code">{code || '—'}</p>
-      <p className="rejoindre__lien" data-bind="room.joinUrl">{lienAffiche}</p>
+      <p className="rejoindre__lien" data-bind="room.joinUrl"><Adresse texte={lienAffiche} /></p>
     </aside>
   );
 }
