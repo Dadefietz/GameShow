@@ -14,12 +14,17 @@
 // Sans lui, un signe ajouté d'un côté ferait défiler une case VIDE sur le
 // téléphone d'un joueur, et fausserait la manche sans rien signaler.
 //
-// DIX CHIFFRES ET CINQ FIGURES, mélangés dans la même série. L'énoncé dit « les
-// images sont soit des Figures, soit les chiffres de 0 à 9 » et annote ses deux
-// exemples « (avec les chiffres) » : on peut y lire une série par famille, ou une
-// série dans les quinze. La seconde lecture est retenue — c'est la seule où les
-// cinq figures servent à chaque partie. Revenir sur l'autre ne demande qu'un
-// changement ici.
+// DIX CHIFFRES ET CINQ FIGURES, MÊLÉS DANS LA MÊME SÉRIE — ARBITRÉ, PLUS OUVERT.
+//
+// L'énoncé disait « les images sont soit des Figures, soit les chiffres de 0 à 9 »
+// et annotait ses deux exemples « (avec les chiffres) » : on pouvait y lire une
+// série par famille, ou une série tirée dans les quinze. La question a été posée à
+// l'auteur, qui a tranché pour le mélange — « garde le mélange des quinze signes ».
+//
+// LA RÉSERVE EST DONC LEVÉE, et ce commentaire la remplace pour qu'elle ne se
+// rouvre pas d'elle-même à la prochaine lecture. Ce qui reste vrai : basculer sur
+// l'autre lecture ne demanderait qu'un changement ici, puisque le bassin n'est
+// déclaré qu'à cet endroit.
 export const CHIFFRES_RETOUR = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const FIGURES_RETOUR = ['cercle', 'carre', 'losange', 'triangle', 'croix'];
 
