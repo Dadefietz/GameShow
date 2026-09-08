@@ -496,6 +496,11 @@
     align-items: end;
   }
   .vsgraf__col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  /* « RETOUR DE FLAMME » PARTAGE CE GRAPHIQUE — mêmes classes, mêmes tailles, et
+     un signe dessiné là où les visages ont une photo. Les trois règles ci-dessous
+     rendent au signe ce que les règles voisines donnent au portrait. */
+  .vsgraf__col .symbole { border-radius: var(--r-s); background: var(--c-surface-sunk); color: var(--c-ink); padding: 3px; }
+  .vsgraf__col--double .symbole { box-shadow: 0 0 0 2px var(--c-pine); color: var(--c-ink); }
   .vsgraf__num { font: 500 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-3); }
   .vsgraf__col .visage { border-radius: var(--r-s); background: var(--c-surface-sunk); }
   /* LES DEUX APPARITIONS DU VISAGE DOUBLÉ, plus grosses — et la SECONDE seule

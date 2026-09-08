@@ -21,6 +21,9 @@ import { Visage, MasquesVisages } from '../shared/Visage.jsx';
 import { Chainons } from '../shared/Chainons.jsx';
 import { segmentsAdresse } from '../shared/adresse.js';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
+import { RetourFlamme } from '../shared/RetourFlamme.jsx';
+import { SerieGraphique } from '../shared/SerieGraphique.jsx';
+import { Symbole } from '../shared/Symbole.jsx';
 import { chronoAffiche, secondes, formatteurDe, useCompteARebours } from '../shared/temps.js';
 import './overlay.css';
 
@@ -340,10 +343,10 @@ function QuestionStage({ g }) {
   // question, dont la charge utile trahirait la répétition. Le garde sur
   // l'identifiant de manche empêche un visage attardé de s'afficher sur la
   // manche suivante.
-  const visageOk = g.visage && g.visage.roundId === g.current?.roundId;
-  const visageId = visageOk ? g.visage.id : null;
-  const visageSrc = visageOk ? g.visage.src : null;
-  const visagePlace = visageOk ? g.visage.place : null;
+  const elementOk = g.element && g.element.roundId === g.current?.roundId;
+  const visageId = elementOk ? g.element.id : null;
+  const visageSrc = elementOk ? g.element.src : null;
+  const visagePlace = elementOk ? g.element.place : null;
 
   const voix = useVoixDePlateau(revealed ? reveal : null, stats, g.current?.roundId);
   const answer = revealText(reveal, current);
@@ -539,6 +542,16 @@ function QuestionStage({ g }) {
               {chronoCache ? 'Il court toujours' : 'Retenez le rythme'}
             </span>
           </div>
+        ) : current.type === 'retour_flamme' ? (
+          /* LE DÉFILÉ, À L'ANTENNE. L'image seule, en grand, et rien d'autre :
+             le public suit la série avec le cercle. Le NUMÉRO DE PASSAGE n'est
+             pas affiché — même raison que pour les visages : il donnerait au
+             public un repère de mémoire que les joueurs n'ont pas, et sur un
+             stream regardé à deux écrans il transformerait le jeu en exercice
+             d'écriture. */
+          <div className="st-visage" data-testid="stream-retour-image" data-place={visagePlace || ''}>
+            {visageId ? <Symbole id={visageId} taille={380} /> : null}
+          </div>
         ) : current.type === 'visages' ? (
           /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
              c'est le jeu tout entier. Le compteur de réponses et le chrono vivent
@@ -564,9 +577,11 @@ function QuestionStage({ g }) {
         ) : null
       ) : (
         /* Révélation : la répartition prend toute la place. */
-        <div className={`st-stats${stats?.kind === 'visages' ? ' st-stats--serie' : ''}`} data-bind="reveal.stats" data-testid="stats-panel">
+        <div className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`} data-bind="reveal.stats" data-testid="stats-panel">
           {stats?.kind === 'visages' ? (
             <SerieStream stats={stats} />
+          ) : stats?.kind === 'retour' ? (
+            <SerieRetourStream stats={stats} />
           ) : stats?.kind === 'lien' ? (
             <LienResultats stats={stats} />
           ) : stats?.kind === 'numeric' ? (
@@ -650,46 +665,74 @@ function QuestionStage({ g }) {
 const ANNONCES_STREAM = {
   lien: { emblem: <Chainons taille={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
   visages: { emblem: <MasquesVisages taille={280} />, regle: 'Un visage va passer deux fois. Saurez-vous le reconnaître ?' },
+  // L'EMBLÈME DÉPEND DU MODE : trois tuiles en −2, quatre en −3. C'est la règle
+  // montrée en image, et elle change avec le choix de l'animateur.
+  retour_flamme: {
+    emblem: (a) => <RetourFlamme ecart={a?.ecart === 3 ? 3 : 2} taille={a?.ecart === 3 ? 360 : 300} />,
+    regle: (a) => (a?.ecart === 3
+      ? 'Une image revient trois images plus tard. Le cercle doit la reconnaître.'
+      : 'Une image revient deux images plus tard. Le cercle doit la reconnaître.'),
+  },
   juste_temps: { emblem: <ChronoBuzzer taille={170} />, regle: "Un chrono s'efface sans s'arrêter. Le cercle doit le stopper au bon moment." },
 };
 
-function AnnonceStage({ nom, type }) {
+function AnnonceStage({ nom, type, annonce }) {
   const a = ANNONCES_STREAM[type];
+  // Un jeu dont l'emblème ou la règle DÉPEND de ce que l'animateur vient de
+  // choisir les déclare en fonction ; les autres gardent leur dessin figé. C'est
+  // la même règle que sur les téléphones, et il le faut : l'antenne et le cercle
+  // ne peuvent pas annoncer deux règles différentes.
+  const rendre = (v) => (typeof v === 'function' ? v(annonce) : v);
   return (
     <div className="stream__stage stream__stage--centered" data-testid="stream-annonce" data-state="annonce">
-      {a ? <span className="st-annonce__emblem" aria-hidden="true">{a.emblem}</span> : null}
+      {a ? <span className="st-annonce__emblem" aria-hidden="true">{rendre(a.emblem)}</span> : null}
       <p className="st-kicker">Prochaine épreuve</p>
       <h2 className="st-title st-title--xl">{nom}</h2>
-      {a ? <p className="st-lead">{a.regle}</p> : null}
+      {a ? <p className="st-lead">{rendre(a.regle)}</p> : null}
     </div>
   );
 }
 
-// LA SÉRIE, À L'ANTENNE — le même graphique que sur la console, à l'échelle du
-// stream. Le tracé des visages est partagé : c'est la même série qu'on vient de
-// voir défiler, et la reconnaître est tout l'intérêt de l'écran.
+// LES DEUX GRAPHIQUES DE SÉRIE DE L'ANTENNE — visages et retours de flamme.
+//
+// MÊME DESSIN QUE LA CONSOLE, calculé au même endroit (`shared/SerieGraphique.jsx`).
+// Le stream n'apporte que ses classes et ses tailles : ce qui se passe à l'antenne
+// et ce que l'animateur commente ne peuvent pas diverger.
 function SerieStream({ stats }) {
-  if (!stats || !Array.isArray(stats.ordre)) return null;
-  const adresse = new Map(stats.adresses || []);
+  const adresse = new Map(stats?.adresses || []);
   return (
-    <div className="st-serie" data-testid="stream-visages-serie"
-      style={{ '--colonnes': Math.ceil(stats.ordre.length / 2) }}>
-      {stats.ordre.map((id, i) => {
-        const place = i + 1;
-        const premiere = place === stats.pos1;
-        const seconde = place === stats.pos2;
-        const doublee = premiere || seconde;
-        const buzz = stats.parPlace[i] || 0;
-        return (
-          <div className={`st-serie__col${doublee ? ' st-serie__col--double' : ''}${seconde ? ' st-serie__col--bonne' : ''}`}
-            key={place} data-place={place} data-role={seconde ? 'seconde' : premiere ? 'premiere' : 'figurant'}>
-            <span className="st-serie__num">{place}</span>
-            <Visage id={id} src={adresse.get(id)} taille={doublee ? 132 : 88} />
-            <span className={`st-serie__buzz${buzz ? '' : ' st-serie__buzz--vide'}`}>{fmt(buzz)}</span>
-          </div>
-        );
-      })}
-    </div>
+    <SerieGraphique
+      ordre={stats?.ordre} parPlace={stats?.parPlace} bloc="st-serie" testid="stream-visages-serie"
+      roleDe={(place) => (
+        place === stats.pos2 ? { nom: 'seconde', grand: true, bonne: true }
+          : place === stats.pos1 ? { nom: 'premiere', grand: true, bonne: false }
+            : null
+      )}
+      rendu={(id, { grand }) => <Visage id={id} src={adresse.get(id)} taille={grand ? 132 : 88} />}
+    />
+  );
+}
+
+function SerieRetourStream({ stats }) {
+  const retours = new Set(stats?.retours || []);
+  return (
+    <SerieGraphique
+      ordre={stats?.ordre} parPlace={stats?.parPlace} bloc="st-serie" testid="stream-retour-serie"
+      // TRENTE IMAGES, DONC TROIS RANGÉES DE DIX — et non deux de quinze.
+      //
+      // MESURÉ, pas estimé : à quinze colonnes, la série s'étendait de 401 à 1949
+      // sur une toile de 1920. Elle sortait du cadre à droite ET passait sous la
+      // pastille « rejoindre » à gauche, devant le public. Le conteneur, lui,
+      // tenait dans ses bornes — c'est son CONTENU qui débordait, ce qu'aucune
+      // mesure de la boîte n'aurait vu. La série des visages, vingt images en deux
+      // rangées, tient sans rien changer : mesurée aussi.
+      colonnes={10}
+      roleDe={(place) => (retours.has(place) ? { nom: 'retour', grand: true, bonne: true } : null)}
+      rendu={(id, { grand, place, role }) => (
+        <Symbole id={id} taille={grand ? 104 : 70}
+          titre={role ? `Image ${place}, retour de flamme` : `Image ${place}`} />
+      )}
+    />
   );
 }
 
@@ -943,7 +986,7 @@ export function OverlayApp() {
             le jingle au même instant, pas l'un le jeu et l'autre le salon. */}
         {ended ? <PodiumStage g={g} />
           : inRound ? <QuestionStage g={g} />
-            : g.annonce ? <AnnonceStage nom={g.annonce.name} type={g.annonce.type} />
+            : g.annonce ? <AnnonceStage nom={g.annonce.name} type={g.annonce.type} annonce={g.annonce} />
               : <WaitingStage g={g} />}
 
         {/* CONTRAT S1, RÉÉCRIT (actions 3, 4 et 5).

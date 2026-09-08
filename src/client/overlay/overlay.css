@@ -300,6 +300,7 @@
     place-items: center;
     margin-top: var(--sp-6);
   }
+  .st-visage .symbole { color: var(--c-ink); }
   .st-visage .visage {
     border-radius: var(--r-l);
     background: var(--c-surface);
@@ -326,6 +327,9 @@
   .st-serie__col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .st-serie__num { font: 500 var(--fs-st-100, 20px) / 1 var(--f-mono); color: var(--c-ink-3); }
   .st-serie__col .visage { border-radius: var(--r-s); background: var(--c-surface-sunk); }
+  /* Le signe de « Retour de flamme » à la place du portrait — mêmes classes. */
+  .st-serie__col .symbole { border-radius: var(--r-s); background: var(--c-surface-sunk); color: var(--c-ink); padding: 5px; }
+  .st-serie__col--bonne .symbole { box-shadow: 0 0 0 4px var(--c-pine); }
   .st-serie__col--double .visage { box-shadow: 0 0 0 3px var(--c-ember); }
   .st-serie__col--bonne .visage { box-shadow: 0 0 0 4px var(--c-pine); }
   .st-serie__buzz { font: 600 var(--fs-st-200, 24px) / 1 var(--f-mono); color: var(--c-ink); }

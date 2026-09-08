@@ -1,4 +1,5 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
+import { BASSIN_RETOUR } from './symboles.js';
 
 // Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
 // Interface commune :
@@ -551,11 +552,89 @@ export function construireSerie(bassin, alea = Math.random) {
 // un joueur qui se trompait déjà.
 const GRACE_VISAGES = 350;
 
-export function creneauDe(startedAt, at) {
-  const ecoule = at - startedAt - GRACE_VISAGES;
+// LA MÊME GRÂCE VAUT POUR LES DEUX JEUX DE DÉFILÉ. Elle était écrite pour « Les
+// visages » ; « Retour de flamme » fait exactement la même chose — des images qui
+// passent, un doigt qui désigne l'une d'elles — et n'a aucune raison de compter
+// autrement. Les paramètres remplacent les constantes des visages, qui restent
+// les valeurs par défaut : le comportement de ce jeu-là ne bouge pas d'un cran.
+export function creneauDe(startedAt, at, cadenceMs = CADENCE_VISAGES, total = TOTAL_VISAGES, grace = GRACE_VISAGES) {
+  const ecoule = at - startedAt - grace;
   if (ecoule < 0) return 1; // avant la fin de la grâce, on est encore sur le 1er
-  const place = Math.floor(ecoule / CADENCE_VISAGES) + 1;
-  return Math.min(TOTAL_VISAGES, place);
+  const place = Math.floor(ecoule / cadenceMs) + 1;
+  return Math.min(total, place);
+}
+
+// ============================================================
+// « RETOUR DE FLAMME » — l'image déjà vue, deux (ou trois) images plus tôt
+// ============================================================
+//
+// LA RÈGLE. Trente images défilent, une toutes les deux secondes. Il faut buzzer
+// quand celle qu'on voit est la MÊME que celle d'il y a deux images — ou trois,
+// selon le mode. Six de ces « retours » sont posés dans chaque série, pas un de
+// plus, pas un de moins.
+//
+// CE QUE CE JEU A D'UNIQUE DANS LE PROJET : on y buzze PLUSIEURS FOIS. Tous les
+// autres modules acceptent une réponse et une seule ; celui-ci en attend six, et
+// punit les autres. C'est la seule chose qui a demandé au moteur autre chose que
+// du branchement (voir `meta.multi` et `submitAnswer`).
+export const CADENCE_RETOUR = 2000;
+export const TOTAL_RETOUR = 30;
+export const RETOURS_PAR_SERIE = 6;
+// GAGNÉS SUR UN RETOUR, PERDUS SUR TOUT AUTRE BUZZ. Six retours trouvés sans une
+// faute font 1 200 — le maximum annoncé.
+export const POINTS_RETOUR = 200;
+// Les deux modes. L'écart EST le mode : « Retour −2 » compare à l'avant-avant
+// dernière image, « Retour −3 » à celle d'avant elle.
+export const ECARTS_RETOUR = [2, 3];
+
+// LA SÉRIE, ET SES SIX RETOURS EXACTEMENT.
+//
+// POURQUOI ON NE TIRE PAS AU HASARD EN COMPTANT ENSUITE. Trente images prises
+// dans quinze signes produisent des retours par accident — environ deux par série
+// en mode −2, jamais six. Tirer jusqu'à en obtenir six exactement demanderait des
+// milliers d'essais et ne garantirait rien.
+//
+// ON POSE DONC LES SIX PLACES D'ABORD, puis on remplit : sur une place de retour,
+// on RECOPIE l'image d'il y a `ecart` ; partout ailleurs, on tire n'importe quel
+// signe SAUF celui-là. Le second point est celui qui compte — sans lui, un retour
+// non voulu apparaîtrait par hasard et la série en compterait sept. Le nombre est
+// donc exact par CONSTRUCTION, et non par vérification après coup.
+//
+// Les chaînes sont permises et voulues : deux retours consécutifs, ou espacés de
+// `ecart`, se produisent — l'exemple de l'énoncé en contient (les places 26 et 28
+// du mode −2). Rien ne les interdit, et les interdire appauvrirait le jeu.
+export function construireSerieRetour(ecart, bassin, alea = Math.random) {
+  if (!ECARTS_RETOUR.includes(ecart)) throw new Error(`écart inconnu : ${ecart}`);
+  if (!Array.isArray(bassin) || bassin.length < 2) throw new Error('bassin trop pauvre');
+
+  // Une place ne peut porter un retour que s'il existe une image `ecart` plus tôt.
+  const possibles = [];
+  for (let p = ecart + 1; p <= TOTAL_RETOUR; p += 1) possibles.push(p);
+  if (possibles.length < RETOURS_PAR_SERIE) {
+    throw new Error('série trop courte pour six retours : ' + possibles.length);
+  }
+  const retours = melanger(possibles, alea).slice(0, RETOURS_PAR_SERIE).sort((a, b) => a - b);
+  const estRetour = new Set(retours);
+
+  const ordre = [];
+  for (let p = 1; p <= TOTAL_RETOUR; p += 1) {
+    const precedent = p > ecart ? ordre[p - ecart - 1] : null;
+    if (estRetour.has(p)) { ordre.push(precedent); continue; }
+    const choix = precedent == null ? bassin : bassin.filter((s) => s !== precedent);
+    ordre.push(choix[Math.floor(alea() * choix.length)]);
+  }
+  return { ordre, retours, ecart };
+}
+
+// Les places où l'image répète celle d'il y a `ecart` — RELUES sur la série, et
+// non reprises de ce qu'on a posé. C'est ce que le contrôle emploie : une
+// génération qui se contenterait de rendre sa propre liste ne prouverait rien.
+export function retoursDeLaSerie(ordre, ecart) {
+  const out = [];
+  for (let i = ecart; i < ordre.length; i += 1) {
+    if (ordre[i] === ordre[i - ecart]) out.push(i + 1);
+  }
+  return out;
 }
 
 // DEUX MOTS SONT LE MÊME MOT quand ils ne diffèrent que par la casse ou les
@@ -914,6 +993,16 @@ export const modules = {
       // jeu — c'est la première apparition.
       vitesse: false,
       direct: true,
+      // LE DÉFILÉ, DÉCLARÉ. Le moteur pousse les images une par une pour les deux
+      // jeux qui en ont un, et c'est CETTE déclaration qui l'arme — plus aucun
+      // nom de jeu n'est écrit dans le moteur.
+      //
+      // L'AVOIR OUBLIÉE ICI A COÛTÉ UNE RÉGRESSION : en généralisant le défilé
+      // pour « Retour de flamme », je l'ai déclarée sur le jeu neuf et pas sur
+      // celui-ci. Les visages ne défilaient plus du tout — la série restait sur
+      // son premier portrait, et le jeu n'avait plus de réponse. Attrapée par le
+      // contrôle de bout en bout qui existait déjà, à la ligne près.
+      defile: { cadenceMs: CADENCE_VISAGES, total: TOTAL_VISAGES },
     },
     buildRound(q) {
       const serie = construireSerie(q.bassin && q.bassin.length ? q.bassin : idsDuBassin());
@@ -1157,6 +1246,124 @@ export const modules = {
       };
 
       return { results, reveal: { type: 'juste_temps', target: rt.target, cache: rt.cache, text: rt.text, stats } };
+    },
+  },
+
+  // « RETOUR DE FLAMME » — voir la règle plus haut, à côté de sa série.
+  retour_flamme: {
+    meta: {
+      type: 'retour_flamme', name: 'Retour de flamme', icon: 'shuffle', color: 'fire',
+      scored: true, malus: false,
+      // La rapidité ne joue aucun rôle : on buzze pendant l'image ou pas du tout.
+      vitesse: false,
+      // Pas de banque : la série est tirée à chaque lancement, comme « Les visages ».
+      direct: true,
+      // LE DÉFILÉ. Le moteur pousse les images une par une plutôt que de les
+      // livrer d'un bloc — sans quoi la série entière, donc les six réponses,
+      // serait lisible dans l'onglet réseau du navigateur.
+      defile: { cadenceMs: CADENCE_RETOUR, total: TOTAL_RETOUR },
+      // PLUSIEURS BUZZ PAR JOUEUR, et c'est le seul module du projet dans ce cas.
+      multi: true,
+      // Les deux modes, publiés pour que la console les propose sans les recopier.
+      ecarts: ECARTS_RETOUR,
+    },
+    buildRound(q) {
+      const ecart = ECARTS_RETOUR.includes(Number(q.ecart)) ? Number(q.ecart) : ECARTS_RETOUR[0];
+      const serie = construireSerieRetour(ecart, BASSIN_RETOUR);
+      return {
+        type: 'retour_flamme',
+        questionId: q.id,
+        // LA SÉRIE RESTE AU SERVEUR. Elle n'entre pas dans `publicQuestion` :
+        // trente identifiants dont six répètent celui d'il y a deux places, c'est
+        // la réponse en clair pour qui sait lire une charge utile.
+        ordre: serie.ordre,
+        retours: serie.retours,
+        ecart,
+        text: ecart === 2
+          ? 'Buzze quand une image revient deux images plus tard.'
+          : 'Buzze quand une image revient trois images plus tard.',
+        durationMs: TOTAL_RETOUR * CADENCE_RETOUR,
+      };
+    },
+    publicQuestion(rt) {
+      return {
+        type: 'retour_flamme',
+        questionId: rt.questionId,
+        text: rt.text,
+        cadenceMs: CADENCE_RETOUR,
+        total: TOTAL_RETOUR,
+        // L'ÉCART EST PUBLIC, et il le doit : c'est la règle du jeu, pas la
+        // réponse. Un joueur qui ignorerait s'il joue en −2 ou en −3 ne pourrait
+        // pas jouer du tout.
+        ecart: rt.ecart,
+        retoursAttendus: RETOURS_PAR_SERIE,
+      };
+    },
+    // UN BUZZ N'A PAS DE VALEUR : il a une HEURE. Le moteur l'horodate à
+    // l'arrivée et en déduit l'image désignée — voir `submitAnswer`, qui accumule
+    // ici au lieu de refuser le second buzz.
+    validateAnswer() {
+      return true;
+    },
+    score(rt) {
+      const estRetour = new Set(rt.retours);
+      const results = new Map();
+      const parPlace = new Array(TOTAL_RETOUR).fill(0);
+
+      for (const [pid, a] of rt.answers) {
+        // `a.value` porte les PLACES désignées, posées par le moteur au fil des
+        // buzz. Chaque image ne compte qu'une fois — voir `submitAnswer`.
+        const places = Array.isArray(a.value) ? a.value : [];
+        let bons = 0;
+        let rates = 0;
+        for (const place of places) {
+          parPlace[place - 1] += 1;
+          if (estRetour.has(place)) bons += 1; else rates += 1;
+        }
+        // LE SOLDE PEUT ÊTRE NÉGATIF — ET LE SCORE NE LE SUIT PAS.
+        //
+        // « si le résultat du jeu est négatif, alors le joueur ne perd pas de
+        // points sur son score total. Soit le joueur gagne des points, soit il
+        // n'en gagne pas. » Les deux nombres voyagent donc séparément : le SOLDE,
+        // qui est ce que le joueur a réellement fait et que son écran lui montre,
+        // et la BASE, qui est ce que son score encaisse.
+        //
+        // Ne transmettre que la base rendrait le calcul invérifiable : un joueur
+        // à deux bons et cinq ratés lirait « 0 » sans savoir pourquoi, alors que
+        // le jeu vient de lui expliquer qu'il gagne 200 par retour.
+        const brut = POINTS_RETOUR * (bons - rates);
+        results.set(pid, {
+          base: Math.max(0, brut),
+          speed: 0,
+          // `correct` nourrit la série et le verdict de l'écran : avoir marqué.
+          correct: brut > 0,
+          bons,
+          rates,
+          brut,
+        });
+      }
+
+      const parfaits = [...results.values()].filter((r) => r.bons === RETOURS_PAR_SERIE && r.rates === 0).length;
+      const stats = {
+        kind: 'retour',
+        total: rt.answers.size,
+        ordre: rt.ordre,
+        retours: rt.retours,
+        ecart: rt.ecart,
+        parPlace,
+        // Combien de joueurs ont marqué, et combien ont fait le sans-faute : les
+        // deux chiffres que le plateau commente.
+        marquants: [...results.values()].filter((r) => r.correct).length,
+        parfaits,
+        // Combien de retours ont été démasqués au moins une fois : c'est ce qui
+        // dit si la série est passée sous le nez du cercle.
+        retoursTrouves: rt.retours.filter((p) => parPlace[p - 1] > 0).length,
+      };
+
+      return {
+        results,
+        reveal: { type: 'retour_flamme', text: rt.text, ecart: rt.ecart, retours: rt.retours, stats },
+      };
     },
   },
 

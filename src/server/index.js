@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules, REGLES_VISAGES } from './modules.js';
+import { MODULE_TYPES, modules } from './modules.js';
 import { srcDeVisage } from './visages.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
@@ -380,21 +380,25 @@ io.on('connection', (socket) => {
         return moi.joinedAt <= cur.startedAt;
       })(),
     });
-    // « LES VISAGES » : LE VISAGE COURANT, REJOUÉ.
+    // LES JEUX DE DÉFILÉ : L'IMAGE COURANTE, REJOUÉE.
     //
-    // Les visages sont poussés un par un et non portés par la question — sans
+    // Les images sont poussées une par une et non portées par la question — sans
     // quoi la série entière, donc la réponse, serait lisible dans la charge
     // utile. Conséquence : un joueur qui recharge en pleine série ne recevrait
-    // plus RIEN jusqu'au visage suivant, et resterait deux secondes devant un
-    // écran vide au milieu d'une manche qui n'en dure que quarante.
+    // plus RIEN jusqu'à l'image suivante, et resterait deux secondes devant un
+    // écran vide au milieu d'une manche qui n'en dure qu'une.
     //
     // On lui renvoie donc la place où en est la série — calculée sur l'horloge du
     // serveur, la même que celle qui juge les buzz — et le visage qui l'occupe.
-    if (cur.type === 'visages' && Array.isArray(cur.ordre) && !cur.revealed) {
+    const defile = mod.meta.defile;
+    if (defile && Array.isArray(cur.ordre) && !cur.revealed) {
       const place = Math.min(cur.ordre.length,
-        Math.max(1, Math.floor((Date.now() - cur.startedAt) / REGLES_VISAGES.cadenceMs) + 1));
-      const idVisage = cur.ordre[place - 1];
-      socket.emit('visages:visage', { roundId: cur.roundId, place, id: idVisage, src: srcDeVisage(idVisage) });
+        Math.max(1, Math.floor((Date.now() - cur.startedAt) / defile.cadenceMs) + 1));
+      const id = cur.ordre[place - 1];
+      socket.emit('serie:element', {
+        roundId: cur.roundId, place, id,
+        src: cur.type === 'visages' ? srcDeVisage(id) : null,
+      });
     }
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur
@@ -438,11 +442,16 @@ io.on('connection', (socket) => {
 
   // ---- Commandes ANIMATEUR (host:*) — vérifiées par rôle + salon ----
   // ANNONCER un jeu sans le lancer — voir `engine.annoncerModule`.
-  socket.on('host:announceModule', ({ moduleId } = {}) => {
+  socket.on('host:announceModule', ({ moduleId, ecart } = {}) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     const module_ = banksStore.getModule(r.ownerId, moduleId);
     if (!module_) return socket.emit('host:error', { code: 'no-module' });
-    engine.annoncerModule(io, r, module_);
+    // LE MODE, QUAND LE JEU EN A UN. Il est BLANCHI ici plutôt que cru : une
+    // valeur venue du réseau ne doit pas se retrouver telle quelle sur l'écran
+    // d'attente du cercle, où elle commanderait un dessin.
+    const ecarts = modules[module_.type]?.meta?.ecarts;
+    const choisi = Array.isArray(ecarts) && ecarts.includes(Number(ecart)) ? Number(ecart) : null;
+    engine.annoncerModule(io, r, module_, { ecart: choisi });
   });
 
   socket.on('host:startModule', async ({ moduleId, moduleType, question } = {}) => {

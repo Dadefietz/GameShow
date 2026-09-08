@@ -181,9 +181,22 @@ describe('la semence monte sans rien ressusciter', () => {
 
   // Une bibliothèque telle qu'elle était écrite AVANT l'existence des semences :
   // pas de numéro, et pas de « juste temps ».
-  function bibliothequeAncienne(sans = ['juste_temps']) {
+  // TOUS LES APPORTS DEPUIS LA PREMIÈRE SEMENCE, écartés d'un coup : c'est la
+  // situation réelle d'un animateur installé avant eux. La liste n'est pas
+  // recopiée à la main — elle vient de la table des apports, sans quoi un
+  // quatrième jeu ajouté un jour passerait à travers ce contrôle.
+  // LU PARESSEUSEMENT : le module du stockage n'est importé qu'au `beforeAll`
+  // (il lit une variable d'environnement posée là), et le lire à l'évaluation du
+  // fichier donnerait `undefined`.
+  const apportsDepuis = () => store.APPORTS_DEPUIS_LA_PREMIERE;
+  // La bibliothèque telle qu'elle était à la première semence : les types qui
+  // existaient ALORS, et rien d'autre. C'est la situation réelle d'un animateur
+  // installé avant les jeux qui ont suivi.
+  const typesDAlors = () => store.TYPES_A_LA_PREMIERE_SEMENCE;
+
+  function bibliothequeAncienne(garde = typesDAlors()) {
     fs.mkdirSync(path.join(DATA_DIR, 'owners'), { recursive: true });
-    const modulesAnciens = MODULE_TYPES.filter((t) => !sans.includes(t)).map((t) => ({
+    const modulesAnciens = garde.map((t) => ({
       id: `m-${t}`, type: t, name: modules[t].meta.name, duration: 20,
       color: modules[t].meta.color, questions: [],
     }));
@@ -191,13 +204,27 @@ describe('la semence monte sans rien ressusciter', () => {
     store._reinitialiserCache();
   }
 
-  it('pose les jeux APPARUS DEPUIS, et seulement ceux-là', () => {
+  it('AUCUN TYPE DU SERVEUR n\'est hors de portée d\'un animateur installé', () => {
+    // LE VRAI DÉFAUT, ET CELUI QU'UN CONTRÔLE PLUS FAIBLE LAISSAIT PASSER.
+    //
+    // Ma première version fabriquait la bibliothèque « d'avant » en ÔTANT les
+    // apports déclarés. Elle vérifiait donc que ce qui est inscrit dans la table
+    // arrive bien — mais restait verte si l'on OUBLIAIT d'y inscrire un jeu, ce
+    // qui est exactement l'erreur qu'on redoute : le jeu est livré, testé, poussé,
+    // et introuvable dans le menu de la seule personne qui s'en sert.
+    //
+    // On part donc des types qui existaient VRAIMENT à la première semence — un
+    // fait historique, figé — et l'on exige que la montée conduise à la
+    // bibliothèque complète.
     bibliothequeAncienne();
-    const avant = MODULE_TYPES.length - 1;
     const jeux = store.getModules(cle);
-    expect(jeux.length, 'la montée n\'a rien ajouté').toBe(avant + 1);
-    expect(jeux.some((j) => j.type === 'juste_temps'),
-      'le jeu neuf reste introuvable dans une bibliothèque existante').toBe(true);
+    for (const type of MODULE_TYPES) {
+      expect(jeux.some((j) => j.type === type),
+        `le jeu « ${type} » reste introuvable dans une bibliothèque installée avant lui`).toBe(true);
+    }
+    expect(jeux.length, 'la montée a posé un jeu en double').toBe(MODULE_TYPES.length);
+    // Et le contrôle a bien quelque chose à voir : sans montée, il manquerait des jeux.
+    expect(typesDAlors().length).toBeLessThan(MODULE_TYPES.length);
     // Rien d'autre n'a bougé : un seul jeu par type, comme avant.
     for (const t of MODULE_TYPES) {
       expect(jeux.filter((j) => j.type === t).length, `${t} a été posé deux fois`).toBe(1);
@@ -210,9 +237,9 @@ describe('la semence monte sans rien ressusciter', () => {
   it('NE RESSUSCITE PAS un jeu que l\'animateur a supprimé', () => {
     // Il a effacé « Le lien », qui existait déjà à la semence précédente. La
     // montée ne doit toucher qu'à ce qui n'existait pas alors.
-    bibliothequeAncienne(['juste_temps', 'lien']);
+    bibliothequeAncienne(typesDAlors().filter((t) => t !== 'lien'));
     const jeux = store.getModules(cle);
-    expect(jeux.some((j) => j.type === 'juste_temps')).toBe(true);
+    for (const type of apportsDepuis()) expect(jeux.some((j) => j.type === type)).toBe(true);
     expect(jeux.some((j) => j.type === 'lien'),
       'un jeu supprimé par l\'animateur est revenu tout seul').toBe(false);
   });

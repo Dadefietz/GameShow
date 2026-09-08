@@ -6,7 +6,7 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, auCentieme } from './modules.js';
+import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, auCentieme, creneauDe as creneauSerie } from './modules.js';
 import { srcDeVisage } from './visages.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
@@ -20,6 +20,22 @@ function plagesDe(rt) {
 // venu d'une question mal formée ne doit pas choisir un barème au hasard.
 function natureDe(rt) {
   return rt.nature === 'annee' || rt.nature === 'temps' ? rt.nature : 'nombre';
+}
+// L'ADRESSE D'UNE IMAGE DE DÉFILÉ, quand elle en a une. « Les visages » sert des
+// fichiers ; « Retour de flamme » dessine ses signes et n'a rien à servir. Le
+// défilé ne connaît donc pas les deux jeux : il demande une adresse, et se
+// contente de `null`.
+// L'IMAGE QU'UN BUZZ DÉSIGNE. Une seule définition dans tout le projet, celle des
+// visages : l'heure d'arrivée, moins la grâce du réseau, divisée par la cadence.
+// La recopier ici aurait donné deux façons de compter les buzz — et la grâce, qui
+// rend au visage précédent les buzz arrivés dans les premières fractions de
+// seconde du suivant, est précisément ce qu'on n'a pas envie de réinventer.
+function creneauDe(maintenant, startedAt, defile) {
+  return creneauSerie(startedAt, maintenant, defile.cadenceMs, defile.total);
+}
+
+function adresseDe(rt, id) {
+  return rt.type === 'visages' ? srcDeVisage(id) : null;
 }
 function margeBareme(rt) {
   return Math.max(0, ...plagesDe(rt).map((p) => p.haut - rt.target));
@@ -171,8 +187,12 @@ export function emitRoomState(io, room) {
 // Aucun autre jeu n'en avait besoin : leur question sort de la bibliothèque et
 // part avec le lancement. Celui-ci se prépare à l'antenne, et le temps de saisie
 // de l'animateur ne doit pas être décompté du temps de jeu.
-export function annoncerModule(io, room, jeu) {
-  room.annonce = { moduleId: jeu.id, type: jeu.type, name: jeu.name };
+export function annoncerModule(io, room, jeu, options = {}) {
+  // LE MODE VOYAGE AVEC L'ANNONCE. « Retour de flamme » se joue en −2 ou en −3, et
+  // son écran d'attente MONTRE la règle : trois tuiles ou quatre. Annoncer un mode
+  // et en jouer un autre serait pire que de ne rien montrer — l'animateur peut
+  // changer d'avis pendant qu'il présente, et l'annonce se remet à jour.
+  room.annonce = { moduleId: jeu.id, type: jeu.type, name: jeu.name, ecart: options.ecart ?? null };
   // La manche précédente n'a plus lieu d'être affichée : on annonce la suivante.
   room.currentModule = null;
   room.state = RoomState.PLAYING;
@@ -248,29 +268,40 @@ export function startModule(io, room, jeu, question) {
   //
   // Le premier part TOUT DE SUITE : attendre deux secondes laisserait un écran
   // vide au démarrage, sur les trois surfaces à la fois.
-  if (room._visages) clearInterval(room._visages);
-  if (rt.type === 'visages') {
+  //
+  // UN SEUL DÉFILÉ POUR LES DEUX JEUX QUI EN ONT UN. « Les visages » et « Retour
+  // de flamme » font exactement la même chose : une série que le serveur seul
+  // connaît, poussée image par image à cadence fixe. Le second a été écrit après
+  // le premier ; en recopier la boucle aurait donné deux minuteries à corriger le
+  // jour où l'une se révélera fautive — et la première l'a déjà été une fois (elle
+  // s'éteignait aussitôt née, voir la note du tick ci-dessous).
+  //
+  // C'est la META du module qui déclare son défilé, et rien ici ne connaît les
+  // deux jeux par leur nom.
+  if (room._defile) clearInterval(room._defile);
+  const defile = mod.meta.defile;
+  if (defile && Array.isArray(rt.ordre)) {
     const pousser = (place) => {
       if (room.currentModule !== rt || rt.revealed) return;
       const id = rt.ordre[place - 1];
-      toRoom(io, room).emit('visages:visage', { roundId: rt.roundId, place, id, src: srcDeVisage(id) });
+      toRoom(io, room).emit('serie:element', { roundId: rt.roundId, place, id, src: adresseDe(rt, id) });
     };
     pousser(1);
     let place = 1;
-    room._visages = setInterval(() => {
+    room._defile = setInterval(() => {
       place += 1;
-      if (place > rt.ordre.length || room.currentModule !== rt) { clearInterval(room._visages); room._visages = null; return; }
+      if (place > rt.ordre.length || room.currentModule !== rt) { clearInterval(room._defile); room._defile = null; return; }
       pousser(place);
-    }, REGLES_VISAGES.cadenceMs);
+    }, defile.cadenceMs);
   }
 
   // Tick de compte à rebours (1s) pour toutes les surfaces.
   //
-  // NE PAS TOUCHER AU DÉFILÉ DES VISAGES ICI. Partout ailleurs, arrêter le tick
+  // NE PAS TOUCHER AU DÉFILÉ ICI. Partout ailleurs, arrêter le tick
   // veut dire « la manche est finie » et doit arrêter le défilé avec lui. Ici
   // NON : le défilé vient d'être armé quinze lignes plus haut, pour CETTE
   // manche. Un nettoyage posé mécaniquement à côté de chaque arrêt de tick l'a
-  // éteint aussitôt né — la série restait figée sur son premier visage, et le
+  // éteint aussitôt né — la série restait figée sur sa première image, et le
   // jeu n'avait plus de réponse. Attrapé par le contrôle de bout en bout.
   if (room._tick) clearInterval(room._tick);
   room._tick = setInterval(() => {
@@ -286,7 +317,7 @@ export function closeWindow(io, room) {
   if (!rt || rt.closed) return;
   rt.closed = true;
   if (room._tick) clearInterval(room._tick);
-  if (room._visages) { clearInterval(room._visages); room._visages = null; }
+  if (room._defile) { clearInterval(room._defile); room._defile = null; }
   toRoom(io, room).emit('module:closed', { answers: rt.answers.size });
 }
 
@@ -297,8 +328,38 @@ export function submitAnswer(io, room, playerId, rawValue) {
   if (!rt || rt.closed || rt.revealed || Date.now() >= rt.deadline) return { ok: false, reason: 'closed' };
   const player = room.players.get(playerId);
   if (!player) return { ok: false, reason: 'unknown-player' };
-  if (rt.answers.has(playerId)) return { ok: false, reason: 'already' };
   const mod = modules[rt.type];
+
+  // ---- LES JEUX OÙ L'ON BUZZE PLUSIEURS FOIS ----
+  //
+  // Tous les modules du projet acceptent UNE réponse et refusent la seconde. « Retour
+  // de flamme » en attend six et punit les autres : lui appliquer la règle du
+  // doublon le rendrait injouable — le joueur signalerait le premier retour, puis
+  // regarderait passer les cinq suivants sans pouvoir rien faire.
+  //
+  // CE QU'UN BUZZ DÉSIGNE ICI, C'EST UNE IMAGE, et c'est le serveur qui la
+  // détermine, sur l'heure d'arrivée — même doctrine que « Les visages » : « un jeu
+  // de buzz se joue sur l'horloge de l'arbitre ». Le client ne pourrait rien
+  // annoncer d'utile de toute façon : il reçoit les images une par une et ignore
+  // lesquelles répètent.
+  //
+  // UNE IMAGE NE COMPTE QU'UNE FOIS. Deux buzz sur la même image sont la même
+  // désignation — et sur une fenêtre de deux secondes, au doigt, sur un téléphone,
+  // le second est presque toujours un rebond du premier. Les compter séparément
+  // ferait perdre 200 points pour un tremblement de la main.
+  if (mod.meta.multi) {
+    const place = creneauDe(Date.now(), rt.startedAt, mod.meta.defile);
+    const deja = rt.answers.get(playerId);
+    const places = deja ? deja.value : [];
+    if (places.includes(place)) return { ok: true, reason: 'deja-cette-image', place };
+    places.push(place);
+    rt.answers.set(playerId, { value: places, at: Date.now() });
+    roomManager.touch(room);
+    toRoom(io, room).emit('module:answersCount', { count: rt.answers.size });
+    return { ok: true, place, buzz: places.length };
+  }
+
+  if (rt.answers.has(playerId)) return { ok: false, reason: 'already' };
   const value = mod.validateAnswer(rt, rawValue);
   if (value === null) return { ok: false, reason: 'invalid' };
   rt.answers.set(playerId, { value, at: Date.now() });
@@ -397,6 +458,14 @@ export function reveal(io, room) {
       // serveur a arrêtée, bornée par sa propre horloge, pas celle que l'écran
       // affichait au moment du doigt.
       valeur: r ? r.valeur ?? null : null,
+      // « RETOUR DE FLAMME » : le détail du solde. Il voyage parce que l'écran du
+      // joueur doit MONTRER le calcul — six bons, cinq ratés, +200 — et parce que
+      // la base seule ne dit rien d'un solde ramené à zéro. Le joueur qui lit un
+      // « 0 » sans savoir pourquoi ne peut pas vérifier le barème qu'on vient de
+      // lui expliquer.
+      bons: r ? r.bons ?? null : null,
+      rates: r ? r.rates ?? null : null,
+      brut: r ? r.brut ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -462,7 +531,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, correct: null, troppTot: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, bons: null, rates: null, brut: null, correct: null, troppTot: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -475,6 +544,9 @@ export function reveal(io, room) {
       rang: d.rang,
       taille: d.taille,
       valeur: d.valeur ?? null,
+      bons: d.bons ?? null,
+      rates: d.rates ?? null,
+      brut: d.brut ?? null,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,
@@ -511,7 +583,7 @@ export function reveal(io, room) {
 export function backToLobby(io, room) {
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
-  if (room._visages) { clearInterval(room._visages); room._visages = null; }
+  if (room._defile) { clearInterval(room._defile); room._defile = null; }
   room.state = RoomState.WAITING;
   room.currentModule = null;
   room.history = [];
@@ -531,7 +603,7 @@ export function endGame(io, room) {
   room.state = RoomState.ENDED;
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
-  if (room._visages) { clearInterval(room._visages); room._visages = null; }
+  if (room._defile) { clearInterval(room._defile); room._defile = null; }
   const podium = roomManager.leaderboard(room, 3);
   // Fin de partie : le classement final devient public + récap des manches (B3,
   // question + révélation — jamais le détail par joueur).

@@ -580,6 +580,48 @@
   /* LE VISAGE PREND TOUTE LA PLACE QU'ON PEUT LUI DONNER. C'est un jeu de
      RECONNAISSANCE : chaque pixel de visage compte, et le vide au-dessus n'a
      aucune fonction. Le buzz reste ancré en bas, sous le pouce. */
+  /* ===== « RETOUR DE FLAMME » ÉPOUSE L'ÉCRAN DES VISAGES =====
+     Les deux jeux montrent une image qui défile et un bouton dessous : ils
+     partagent donc `.vsg`. Ce qui s'ajoute ici leur est propre.
+
+     LE SIGNE PREND TOUTE LA TUILE, comme un portrait — sans quoi un chiffre
+     paraîtrait plus petit qu'un cercle et l'œil suivrait la famille plutôt que
+     le signe. */
+  .vsg__cadre .symbole { color: var(--c-ink); }
+  /* Le compte des buzz : un RETOUR, pas un score. Discret, sous le bouton. */
+  .vsg__compte {
+    margin: 0;
+    font: 500 var(--fs-200) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+    text-align: center;
+  }
+
+  /* LE BILAN DE « RETOUR DE FLAMME » — trois chiffres, dont un négatif possible.
+     Il existe parce que la ligne « Points gagnés » affiche 0 pour un joueur à
+     −600 : son score total ne baisse pas, et ce zéro serait incompréhensible
+     sans le calcul en face. */
+  .rfbil {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+    margin-top: var(--sp-5);
+    width: 100%;
+  }
+  .rfbil__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: var(--sh-inset);
+  }
+  .rfbil__value { font: 700 var(--fs-600) / 1 var(--f-mono); color: var(--c-ink); }
+  .rfbil__value--bon { color: var(--c-fern); }
+  .rfbil__value--rate { color: var(--c-bad); }
+  .rfbil__sur { font: 500 var(--fs-300) / 1 var(--f-mono); color: var(--c-ink-3); }
+
   /* ===== « LE JUSTE TEMPS » — L'ÉCRAN DE JEU DU JOUEUR =====
      Le chrono, et le STOP. Rien d'autre : tout ce qui entoure les chiffres
      détourne l'œil au moment précis où il faut compter dans sa tête. */

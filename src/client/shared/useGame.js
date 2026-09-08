@@ -14,18 +14,28 @@ export function useGame(token) {
   const [you, setYou] = useState(null);           // { rank, score, delta } (joueur)
   const [podium, setPodium] = useState(null);
   const [answered, setAnswered] = useState(false);
+  // COMBIEN DE FOIS LE JOUEUR A BUZZÉ dans la manche en cours. Un seul jeu s'en
+  // sert — « Retour de flamme », où l'on buzze six fois si l'on est bon. Partout
+  // ailleurs il vaut 0 ou 1, et c'est `answered` qui commande.
+  const [buzz, setBuzz] = useState(0);
   const [monChoix, setMonChoix] = useState(null);
   const [presentAuLancement, setPresentAuLancement] = useState(true);
   // L'ANNONCE d'un jeu qui n'a pas encore démarré — « Le lien » se joue en deux
   // temps : le cercle voit le nom du jeu pendant que l'animateur saisit ses mots.
   const [annonce, setAnnonce] = useState(null);
   const [roomClosed, setRoomClosed] = useState(false);
-  // « LES VISAGES » : le visage à l'écran, poussé un par un par le serveur.
-  // Il ne vit PAS dans `current` : la série entière n'est jamais envoyée — un
+  // LES JEUX DE DÉFILÉ — « Les visages », « Retour de flamme » : l'image à
+  // l'écran, poussée une par une par le serveur.
+  //
+  // Elle ne vit PAS dans `current` : la série entière n'est jamais envoyée — un
   // identifiant qui y figurerait deux fois donnerait la réponse à qui ouvre
   // l'onglet réseau. Le serveur pousse, le client affiche, et personne ne sait
   // ce qui vient.
-  const [visage, setVisage] = useState(null);      // { roundId, place, id }
+  //
+  // UN SEUL ÉTAT POUR LES DEUX JEUX, comme il n'y a qu'un défilé côté serveur :
+  // ils ne peuvent pas tourner en même temps, et deux états jumeaux auraient
+  // divergé au premier correctif.
+  const [element, setElement] = useState(null);    // { roundId, place, id, src }
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
   const [fatal, setFatal] = useState(null);               // salon mort / token invalide (irrécupérable)
@@ -63,17 +73,28 @@ export function useGame(token) {
       // mesuré, et se retrancherait du temps de jeu.
       const recuA = typeof performance !== 'undefined' ? performance.now() : Date.now();
       // `answered` restauré par le serveur (reconnexion/retardataire : pas de double réponse).
-      setCurrent({ ...m, recuA }); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
-      // Le visage de la manche PRÉCÉDENTE ne doit pas survivre au démarrage de la
-      // suivante : il resterait affiché jusqu'au premier visage de la nouvelle
-      // série, à l'écran, pendant deux secondes.
-      setVisage(null);
+      // `answered` VEUT DIRE « A PARTICIPÉ », et rien d'autre.
+      //
+      // J'AVAIS CONFONDU DEUX CHOSES, et l'écran l'a dit tout de suite : « a
+      // participé » et « l'écran est verrouillé » étaient le même drapeau, ce qui
+      // marche tant qu'on ne répond qu'une fois. En le forçant à `false` pour
+      // laisser le bouton vivant dans « Retour de flamme », j'ai fait dire à
+      // l'écran de résultat « le temps t'a devancé » à un joueur qui venait de
+      // buzzer quatre fois. Le verrouillage appartient à l'ÉCRAN DE JEU, qui sait
+      // quel jeu il affiche ; la participation appartient au serveur.
+      setCurrent({ ...m, recuA }); setReveal(null); setDistribution(null); setPodium(null);
+      setAnswered(!!m.answered);
+      // L'image de la manche PRÉCÉDENTE ne doit pas survivre au démarrage de la
+      // suivante : elle resterait affichée jusqu'à la première image de la
+      // nouvelle série, à l'écran, pendant deux secondes.
+      setElement(null);
       // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
       // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
       setMonChoix(m.monChoix ?? null);
       // SEUL UN `false` EXPLICITE dit « arrivé après ». La diffusion au salon ne
       // porte pas ce champ — et n'atteint que ceux qui étaient déjà là.
       setPresentAuLancement(m.presentAuLancement !== false);
+      setBuzz(Array.isArray(m.monChoix) ? m.monChoix.length : (m.answered ? 1 : 0));
       setAnnonce(null);
       // Temps restant RÉEL (deadline serveur) — un rechargement en cours de manche
       // n'affiche plus la durée totale comme s'il restait tout le temps.
@@ -81,7 +102,7 @@ export function useGame(token) {
       setTick({ timeLeft: left, answers: 0 });
     });
     s.on('module:distribution', (d) => setDistribution(d));
-    s.on('visages:visage', (v) => setVisage(v && v.id ? v : null));
+    s.on('serie:element', (v) => setElement(v && v.id ? v : null));
     s.on('host:error', (e) => setServerError({ ...e, at: Date.now() }));
     s.on('module:tick', (t) => setTick(t));
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
@@ -90,11 +111,21 @@ export function useGame(token) {
     s.on('module:annonce', (a) => { setAnnonce(a || null); setReveal(null); setCurrent(null); setYou(null); });
     s.on('leaderboard:update', (d) => setLeaderboard(d.leaderboard || []));
     s.on('play:you', (y) => setYou(y));
-    s.on('play:accepted', (res) => { if (res && (res.ok || res.reason === 'already')) setAnswered(true); });
+    // L'ACCUSÉ DE RÉCEPTION D'UN BUZZ.
+    //
+    // Le serveur renvoie le NOMBRE de buzz enregistrés quand le jeu en accepte
+    // plusieurs. On le retient pour l'afficher ; c'est l'écran de jeu qui décide
+    // s'il se verrouille, pas ce compteur.
+    s.on('play:accepted', (res) => {
+      if (!res) return;
+      if (typeof res.buzz === 'number') setBuzz(res.buzz);
+      if (res.ok || res.reason === 'already') setAnswered(true);
+    });
     s.on('game:ended', (d) => { setPodium(d.podium || []); setLeaderboard(d.leaderboard || []); setHistory(d.history || []); });
     // Retour au salon d'attente : on efface tout le résiduel de la partie précédente,
     // sinon le joueur resterait sur son podium et l'animateur sur son classement.
     s.on('game:lobby', () => {
+      setBuzz(0);
       // podium à null, pas à [] : la surface joueur teste sa simple présence
       // pour afficher l'écran de fin, et un tableau vide reste « vrai ».
       setPodium(null); setLeaderboard([]); setHistory([]);
@@ -118,7 +149,7 @@ export function useGame(token) {
     socketRef.current?.off(event, handler);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, visage, history, fatal, serverError, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

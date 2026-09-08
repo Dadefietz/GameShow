@@ -260,6 +260,47 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX INTIME : retour de flamme ----------
+  //
+  // TROIS ISSUES, ET LA TROISIÈME EST CELLE QU'IL FALLAIT NOMMER. Ce jeu est le
+  // seul du projet où l'on peut FAIRE PIRE QUE RIEN : buzzer à côté coûte deux
+  // cents points, et un joueur trop pressé finit la manche en négatif. Son score
+  // total, lui, ne bouge pas — l'énoncé est formel. Une phrase qui dirait
+  // simplement « raté » laisserait croire qu'il a perdu des points ; c'est
+  // exactement ce qu'il faut démentir, et vite.
+  'retour.parfait': {
+    surface: 'play',
+    quand: 'les six retours démasqués, et pas un buzz de trop — le maximum du jeu',
+    phrases: [
+      'Les six. Sans une erreur. Personne ne t’a vu venir.',
+      'Rien ne t’a échappé. Absolument rien.',
+      'Mémoire de braise : six sur six.',
+      'Sans faute. Le feu te salue.',
+    ],
+  },
+  'retour.marque': {
+    surface: 'play',
+    quand: 'solde positif : plus de retours démasqués que de buzz à côté',
+    phrases: [
+      'Tu en as vu revenir. C’est tout ce qu’on demande.',
+      'L’œil était là. Quelques-uns sont passés, tant pis.',
+      'Bien vu — et le compte est bon.',
+      'Tu as reconnu ce qui revenait.',
+      'Belle attention. Ça paie.',
+    ],
+  },
+  'retour.brule': {
+    surface: 'play',
+    quand: 'solde nul ou négatif : le joueur a buzzé à côté autant ou plus qu’à propos',
+    phrases: [
+      'Le doigt plus vite que l’œil. Rien de perdu, promis.',
+      'Trop de buzz, pas assez de retours. Ton score ne bouge pas.',
+      'Ça ne te coûte rien — mais vise mieux la prochaine.',
+      'Le feu a repris ce qu’il avait donné. Tu repars entier.',
+      'À côté, cette fois. Ton total est intact.',
+    ],
+  },
+
   // ---------- VOIX INTIME : le lien ----------
   //
   // PHRASES PROVISOIRES, à relire par l'auteur. Elles suivent la règle du
@@ -645,6 +686,30 @@ export const MOMENTS = {
       'Ouch ! Le feu se sent bien seul sur celle-là.',
     ],
   },
+  // RETOUR DE FLAMME. Deux extrêmes seulement, comme partout : la série qui passe
+  // sans que personne ne voie rien, et le cercle qui la démonte. Entre les deux,
+  // une manche ordinaire — et le plateau se tait.
+  'stream.retour-personne': {
+    surface: 'overlay',
+    quand: 'retour de flamme : aucun joueur n’a marqué de la manche',
+    phrases: [
+      'Six retours sont passés. Personne ne les a vus.',
+      'La série a traversé le cercle sans laisser de trace.',
+      'Le feu a gagné cette manche-là.',
+      'Tout le monde a regardé ailleurs au bon moment.',
+    ],
+  },
+  'stream.retour-foule': {
+    surface: 'overlay',
+    quand: 'retour de flamme : la moitié du cercle au moins a marqué',
+    phrases: [
+      'Le cercle a l’œil. Difficile de lui cacher quoi que ce soit.',
+      'La moitié de la salle a vu revenir les images.',
+      'Beaucoup de mémoire autour de ce feu.',
+      'Le cercle a suivi la série de bout en bout.',
+    ],
+  },
+
   'stream.podium': {
     surface: 'overlay',
     quand: 'podium affiché — SEUL moment où le stream nomme quelqu’un, pour célébrer',
@@ -683,6 +748,9 @@ export const SEUILS = {
   // LES VISAGES : même lecture, même seuil. La moitié du cercle qui repère le
   // revenant, c'est remarquable ; un tiers, c'est le jeu qui marche.
   visagesFoule: 0.5,
+  // RETOUR DE FLAMME : même lecture, même seuil que les visages. Les deux jeux se
+  // regardent pareil — une série qui défile, un cercle qui repère ou non.
+  retourFoule: 0.5,
 };
 
 // Ordre de PRIORITÉ : si plusieurs conditions se déclenchent, une seule parle.
@@ -693,6 +761,10 @@ export const PRIORITE_PLATEAU = [
   // plus remarquable que de le voir repéré par beaucoup.
   'stream.visages-personne',
   'stream.visages-foule',
+  // Même lecture pour « Retour de flamme » : l'échec collectif d'abord, il est
+  // plus remarquable que la réussite collective.
+  'stream.retour-personne',
+  'stream.retour-foule',
   'stream.unanimite-juste',
   'stream.personne',
   'stream.piege',
@@ -828,6 +900,13 @@ export function momentDePlateau(type, stats, reveal) {
   if (stats.kind === 'visages') {
     if (stats.trouve === 0) candidats.add('stream.visages-personne');
     else if (stats.trouve / total >= SEUILS.visagesFoule) candidats.add('stream.visages-foule');
+  }
+
+  // RETOUR DE FLAMME. Même lecture que les visages, et le même seuil : la moitié
+  // du cercle qui marque, c'est remarquable ; un tiers, c'est le jeu qui marche.
+  if (stats.kind === 'retour') {
+    if (stats.marquants === 0) candidats.add('stream.retour-personne');
+    else if (stats.marquants / total >= SEUILS.retourFoule) candidats.add('stream.retour-foule');
   }
 
   // LE LIEN. Le plateau ne commente que deux situations remarquables : le cercle

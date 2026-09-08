@@ -16,6 +16,8 @@ import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import { Chainons } from '../shared/Chainons.jsx';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
+import { RetourFlamme } from '../shared/RetourFlamme.jsx';
+import { Symbole } from '../shared/Symbole.jsx';
 import { chronoAffiche, secondes, useCompteARebours } from '../shared/temps.js';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
@@ -339,21 +341,33 @@ const ANNONCES = {
     emblem: <MasquesVisages taille={132} />,
     regle: 'Un visage va passer deux fois. Buzze quand tu le revois.',
   },
+  retour_flamme: {
+    // L'EMBLÈME DÉPEND DU MODE : trois tuiles en −2, quatre en −3. C'est la règle
+    // du jeu montrée en image, et elle change avec le choix de l'animateur — d'où
+    // une fonction là où les autres jeux ont un dessin figé.
+    emblem: (a) => <RetourFlamme ecart={a?.ecart === 3 ? 3 : 2} taille={190} />,
+    regle: (a) => (a?.ecart === 3
+      ? 'Une image revient trois images plus tard. Buzze quand tu la reconnais.'
+      : 'Une image revient deux images plus tard. Buzze quand tu la reconnais.'),
+  },
   juste_temps: {
     emblem: <ChronoBuzzer taille={86} />,
     regle: "Un chrono va s'effacer sans s'arrêter. Stoppe-le au bon moment.",
   },
 };
 
-function AnnonceScreen({ nom, type }) {
+function AnnonceScreen({ nom, type, annonce }) {
   const a = ANNONCES[type];
+  // Un jeu dont l'emblème ou la règle DÉPEND de ce que l'animateur vient de
+  // choisir les déclare en fonction ; les autres gardent leur dessin figé.
+  const rendre = (v) => (typeof v === 'function' ? v(annonce) : v);
   return (
     <main className="screen screen--hearth" data-state="annonce" aria-labelledby="annonce-titre">
       <div className="screen__main screen__main--center">
-        <span className="annonce__emblem" aria-hidden="true">{a ? a.emblem : <Flamme taille={92} />}</span>
+        <span className="annonce__emblem" aria-hidden="true">{a ? rendre(a.emblem) : <Flamme taille={92} />}</span>
         <p className="p-label">Prochaine épreuve</p>
         <h1 className="p-title" id="annonce-titre">{nom}</h1>
-        {a ? <p className="p-lead" role="status">{a.regle}</p> : null}
+        {a ? <p className="p-lead" role="status">{rendre(a.regle)}</p> : null}
         <span className="p-dots" aria-hidden="true">
           <span className="p-dots__dot" /><span className="p-dots__dot" /><span className="p-dots__dot" />
         </span>
@@ -456,7 +470,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, visage }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, element, buzz }) {
   // Le visage de CETTE manche, et d'aucune autre. Sans le garde sur l'identifiant
   // de manche, un visage attardé de la manche précédente s'afficherait une
   // fraction de seconde sur la nouvelle — et dans ce jeu, un visage vu est un
@@ -469,10 +483,12 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
     prechargerVisages(current.bassin.map((v) => v.id), (id) => current.bassin.find((v) => v.id === id)?.src);
   }, [current.type, current.roundId]);
 
-  const visageOk = visage && visage.roundId === current.roundId;
-  const visageId = visageOk ? visage.id : null;
-  const visageSrc = visageOk ? visage.src : null;
-  const visagePlace = visageOk ? visage.place : null;
+  // L'IMAGE DE CETTE MANCHE, ET D'AUCUNE AUTRE — le garde sur l'identifiant de
+  // manche vaut pour les deux jeux de défilé.
+  const elementOk = element && element.roundId === current.roundId;
+  const visageId = elementOk ? element.id : null;
+  const visageSrc = elementOk ? element.src : null;
+  const visagePlace = elementOk ? element.place : null;
   const type = current.type || 'quiz';
   const options = Array.isArray(current.options) ? current.options : [];
   const index = current.index != null ? current.index : current.number;
@@ -484,7 +500,14 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
   // Verrouillage à 0 : plus aucune réponse possible (le serveur refuse de toute
   // façon — ceci est le retour visuel immédiat).
   const timeUp = timeLeft != null && timeLeft <= 0;
-  const disabled = answered || timeUp;
+  // LE VERROUILLAGE APPARTIENT À L'ÉCRAN DE JEU, et il dépend du jeu.
+  //
+  // Partout ailleurs, avoir répondu ferme la manche : c'est ce qui empêche un
+  // second envoi. « Retour de flamme » en attend six ; s'y fier le figeait au
+  // premier buzz, et le joueur regardait passer les cinq retours suivants sans
+  // rien pouvoir faire. Ici, seul le CHRONO ferme.
+  const buzzMultiple = type === 'retour_flamme';
+  const disabled = (answered && !buzzMultiple) || timeUp;
   const [estimate, setEstimate] = useState('');
   // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
   const [mot, setMot] = useState('');
@@ -538,7 +561,10 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
   }, [timeLeft, answered]);
 
   // Bandeau de statut : accusé de réception, ou clôture.
-  const status = answered
+  // Le bandeau ne s'affiche pas dans un jeu à buzz multiple : « Réponse envoyée »
+  // y annoncerait une manche finie alors qu'il en reste cinquante secondes. C'est
+  // le compteur de buzz, sous le bouton, qui accuse réception.
+  const status = answered && !buzzMultiple
     ? { closed: false, text: isVote ? 'Ta voix est enregistrée' : 'Réponse envoyée' }
     : timeUp
       ? { closed: true, text: isVote ? 'Vote clos' : "Temps écoulé — tu n'as pas répondu" }
@@ -645,6 +671,40 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
               >
                 {answered ? 'Buzz envoyé' : 'Déjà vu ce visage !'}
               </button>
+            </div>
+          ) : type === 'retour_flamme' ? (
+            /* RETOUR DE FLAMME. L'image occupe l'écran, le buzz est dessous — et
+               il n'y a rien d'autre : c'est un jeu d'attention, tout ce qui
+               entoure l'image détourne l'œil au moment où il faut regarder.
+
+               LE BOUTON NE SE FIGE PAS, et c'est le seul du projet dans ce cas.
+               On buzze ici SIX FOIS si l'on est bon ; le verrouiller au premier
+               appui laisserait le joueur regarder passer les cinq autres sans
+               rien pouvoir faire. C'est la raison d'être de `meta.multi`.
+
+               LE COMPTEUR DE BUZZ EST UN RETOUR, PAS UN SCORE. Sur un jeu où l'on
+               tape plusieurs fois en deux secondes, sans lui, personne ne sait si
+               son doigt a été entendu — et il n'apprend rien : le joueur sait déjà
+               combien de fois il a appuyé. Il ne dit PAS s'ils étaient justes. */
+            <div className="vsg">
+              <div className="vsg__cadre" data-testid="retour-image" data-place={visagePlace || ''}>
+                {visageId
+                  ? <Symbole id={visageId} taille={240} />
+                  : <span className="vsg__attente" aria-hidden="true" />}
+              </div>
+              <button
+                className="p-btn p-btn--primary p-btn--buzz"
+                type="button"
+                data-testid="answer-submit"
+                data-action="play:answer"
+                disabled={disabled}
+                onClick={() => onAnswer(true)}
+              >
+                Retour de flamme !
+              </button>
+              <p className="vsg__compte" data-testid="retour-compte" aria-live="polite">
+                {buzz > 0 ? `${buzz} buzz envoyé${buzz > 1 ? 's' : ''}` : 'Aucun buzz pour l’instant'}
+              </p>
             </div>
           ) : type === 'juste_temps' ? (
             /* LE JUSTE TEMPS. Le chrono occupe l'écran, le STOP est dessous, et
@@ -816,6 +876,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isLien = (rv.type || current?.type) === 'lien';
   const isVisages = (rv.type || current?.type) === 'visages';
   const isJusteTemps = (rv.type || current?.type) === 'juste_temps';
+  const isRetour = (rv.type || current?.type) === 'retour_flamme';
   // LES DEUX JEUX QUI SE GAGNENT PAR PALIERS DE PROXIMITÉ. Tout ce qui suit —
   // la voix, le verdict, la comparaison chiffrée, la ligne d'exactitude — leur
   // est commun : c'est la même expérience à l'unité près, et l'auteur a demandé
@@ -916,6 +977,13 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     if (isVisages) {
       if (correct === true) return 'visages.trouve';
       return monResultat.troppTot ? 'visages.trop-tot' : 'visages.rate';
+    }
+    // RETOUR DE FLAMME. Trois issues, et la troisième est celle qu'il fallait
+    // nommer : le joueur dont le solde est négatif n'a RIEN perdu au score total,
+    // et une phrase de simple échec le laisserait croire le contraire.
+    if (isRetour) {
+      if (monResultat.bons === 6 && monResultat.rates === 0) return 'retour.parfait';
+      return (monResultat.brut || 0) > 0 ? 'retour.marque' : 'retour.brule';
     }
     if (isSondage) return 'vote.sondage';
     if (isVote) return correct ? 'vote.majorite' : 'vote.minorite';
@@ -1048,6 +1116,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                   ? (isSondage ? 'Voix comptée' : correct === true ? 'Avec la majorité' : correct === false ? 'À contre-courant' : 'Voix comptée')
                   : isVisages
                     ? (correct === true ? 'Bien vu' : monResultat?.troppTot ? 'Trop tôt' : 'Raté')
+                  : isRetour
+                    // TROIS ISSUES ICI AUSSI, et « Raté » n'en décrit aucune. Un
+                    // joueur qui a trouvé deux retours et s'est trompé trois fois
+                    // n'a pas raté : il a été trop pressé, et ça ne lui coûte rien.
+                    ? (monResultat?.bons === 6 && monResultat?.rates === 0 ? 'Sans faute'
+                      : correct === true ? 'Bien vu' : 'Trop pressé')
                     : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
               {/* La voix du jeu remplace les commentaires figés : « Ça se
@@ -1091,6 +1165,38 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                   <span className="est-compare__value">{fmtNum(rv.target)}</span>
                 </div>
               </div>
+            ) : null}
+
+            {/* RETOUR DE FLAMME : le calcul, en clair.
+                LE SOLDE EST MONTRÉ MÊME QUAND IL EST NÉGATIF. C'est tout l'objet
+                de ce bloc : la ligne « Points gagnés » affiche 0 pour un joueur à
+                −600, parce que son score total ne baisse pas. Sans le détail, ce
+                zéro serait incompréhensible, et le barème qu'on vient de lui
+                expliquer invérifiable. */}
+            {isRetour && monResultat?.bons != null ? (
+              <div className="rfbil" data-testid="retour-bilan">
+                <div className="rfbil__cell">
+                  <span className="p-label p-label--tiny">Retours trouvés</span>
+                  <span className="rfbil__value rfbil__value--bon">{monResultat.bons}<span className="rfbil__sur">/6</span></span>
+                </div>
+                <div className="rfbil__cell">
+                  <span className="p-label p-label--tiny">Buzz à côté</span>
+                  <span className={`rfbil__value${monResultat.rates ? ' rfbil__value--rate' : ''}`}>{monResultat.rates}</span>
+                </div>
+                <div className="rfbil__cell">
+                  <span className="p-label p-label--tiny">Solde</span>
+                  <span className="rfbil__value">
+                    {monResultat.brut > 0 ? `+${fmtNum(monResultat.brut)}` : fmtNum(monResultat.brut)}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            {/* Un solde négatif ne coûte rien, et il faut le DIRE là où le joueur
+                regarde ses chiffres — pas seulement dans la phrase du haut. */}
+            {isRetour && monResultat?.brut < 0 ? (
+              <p className="join__hint" style={{ textAlign: 'center' }} data-testid="retour-filet">
+                Ton score total ne baisse pas : au pire, une manche ne rapporte rien.
+              </p>
             ) : null}
 
             {/* LE JUSTE TEMPS : ton chrono face au temps cible.
@@ -1305,6 +1411,9 @@ function historyAnswer(h) {
   if (h.type === 'true_false') return rv.correct ? 'Vrai' : 'Faux';
   if (h.type === 'estimation') return rv.target != null ? fmtNum(rv.target) : null;
   if (h.type === 'juste_temps') return rv.target != null ? secondes(rv.target) : null;
+  if (h.type === 'retour_flamme') {
+    return Array.isArray(rv.retours) ? `retours aux images ${rv.retours.join(', ')}` : null;
+  }
   if (h.type === 'quiz') {
     if (Array.isArray(h.options) && rv.correctIndex != null && h.options[rv.correctIndex] != null) return h.options[rv.correctIndex];
     return rv.correctIndex != null ? `Réponse ${KEYS[rv.correctIndex] || rv.correctIndex + 1}` : null;
@@ -1692,7 +1801,7 @@ export function PlayApp() {
 
   // L'ANNONCE d'un jeu qui n'a pas encore démarré — le jingle du « Lien ».
   if (g.annonce && !g.current) {
-    return <AnnonceScreen nom={g.annonce.name} type={g.annonce.type} />;
+    return <AnnonceScreen nom={g.annonce.name} type={g.annonce.type} annonce={g.annonce} />;
   }
 
   // Question en cours (pas de bouton Quitter : l'écran reste focalisé sur la réponse).
@@ -1705,7 +1814,8 @@ export function PlayApp() {
         answered={g.answered === true}
         myAnswer={myAnswer}
         onAnswer={handleAnswer}
-        visage={g.visage}
+        element={g.element}
+        buzz={g.buzz}
       />
     );
   }

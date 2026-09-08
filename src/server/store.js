@@ -58,11 +58,17 @@ function uid(prefixe) {
 // LA RÈGLE : chaque fichier porte le NUMÉRO DE SEMENCE avec lequel il a été
 // écrit. Une montée n'ajoute que les types QUI N'EXISTAIENT PAS à ce numéro-là :
 // des jeux que l'animateur n'a pas pu supprimer, puisqu'il ne les a jamais eus.
-const SEMENCE = 2;
+const SEMENCE = 3;
+// LES TYPES QUI EXISTAIENT À LA PREMIÈRE SEMENCE. C'est un fait historique, pas
+// une configuration : un fichier écrit avant l'existence des numéros de semence
+// contient ceux-là, et rien d'autre. Cette liste NE SE MODIFIE PLUS — un jeu
+// ajouté au projet passe par `APPORTS`, jamais par ici.
+const TYPES_SEMENCE_1 = ['quiz', 'true_false', 'estimation', 'lien', 'visages', 'vote'];
 // Ce que chaque montée apporte. Un type absent de cette table est un type qui
 // existait déjà en semence 1 : on n'y touche pas.
 const APPORTS = {
   2: ['juste_temps'],
+  3: ['retour_flamme'],
 };
 
 // Les jeux livrés d'office, construits depuis les questions d'exemple.
@@ -218,6 +224,13 @@ export function restaurerModulesDeDepart(ownerId) {
   }
   return etat.modules;
 }
+
+// TOUS LES TYPES APPORTÉS DEPUIS LA PREMIÈRE SEMENCE. Le contrôle de la montée
+// s'en sert pour fabriquer une bibliothèque « d'avant » sans recopier la liste :
+// un jeu ajouté un jour à la table des apports entre alors dans le contrôle tout
+// seul, au lieu de passer à travers.
+export const APPORTS_DEPUIS_LA_PREMIERE = Object.values(APPORTS).flat();
+export const TYPES_A_LA_PREMIERE_SEMENCE = TYPES_SEMENCE_1;
 
 // Vide le cache — les tests créent plusieurs comptes dans un même processus.
 export function _reinitialiserCache() {

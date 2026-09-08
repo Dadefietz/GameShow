@@ -94,6 +94,11 @@ describe('convention de la voix — contrôle bloquant', () => {
       // n'a pas de filet du plus proche. Son énoncé ne le prévoit pas, et son
       // maximum annoncé — 1 200 — est exactement 1 000 de palier plus 200
       // d'exactitude.
+      // « RETOUR DE FLAMME » a sa propre famille, et il la mérite : c'est le seul
+      // jeu du projet où l'on peut finir la manche en NÉGATIF sans rien perdre au
+      // score total. Aucune phrase existante ne dit cela, et le laisser retomber
+      // sur « faux » ferait croire au joueur qu'il a été puni.
+      retour_flamme: ['retour.parfait', 'retour.marque', 'retour.brule'],
       juste_temps: ['estimation.exact', 'estimation.mille', 'estimation.proche',
         'estimation.correct', 'estimation.loin', 'estimation.hors'],
     };

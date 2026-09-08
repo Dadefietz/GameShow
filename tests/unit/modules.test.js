@@ -357,3 +357,46 @@ describe('banque embarquée (R6 — 20 questions par module)', () => {
     for (const q of demoQuestions.vote) expect(q.options.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+
+// LE DÉFILÉ EST DÉCLARÉ PAR LE MODULE, ET LE MOTEUR NE CONNAÎT PLUS AUCUN NOM DE
+// JEU.
+//
+// CE QUI EST ARRIVÉ, ET QUE CE CONTRÔLE EMPÊCHE DE REFAIRE. Le moteur poussait la
+// série des visages avec un `if (rt.type === 'visages')` écrit en dur. « Retour de
+// flamme » demandant exactement le même défilé, la boucle a été généralisée sur
+// `meta.defile` — et la déclaration a été posée sur le jeu NEUF en oubliant
+// l'ancien. Les visages ne défilaient plus du tout : la série restait figée sur
+// son premier portrait, et le jeu n'avait plus de réponse.
+//
+// Rien ne plantait. Le contrôle de bout en bout des visages l'a vu, mais après
+// cinq minutes d'exécution ; celui-ci le voit en quelques millisecondes, et il le
+// dira au prochain jeu de défilé comme il l'a dit à celui-là.
+describe('les jeux à défilé le DÉCLARENT', () => {
+  it('tout module dont la manche porte un `ordre` déclare son défilé', () => {
+    for (const type of MODULE_TYPES) {
+      const mod = modules[type];
+      let rt;
+      try { rt = mod.buildRound({ id: 'q' }); } catch { continue; }
+      if (!Array.isArray(rt.ordre)) continue;
+      const defile = mod.meta.defile;
+      expect(defile, `« ${type} » produit une série mais ne déclare aucun défilé : le moteur ne la poussera jamais`).toBeDefined();
+      expect(defile.cadenceMs, `« ${type} » : cadence de défilé absente`).toBeGreaterThan(0);
+      // Le défilé doit couvrir la série ENTIÈRE : un total plus court laisserait
+      // les dernières images à quai, un plus long désignerait des places vides.
+      expect(defile.total, `« ${type} » : le défilé ne couvre pas sa série`).toBe(rt.ordre.length);
+      // Et la manche dure exactement le temps du défilé.
+      expect(rt.durationMs, `« ${type} » : la manche ne dure pas le temps de sa série`)
+        .toBe(defile.total * defile.cadenceMs);
+    }
+  });
+
+  it('un seul module accepte plusieurs réponses, et il déclare aussi son défilé', () => {
+    // `multi` change le comportement du moteur pour TOUS les joueurs de la manche.
+    // Il ne s'accorde pas à la légère, et jamais à un jeu sans images qui passent :
+    // c'est le défilé qui donne un sens à « plusieurs buzz ».
+    const multi = MODULE_TYPES.filter((t) => modules[t].meta.multi === true);
+    expect(multi).toEqual(['retour_flamme']);
+    for (const t of multi) expect(modules[t].meta.defile).toBeDefined();
+  });
+});

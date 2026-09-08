@@ -11,6 +11,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import { formatteurDe } from '../shared/temps.js';
+import { SerieGraphique } from '../shared/SerieGraphique.jsx';
+import { Symbole } from '../shared/Symbole.jsx';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
@@ -385,6 +387,50 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
   );
 }
 
+// LE DÉPART DE « RETOUR DE FLAMME » — le mode, puis le top.
+//
+// L'énoncé ne demande qu'« un bouton Démarrer le jeu ». Il faut pourtant que le
+// MODE se choisisse quelque part : le jeu se joue en −2 ou en −3, et rien d'autre
+// dans l'application ne peut le dire. Deux boutons au-dessus du départ, et c'est
+// tout — l'animateur voit en un coup d'œil ce qu'il va lancer.
+//
+// LE CHOIX PART TOUT DE SUITE VERS L'ANNONCE, avant même le départ : l'écran
+// d'attente du cercle montre la règle en image — trois tuiles ou quatre. Un mode
+// annoncé qui ne serait pas celui joué serait pire que pas d'image du tout.
+function DepartRetour({ jeu, ecart, onMode, onDemarrer, onAnnuler }) {
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Retour de flamme" data-testid="depart-retour">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Trente images, une toutes les deux secondes. Le cercle buzze quand une image
+        revient {ecart === 3 ? 'trois' : 'deux'} images plus tard — il y en a six, ni
+        plus ni moins. Une minute de jeu.
+      </p>
+      <div className="frow" role="group" aria-label="Mode de jeu">
+        {[2, 3].map((e) => (
+          <button key={e} type="button"
+            className={`button ${ecart === e ? 'button--primary' : 'button--quiet'}`}
+            aria-pressed={ecart === e}
+            data-testid={`retour-mode-${e}`}
+            onClick={() => onMode(e)}>
+            Retour −{e}
+          </button>
+        ))}
+      </div>
+      <div className="lien-saisie__actions">
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerRetour" data-testid="retour-demarrer"
+          onClick={() => onDemarrer(jeu, ecart)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 // LE DÉPART DE « LES VISAGES » — l'animateur choisit son moment.
 //
 // Il n'a RIEN à saisir : la série est tirée par le serveur, qui seul la connaît.
@@ -414,41 +460,51 @@ function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
   );
 }
 
-// LE GRAPHIQUE DE LA SÉRIE, À LA RÉVÉLATION.
+// LES DEUX GRAPHIQUES DE SÉRIE DE LA CONSOLE — visages et retours de flamme.
 //
-// La série dans l'ordre où elle est passée, chaque numéro au-dessus, et le
-// nombre de buzz sous chacun. Le visage doublé est GROSSI à ses deux places :
-// c'est la seule chose que l'animateur doit voir en un coup d'œil pour commenter
-// — où il est passé, et si le cercle l'a vu revenir.
-//
-// LES DEUX APPARITIONS SE DISTINGUENT L'UNE DE L'AUTRE, et c'est le cœur du jeu :
-// buzzer sur la première est une erreur, sur la seconde une réussite. Les
-// afficher pareillement rendrait le graphique illisible au moment exact où
-// l'animateur en a besoin.
+// Le dessin est partagé (`shared/SerieGraphique.jsx`) : c'est le même graphique,
+// aux images près. Chacun n'apporte ici que ce qui lui appartient — comment
+// dessiner une image, et ce qu'une place vaut dans son jeu.
+
+// « LES VISAGES ». Deux rôles, et c'est le cœur du jeu : buzzer sur la PREMIÈRE
+// apparition est une erreur, sur la seconde une réussite. Les afficher
+// pareillement rendrait le graphique illisible au moment exact où l'animateur en
+// a besoin.
 function GraphiqueVisages({ stats, taille = 46 }) {
   if (!stats || !Array.isArray(stats.ordre)) return null;
-  const max = Math.max(1, ...stats.parPlace);
   const adresse = new Map(stats.adresses || []);
   return (
-    <div className="vsgraf" data-testid="visages-graphique"
-      style={{ '--colonnes': Math.ceil(stats.ordre.length / 2) }}>
-      {stats.ordre.map((id, i) => {
-        const place = i + 1;
-        const premiere = place === stats.pos1;
-        const seconde = place === stats.pos2;
-        const doublee = premiere || seconde;
-        const buzz = stats.parPlace[i] || 0;
-        return (
-          <div className={`vsgraf__col${doublee ? ' vsgraf__col--double' : ''}${seconde ? ' vsgraf__col--bonne' : ''}`}
-            key={place} data-place={place} data-role={seconde ? 'seconde' : premiere ? 'premiere' : 'figurant'}>
-            <span className="vsgraf__num">{place}</span>
-            <Visage id={id} src={adresse.get(id)} taille={doublee ? Math.round(taille * 1.5) : taille}
-              titre={seconde ? `Visage ${place}, seconde apparition` : premiere ? `Visage ${place}, première apparition` : `Visage ${place}`} />
-            <span className={`vsgraf__buzz${buzz ? '' : ' vsgraf__buzz--vide'}`}>{buzz}</span>
-          </div>
-        );
-      })}
-    </div>
+    <SerieGraphique
+      ordre={stats.ordre} parPlace={stats.parPlace} bloc="vsgraf" testid="visages-graphique"
+      roleDe={(place) => (
+        place === stats.pos2 ? { nom: 'seconde', grand: true, bonne: true }
+          : place === stats.pos1 ? { nom: 'premiere', grand: true, bonne: false }
+            : null
+      )}
+      rendu={(id, { grand, place, role }) => (
+        <Visage id={id} src={adresse.get(id)} taille={grand ? Math.round(taille * 1.5) : taille}
+          titre={role?.nom === 'seconde' ? `Visage ${place}, seconde apparition`
+            : role?.nom === 'premiere' ? `Visage ${place}, première apparition` : `Visage ${place}`} />
+      )}
+    />
+  );
+}
+
+// « RETOUR DE FLAMME ». Un seul rôle, six fois : les places où l'image répétait
+// celle d'il y a deux (ou trois) passages. Ce sont les six moments où il fallait
+// buzzer, et le graphique n'a rien d'autre à dire.
+function GraphiqueRetour({ stats, taille = 40 }) {
+  if (!stats || !Array.isArray(stats.ordre)) return null;
+  const retours = new Set(stats.retours || []);
+  return (
+    <SerieGraphique
+      ordre={stats.ordre} parPlace={stats.parPlace} bloc="vsgraf" testid="retour-graphique"
+      roleDe={(place) => (retours.has(place) ? { nom: 'retour', grand: true, bonne: true } : null)}
+      rendu={(id, { grand, place, role }) => (
+        <Symbole id={id} taille={grand ? Math.round(taille * 1.5) : taille}
+          titre={role ? `Image ${place}, retour de flamme` : `Image ${place}`} />
+      )}
+    />
   );
 }
 
@@ -1537,7 +1593,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // ============================================================
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, ecartRetour, onModeRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1660,6 +1716,10 @@ function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDiffuser
             <SaisieJusteTemps jeu={prepare} duree={(prepare.dureeCompteMs ?? 15000) / 1000}
               onDiffuser={onDiffuserJusteTemps} onAnnuler={onAnnulerLien} />
           ) : null}
+          {prepare && prepare.type === 'retour_flamme' ? (
+            <DepartRetour jeu={prepare} ecart={ecartRetour} onMode={onModeRetour}
+              onDemarrer={onDemarrerRetour} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'visages' ? (
             <DepartVisages jeu={prepare} onDemarrer={onDemarrerVisages} onAnnuler={onAnnulerLien} />
           ) : null}
@@ -1675,6 +1735,19 @@ function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDiffuser
             <section className="private private--public" aria-label="La série de visages">
               <p className="private__title"><I.eye s={16} /> La série — public</p>
               <GraphiqueVisages stats={reveal.stats} />
+            </section>
+          ) : null}
+
+          {/* LA SÉRIE DE « RETOUR DE FLAMME », même règle : publique une fois
+              révélée, inexistante côté client avant. Les six retours y sont
+              grossis — c'est ce que l'animateur commente. */}
+          {revealed && reveal?.stats?.kind === 'retour' ? (
+            <section className="private private--public" aria-label="La série d'images">
+              <p className="private__title">
+                <I.eye s={16} /> La série — public
+                <span className="private__count">retour −{reveal.stats.ecart}</span>
+              </p>
+              <GraphiqueRetour stats={reveal.stats} />
             </section>
           ) : null}
 
@@ -1869,6 +1942,10 @@ export function HostApp() {
   const [showResults, setShowResults] = useState(false);
   // Le jeu « en direct » dont l'animateur est en train de saisir la question.
   const [prepare, setPrepare] = useState(null);
+  // Le mode de « Retour de flamme », choisi avant le départ. Il survit d'une
+  // manche à l'autre : un animateur qui enchaîne trois séries en −3 ne veut pas
+  // le rechoisir à chaque fois.
+  const [ecartRetour, setEcartRetour] = useState(2);
   const [home, setHome] = useState(null);           // 'closed' | 'expired'
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState(null);
@@ -1974,9 +2051,12 @@ export function HostApp() {
     // « Le juste temps » suit le même chemin, et pour la même raison que « Le
     // lien » : ses deux temps se saisissent à l'antenne, et le temps de saisie ne
     // doit pas être décompté du compte à rebours.
-    if (jeu?.type === 'lien' || jeu?.type === 'visages' || jeu?.type === 'juste_temps') {
+    if (jeu?.type === 'lien' || jeu?.type === 'visages' || jeu?.type === 'juste_temps'
+      || jeu?.type === 'retour_flamme') {
       setPrepare(jeu);
-      g.emit('host:announceModule', { moduleId: jeu.id });
+      // Le mode part avec l'annonce pour les jeux qui en ont un : l'écran
+      // d'attente du cercle montre alors la règle en image.
+      g.emit('host:announceModule', { moduleId: jeu.id, ecart: ecartRetour });
       return;
     }
     setPrepare(null);
@@ -2008,6 +2088,26 @@ export function HostApp() {
         cache: cache === '' ? 0 : Number(cache),
         cible: Number(cible),
       },
+    });
+  }, [g]);
+
+  // LE MODE DE « RETOUR DE FLAMME », et son départ.
+  //
+  // Le mode vit sur la console tant que la manche n'a pas démarré, et se
+  // RÉANNONCE à chaque changement : l'écran d'attente du cercle suit l'animateur
+  // qui hésite, plutôt que de montrer une règle qui ne sera pas jouée.
+  const changerModeRetour = useCallback((e) => {
+    setEcartRetour(e);
+    if (prepare?.type === 'retour_flamme') g.emit('host:announceModule', { moduleId: prepare.id, ecart: e });
+  }, [g, prepare]);
+
+  const demarrerRetour = useCallback((jeu, ecart) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `rf-${Date.now()}`, ecart },
     });
   }, [g]);
 
@@ -2146,6 +2246,9 @@ export function HostApp() {
           prepare={prepare}
           onDiffuserLien={diffuserLien}
           onDiffuserJusteTemps={diffuserJusteTemps}
+          ecartRetour={ecartRetour}
+          onModeRetour={changerModeRetour}
+          onDemarrerRetour={demarrerRetour}
           onDemarrerVisages={demarrerVisages}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
