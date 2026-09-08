@@ -42,11 +42,34 @@ function uid(prefixe) {
   return `${prefixe}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Les quatre jeux livrés d'office, construits depuis les questions d'exemple.
+// LA SEMENCE ET SA VERSION.
+//
+// LE DÉFAUT QU'ELLE CORRIGE. Les jeux livrés d'office ne sont posés qu'à la
+// PREMIÈRE ouverture d'un compte. Un jeu ajouté au projet ensuite n'apparaissait
+// donc jamais chez les animateurs déjà installés : « Le juste temps » aurait été
+// livré, testé, poussé — et introuvable dans le menu de la seule personne qui
+// s'en sert. Le défaut est silencieux, et il l'aurait été aussi pour « Le lien »
+// et « Les visages » si le compte de démonstration n'avait pas été neuf.
+//
+// CE QU'ON N'A PAS FAIT : recompléter la bibliothèque à chaque chargement. Cela
+// ferait repousser un jeu que l'animateur a supprimé exprès — le contraire d'un
+// outil qui se laisse ranger.
+//
+// LA RÈGLE : chaque fichier porte le NUMÉRO DE SEMENCE avec lequel il a été
+// écrit. Une montée n'ajoute que les types QUI N'EXISTAIENT PAS à ce numéro-là :
+// des jeux que l'animateur n'a pas pu supprimer, puisqu'il ne les a jamais eus.
+const SEMENCE = 2;
+// Ce que chaque montée apporte. Un type absent de cette table est un type qui
+// existait déjà en semence 1 : on n'y touche pas.
+const APPORTS = {
+  2: ['juste_temps'],
+};
+
+// Les jeux livrés d'office, construits depuis les questions d'exemple.
 // Ce sont des modules ORDINAIRES : rien ne les distingue de ceux que l'animateur
 // crée, et il peut les vider, les renommer ou les supprimer.
-function modulesDeDepart() {
-  return MODULE_TYPES.map((type) => ({
+function modulesDeDepart(types = MODULE_TYPES) {
+  return types.map((type) => ({
     id: uid('m'),
     type,
     name: moduleDefs[type].meta.name,
@@ -97,7 +120,12 @@ function lireFichier(fichier) {
   try {
     const brut = JSON.parse(fs.readFileSync(fichier, 'utf8'));
     if (!brut || !Array.isArray(brut.modules)) return null;
-    return { seeded: !!brut.seeded, modules: brut.modules.map(normaliser).filter(Boolean) };
+    return {
+      seeded: !!brut.seeded,
+      // Un fichier écrit avant l'existence des semences vaut la première.
+      semence: Number.isFinite(Number(brut.semence)) ? Number(brut.semence) : 1,
+      modules: brut.modules.map(normaliser).filter(Boolean),
+    };
   } catch {
     return null;
   }
@@ -114,17 +142,38 @@ function contenuInitial() {
     const repris = reprendreAncienFormat(ancien);
     if (repris.length) return { seeded: true, modules: repris };
   } catch { /* pas d'ancien fichier : cas normal d'une installation neuve */ }
-  return { seeded: true, modules: modulesDeDepart() };
+  return { seeded: true, semence: SEMENCE, modules: modulesDeDepart() };
+}
+
+// LA MONTÉE DE SEMENCE — voir la note de `SEMENCE`. N'ajoute que les types
+// apparus depuis l'écriture du fichier, et jamais un jeu que l'animateur porte
+// déjà. Renvoie `true` s'il faut réécrire.
+function monterLaSemence(etat) {
+  const depuis = Number.isFinite(Number(etat.semence)) ? Number(etat.semence) : 1;
+  if (depuis >= SEMENCE) return false;
+  const dejaLa = new Set(etat.modules.map((m) => m.type));
+  const aPoser = [];
+  for (let v = depuis + 1; v <= SEMENCE; v += 1) {
+    for (const type of APPORTS[v] || []) {
+      if (!dejaLa.has(type) && MODULE_TYPES.includes(type)) aPoser.push(type);
+    }
+  }
+  etat.semence = SEMENCE;
+  if (aPoser.length) etat.modules = [...etat.modules, ...modulesDeDepart(aPoser)];
+  return true;
 }
 
 function charger(ownerId) {
   const cle = String(ownerId || 'dev-host');
   if (cache.has(cle)) return cache.get(cle);
-  const etat = lireFichier(fichierDe(cle)) || contenuInitial();
+  const surDisque = lireFichier(fichierDe(cle));
+  const etat = surDisque || contenuInitial();
   cache.set(cle, etat);
   // La semence est écrite tout de suite : sans ça, le repère « déjà semé » ne
   // survivrait pas au redémarrage et des questions supprimées repousseraient.
-  if (!lireFichier(fichierDe(cle))) ecrire(cle, etat);
+  if (!surDisque) { ecrire(cle, etat); return etat; }
+  // Fichier existant : on le monte à la semence courante s'il est en retard.
+  if (monterLaSemence(etat)) ecrire(cle, etat);
   return etat;
 }
 
@@ -151,7 +200,7 @@ export function getModuleParType(ownerId, type) {
 }
 
 export function setModules(ownerId, next) {
-  const etat = { seeded: true, modules: (Array.isArray(next) ? next : []).map(normaliser).filter(Boolean) };
+  const etat = { seeded: true, semence: SEMENCE, modules: (Array.isArray(next) ? next : []).map(normaliser).filter(Boolean) };
   cache.set(String(ownerId || 'dev-host'), etat);
   ecrire(ownerId, etat);
   return etat.modules;

@@ -79,6 +79,31 @@ const PALIERS_ESTIMATION = [
 // grands nombres.
 const TOLERANCE_ABSOLUE = 1;
 
+// PALIERS DU JUSTE TEMPS.
+//
+// Écarts ABSOLUS, en secondes — comme les années, et pour la même raison : un
+// pourcentage n'a aucun sens ici. Deux pour cent d'une cible à 1,20 s valent
+// vingt-quatre millièmes ; deux pour cent d'une cible à 14 s en valent deux cent
+// quatre-vingts. La même adresse serait payée dix fois moins parce que
+// l'animateur a choisi un petit nombre. Le joueur, lui, joue sur un chrono qui
+// défile à la même vitesse dans les deux cas.
+//
+// Les quatre valeurs viennent de l'énoncé du jeu, telles quelles.
+const PALIERS_TEMPS = [
+  { nom: 'mille',    ecartMax: 0.1, points: 1000 },
+  { nom: 'proche',   ecartMax: 0.3, points: 750 },
+  { nom: 'correct',  ecartMax: 0.5, points: 500 },
+  { nom: 'loin',     ecartMax: 1.0, points: 250 },
+];
+
+// LE CENTIÈME EST L'UNITÉ DU JEU, et l'arithmétique flottante ne le sait pas.
+// `Math.abs(5.02 - 4.72)` vaut 0.30000000000000027 : comparé à la borne de 0,3,
+// ce joueur tomberait au palier du dessous pour une erreur de 2,7 × 10⁻¹⁶ seconde.
+// Tout ce qui touche aux temps passe donc par ici avant d'être comparé.
+export function auCentieme(x) {
+  return Math.round(x * 100) / 100;
+}
+
 // PALIERS DES ANNÉES (chantier v4, décision 5.8).
 //
 // POURQUOI UN SECOND JEU. Un pourcentage n'a aucun sens sur une année : 2 % de
@@ -105,6 +130,28 @@ const BONUS_EXACTITUDE = 200;
 
 const HORS = { nom: 'hors', ecartMax: Infinity, points: 0 };
 
+// LES DEUX MEILLEURS PALIERS — le seuil de la « réussite », qui nourrit la série
+// et le verdict de l'écran.
+//
+// Il s'écrivait `palier.ecartMax <= 0.10` en relatif et `<= 2` en absolu : deux
+// nombres qui ne disaient pas ce qu'ils voulaient dire, et qu'un troisième barème
+// aurait obligé à recopier une troisième fois. Ce sont les deux premières lignes
+// du barème, quel que soit le barème — la table est écrite du plus exigeant au
+// plus large. Vérifié équivalent sur les trois : mille/proche des estimations
+// (0,02 et 0,10), des années (0 et 2) et des temps (0,1 et 0,3).
+const MEILLEURS_PALIERS = new Set(['mille', 'proche']);
+export function estUneReussite(nomDePalier) {
+  return MEILLEURS_PALIERS.has(nomDePalier);
+}
+
+// Le barème d'une nature de réponse. Trois natures, une seule table par nature,
+// et rien qui ressemble à un palier ailleurs dans le projet.
+function paliersDe(nature) {
+  if (nature === 'annee') return PALIERS_ANNEE;
+  if (nature === 'temps') return PALIERS_TEMPS;
+  return PALIERS_ESTIMATION;
+}
+
 // DÉCISION 5.9 — la nature est DÉCLARÉE à la création de la question, jamais
 // devinée de la valeur : 1789 peut être un nombre d'habitants.
 // DÉCISION 5.10 — sans nature déclarée, on reste en plages relatives : c'est le
@@ -113,6 +160,12 @@ function palierEstimation(valeur, cible, nature) {
   const ecartAbsolu = Math.abs(valeur - cible);
   if (nature === 'annee') {
     return PALIERS_ANNEE.find((p) => ecartAbsolu <= p.ecartMax) || HORS;
+  }
+  // LE JUSTE TEMPS : écarts absolus en secondes, arrondis au centième AVANT
+  // comparaison — voir `auCentieme`.
+  if (nature === 'temps') {
+    const ecart = auCentieme(ecartAbsolu);
+    return PALIERS_TEMPS.find((p) => ecart <= p.ecartMax) || HORS;
   }
   if (ecartAbsolu <= TOLERANCE_ABSOLUE) return PALIERS_ESTIMATION[0];
   const ecart = ecartAbsolu / Math.max(Math.abs(cible), 1);
@@ -270,25 +323,100 @@ export function histogrammeBareme(values, cible, plages, marge) {
 // barème ne récompense plus — le même piège que la double définition du « plus
 // proche » (décision 6.1). Un seul calcul, ici, à côté des constantes.
 export function plagesEstimation(cible, nature) {
-  const paliers = nature === 'annee' ? PALIERS_ANNEE : PALIERS_ESTIMATION;
-  return paliers.map((p) => {
+  const absolu = nature === 'annee' || nature === 'temps';
+  return paliersDe(nature).map((p) => {
     // Même règle que `palierEstimation` : en relatif, la tolérance absolue d'une
     // unité l'emporte quand elle est plus large que le pourcentage.
-    const demi = nature === 'annee'
+    const demi = absolu
       ? p.ecartMax
       : Math.max(p.ecartMax * Math.abs(cible), TOLERANCE_ABSOLUE);
     return {
       nom: p.nom,
       points: p.points,
       // L'étiquette telle qu'elle doit s'écrire à l'antenne : « ± 10 % » n'a pas
-      // de sens sur une année, « ± 2 ans » n'en a pas sur un nombre d'habitants.
+      // de sens sur une année, « ± 2 ans » n'en a pas sur un nombre d'habitants,
+      // et « ± 0,1 s » est la seule qui veuille dire quelque chose sur un chrono.
       libelle: nature === 'annee'
         ? (p.ecartMax === 0 ? 'exact' : `± ${p.ecartMax} ans`)
-        : `± ${Math.round(p.ecartMax * 100)} %`,
-      bas: cible - demi,
-      haut: cible + demi,
+        : nature === 'temps'
+          ? `± ${String(p.ecartMax).replace('.', ',')} s`
+          : `± ${Math.round(p.ecartMax * 100)} %`,
+      // Bornes arrondies au centième POUR LES SEULS TEMPS : c'est là que le
+      // flottant se voit — « 4,42 » écrit « 4,4200000000000004 » sur l'axe du
+      // graphique, à l'antenne. Les deux autres natures gardent leurs bornes
+      // telles quelles : elles sont mesurées par les contrôles existants, et un
+      // arrondi silencieux n'y corrigerait rien qui se voie.
+      bas: nature === 'temps' ? auCentieme(cible - demi) : cible - demi,
+      haut: nature === 'temps' ? auCentieme(cible + demi) : cible + demi,
     };
   });
+}
+
+// ============================================================
+// LE JUSTE TEMPS — LE CHRONO, ET QUI DÉCIDE DE L'HEURE
+// ============================================================
+
+// Le compte à rebours part de quinze secondes. C'est la seule durée du jeu : les
+// deux temps que saisit l'animateur s'y logent, et l'écran de saisie borne ses
+// champs sur cette valeur.
+export const DUREE_JUSTE_TEMPS = 15;
+
+// La fenêtre de réponse dépasse le compte à rebours — voir `buildRound`.
+const MARGE_JUSTE_TEMPS = 1200;
+
+// « Le client n'a rien annoncé de lisible » : l'horloge de l'arbitre tranchera
+// seule. Ce n'est pas dans l'intervalle des temps possibles (0 à 15), donc rien
+// ne peut le confondre avec un buzz.
+export const SANS_ANNONCE = -1;
+
+// CE QUE LE RÉSEAU A LE DROIT DE COÛTER, en secondes.
+export const TOLERANCE_RESEAU = 0.75;
+
+// Le temps saisi par l'animateur, ramené dans le cadran et au centième.
+export function borneDeChrono(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return auCentieme(Math.min(DUREE_JUSTE_TEMPS, Math.max(0, n)));
+}
+
+// LE TEMPS QU'UN BUZZ A ARRÊTÉ.
+//
+// ---------------------------------------------------------------------------
+// POURQUOI CE JEU S'ÉCARTE DE LA DOCTRINE DE « LES VISAGES »
+// ---------------------------------------------------------------------------
+// `creneauDe` la pose sans détour : « un jeu de buzz se joue sur l'horloge de
+// l'arbitre », parce qu'un client pourrait annoncer le numéro précédent une fois
+// la réponse comprise. Cette crainte est fondée LÀ-BAS : le client des visages
+// reçoit tous les portraits, il peut donc calculer la réponse tout seul et
+// mentir dans la bonne direction.
+//
+// ICI, RIEN DE TEL. La cible ne quitte jamais le serveur — ni dans la question
+// publique, ni dans l'énoncé, ni sur le stream avant la révélation. Un tricheur
+// qui décalerait son annonce ne sait pas de quel côté aller : il joue à pile ou
+// face contre lui-même. Le mensonge ne rapporte rien.
+//
+// EN REVANCHE, L'HORLOGE SEULE COÛTE CHER. Le compte à rebours part sur le
+// téléphone à la RÉCEPTION du départ, et le buzz revient au serveur après un
+// second trajet : l'arbitre lit donc toujours un temps INFÉRIEUR d'un aller-retour
+// à ce que le joueur a vu. Sur un palier haut large de 0,10 s, un aller-retour de
+// 150 ms en mange la moitié — et il ne les mange qu'aux joueurs en 4G. Ce n'est
+// pas du bruit, c'est un biais, et il frappe toujours les mêmes.
+//
+// LA RÈGLE RETENUE : le client annonce ce qu'il a vu, l'arbitre le BORNE.
+//   - jamais moins que sa propre horloge — annoncer un temps plus grand que
+//     l'écoulé réel reviendrait à prétendre avoir buzzé avant d'avoir buzzé ;
+//   - jamais plus que son horloge augmentée de la tolérance réseau.
+// Un honnête joueur tombe toujours dans cette fenêtre, dont la largeur EST son
+// aller-retour. Un menteur n'en sort pas, et n'y gagne rien.
+export function valeurDuBuzz(rt, reponse) {
+  const ecoule = Math.max(0, reponse.at - rt.startedAt) / 1000;
+  // Ce que l'arbitre a vu : le plancher de la fenêtre.
+  const arbitre = DUREE_JUSTE_TEMPS - ecoule;
+  const annonce = typeof reponse.value === 'number' && reponse.value !== SANS_ANNONCE
+    ? reponse.value
+    : arbitre;
+  const borne = Math.min(Math.max(annonce, arbitre), arbitre + TOLERANCE_RESEAU);
+  return auCentieme(Math.min(DUREE_JUSTE_TEMPS, Math.max(0, borne)));
 }
 
 // ============================================================
@@ -618,7 +746,11 @@ export const modules = {
           bonusExact: exact ? BONUS_EXACTITUDE : 0,
           bonusProche: 0,
           speed: 0,
-          correct: nature === 'annee' ? palier.ecartMax <= 2 : palier.ecartMax <= 0.10,
+          // Les deux meilleurs paliers — voir `estUneReussite`. Cela s'écrivait
+          // `palier.ecartMax <= 2` en années et `<= 0.10` en relatif : deux seuils
+          // qui ne disaient pas ce qu'ils voulaient dire, et qu'un troisième
+          // barème aurait fait recopier une troisième fois.
+          correct: estUneReussite(palier.nom),
           palier: palier.nom, // sert à l'affichage et aux messages (action 7)
           exact,
         });
@@ -881,6 +1013,150 @@ export const modules = {
         results,
         reveal: { type: 'visages', text: rt.text, doubleId: rt.doubleId, pos1: rt.pos1, pos2: rt.pos2, stats },
       };
+    },
+  },
+
+  // ============================================================
+  // « LE JUSTE TEMPS » — arrêter un chrono qu'on ne voit plus
+  // ============================================================
+  //
+  // LE JEU. Un compte à rebours de quinze secondes part sur les téléphones et à
+  // l'antenne. À l'instant que l'animateur a choisi — le TEMPS DE CACHE — il
+  // disparaît, consumé par les flammes. Il continue pourtant de courir. Les
+  // joueurs appuient sur STOP quand ils croient qu'il atteint le TEMPS CIBLE.
+  //
+  // COMME « LE LIEN », SA QUESTION SE TAPE À L'ANTENNE : deux temps, en direct,
+  // d'où `direct: true`. Il n'a donc pas de banque de questions, et rien ne doit
+  // lui en réclamer une.
+  //
+  // LE BARÈME EST CELUI DE L'ESTIMATION, transposé en secondes : quatre paliers
+  // de proximité et un bonus d'exactitude, soit 1 200 points au plus. Il n'y a
+  // PAS de filet du « plus proche » ici — l'énoncé du jeu ne le prévoit pas, et
+  // son maximum annoncé (1 200) est exactement 1 000 + 200. L'ajouter serait
+  // inventer une règle que personne n'a demandée.
+  juste_temps: {
+    meta: {
+      type: 'juste_temps', name: 'Le juste temps', icon: 'clock', color: 'flame',
+      scored: true, malus: false,
+      // LA DURÉE DU CADRAN, PUBLIÉE DANS LA META — et pourquoi elle y est.
+      //
+      // L'écran de saisie de l'animateur doit borner ses deux champs AVANT que la
+      // manche n'existe : il n'a donc encore reçu aucune question d'où la tirer.
+      // Recopier « 15 » dans la console serait le premier pas vers deux durées qui
+      // divergent — un cadran de quinze secondes et des champs qui en acceptent
+      // vingt. La bibliothèque de l'animateur transporte donc cette valeur avec le
+      // reste (voir `host:modules`).
+      dureeCompteMs: DUREE_JUSTE_TEMPS * 1000,
+      // La rapidité ne joue AUCUN rôle : on ne gagne pas en buzzant vite, on
+      // gagne en buzzant JUSTE. Buzzer tôt est même le contraire de la justesse
+      // dès que la cible est basse.
+      vitesse: false,
+      direct: true,
+    },
+    buildRound(q) {
+      return {
+        type: 'juste_temps',
+        questionId: q.id,
+        // Le temps où le chrono s'efface. Il est PUBLIC : le client doit savoir
+        // quand cacher, et le connaître n'apprend rien sur la cible.
+        cache: borneDeChrono(q.cache),
+        // La cible porte le nom `target`, et ce n'est pas un anglicisme resté là :
+        // c'est le nom que lisent l'histogramme du barème, les plages et le
+        // moteur. La renommer ici obligerait à un aiguillage dans chacun.
+        target: borneDeChrono(q.cible),
+        // La NATURE de la réponse — troisième du projet, après le nombre et
+        // l'année. C'est elle qui choisit le barème et les étiquettes de l'axe.
+        nature: 'temps',
+        text: 'Arrête le chrono au bon moment.',
+        // LA FENÊTRE DÉPASSE LE COMPTE À REBOURS, et il le faut : un joueur qui
+        // buzze à 0,00 arrive à quinze secondes pile, et `submitAnswer` refuse à
+        // l'échéance EXACTE. Sans cette marge, viser le zéro serait
+        // structurellement impossible — ce qui est précisément la cible la plus
+        // tentante quand on ne voit plus rien.
+        durationMs: DUREE_JUSTE_TEMPS * 1000 + MARGE_JUSTE_TEMPS,
+      };
+    },
+    publicQuestion(rt) {
+      return {
+        type: 'juste_temps',
+        questionId: rt.questionId,
+        text: rt.text,
+        cache: rt.cache,
+        dureeCompteMs: DUREE_JUSTE_TEMPS * 1000,
+        // LA CIBLE NE PART JAMAIS. C'est toute la partie : elle n'existe que sur
+        // la console de l'animateur et dans la mémoire du serveur, jusqu'à la
+        // révélation. Rien de ce qui suit ne la déduit non plus — le temps de
+        // cache est indépendant d'elle.
+      };
+    },
+    // UN BUZZ A UNE HEURE. Ce que le client annonce n'est qu'un APPOINT, borné
+    // par l'horloge de l'arbitre — voir `valeurDuBuzz`, qui explique pourquoi ce
+    // jeu s'écarte ici de la doctrine de « Les visages ».
+    validateAnswer(rt, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return SANS_ANNONCE;
+      return Math.min(DUREE_JUSTE_TEMPS, Math.max(0, n));
+    },
+    score(rt) {
+      const results = new Map();
+      const valeurs = [];
+      let closest = null;
+
+      for (const [pid, a] of rt.answers) {
+        const valeur = valeurDuBuzz(rt, a);
+        valeurs.push(valeur);
+        const palier = palierEstimation(valeur, rt.target, 'temps');
+        // L'EXACTITUDE, AU CENTIÈME — l'unité du jeu, et celle que l'animateur
+        // saisit. Comparer les flottants nus ferait manquer l'exactitude à qui
+        // l'a trouvée.
+        const exact = auCentieme(Math.abs(valeur - rt.target)) === 0;
+        results.set(pid, {
+          base: palier.points,
+          bonusExact: exact ? BONUS_EXACTITUDE : 0,
+          speed: 0,
+          correct: estUneReussite(palier.nom),
+          palier: palier.nom,
+          exact,
+          // LE TEMPS RETENU, envoyé au joueur avec son résultat. Son téléphone ne
+          // peut pas le recalculer : la valeur qui compte est celle que l'arbitre
+          // a arrêtée, pas celle que l'écran affichait.
+          valeur,
+        });
+        if (closest === null || Math.abs(valeur - rt.target) < Math.abs(closest - rt.target)) closest = valeur;
+      }
+
+      const plages = plagesEstimation(rt.target, 'temps');
+      const margeBareme = Math.max(0, ...plages.map((p) => p.haut - rt.target));
+      valeurs.sort((a, b) => a - b);
+      const avg = valeurs.length ? auCentieme(valeurs.reduce((s, v) => s + v, 0) / valeurs.length) : null;
+      const median = valeurs.length ? valeurs[Math.floor(valeurs.length / 2)] : null;
+
+      // `kind: 'numeric'` — ET CE N'EST PAS UN RACCOURCI. C'est la forme d'une
+      // répartition autour d'une cible chiffrée : l'histogramme calé sur le
+      // barème, l'axe, la règle des plages et les phrases de plateau la lisent
+      // déjà. Inventer un `kind` jumeau obligerait à recopier quatre écrans et
+      // deux jeux de phrases pour dessiner exactement la même chose.
+      //
+      // `unite` dit aux écrans COMMENT écrire ces nombres : « 4,72 s » et non
+      // « 5 ». C'est la seule chose qui change entre une estimation et un chrono.
+      const stats = {
+        kind: 'numeric',
+        unite: 'secondes',
+        total: valeurs.length,
+        avg,
+        median,
+        closest,
+        target: rt.target,
+        histogramme: histogrammeBareme(valeurs, rt.target, plages, margeBareme),
+        plages,
+        nature: 'temps',
+        // Le temps de cache : le graphique peut ainsi montrer À PARTIR D'OÙ les
+        // joueurs ne voyaient plus rien. C'est l'information que l'animateur
+        // commente en premier.
+        cache: rt.cache,
+      };
+
+      return { results, reveal: { type: 'juste_temps', target: rt.target, cache: rt.cache, text: rt.text, stats } };
     },
   },
 

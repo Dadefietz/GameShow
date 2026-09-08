@@ -83,6 +83,19 @@ describe('convention de la voix — contrôle bloquant', () => {
       vote: ['vote.majorite', 'vote.minorite', 'vote.sondage'],
       lien: ['lien.seul', 'lien.majorite', 'lien.groupe'],
       visages: ['visages.trouve', 'visages.trop-tot', 'visages.rate'],
+      // « LE JUSTE TEMPS » PARTAGE LA FAMILLE DES PALIERS avec l'estimation, sur
+      // demande de l'auteur : « reprendre celles utilisées dans Estimation ». Les
+      // deux jeux se gagnent de la même façon — s'approcher d'une cible, par
+      // paliers — et le serveur nomme ces paliers pareillement. Ce que ce contrôle
+      // exige, c'est qu'un type de jeu ait des moments ; il n'exige pas qu'ils
+      // soient à lui seul.
+      //
+      // `estimation.plus-proche` n'y figure pas, et c'est exact : le juste temps
+      // n'a pas de filet du plus proche. Son énoncé ne le prévoit pas, et son
+      // maximum annoncé — 1 200 — est exactement 1 000 de palier plus 200
+      // d'exactitude.
+      juste_temps: ['estimation.exact', 'estimation.mille', 'estimation.proche',
+        'estimation.correct', 'estimation.loin', 'estimation.hors'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

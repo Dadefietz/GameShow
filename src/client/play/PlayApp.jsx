@@ -15,6 +15,8 @@ import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
 import { Chainons } from '../shared/Chainons.jsx';
+import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
+import { chronoAffiche, secondes, useCompteARebours } from '../shared/temps.js';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
 import { Visage, MasquesVisages, prechargerVisages } from '../shared/Visage.jsx';
@@ -125,7 +127,8 @@ function correctAnswerLabel(reveal, current) {
   if (!reveal) return null;
   const rv = reveal;
   if (rv.type === 'true_false' || typeof rv.correct === 'boolean') return rv.correct ? 'Vrai' : 'Faux';
-  if (rv.target != null) return fmtNum(rv.target);
+  // Une cible de temps s'écrit en secondes — « 4,72 s », jamais « 5 ».
+  if (rv.target != null) return rv.type === 'juste_temps' ? secondes(rv.target) : fmtNum(rv.target);
   if (rv.correctIndex != null) {
     const opts = rv.options || current?.options;
     const opt = Array.isArray(opts) ? opts[rv.correctIndex] : null;
@@ -336,6 +339,10 @@ const ANNONCES = {
     emblem: <MasquesVisages taille={132} />,
     regle: 'Un visage va passer deux fois. Buzze quand tu le revois.',
   },
+  juste_temps: {
+    emblem: <ChronoBuzzer taille={86} />,
+    regle: "Un chrono va s'effacer sans s'arrêter. Stoppe-le au bon moment.",
+  },
 };
 
 function AnnonceScreen({ nom, type }) {
@@ -483,6 +490,24 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
   const [mot, setMot] = useState('');
   const isVote = type === 'vote';
 
+  // ---- « LE JUSTE TEMPS » : LE COMPTE À REBOURS FIN ----
+  //
+  // Il n'a rien à voir avec le chrono de la manche affiché en haut de l'écran :
+  // celui-là compte les SECONDES de la fenêtre de réponse, arrondies vers le
+  // haut, et la fenêtre dépasse volontairement le cadran pour qu'on puisse buzzer
+  // à zéro. Celui-ci est le cadran lui-même, au centième.
+  //
+  // LE CROCHET TOURNE MÊME QUAND LE JOUEUR A BUZZÉ, et ce n'est pas un oubli :
+  // le chrono continue de courir à l'antenne et sur les autres téléphones. Le
+  // figer ici donnerait au joueur qui a buzzé une information que les autres
+  // n'ont pas — l'instant exact où il a appuyé.
+  const restantMs = useCompteARebours(current, type === 'juste_temps');
+  const chronoSec = restantMs != null ? restantMs / 1000 : null;
+  // LE CACHE. Le chrono s'efface en ARRIVANT sur ce temps ; il continue de courir.
+  // Un cache à zéro ne cache rien — c'est le choix de l'animateur, pas un défaut.
+  const cacheSec = Number(current.cache) || 0;
+  const chronoCache = chronoSec != null && cacheSec > 0 && chronoSec <= cacheSec;
+
   const state = answered ? 'answered' : timeUp ? 'time-up' : urgent ? 'open urgent' : 'open';
 
   // LE SON DU CHRONO (A25) — « l'absence de signal sonore rendait difficile la
@@ -496,9 +521,14 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
   // Le joueur qui a déjà répondu n'entend rien : le temps ne le concerne plus, et
   // un décompte pressant sur un écran où il n'a plus rien à faire est une
   // nuisance, pas une information.
+  //
+  // ET IL SE TAIT SUR « LE JUSTE TEMPS ». Les bips tombent sur les cinq dernières
+  // secondes de la FENÊTRE de réponse : un joueur qui les entend saurait à quel
+  // moment le chrono caché se trouve, à la seconde près. Ce jeu consiste
+  // exactement à ne pas le savoir. Le son y serait une fuite, pas un confort.
   const derniereSeconde = useRef(null);
   useEffect(() => {
-    if (timeLeft == null || answered) { derniereSeconde.current = null; return; }
+    if (timeLeft == null || answered || type === 'juste_temps') { derniereSeconde.current = null; return; }
     if (derniereSeconde.current === timeLeft) return;
     const precedente = derniereSeconde.current;
     derniereSeconde.current = timeLeft;
@@ -543,6 +573,15 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
               ) : null}
             </p>
           </div>
+          {/* LE CHRONO DE MANCHE DISPARAÎT SUR « LE JUSTE TEMPS », et c'est la
+              correction la plus importante de ce jeu.
+              Il compte les secondes de la FENÊTRE de réponse. Vu à l'écran : le
+              cadran s'efface à 12,00 comme prévu, et l'anneau du haut continue
+              d'égrener 12, 11, 10 — en clair, sur le même écran. Le joueur n'a
+              plus qu'à lire. Tout le jeu consiste à ne pas savoir où en est le
+              chrono ; en laisser un second à l'écran le rendait sans objet.
+              Ici le cadran EST le chrono, et il n'y en a pas d'autre. */}
+          {type === 'juste_temps' ? null : (
           <div
             className={`q-chrono${urgent ? ' q-chrono--urgent' : ''}${timeUp ? ' q-chrono--over' : ''}`}
             style={{ '--q-frac': `${Math.round(frac * 100)}%` }}
@@ -555,6 +594,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
               </span>
             </div>
           </div>
+          )}
         </div>
 
         <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
@@ -604,6 +644,46 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
                 onClick={() => onAnswer(true)}
               >
                 {answered ? 'Buzz envoyé' : 'Déjà vu ce visage !'}
+              </button>
+            </div>
+          ) : type === 'juste_temps' ? (
+            /* LE JUSTE TEMPS. Le chrono occupe l'écran, le STOP est dessous, et
+               il n'y a rien d'autre : tout ce qui entoure les chiffres détourne
+               l'œil au moment où il faut compter dans sa tête.
+
+               UN SEUL APPUI, ET IL EST DÉFINITIF — même règle que le buzz des
+               visages, et pour la même raison : un joueur qui ne verrait pas que
+               son temps est parti appuierait deux fois dans le vide en croyant
+               jouer.
+
+               CE QUE LE BOUTON ENVOIE : le temps que CET écran affichait au
+               moment du doigt. Le serveur ne le croit pas sur parole — il le
+               borne par sa propre horloge (voir `valeurDuBuzz`) — mais sans cette
+               annonce, l'aller-retour réseau serait décompté du temps du joueur,
+               et il le serait toujours aux mêmes. */
+            <div className="jtj">
+              <div className={`jtj__cadran${chronoCache ? ' jtj__cadran--cache' : ''}`}
+                data-testid="jt-chrono" data-cache={chronoCache || undefined}
+                role="timer" aria-label={chronoCache ? 'Chrono masqué' : `Chrono ${chronoAffiche(chronoSec)}`}>
+                <span className={`jtj__valeur${chronoCache ? ' consume' : ''}`} data-bind="jt.chrono">
+                  {chronoAffiche(chronoSec)}
+                </span>
+              </div>
+              {/* La consigne reste sous le cadran une fois celui-ci consumé :
+                  sinon l'écran devient noir et muet à l'instant précis où le
+                  joueur a le plus besoin qu'on lui dise quoi faire. */}
+              <p className="jtj__consigne">
+                {chronoCache ? 'Il court toujours. À toi de le suivre.' : 'Retiens le rythme.'}
+              </p>
+              <button
+                className="p-btn p-btn--primary p-btn--buzz"
+                type="button"
+                data-testid="answer-submit"
+                data-action="play:answer"
+                disabled={disabled}
+                onClick={() => onAnswer(chronoSec != null ? Number(chronoSec.toFixed(2)) : 0)}
+              >
+                {answered ? 'Temps envoyé' : 'STOP'}
               </button>
             </div>
           ) : type === 'lien' ? (
@@ -735,6 +815,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isEstimation = (rv.type || current?.type) === 'estimation';
   const isLien = (rv.type || current?.type) === 'lien';
   const isVisages = (rv.type || current?.type) === 'visages';
+  const isJusteTemps = (rv.type || current?.type) === 'juste_temps';
+  // LES DEUX JEUX QUI SE GAGNENT PAR PALIERS DE PROXIMITÉ. Tout ce qui suit —
+  // la voix, le verdict, la comparaison chiffrée, la ligne d'exactitude — leur
+  // est commun : c'est la même expérience à l'unité près, et l'auteur a demandé
+  // pour le second de reprendre les phrases du premier.
+  const parPaliers = isEstimation || isJusteTemps;
 
   // TROIS situations, pas deux (R12). L'absence de résultat ne signifie pas
   // « tu n'étais pas là » : elle peut aussi vouloir dire « pas encore révélé »,
@@ -777,7 +863,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // toute plage mais le plus proche a `base` à zéro et 400 points au compteur.
     // Lu sur `base`, son verdict repassait à « Raté » au-dessus de « +400 » —
     // exactement la contradiction qu'un contrôle existant interdit.
-    else if (rv.target != null && myAnswer != null) correct = pointsDeLaManche(monResultat) > 0;
+    // ESTIMATION ET JUSTE TEMPS : « a-t-il marqué ? », et donc le TOTAL. Le juste
+    // temps entre ici par son `valeur` — le temps que l'ARBITRE a retenu — et non
+    // par `myAnswer`, qui n'est que ce que son écran affichait.
+    else if (rv.target != null && (myAnswer != null || monResultat?.valeur != null)) {
+      correct = pointsDeLaManche(monResultat) > 0;
+    }
     // LE DRAPEAU DU SERVEUR, EN DERNIER RECOURS — et c'est lui qui manquait.
     //
     // Les branches ci-dessus reconstituent le verdict côté client, à partir de la
@@ -831,8 +922,8 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // LA RÉPONSE EXACTE D'ABORD. Elle tombait dans `estimation.mille`, le palier
     // des 2 %, alors qu'elle vaut 200 points de plus et n'a rien de commun avec
     // « à deux pour cent près ».
-    if (isEstimation && monResultat.exact === true) return 'estimation.exact';
-    if (isEstimation && monResultat.palier) {
+    if (parPaliers && monResultat.exact === true) return 'estimation.exact';
+    if (parPaliers && monResultat.palier) {
       // TROUVÉ PAR LE BALAYAGE DE CLÔTURE (décision 2.8). Le moment
       // `estimation.hors` déclare « au-delà de 30 % : ZÉRO POINT », et ses phrases
       // le disent : « Complètement à côté — et ça ne coûte rien. » Depuis le bonus
@@ -1002,6 +1093,24 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
               </div>
             ) : null}
 
+            {/* LE JUSTE TEMPS : ton chrono face au temps cible.
+                LE TEMPS AFFICHÉ EST CELUI DU SERVEUR (`valeur`), jamais celui que
+                l'écran montrait au moment du doigt. Les deux diffèrent d'un
+                aller-retour réseau, et c'est le premier qui a compté les points :
+                afficher le second ferait mentir le calcul juste au-dessus. */}
+            {isJusteTemps && monResultat?.valeur != null ? (
+              <div className="est-compare">
+                <div className="est-compare__cell">
+                  <span className="p-label p-label--tiny">Ton chrono</span>
+                  <span className="est-compare__value">{secondes(monResultat.valeur)}</span>
+                </div>
+                <div className="est-compare__cell est-compare__cell--target" data-bind="reveal.target" data-testid="reveal-value">
+                  <span className="p-label p-label--tiny" style={{ color: 'var(--c-pine)' }}>Temps cible</span>
+                  <span className="est-compare__value">{secondes(rv.target)}</span>
+                </div>
+              </div>
+            ) : null}
+
             {/* Le détail des points se lit en DEUX lignes, et elles disent la
                 vérité. Avant, une case « Bonus vitesse » contenait aussi le bonus
                 de série : un joueur en série de trois y lisait « +100 » sans avoir
@@ -1016,7 +1125,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                 {monResultat.base ? (
                   <div className="breakdown__cell">
                     <span className="p-label p-label--tiny">
-                      {isEstimation ? 'Palier' : isLien ? 'Mot partagé' : 'Base'}
+                      {parPaliers ? 'Palier' : isLien ? 'Mot partagé' : 'Base'}
                     </span>
                     <span className="breakdown__value" data-bind="you.base" data-testid="points-base">
                       {fmtNum(monResultat.base)}
@@ -1103,8 +1212,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
           </div>
         ) : null}
 
-        {/* Bonne réponse — affichée même quand le joueur a juste. */}
-        {answerLabel != null && !isEstimation ? (
+        {/* Bonne réponse — affichée même quand le joueur a juste.
+            PAS POUR LES JEUX À PALIERS : l'estimation et le juste temps ont déjà
+            leur bloc de comparaison, qui met la réponse du joueur EN FACE de la
+            cible. Ce bloc-ci la répéterait dix pixels plus bas — et sous
+            l'étiquette « Bonne réponse », qui ne veut rien dire d'un temps. */}
+        {answerLabel != null && !parPaliers ? (
           <div className={`answer-reveal${isVote ? ' answer-reveal--leading' : ''}`}
             data-bind={isVote ? 'reveal.leading' : 'reveal.correct'} data-testid="reveal-value">
             <span className="answer-reveal__badge" aria-hidden="true"
@@ -1191,6 +1304,7 @@ function historyAnswer(h) {
   const rv = h.reveal || {};
   if (h.type === 'true_false') return rv.correct ? 'Vrai' : 'Faux';
   if (h.type === 'estimation') return rv.target != null ? fmtNum(rv.target) : null;
+  if (h.type === 'juste_temps') return rv.target != null ? secondes(rv.target) : null;
   if (h.type === 'quiz') {
     if (Array.isArray(h.options) && rv.correctIndex != null && h.options[rv.correctIndex] != null) return h.options[rv.correctIndex];
     return rv.correctIndex != null ? `Réponse ${KEYS[rv.correctIndex] || rv.correctIndex + 1}` : null;

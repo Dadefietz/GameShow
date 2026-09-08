@@ -343,6 +343,11 @@ io.on('connection', (socket) => {
       moduleId: cur.moduleId,
       durationMs: cur.durationMs,
       deadline: cur.deadline,
+      // CE QU'IL RESTE, mesuré ici et pas déduit d'une horloge de téléphone —
+      // voir la note de `startModule`. C'est ce rejeu-ci qui en a le plus besoin :
+      // un joueur qui recharge en pleine manche du « juste temps » doit retrouver
+      // son chrono à la bonne fraction de seconde, pas au début.
+      resteMs: Math.max(0, cur.deadline - Date.now()),
       meta: { ...mod.meta, name: cur.moduleName || mod.meta.name },
       index: room.progression.index,
       total: room.progression.total,
@@ -525,6 +530,9 @@ io.on('connection', (socket) => {
       // drapeau, l'écran de l'animateur le grisait comme un jeu vide — « Lancer
       // Le lien — aucune question » — et le rendait injouable.
       direct: modules[m.type]?.meta?.direct === true,
+      // La durée du cadran, pour les jeux qui en ont un. C'est elle qui borne les
+      // champs de saisie de l'animateur — voir la note dans la meta du module.
+      dureeCompteMs: modules[m.type]?.meta?.dureeCompteMs ?? null,
     })));
   });
   socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.reveal(io, r); });

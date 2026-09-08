@@ -159,13 +159,28 @@ export const MOMENTS = {
 
 
 
-  // ---------- VOIX INTIME : estimation, par palier ----------
+  // ---------- VOIX INTIME : LES PALIERS DE PROXIMITÉ ----------
+  //
+  // DEUX JEUX PARTAGENT CETTE FAMILLE, et c'est voulu. « Estimation » et « Le
+  // juste temps » se gagnent de la même façon : en s'approchant d'une cible, par
+  // paliers, avec un bonus d'exactitude. Ce que le joueur vit est le même — j'ai
+  // visé, je suis tombé dans telle plage —, seule l'unité change. L'auteur a
+  // d'ailleurs demandé pour le second de « reprendre les phrases utilisées dans
+  // Estimation ».
+  //
+  // Le préfixe reste `estimation.` : c'est le nom que le serveur donne au palier
+  // (`palier: 'proche'`) et que les deux écrans concatènent. Le renommer
+  // n'apporterait qu'une migration.
+  //
+  // LES CONDITIONS SONT DONC ÉCRITES POUR LES DEUX BARÈMES. Une condition qui ne
+  // parlerait que de pourcentages serait FAUSSE la moitié du temps — et c'est
+  // exactement ce que le contrôle de la voix exige de ne pas laisser passer.
   // LA RÉPONSE EXACTE. Elle tombait dans `estimation.mille`, le palier des 2 %,
   // alors qu'elle vaut 200 points de plus (décision 5.5 du chantier v4) et n'a
   // rien de commun avec « à deux pour cent près ». Elle passe AVANT lui.
   'estimation.exact': {
     surface: 'play',
-    quand: 'palier « exact » : la valeur donnée est exactement la cible',
+    quand: 'palier « exact » : la valeur donnée est exactement la cible — au centième près pour un chrono',
     phrases: [
       'Wow ! Dans le mille.',
       "Le cercle t'applaudit !",
@@ -174,7 +189,7 @@ export const MOMENTS = {
   },
   'estimation.mille': {
     surface: 'play',
-    quand: 'palier « mille » : à 2 % de la cible, ou à une unité près',
+    quand: 'palier « mille » : premier palier du barème — 2 % (ou une unité) en estimation, 0,1 s au juste temps',
     phrases: [
       'Tu as visé juste au chiffre près.',
       'Exact ! (enfin quasi)',
@@ -184,7 +199,7 @@ export const MOMENTS = {
   },
   'estimation.proche': {
     surface: 'play',
-    quand: 'palier « proche » : à 10 % de la cible',
+    quand: 'palier « proche » : deuxième palier — 10 % en estimation, 0,3 s au juste temps',
     phrases: [
       'Tout près. Bien vu.',
       'Presque pile. On prend.',
@@ -195,7 +210,7 @@ export const MOMENTS = {
   },
   'estimation.correct': {
     surface: 'play',
-    quand: 'palier « correct » : à 20 % de la cible',
+    quand: 'palier « correct » : troisième palier — 20 % en estimation, 0,5 s au juste temps',
     phrases: [
       'Dans la bonne zone.',
       'Pas mal visé.',
@@ -207,7 +222,7 @@ export const MOMENTS = {
   },
   'estimation.loin': {
     surface: 'play',
-    quand: 'palier « loin » : à 30 % de la cible',
+    quand: 'palier « loin » : dernier palier payant — 30 % en estimation, 1 s au juste temps',
     phrases: [
       'Un peu large, mais tu y étais.',
       'Pas tout à fait. L’idée était là.',
@@ -224,7 +239,7 @@ export const MOMENTS = {
   // non une phrase de plus dans l'ancien.
   'estimation.plus-proche': {
     surface: 'play',
-    quand: 'au-delà de 30 % de la cible, mais le plus proche : le bonus de 400',
+    quand: 'estimation seule : hors de toute plage, mais le plus proche — le bonus de 400',
     phrases: [
       'Loin, mais le moins loin de tous. Ça compte.',
       'Personne n’a fait mieux. C’est déjà une victoire.',
@@ -235,7 +250,7 @@ export const MOMENTS = {
   },
   'estimation.hors': {
     surface: 'play',
-    quand: 'au-delà de 30 % de la cible, et pas le plus proche : zéro point',
+    quand: 'hors de toute plage du barème, sans bonus du plus proche : zéro point',
     phrases: [
       'Là, on est loin. Vraiment loin.',
       'Tu as dû missclick.',

@@ -20,6 +20,8 @@ import { bipCompteRebours, sonFinDuTemps, sonRevelation } from '../shared/sons.j
 import { Visage, MasquesVisages } from '../shared/Visage.jsx';
 import { Chainons } from '../shared/Chainons.jsx';
 import { segmentsAdresse } from '../shared/adresse.js';
+import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
+import { chronoAffiche, secondes, formatteurDe, useCompteARebours } from '../shared/temps.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -202,6 +204,7 @@ function revealText(reveal, current) {
     }
     case 'true_false': return reveal.correct ? 'Vrai' : 'Faux';
     case 'estimation': return fmt(reveal.target);
+    case 'juste_temps': return secondes(reveal.target);
     default: return null; // vote : pas de bonne réponse, la répartition parle
   }
 }
@@ -209,7 +212,16 @@ function revealText(reveal, current) {
 // Dispersion des estimations, en 8 tranches — la tranche qui contient la bonne
 // réponse est mise en couleur. Les hauteurs sont relatives à la tranche la plus
 // fournie : un histogramme montre une FORME, pas des parts d'un total.
-function StreamHistogram({ histo, total, plages, cible }) {
+// L'ÉCRITURE DES NOMBRES EST UN PARAMÈTRE, et c'est la seule chose que « Le juste
+// temps » change à ce graphique. Le reste — géométrie, plages, barres, cible — est
+// calculé par le serveur et par `echelle-estimation.js`, et lui est identique :
+// « il faut reprendre exactement le graphique du module Estimation ».
+//
+// Deux formats et non un : sur l'AXE, une estimation s'arrondit à l'entier (les
+// bornes tombent sur des décimales sans intérêt), un temps ne s'arrondit surtout
+// pas — c'est le centième qui fait le jeu.
+function StreamHistogram({ histo, total, plages, cible, ecrire = fmt,
+  ecrireAxe = (v) => fmt(Math.round(v)), legende = 'estimation' }) {
   if (!histo || !total) return null;
   // MÊME GÉOMÉTRIE QUE LA CONSOLE, calculée au même endroit — le stream n'apporte
   // que ses classes.
@@ -251,13 +263,13 @@ function StreamHistogram({ histo, total, plages, cible }) {
         {marque ? (
           <span className={`st-histo__cible${trouvee ? ' st-histo__cible--trouvee' : ''}`}
             style={{ left: `${marque.pct}%` }} data-testid="stream-histo-cible" data-trouvee={trouvee || undefined}>
-            <span className={`st-histo__cible-val st-histo__cible-val--${marque.ancrage}`}>{fmt(cible)}</span>
+            <span className={`st-histo__cible-val st-histo__cible-val--${marque.ancrage}`}>{ecrire(cible)}</span>
           </span>
         ) : null}
       </div>
       <div className="st-histo__axe" data-testid="stream-histo-axe">
         {reperes.map((b) => (
-          <span key={b.i} className="st-histo__tick" style={{ left: `${b.pct}%` }}>{fmt(Math.round(b.valeur))}</span>
+          <span key={b.i} className="st-histo__tick" style={{ left: `${b.pct}%` }}>{ecrireAxe(b.valeur)}</span>
         ))}
       </div>
       {/* LA RÈGLE DES PLAGES — une ligne par palier, à sa place sur l'axe. Même
@@ -276,7 +288,7 @@ function StreamHistogram({ histo, total, plages, cible }) {
         </div>
       ) : null}
       <p className="st-histo__legend">
-        {total > 1 ? `Dispersion des ${fmt(total)} estimations` : 'Une seule estimation'}
+        {total > 1 ? `Dispersion des ${fmt(total)} ${legende}s` : `Une seule ${legende}`}
       </p>
     </div>
   );
@@ -349,16 +361,24 @@ function QuestionStage({ g }) {
   // reçoit aucun : selon sa configuration, le son sortira ou ne sortira pas.
   // C'est une limite du support, pas un défaut du code — et le contrôle visuel du
   // chrono, lui, ne dépend de rien.
+  //
+  // ET IL SE TAIT SUR « LE JUSTE TEMPS », comme l'anneau qu'on vient d'en retirer.
+  // Les bips tombent sur les cinq dernières secondes de la FENÊTRE de réponse :
+  // ils diraient à toute la salle où en est le chrono qu'on vient de lui cacher.
+  // Une fuite par le son est plus difficile à voir qu'une fuite à l'écran, et
+  // elle porte plus loin — sur la source captée par OBS, tout le monde l'entend.
   const derniereSeconde = useRef(null);
   useEffect(() => {
-    if (revealed || typeof timeLeft !== 'number') { derniereSeconde.current = null; return; }
+    if (revealed || typeof timeLeft !== 'number' || current.type === 'juste_temps') {
+      derniereSeconde.current = null; return;
+    }
     if (derniereSeconde.current === timeLeft) return;
     const precedente = derniereSeconde.current;
     derniereSeconde.current = timeLeft;
     if (precedente == null) return;
     if (timeLeft > 0 && timeLeft <= 5) bipCompteRebours();
     else if (timeLeft === 0) sonFinDuTemps();
-  }, [timeLeft, revealed]);
+  }, [timeLeft, revealed, current.type]);
 
   // LA RÉVÉLATION — une seule fois par manche, à l'instant où le public découvre
   // la réponse. Le repère est l'identifiant de manche : sans lui, le son
@@ -389,6 +409,17 @@ function QuestionStage({ g }) {
     }
   }
 
+  // ---- « LE JUSTE TEMPS » : LE CADRAN DE LA SCÈNE ----
+  //
+  // LE MÊME CROCHET QUE LES TÉLÉPHONES, et c'est tout l'enjeu : le public et le
+  // cercle doivent voir le même chiffre au même instant. Deux calculs distincts
+  // dériveraient, et le stream mentirait sur ce que les joueurs ont vu — sur un
+  // jeu qui se juge au centième.
+  const restantMs = useCompteARebours(current, current.type === 'juste_temps' && !revealed);
+  const chronoSec = restantMs != null ? restantMs / 1000 : null;
+  const cacheSec = Number(current.cache) || 0;
+  const chronoCache = chronoSec != null && cacheSec > 0 && chronoSec <= cacheSec;
+
   // Progression de séance : où en est-on dans la liste des épreuves.
   const progPct = prog?.index && prog?.total
     ? Math.min(100, Math.round((prog.index / prog.total) * 100))
@@ -403,7 +434,7 @@ function QuestionStage({ g }) {
 
   // État du stage avec variantes selon le type de révélation
   const revealedState = revealed ? (() => {
-    const typeMap = { true_false: 'boolean', estimation: 'numeric', vote: 'vote' };
+    const typeMap = { true_false: 'boolean', estimation: 'numeric', juste_temps: 'numeric', vote: 'vote' };
     const typeSuffix = typeMap[reveal.type] || '';
     return typeSuffix ? `revealed ${typeSuffix}` : 'revealed';
   })() : (urgent ? 'live urgent' : 'live');
@@ -453,7 +484,13 @@ function QuestionStage({ g }) {
           ) : null}
         </div>
 
-        {!revealed ? (
+        {/* MÊME RETRAIT QU'AILLEURS SUR « LE JUSTE TEMPS » — et ici la fuite est
+            pire encore : elle est PUBLIQUE. L'anneau compte les secondes de la
+            fenêtre de réponse ; il continuait de les égrener après que le cadran
+            se soit consumé, sur la toile que tout le monde regarde. Le cercle
+            n'avait plus qu'à lire l'écran de stream pour savoir où en était le
+            chrono qu'on venait de lui cacher. */}
+        {!revealed && current.type !== 'juste_temps' ? (
           <div className={`st-chrono${urgent ? ' st-chrono--urgent' : ''}${over ? ' st-chrono--over' : ''}`}
             role="timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}
             style={ringPct != null ? { '--om-ring': `${ringPct}%` } : undefined}>
@@ -487,7 +524,22 @@ function QuestionStage({ g }) {
 
       {/* Question en cours : les options, nues. */}
       {!revealed ? (
-        current.type === 'visages' ? (
+        current.type === 'juste_temps' ? (
+          /* LE CHRONO, À L'ANTENNE. Les chiffres seuls, en très grand : c'est le
+             jeu tout entier, et le public compte avec le cercle.
+
+             LE TEMPS CIBLE N'EST NULLE PART ICI. Le stream est une source
+             capturée par OBS, et souvent regardée en direct par des gens qui
+             jouent : l'afficher donnerait la réponse à tout le monde. Il
+             n'apparaît qu'à la révélation, avec le graphique. */
+          <div className={`st-jt${chronoCache ? ' st-jt--cache' : ''}`} data-testid="stream-jt-chrono"
+            data-cache={chronoCache || undefined}>
+            <span className={`st-jt__valeur${chronoCache ? ' consume' : ''}`}>{chronoAffiche(chronoSec)}</span>
+            <span className="st-jt__legende">
+              {chronoCache ? 'Il court toujours' : 'Retenez le rythme'}
+            </span>
+          </div>
+        ) : current.type === 'visages' ? (
           /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
              c'est le jeu tout entier. Le compteur de réponses et le chrono vivent
              déjà dans l'en-tête commune à tous les jeux.
@@ -520,29 +572,34 @@ function QuestionStage({ g }) {
           ) : stats?.kind === 'numeric' ? (
             <>
               <div className="st-answer" data-bind="reveal.target" data-testid="reveal-value">
-                <span className="st-answer__label">Bonne réponse</span>
-                <span className="st-answer__value">{fmt(reveal.target)}</span>
+                <span className="st-answer__label">
+                  {stats.unite === 'secondes' ? 'Temps cible' : 'Bonne réponse'}
+                </span>
+                <span className="st-answer__value">{formatteurDe(stats, fmt)(reveal.target)}</span>
               </div>
               {/* La dispersion du groupe, en image : le stream montrait des barres
                   pour les modules à options, mais trois chiffres seulement pour
                   l'estimation — impossible d'y voir si la salle était groupée ou
                   éparpillée autour de la vérité. */}
               <StreamHistogram histo={stats.histogramme} total={stats.total}
-                plages={stats.plages} cible={stats.target} />
+                plages={stats.plages} cible={stats.target}
+                ecrire={formatteurDe(stats, fmt)}
+                ecrireAxe={formatteurDe(stats, (v) => fmt(Math.round(v)))}
+                legende={stats.unite === 'secondes' ? 'réponse' : 'estimation'} />
               <div className="st-facts">
                 <div className="st-fact">
                   <span className="st-fact__label">Le plus proche</span>
                   <span className="st-fact__value st-fact__value--good" data-bind="reveal.stats.closest">
-                    {fmt(stats.closest)}
+                    {formatteurDe(stats, fmt)(stats.closest)}
                   </span>
                 </div>
                 <div className="st-fact">
                   <span className="st-fact__label">Moyenne</span>
-                  <span className="st-fact__value" data-bind="reveal.stats.avg">{fmt(stats.avg)}</span>
+                  <span className="st-fact__value" data-bind="reveal.stats.avg">{formatteurDe(stats, fmt)(stats.avg)}</span>
                 </div>
                 <div className="st-fact">
                   <span className="st-fact__label">Médiane</span>
-                  <span className="st-fact__value" data-bind="reveal.stats.median">{fmt(stats.median)}</span>
+                  <span className="st-fact__value" data-bind="reveal.stats.median">{formatteurDe(stats, fmt)(stats.median)}</span>
                 </div>
               </div>
             </>
@@ -593,6 +650,7 @@ function QuestionStage({ g }) {
 const ANNONCES_STREAM = {
   lien: { emblem: <Chainons taille={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
   visages: { emblem: <MasquesVisages taille={280} />, regle: 'Un visage va passer deux fois. Saurez-vous le reconnaître ?' },
+  juste_temps: { emblem: <ChronoBuzzer taille={170} />, regle: "Un chrono s'efface sans s'arrêter. Le cercle doit le stopper au bon moment." },
 };
 
 function AnnonceStage({ nom, type }) {

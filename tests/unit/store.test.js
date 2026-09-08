@@ -162,3 +162,65 @@ describe('la réserve d\'un jeu est CELLE DE CE JEU', () => {
     expect(j2.questions.some((q) => q.id === 'q-a')).toBe(false);
   });
 });
+
+// LA MONTÉE DE SEMENCE — un jeu ajouté au projet doit atteindre les bibliothèques
+// DÉJÀ SEMÉES.
+//
+// LE DÉFAUT QUE CE CONTRÔLE GARDE, ET IL EST TOTAL. Les jeux livrés d'office ne
+// sont posés qu'à la PREMIÈRE ouverture d'un compte. « Le juste temps » aurait
+// donc été écrit, testé, poussé en production — et introuvable dans le menu de la
+// seule personne qui s'en sert, dont le fichier date d'avant lui. Rien n'aurait
+// planté ; le jeu n'aurait simplement jamais existé pour elle.
+//
+// ET LE DÉFAUT SYMÉTRIQUE, tout aussi réel : recompléter la bibliothèque à chaque
+// chargement ferait REPOUSSER un jeu que l'animateur a supprimé exprès. Les deux
+// sont vérifiés ici.
+describe('la semence monte sans rien ressusciter', () => {
+  const cle = 'anim-semence';
+  const fichier = () => path.join(DATA_DIR, 'owners', `${cle}.json`);
+
+  // Une bibliothèque telle qu'elle était écrite AVANT l'existence des semences :
+  // pas de numéro, et pas de « juste temps ».
+  function bibliothequeAncienne(sans = ['juste_temps']) {
+    fs.mkdirSync(path.join(DATA_DIR, 'owners'), { recursive: true });
+    const modulesAnciens = MODULE_TYPES.filter((t) => !sans.includes(t)).map((t) => ({
+      id: `m-${t}`, type: t, name: modules[t].meta.name, duration: 20,
+      color: modules[t].meta.color, questions: [],
+    }));
+    fs.writeFileSync(fichier(), JSON.stringify({ seeded: true, modules: modulesAnciens }), 'utf8');
+    store._reinitialiserCache();
+  }
+
+  it('pose les jeux APPARUS DEPUIS, et seulement ceux-là', () => {
+    bibliothequeAncienne();
+    const avant = MODULE_TYPES.length - 1;
+    const jeux = store.getModules(cle);
+    expect(jeux.length, 'la montée n\'a rien ajouté').toBe(avant + 1);
+    expect(jeux.some((j) => j.type === 'juste_temps'),
+      'le jeu neuf reste introuvable dans une bibliothèque existante').toBe(true);
+    // Rien d'autre n'a bougé : un seul jeu par type, comme avant.
+    for (const t of MODULE_TYPES) {
+      expect(jeux.filter((j) => j.type === t).length, `${t} a été posé deux fois`).toBe(1);
+    }
+    // Et le fichier porte désormais son numéro de semence : la montée ne se
+    // rejouera pas au prochain démarrage.
+    expect(JSON.parse(fs.readFileSync(fichier(), 'utf8')).semence).toBeGreaterThan(1);
+  });
+
+  it('NE RESSUSCITE PAS un jeu que l\'animateur a supprimé', () => {
+    // Il a effacé « Le lien », qui existait déjà à la semence précédente. La
+    // montée ne doit toucher qu'à ce qui n'existait pas alors.
+    bibliothequeAncienne(['juste_temps', 'lien']);
+    const jeux = store.getModules(cle);
+    expect(jeux.some((j) => j.type === 'juste_temps')).toBe(true);
+    expect(jeux.some((j) => j.type === 'lien'),
+      'un jeu supprimé par l\'animateur est revenu tout seul').toBe(false);
+  });
+
+  it('ne rejoue pas la montée sur une bibliothèque déjà à jour', () => {
+    store.getModules(cle) && bibliothequeAncienne();
+    const premier = store.getModules(cle).length;
+    store._reinitialiserCache();
+    expect(store.getModules(cle).length, 'la montée a rejoué et doublé des jeux').toBe(premier);
+  });
+});

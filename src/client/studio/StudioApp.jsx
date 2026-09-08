@@ -24,6 +24,9 @@ const MODULE_TYPES = {
   // à préparer ici, et le Studio ne doit pas prétendre le contraire.
   lien:       { label: 'Le lien',    subtitle: 'Deux mots, en direct', icon: 'link', color: 'info', direct: true },
   visages:    { label: 'Les visages', subtitle: 'Le visage passé deux fois', icon: 'users', color: 'forest', direct: true },
+  // EN DIRECT lui aussi : ses deux temps — le cache et la cible — se saisissent
+  // à l'antenne, sur la console. Rien à préparer ici.
+  juste_temps: { label: 'Le juste temps', subtitle: 'Arrêter un chrono qu\'on ne voit plus', icon: 'clock', color: 'flame', direct: true },
   vote:       { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);

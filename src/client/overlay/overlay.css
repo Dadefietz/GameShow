@@ -270,6 +270,31 @@
      de la réponse. Sans elle, l'apparition d'une phrase déplaçait tout le bloc de
      répartition d'une manche à l'autre, devant l'antenne. */
   /* ===== LES VISAGES, À L'ANTENNE ===== */
+  /* ===== « LE JUSTE TEMPS » — LE CADRAN DE LA SCÈNE =====
+     Les chiffres seuls, en très grand : le public compte avec le cercle. La place
+     est TENUE quand le chrono se consume — sur une toile calée au pixel, un bloc
+     qui se rétracte fait sauter tout ce qui l'entoure devant le public. */
+  .st-jt {
+    display: grid;
+    place-items: center;
+    gap: var(--gap-st);
+    min-height: 340px;
+    align-content: center;
+    margin-top: var(--sp-6);
+  }
+  .st-jt__valeur {
+    font: 700 var(--fs-st-700) / 1 var(--f-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--c-ember-bright);
+  }
+  .st-jt__legende {
+    font: 500 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+
   .st-visage {
     display: grid;
     place-items: center;

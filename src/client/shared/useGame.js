@@ -50,8 +50,20 @@ export function useGame(token) {
     });
     s.on('room:state', (st) => { setRoom(st); if (st.leaderboard) setLeaderboard(st.leaderboard); });
     s.on('module:started', (m) => {
+      // L'INSTANT LOCAL DE LA RÉCEPTION, posé ici et nulle part ailleurs.
+      //
+      // « Le juste temps » se joue au centième : son compte à rebours ne peut pas
+      // se déduire de la `deadline` du serveur, qui est un instant d'une AUTRE
+      // horloge que celle du téléphone. Le serveur envoie donc une durée
+      // (`resteMs`) et le client la décompte depuis cette marque, prise sur une
+      // horloge monotone — voir `shared/temps.js`.
+      //
+      // C'est ici qu'elle se prend, au plus près de l'arrivée du message : tout
+      // ce qui se passe ensuite (rendu, montage d'un écran) s'ajouterait au temps
+      // mesuré, et se retrancherait du temps de jeu.
+      const recuA = typeof performance !== 'undefined' ? performance.now() : Date.now();
       // `answered` restauré par le serveur (reconnexion/retardataire : pas de double réponse).
-      setCurrent(m); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
+      setCurrent({ ...m, recuA }); setReveal(null); setAnswered(!!m.answered); setDistribution(null); setPodium(null);
       // Le visage de la manche PRÉCÉDENTE ne doit pas survivre au démarrage de la
       // suivante : il resterait affiché jusqu'au premier visage de la nouvelle
       // série, à l'écran, pendant deux secondes.

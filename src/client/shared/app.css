@@ -108,4 +108,81 @@ html, body { background-color: var(--c-canvas); }
   .input--invalid { box-shadow: var(--sh-inset), inset 0 0 0 var(--bw-field) var(--c-bad); }
   .input-suffix { display: flex; align-items: center; gap: var(--sp-2); }
   .input-suffix__unit { font: 500 var(--fs-300) / 1 var(--f-ui); color: var(--c-ink-3); }
+
+  /* ===== LA CONSUMATION — « LE JUSTE TEMPS » =====
+     « s'il peut disparaitre comme s'il se faisait consumer par des flammes ce
+     serait génial ».
+
+     ELLE EST ICI, ET NON DANS LES DEUX FEUILLES DE SURFACE, parce que le joueur
+     et le stream doivent voir DISPARAÎTRE LA MÊME CHOSE au même instant. Deux
+     copies de l'animation dériveraient — c'est l'histoire de la flamme du
+     projet, recopiée trois fois avant de diverger. Chaque surface n'apporte que
+     la taille du chiffre.
+
+     COMMENT ELLE MARCHE. Un masque en dégradé, trois fois plus haut que le
+     texte, glisse du bas vers le haut : la bande transparente monte et efface
+     les chiffres par le bas, comme une feuille qui prend feu. On n'anime PAS les
+     arrêts du dégradé — ils ne s'interpolent pas — mais sa POSITION, qui
+     s'interpole partout. La braise en `text-shadow` marque la ligne de brûlure,
+     et la légère montée fait s'envoler ce qui reste.
+
+     LE SENS DE `mask-position`, ET L'ERREUR QU'IL A COÛTÉE. Avec un masque plus
+     GRAND que son élément, `0%` cale son HAUT sur celui de l'élément et `100%`
+     son bas : les pourcentages parcourent l'excédent, ils ne se lisent pas comme
+     une translation. Le premier essai allait donc de 100 % à −110 % — c'est-à-dire
+     de « déjà consumé » à « déjà consumé », en repassant par l'état visible au
+     milieu. À l'écran, les chiffres SAUTAIENT à demi mangés, puis réapparaissaient
+     entiers, puis brûlaient. Vu en figeant l'animation image par image ; rien ne
+     l'aurait signalé autrement.
+
+     ET AU-DELÀ DE 100 %. À 100 % le haut de l'élément tombe encore sur la rampe
+     du dégradé — une part du chiffre resterait à demi visible. Il faut pousser le
+     masque jusqu'à ce que sa zone franchement transparente couvre tout l'élément ;
+     135 % laisse la marge nécessaire quelles que soient les bornes du dégradé.
+
+     ELLE NE REVIENT PAS : `forwards` fige l'état final. Sous
+     `prefers-reduced-motion`, la règle globale du projet ramène la durée à
+     0,01 ms — le chrono disparaît alors d'un coup, ce qui est exactement le
+     comportement voulu pour qui refuse les animations. */
+  /* `black` N'EST PAS UNE COULEUR ICI, c'est un canal alpha : un masque ne peint
+     rien, il ne garde que l'opacité de ce qu'on lui donne. Le système n'a pas de
+     jeton pour « opaque », et lui en donner un ferait croire à une décision de
+     couleur là où il n'y en a aucune.
+     LA DURÉE EST CELLE DES SCÈNES (--mo-scene) : c'est le registre exact de ce
+     geste — une transition qu'on regarde, pas une réaction d'interface. */
+  .consume {
+    -webkit-mask-image: linear-gradient(to top, transparent 0 26%, black 38% 100%);
+    mask-image: linear-gradient(to top, transparent 0 26%, black 38% 100%);
+    -webkit-mask-size: 100% 300%;
+    mask-size: 100% 300%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: 0% 0%;
+    mask-position: 0% 0%;
+    animation: consume-flammes var(--mo-scene) var(--ease-in-out) forwards;
+  }
+  @keyframes consume-flammes {
+    0% {
+      -webkit-mask-position: 0% 0%; mask-position: 0% 0%;
+      text-shadow: none;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    35% {
+      text-shadow: 0 0.06em 0.22em var(--c-ember), 0 0 0.5em var(--c-flame);
+      opacity: 1;
+    }
+    /* L'OPACITÉ NE FAIT PAS LE TRAVAIL DU MASQUE. Interpolée de 1 à 0 sur toute
+       la durée, elle transformait la consumation en simple fondu : à mi-course
+       les chiffres étaient à demi transparents et le bord de brûlure ne se
+       voyait plus. Elle est donc tenue à 1 jusqu'aux trois quarts, et ne sert
+       qu'à effacer la traîne. */
+    72% { opacity: 1; }
+    100% {
+      -webkit-mask-position: 0% 135%; mask-position: 0% 135%;
+      text-shadow: 0 -0.1em 0.3em var(--c-ember-wash);
+      transform: translateY(-0.14em);
+      opacity: 0;
+    }
+  }
 }

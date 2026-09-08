@@ -10,6 +10,7 @@
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
+import { formatteurDe } from '../shared/temps.js';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
 import { createRoom } from '../shared/net.js';
@@ -293,6 +294,86 @@ function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
         <div className="lien-saisie__actions">
           <button className="button button--primary" type="submit" disabled={!pret}
             data-action="host:diffuserLien" data-testid="lien-diffuser">
+            Diffusion aux joueurs
+          </button>
+          {onAnnuler ? (
+            <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// LA SAISIE DES DEUX TEMPS — « Le juste temps ».
+//
+// Deux champs, et un seul est obligatoire. C'est la demande, à la lettre : « un
+// bouton "Diffusion aux joueurs" [...] ne s'active que si le champ "Temps cible"
+// n'est pas vide ».
+//
+// POURQUOI LE TEMPS DE CACHE PEUT RESTER VIDE, ET CE QUE ÇA FAIT. Un cache vide
+// vaut zéro : le chrono ne disparaît jamais, et la manche devient un exercice de
+// réflexe à vue plutôt que d'estimation à l'aveugle. C'est un usage légitime —
+// une première manche pour montrer le jeu — et l'écran le DIT, plutôt que de
+// laisser l'animateur le découvrir à l'antenne.
+//
+// LES BORNES SONT CELLES DU CADRAN. Un temps hors de zéro-quinze n'a pas de sens
+// ici : le serveur les rabat de toute façon (`borneDeChrono`), mais un champ qui
+// laisse taper 42 pour le corriger en silence est un piège — l'animateur croirait
+// avoir posé une cible que personne ne peut atteindre.
+function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
+  const [cache, setCache] = useState('');
+  const [cible, setCible] = useState('');
+  const dansLeCadran = (v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= duree);
+  const cibleValide = cible.trim() !== '' && dansLeCadran(cible);
+  const cacheValide = dansLeCadran(cache);
+  const pret = cibleValide && cacheValide;
+  return (
+    <section className="private lien-saisie" aria-label="Préparer Le juste temps" data-testid="saisie-juste-temps">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Un compte à rebours de {duree} secondes part sur les téléphones. Il s'efface
+        au temps de cache et continue de courir : le cercle appuie sur STOP quand il
+        croit l'entendre passer sur le temps cible.
+      </p>
+      {/* LES CHAMPS SONT COURTS, ET EN RANGÉE. Le premier jet leur donnait toute
+          la largeur du panneau pour cinq caractères, et empilait leurs aides sans
+          respiration : deux champs de chrono se comparent d'un coup d'œil, ils
+          doivent être côte à côte et de la taille de ce qu'on y tape. Ce sont les
+          primitives de formulaire du projet (`fields`, `frow`, `fgroup--short`),
+          celles-là mêmes que la console partage avec le studio. */}
+      <form
+        className="lien-saisie__form fields"
+        onSubmit={(e) => { e.preventDefault(); if (pret) onDiffuser(jeu, cache, cible); }}
+      >
+        <div className="frow">
+          <div className="fgroup fgroup--short">
+            <label className="flabel" htmlFor="jt-cache">Temps de cache</label>
+            <div className="input-suffix">
+              <input className={`input${cacheValide ? '' : ' input--invalid'}`} id="jt-cache" type="number"
+                inputMode="decimal" step="0.01" min="0" max={duree} placeholder="0,00"
+                value={cache} onChange={(e) => setCache(e.target.value)} data-testid="jt-cache" />
+              <span className="input-suffix__unit">s</span>
+            </div>
+          </div>
+          <div className="fgroup fgroup--short">
+            <label className="flabel" htmlFor="jt-cible">Temps cible</label>
+            <div className="input-suffix">
+              <input className={`input${cibleValide || cible.trim() === '' ? '' : ' input--invalid'}`} id="jt-cible"
+                type="number" inputMode="decimal" step="0.01" min="0" max={duree} placeholder="0,00"
+                value={cible} onChange={(e) => setCible(e.target.value)} data-testid="jt-cible" />
+              <span className="input-suffix__unit">s</span>
+            </div>
+          </div>
+        </div>
+        <p className="fhint">
+          Le chrono disparaît en arrivant sur le <strong>temps de cache</strong> — laissé
+          vide, il reste visible jusqu'au bout. Le <strong>temps cible</strong> est celui
+          qu'il faut viser : personne ne le voit avant la révélation.
+        </p>
+        <div className="lien-saisie__actions">
+          <button className="button button--primary" type="submit" disabled={!pret}
+            data-action="host:diffuserJusteTemps" data-testid="jt-diffuser">
             Diffusion aux joueurs
           </button>
           {onAnnuler ? (
@@ -1264,12 +1345,22 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
   const total = stats?.total ?? dist.total ?? answersCount ?? 0;
 
   // Numérique : min / moyenne / max (direct) ou les faits de la révélation.
-  if (type === 'estimation') {
+  // LE JUSTE TEMPS PARTAGE CE GRAPHIQUE, à la demande de l'auteur : « il faut
+  // reprendre exactement le graphique du module Estimation ». Il le partage
+  // VRAIMENT — même composant, même géométrie, même serveur qui la calcule — et
+  // n'en diffère que par l'écriture des nombres, que `formatteurDe` choisit sur
+  // l'unité annoncée par le serveur.
+  if (type === 'estimation' || type === 'juste_temps') {
     const has = stats?.kind === 'numeric' || dist.kind === 'numeric';
     if (!has || !total) return <p className="dist__empty">Les estimations s'afficheront ici, en direct.</p>;
     const cells = stats?.kind === 'numeric'
       ? [['Le plus proche', stats.closest], ['Moyenne', stats.avg], ['Médiane', stats.median]]
       : [['Min', dist.min], ['Moyenne', dist.avg], ['Max', dist.max]];
+    // L'ÉCRITURE DES NOMBRES — la seule chose qui distingue les deux jeux sur ce
+    // graphique. Le serveur dit l'unité ; l'écran ne la devine pas d'un type.
+    const ecrire = formatteurDe(stats ?? dist, fmt);
+    const ecrireAxe = formatteurDe(stats ?? dist, (v) => fmt(Math.round(v)));
+    const estTemps = ecrire !== fmt;
     // L'histogramme de dispersion, spécifié par la maquette A5 et jamais
     // construit : trois chiffres disent où est le groupe, mais pas s'il est
     // groupé ou éparpillé — et c'est cette forme-là que l'animateur lit d'un
@@ -1294,9 +1385,9 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
                 sans l'être à l'article. Une seule réponse se dit autrement. */}
             <p className="histo__legend">
               {total > 1 ? (
-                <>Dispersion des <span className="histo__legend-num">{fmt(total)}</span> estimations</>
+                <>Dispersion des <span className="histo__legend-num">{fmt(total)}</span> {estTemps ? 'réponses' : 'estimations'}</>
               ) : (
-                <>Une seule estimation</>
+                <>{estTemps ? 'Une seule réponse' : 'Une seule estimation'}</>
               )}
             </p>
             {/* L'AXE ET SES PLAGES (voir `shared/echelle-estimation.js`).
@@ -1335,7 +1426,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
                     key={b.i}
                     className={`histo__bar histo__bar--${b.palier}${b.count === 0 ? ' histo__bar--vide' : ''}`}
                     style={{ left: `${b.gauche}%`, width: `${b.largeur}%`, height: `${b.hauteur}%` }}
-                    title={`${b.count} estimation${b.count > 1 ? 's' : ''} — de ${fmt(Math.round(b.bas))} à ${fmt(Math.round(b.haut))}`}
+                    title={`${b.count} ${estTemps ? 'réponse' : 'estimation'}${b.count > 1 ? 's' : ''} — de ${ecrireAxe(b.bas)} à ${ecrireAxe(b.haut)}`}
                     data-count={b.count} data-palier={b.palier} data-cote={b.cote}
                   >
                     {/* LE COMPTE, ÉCRIT. Les tranches n'ayant plus la même largeur,
@@ -1353,7 +1444,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
                   style={{ left: `${cible.pct}%` }} data-testid="histo-cible" data-trouvee={trouvee || undefined}
                   title={trouvee ? `${histo.exact} joueur${histo.exact > 1 ? 's ont' : ' a'} trouvé la réponse exacte` : undefined}>
                   <span className={`histo__cible-val histo__cible-val--${cible.ancrage}`}>
-                    {fmt(stats?.target ?? dist.target ?? reveal?.target)}
+                    {ecrire(stats?.target ?? dist.target ?? reveal?.target)}
                   </span>
                 </span>
               ) : null}
@@ -1362,7 +1453,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
             <div className="histo__axe" data-testid="histo-axe">
               {reperes.map((b) => (
                 <span key={b.i} className="histo__tick" style={{ left: `${b.pct}%` }}>
-                  {fmt(Math.round(b.valeur))}
+                  {ecrireAxe(b.valeur)}
                 </span>
               ))}
             </div>
@@ -1391,7 +1482,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
           {cells.map(([label, v]) => (
             <div className="dist__fact" key={label}>
               <span className="h-label">{label}</span>
-              <span className="dist__fact-value">{v != null ? fmt(v) : '—'}</span>
+              <span className="dist__fact-value">{v != null ? ecrire(v) : '—'}</span>
             </div>
           ))}
         </div>
@@ -1446,7 +1537,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // ============================================================
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1564,6 +1655,10 @@ function LiveScreen({ g, code, overlayToken, prepare, onDiffuserLien, onDemarrer
               ne sont pas diffusés : c'est LE geste de l'animateur à cet instant. */}
           {prepare && prepare.type === 'lien' ? (
             <SaisieLien jeu={prepare} onDiffuser={onDiffuserLien} onAnnuler={onAnnulerLien} />
+          ) : null}
+          {prepare && prepare.type === 'juste_temps' ? (
+            <SaisieJusteTemps jeu={prepare} duree={(prepare.dureeCompteMs ?? 15000) / 1000}
+              onDiffuser={onDiffuserJusteTemps} onAnnuler={onAnnulerLien} />
           ) : null}
           {prepare && prepare.type === 'visages' ? (
             <DepartVisages jeu={prepare} onDemarrer={onDemarrerVisages} onAnnuler={onAnnulerLien} />
@@ -1876,7 +1971,10 @@ export function HostApp() {
     // donne le départ. Ici il n'a rien à saisir : il choisit le MOMENT, ce qui
     // suffit à justifier les deux temps. Lancer d'un clic ferait défiler les
     // premiers visages pendant qu'il finit sa phrase.
-    if (jeu?.type === 'lien' || jeu?.type === 'visages') {
+    // « Le juste temps » suit le même chemin, et pour la même raison que « Le
+    // lien » : ses deux temps se saisissent à l'antenne, et le temps de saisie ne
+    // doit pas être décompté du compte à rebours.
+    if (jeu?.type === 'lien' || jeu?.type === 'visages' || jeu?.type === 'juste_temps') {
       setPrepare(jeu);
       g.emit('host:announceModule', { moduleId: jeu.id });
       return;
@@ -1893,6 +1991,23 @@ export function HostApp() {
     g.emit('host:startModule', {
       moduleId: jeu.id,
       question: { id: `lien-${Date.now()}`, text: `${mot1} · ${mot2}`, mot1, mot2 },
+    });
+  }, [g]);
+
+  // LA DIFFUSION DES DEUX TEMPS : c'est ELLE qui démarre la manche et lance le
+  // compte à rebours. Le temps de cache vide vaut zéro — le chrono ne disparaît
+  // alors jamais, ce que l'écran de saisie annonce.
+  const diffuserJusteTemps = useCallback((jeu, cache, cible) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: {
+        id: `jt-${Date.now()}`,
+        cache: cache === '' ? 0 : Number(cache),
+        cible: Number(cible),
+      },
     });
   }, [g]);
 
@@ -2030,6 +2145,7 @@ export function HostApp() {
           overlayToken={session.overlayToken}
           prepare={prepare}
           onDiffuserLien={diffuserLien}
+          onDiffuserJusteTemps={diffuserJusteTemps}
           onDemarrerVisages={demarrerVisages}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}

@@ -6,7 +6,7 @@
 //    uniquement ses points gagnés et les places gagnées/perdues. Le classement
 //    complet ne circule que sur le canal "staff" (animateur + stream). Le podium
 //    final est public à la fin de la partie.
-import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES } from './modules.js';
+import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, auCentieme } from './modules.js';
 import { srcDeVisage } from './visages.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
@@ -14,7 +14,12 @@ import { srcDeVisage } from './visages.js';
 // deux histogrammes — celui du direct et celui de la révélation — partagent
 // exactement la même échelle.
 function plagesDe(rt) {
-  return plagesEstimation(rt.target, rt.nature === 'annee' ? 'annee' : 'nombre');
+  return plagesEstimation(rt.target, natureDe(rt));
+}
+// La nature de la réponse, blanchie. Trois valeurs, et rien d'autre : un champ
+// venu d'une question mal formée ne doit pas choisir un barème au hasard.
+function natureDe(rt) {
+  return rt.nature === 'annee' || rt.nature === 'temps' ? rt.nature : 'nombre';
 }
 function margeBareme(rt) {
   return Math.max(0, ...plagesDe(rt).map((p) => p.haut - rt.target));
@@ -83,11 +88,19 @@ export function answerDistribution(rt) {
     for (const a of rt.answers.values()) (a.value ? t++ : f++);
     return { kind: 'boolean', counts: [f, t], total: rt.answers.size };
   }
-  if (rt.type === 'estimation') {
+  if (rt.type === 'estimation' || rt.type === 'juste_temps') {
     // Min / moyenne / max POUR SITUER, et l'histogramme en 8 tranches POUR VOIR :
     // la maquette animateur (A5) le spécifiait depuis le début, il n'avait jamais
     // été construit — et le serveur ne calculait même pas les tranches.
-    const vals = [...rt.answers.values()].map((a) => a.value);
+    //
+    // LE JUSTE TEMPS PASSE PAR ICI TEL QUEL. Sa seule différence : la valeur d'une
+    // réponse n'est pas ce que le joueur a envoyé mais ce que l'arbitre en a
+    // retenu (`valeurDuBuzz`). C'est la MÊME fonction qu'à la révélation — le
+    // graphique sur lequel l'animateur décide est donc bien celui qu'il commente
+    // une seconde plus tard, ce qui est la raison d'être de ce panneau.
+    const vals = rt.type === 'juste_temps'
+      ? [...rt.answers.values()].map((a) => valeurDuBuzz(rt, a))
+      : [...rt.answers.values()].map((a) => a.value);
     if (!vals.length) return { kind: 'numeric', total: 0 };
     const sum = vals.reduce((s, v) => s + v, 0);
     return {
@@ -95,7 +108,15 @@ export function answerDistribution(rt) {
       total: vals.length,
       min: Math.min(...vals),
       max: Math.max(...vals),
-      avg: Math.round(sum / vals.length),
+      // L'ARRONDI SUIT LA NATURE. `Math.round` sur des secondes ramène une
+      // moyenne de 4,68 s à « 5 » : le seul chiffre que l'animateur regarde pour
+      // décider deviendrait faux d'un tiers de seconde, sur un jeu dont le
+      // meilleur palier fait un dixième.
+      avg: natureDe(rt) === 'temps'
+        ? auCentieme(sum / vals.length)
+        : Math.round(sum / vals.length),
+      // L'UNITÉ, pour que l'écran sache écrire « 4,72 s » plutôt que « 5 ».
+      unite: natureDe(rt) === 'temps' ? 'secondes' : undefined,
       // LA MÊME ÉCHELLE, ET LES MÊMES REPÈRES, DÈS LE DIRECT.
       //
       // Ce panneau ne part QUE sur le canal de l'animateur (`toHost`, plus haut) :
@@ -109,7 +130,7 @@ export function answerDistribution(rt) {
       histogramme: histogrammeBareme(vals, rt.target, plagesDe(rt), margeBareme(rt)),
       target: rt.target,
       plages: plagesDe(rt),
-      nature: rt.nature === 'annee' ? 'annee' : 'nombre',
+      nature: natureDe(rt),
     };
   }
   return null;
@@ -192,6 +213,19 @@ export function startModule(io, room, jeu, question) {
     moduleId: rt.moduleId,
     durationMs: rt.durationMs,
     deadline: rt.deadline,
+    // LE TEMPS QUI RESTE, MESURÉ PAR LE SERVEUR — et pourquoi `deadline` ne
+    // suffit pas.
+    //
+    // `deadline` est un instant de l'horloge du SERVEUR. Le client le compare à
+    // la sienne, qui peut être décalée de plusieurs minutes : l'écart passe
+    // inaperçu sur un chrono affiché à la seconde et arrondi vers le haut, mais
+    // « Le juste temps » se joue au centième. Une horloge de téléphone en retard
+    // de trois secondes y donnerait trois secondes de jeu en plus.
+    //
+    // `resteMs` est une DURÉE, pas un instant : le client la décompte depuis sa
+    // propre réception, sans jamais comparer deux horloges. À un premier envoi
+    // elle vaut la durée entière ; à un rejeu de reconnexion, ce qu'il reste.
+    resteMs: Math.max(0, rt.deadline - Date.now()),
     // Le nom du JEU remplace le nom générique du type : « Culture générale »
     // plutôt que « Quiz », sur les trois écrans à la fois.
     meta: { ...mod.meta, name: jeu.name },
@@ -358,6 +392,11 @@ export function reveal(io, room) {
       troppTot: r ? r.troppTot === true : false,
       // Le rang du groupe et sa taille : l'écran les nomme, la voix les cite.
       rang: r ? r.rang ?? null : null, taille: r ? r.taille ?? null : null,
+      // « LE JUSTE TEMPS » : le temps que l'arbitre a retenu. Le téléphone du
+      // joueur ne peut pas le recalculer — la valeur qui compte est celle que le
+      // serveur a arrêtée, bornée par sa propre horloge, pas celle que l'écran
+      // affichait au moment du doigt.
+      valeur: r ? r.valeur ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -423,7 +462,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, correct: null, troppTot: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, correct: null, troppTot: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -435,6 +474,7 @@ export function reveal(io, room) {
       bonusGroupe: d.bonusGroupe,
       rang: d.rang,
       taille: d.taille,
+      valeur: d.valeur ?? null,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,

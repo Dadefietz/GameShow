@@ -580,6 +580,48 @@
   /* LE VISAGE PREND TOUTE LA PLACE QU'ON PEUT LUI DONNER. C'est un jeu de
      RECONNAISSANCE : chaque pixel de visage compte, et le vide au-dessus n'a
      aucune fonction. Le buzz reste ancré en bas, sous le pouce. */
+  /* ===== « LE JUSTE TEMPS » — L'ÉCRAN DE JEU DU JOUEUR =====
+     Le chrono, et le STOP. Rien d'autre : tout ce qui entoure les chiffres
+     détourne l'œil au moment précis où il faut compter dans sa tête. */
+  .jtj {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-5);
+    width: 100%;
+  }
+  .jtj__cadran {
+    width: 100%;
+    max-width: min(360px, 86vw);
+    /* LA HAUTEUR EST FIXE, ET C'EST TOUT LE SUJET. Le cadran se vide en cours de
+       manche : s'il se rétractait, le bouton STOP remonterait sous le doigt du
+       joueur à l'instant précis où il s'apprête à appuyer. La place est tenue,
+       c'est le chiffre qui disparaît. */
+    min-height: 8.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-l);
+    background: var(--c-surface);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+  .jtj__valeur {
+    /* Chiffres TABULAIRES et police à chasse fixe : sans cela, chaque centième
+       change la largeur du nombre et les chiffres sautent cent fois par seconde. */
+    font: 700 clamp(3rem, 17vw, 4.5rem) / 1 var(--f-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--c-ember-bright);
+  }
+  .jtj__cadran--cache { background: var(--c-surface-sunk); box-shadow: var(--sh-inset); }
+  .jtj__consigne {
+    margin: 0;
+    font: 500 var(--fs-300) / 1.35 var(--f-ui);
+    color: var(--c-ink-3);
+    text-align: center;
+  }
+
   .vsg {
     flex: 1;
     display: flex;
