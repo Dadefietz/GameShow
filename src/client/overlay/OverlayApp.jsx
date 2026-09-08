@@ -18,7 +18,7 @@ import { useGame } from '../shared/useGame.js';
 import { useVoixDePlateau, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { bipCompteRebours, sonFinDuTemps, sonRevelation } from '../shared/sons.js';
 import { Visage, MasquesVisages } from '../shared/Visage.jsx';
-import { CHAINONS } from '../shared/marque-lien.js';
+import { Chainons } from '../shared/Chainons.jsx';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -464,7 +464,7 @@ function QuestionStage({ g }) {
         <div className={`st-lienmots${revealed ? ' st-lienmots--revealed' : ''}`}
           data-bind="module.text" data-testid="question-text">
           <span className="st-lienmots__mot">{current.mots[0]}</span>
-          <span className="st-lienmots__chainons" aria-hidden="true"><ChainonsStream s={64} /></span>
+          <span className="st-lienmots__chainons" aria-hidden="true"><Chainons taille={64} /></span>
           <span className="st-lienmots__mot">{current.mots[1]}</span>
         </div>
       ) : (
@@ -573,18 +573,6 @@ function QuestionStage({ g }) {
 // ============================================================
 // S4 — Podium
 // ============================================================
-// L'EMBLÈME DU LIEN, à la taille de l'antenne. Tracé partagé avec le joueur.
-function ChainonsStream({ s = 140 }) {
-  return (
-    <svg width={s} height={s} viewBox={CHAINONS.viewBox} fill="none" stroke="currentColor"
-      strokeWidth={CHAINONS.trait} strokeLinecap="round" aria-hidden="true">
-      <path d={CHAINONS.gauche} />
-      <path d={CHAINONS.droite} />
-      <path d={CHAINONS.jointure} />
-    </svg>
-  );
-}
-
 // L'ANNONCE DU JEU — le même temps que sur les téléphones, à l'échelle de la
 // scène. Le cercle et le public voient la même chose au même instant : c'est ce
 // qui fait qu'un plateau tient.
@@ -592,7 +580,7 @@ function ChainonsStream({ s = 140 }) {
 // en dur —, si bien que « Les visages » aurait annoncé des chaînons devant tout
 // le public. Chaque jeu en direct apporte le sien.
 const ANNONCES_STREAM = {
-  lien: { emblem: <ChainonsStream s={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
+  lien: { emblem: <Chainons taille={180} />, regle: "Un mot pour relier les deux mots de l'animateur." },
   visages: { emblem: <MasquesVisages taille={280} />, regle: 'Un visage va passer deux fois. Saurez-vous le reconnaître ?' },
 };
 

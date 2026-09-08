@@ -14,7 +14,7 @@ import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
 import { NOM_DU_JEU } from '../shared/marque.js';
-import { CHAINONS } from '../shared/marque-lien.js';
+import { Chainons } from '../shared/Chainons.jsx';
 import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
 import { Visage, MasquesVisages, prechargerVisages } from '../shared/Visage.jsx';
@@ -317,19 +317,6 @@ function JoinScreen({ initialCode, onJoin, notice }) {
 // ============================================================
 // J2 — Salle d'attente
 // ============================================================
-// L'EMBLÈME DU LIEN. Le tracé vient de `marque-lien.js` : la flamme du projet a
-// vécu en trois exemplaires recopiés avant de diverger, on ne recommence pas.
-function Chainons({ s = 64 }) {
-  return (
-    <svg width={s} height={s} viewBox={CHAINONS.viewBox} fill="none" stroke="currentColor"
-      strokeWidth={CHAINONS.trait} strokeLinecap="round" aria-hidden="true">
-      <path d={CHAINONS.gauche} />
-      <path d={CHAINONS.droite} />
-      <path d={CHAINONS.jointure} />
-    </svg>
-  );
-}
-
 // L'ANNONCE DU JEU — le jingle. L'animateur a choisi « Le lien » et saisit ses
 // deux mots ; le cercle patiente devant le nom du jeu. C'est un temps mort qui
 // n'en est pas un : il prépare l'attention, comme un générique.
@@ -342,7 +329,7 @@ function Chainons({ s = 64 }) {
 // celui du voisin.
 const ANNONCES = {
   lien: {
-    emblem: <Chainons s={92} />,
+    emblem: <Chainons taille={92} />,
     regle: "Trouve le mot qui relie les deux mots de l'animateur.",
   },
   visages: {
@@ -626,7 +613,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, vi
             <form className="lien" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
               <div className="lien__mots">
                 <span className="lien__mot">{current.mots?.[0]}</span>
-                <span className="lien__chainons" aria-hidden="true"><Chainons s={34} /></span>
+                <span className="lien__chainons" aria-hidden="true"><Chainons taille={34} /></span>
                 <span className="lien__mot">{current.mots?.[1]}</span>
               </div>
               <label className="p-label" htmlFor="lien">Le mot qui les relie</label>
