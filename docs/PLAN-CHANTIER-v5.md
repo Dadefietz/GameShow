@@ -144,4 +144,44 @@ pas seulement à la fin.
 
 ## 4. Journal d'exécution
 
-Rempli au fur et à mesure ; l'audit de clôture le confronte au §1.
+### Lot 0 — la banque d'objets
+200 PNG détourés et convertis (1,9 Mo), `src/server/objets.js` produit. Le fond
+blanc est retiré **par les bords**, ce qui préserve les blancs intérieurs.
+
+### Lot A — corrections transverses
+- **A1.** Le logo ne touchait pas le haut du cadre : il en **sortait de 37 px**,
+  sur tous les jeux. L'annonce réservait à la pastille une colonne à gauche ET
+  une bande de 484 px en bas ; le bloc, centré, débordait par le haut. Corrigé,
+  mesuré (173 px de marge), et gardé par un contrôle sur chaque jeu.
+- **A2.** Les colonnes du classement étaient en `ch` — une unité qui se mesure sur
+  la police de l'élément. Chaque ligne étant sa propre grille, l'en-tête calculait
+  des colonnes plus étroites que les données : « RÉUSSIS » **chevauchait**
+  « RATÉS », et les nombres tombaient sous les mauvais titres.
+- **A3 / A5.** La file disparaît des jeux sans banque et s'ouvre avant le départ
+  des jeux à questions.
+- **A4.** **Déjà satisfait** — vérifié, pas corrigé. Ma première mesure disait le
+  contraire : elle relevait l'énoncé avant qu'il ne change. Un contrôle le garde
+  désormais jusqu'au bout (en base, au rechargement, et posé dans une partie
+  ouverte après coup).
+
+### Lot B — les barèmes courts
+Fenêtre de 15 s, base 250 / 200, rapidité 0–200 avec plateau et plancher. La
+courbe est écrite une fois et paramétrée ; « Cache-cache » l'emploie avec ses
+propres seuils. Les deux exemples chiffrés de l'énoncé tombent juste à l'unité.
+La fenêtre devient une **règle** et non un réglage : le champ du Studio est
+verrouillé pour ces deux types, et le dit.
+
+### Lot C — « Coupe ta bûche »
+Curseur figé au coup, proportion affichée, deux allures, écorce sur le rondin et
+sur l'emblème. **Les 15 % de décalage rapportés sont expliqués** : un `click` part
+au RELÂCHEMENT du doigt, pas au contact — cent à deux cents millisecondes, soit
+dix à vingt points de bûche, toujours dans le même sens.
+
+### Lot D — « Cache-cache »
+Module complet. Trois défauts trouvés à l'écran pendant la construction :
+1. la fin du dévoilement attendait l'animateur, et la manche s'arrêtait sur une
+   grille vide — l'attente ne vaut qu'ENTRE les questions ;
+2. `bloc="ccg ccg--grande"` produisait des cases nommées `ccg--grande__case` :
+   les cases héritaient de la grille, et la grille se réduisait à rien ;
+3. l'emblème, dessiné d'après la référence (œil ouvert barré), se lisait « Ø » —
+   le signe d'une interdiction. Remplacé par une paupière baissée.

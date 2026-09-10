@@ -230,6 +230,12 @@
   --c-surface:       oklch(0.248 0.026 58);   /* carte / champ                 */
   --c-surface-2:     oklch(0.295 0.028 60);   /* carte en avant / survol       */
   --c-surface-sunk:  oklch(0.175 0.018 52);   /* état figé / désactivé         */
+  /* LA PLAQUE CLAIRE — le seul fond clair du système, et il a une raison
+     précise : « Cache-cache » sert des ICÔNES À TRAIT NOIR, fournies telles
+     quelles. Posées sur les fonds de nuit, elles disparaissent — leur dessin EST
+     le noir. Il leur faut donc un support, comme un carton posé sur la table.
+     Elle est chaude, pas blanche : un blanc pur trouerait la scène du stream. */
+  --c-plaque:        oklch(0.945 0.012 84);   /* support d'image à trait noir  */
 
   /* --- 2. ENCRE — crème de lampe tempête ---------------------------------
      Contrastes mesurés sur --c-canvas.                                   */

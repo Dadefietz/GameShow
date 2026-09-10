@@ -1,5 +1,10 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
 import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
+import { COULEURS, srcDObjet } from './objets.js';
+import {
+  CASES, DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE,
+  tirerLaManche, memeNom, FORMES,
+} from './cache-cache.js';
 
 // Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
 // Interface commune :
@@ -894,6 +899,51 @@ function compterOptions(reponses, size) {
 function optionsDeTete(tally) {
   const meilleur = Math.max(0, ...tally);
   return tally.map((n, i) => (n === meilleur && n > 0 ? i : -1)).filter((i) => i >= 0);
+}
+
+
+// ============================================================
+// « CACHE-CACHE » — CE QUE LE BARÈME ET LES RÉPONSES DEMANDENT
+// ============================================================
+
+// « Si un joueur a la bonne réponse à une question, il gagne 200 points », plus
+// « un bonus de rapidité allant de 0 point à 100 points, le chrono partant de
+// 10sec jusqu'à 0, de 10sec à 9sec = 100pts, et de 2sec à 0 = 0pt ».
+// Cinq questions : 5 × (200 + 100) = 1500, « Maximum 1500pts ». Le compte tombe.
+const POINTS_CACHE = 200;
+const RAPIDITE_CACHE = { plateau: 9, plancher: 2, max: 100 };
+
+// « Il faut également un tableau en-dessous du classement des 50 premières
+// personnes avec leur nombre de points à chaque dévoilement. »
+const CLASSEMENT_CACHE = 50;
+
+// LES RÉPONSES D'UN TOUR PASSÉ. Le moteur met de côté celles du tour qui s'achève
+// sous `answersTourN` — c'est ce qui permet à « Vote » de relire le premier tour
+// au moment de noter le second. Ici il y en a cinq à relire, et la manche en cours
+// est le dernier tour.
+function reponseDuTour(rt, tour, pid) {
+  const carte = tour === rt.tour ? rt.answers : rt[`answersTour${tour}`];
+  return carte ? carte.get(pid) || null : null;
+}
+
+// Tous ceux qui ont répondu à AU MOINS une question. Un joueur qui n'a rien
+// tenté n'apparaît pas au classement de la manche : il n'y a pas joué.
+function joueursDeLaManche(rt) {
+  const vus = new Set();
+  for (let tour = 2; tour <= rt.tours; tour += 1) {
+    const carte = tour === rt.tour ? rt.answers : rt[`answersTour${tour}`];
+    if (carte) for (const pid of carte.keys()) vus.add(pid);
+  }
+  return [...vus];
+}
+
+// LA BONNE RÉPONSE D'UNE QUESTION, selon sa forme. Les deux formes de couleur se
+// répondent par un choix — un indice dans la liste des couleurs ; les trois autres
+// se tapent, et se comparent au nom sans casse, sans accents et sans ponctuation
+// (voir `memeNom`).
+function questionReussie(q, valeur) {
+  if (FORMES[q.forme].choix) return COULEURS[valeur] === q.reponse;
+  return memeNom(valeur, q.reponse);
 }
 
 export const modules = {
@@ -1853,6 +1903,180 @@ export const modules = {
           tally: tallySincere, options: rt.options, text: rt.text,
           winners: gagnantes, stats,
         },
+      };
+    },
+  },
+
+  // ============================================================
+  // « CACHE-CACHE » — neuf objets vus une fois, cinq questions
+  // ============================================================
+  // (les constantes et les aides de ce jeu sont déclarées avant `modules`, plus
+  //  haut dans ce fichier)
+  //
+  // LE SEUL JEU DU PROJET QUI SE DÉROULE EN PLUSIEURS TEMPS. Une grille se
+  // dévoile pendant trente-huit secondes, cinq questions suivent, puis cinq
+  // réponses rendues une par une par l'animateur, et la grille entière pour finir.
+  //
+  // IL RÉUTILISE LE MÉCANISME DES TOURS DE « VOTE », qui existait déjà pour jouer
+  // deux fenêtres dans une même manche. Le tour 1 est la GRILLE — une fenêtre de
+  // trente-huit secondes où personne ne répond — et les tours 2 à 6 sont les cinq
+  // questions. Rien de neuf dans le moteur pour ça ; il ne lui manquait que deux
+  // choses, déclarées ici : une durée qui change d'un tour à l'autre, et le fait
+  // que la fin d'une fenêtre N'ENCHAÎNE PAS toute seule.
+  //
+  // « Quand les joueurs ont répondu ou que le temps est écoulé pour une question,
+  // c'est à l'animateur de lancer la question suivante. » Un jeu de mémoire dont
+  // les questions s'enchaînent sans lui ne se commente pas.
+  cache_cache: {
+    meta: {
+      type: 'cache_cache', name: 'Cache-cache', icon: 'grid', color: 'info',
+      scored: true, malus: false, vitesse: true,
+      // La grille est tirée par le serveur au lancement : rien à préparer.
+      direct: true,
+      // LE MOTEUR LIT CES DEUX DRAPEAUX, et ne connaît pas ce jeu autrement.
+      attendreLAnimateur: true,
+      devoilementGrille: true,
+      cases: CASES,
+      questions: QUESTIONS_PAR_PARTIE,
+      dureeGrilleMs: DUREE_GRILLE_MS,
+      dureeQuestionMs: DUREE_QUESTION_MS,
+      couleurs: COULEURS,
+      // La courbe de rapidité de ce jeu — « un bonus de rapidité allant de 0 point
+      // à 100 points, le chrono partant de 10sec jusqu'à 0, de 10sec à 9sec =
+      // 100pts, et de 2sec à 0 = 0pt ».
+      rapidite: RAPIDITE_CACHE,
+      points: POINTS_CACHE,
+    },
+    buildRound(q) {
+      const tirage = tirerLaManche();
+      // Un tirage impossible ne se rattrape pas : mieux vaut un refus net que
+      // neuf cases dont deux portent le même nom.
+      if (!tirage) throw new Error('cache-cache : tirage impossible');
+      return {
+        type: 'cache_cache',
+        questionId: q.id,
+        text: 'Retiens ce que tu vois.',
+        matrice: tirage.matrice,
+        ordre: tirage.ordre,
+        questions: tirage.questions,
+        // Le tour 1 est la grille ; les cinq suivants sont les questions.
+        tours: 1 + QUESTIONS_PAR_PARTIE,
+        tour: 1,
+        devoilees: 0,
+        durationMs: DUREE_GRILLE_MS,
+      };
+    },
+    // LA DURÉE CHANGE D'UN TOUR À L'AUTRE — c'est la seule chose que le moteur ne
+    // pouvait pas deviner.
+    dureeDuTour(rt) {
+      return rt.tour <= 1 ? DUREE_GRILLE_MS : DUREE_QUESTION_MS;
+    },
+    // ET L'ATTENTE AUSSI. Le dévoilement de la grille dure ce qu'il dure : rien à
+    // commenter, rien à décider, la première question suit toute seule. C'est
+    // ENTRE LES QUESTIONS que l'animateur reprend la main — « quand les joueurs
+    // ont répondu ou que le temps est écoulé pour une question, c'est à
+    // l'animateur de lancer la question suivante ».
+    //
+    // LE DÉFAUT QUE ÇA A COÛTÉ : le drapeau valant pour tous les tours, la manche
+    // s'arrêtait à la fin des trente-huit secondes et n'allait jamais à la
+    // première question. Le cercle regardait une grille vide, indéfiniment.
+    attendLAnimateur(rt) {
+      return (rt.tour || 1) > 1;
+    },
+    // LA QUESTION PUBLIQUE NE PORTE JAMAIS LA MATRICE. C'est tout le jeu : les
+    // objets arrivent un par un, poussés par le serveur pendant le dévoilement, et
+    // repartent aussitôt. Une charge utile qui les contiendrait rendrait la partie
+    // lisible dans l'inspecteur avant même qu'elle commence.
+    publicQuestion(rt) {
+      const base = {
+        type: 'cache_cache',
+        questionId: rt.questionId,
+        cases: CASES,
+        tour: rt.tour,
+        tours: rt.tours,
+      };
+      if (rt.tour <= 1) {
+        return { ...base, phase: 'grille', text: 'Retiens ce que tu vois.', dureeGrilleMs: DUREE_GRILLE_MS };
+      }
+      const q = rt.questions[rt.tour - 2];
+      return {
+        ...base,
+        phase: 'question',
+        numero: rt.tour - 1,
+        // `nbQuestions` ET PAS `total` : le moteur pose SON `total` — le nombre de
+        // manches de la partie — juste après avoir étalé la question publique, et
+        // il écrasait celui-ci. L'écran affichait « Question 1/1 ».
+        nbQuestions: QUESTIONS_PAR_PARTIE,
+        text: q.texte,
+        // Les questions de couleur se répondent d'un choix ; les autres se tapent.
+        options: FORMES[q.forme].choix ? COULEURS : null,
+        saisie: !FORMES[q.forme].choix,
+      };
+    },
+    validateAnswer(rt, value) {
+      if (rt.tour <= 1) return null; // on ne répond pas pendant la grille
+      const q = rt.questions[rt.tour - 2];
+      if (FORMES[q.forme].choix) {
+        const i = Number(value);
+        return Number.isInteger(i) && i >= 0 && i < COULEURS.length ? i : null;
+      }
+      const texte = String(value == null ? '' : value).slice(0, 40).trim();
+      return texte.length ? texte : null;
+    },
+    score(rt) {
+      const results = new Map();
+      const detail = new Map();   // pid -> [points par question]
+      const parQuestion = rt.questions.map(() => ({ bons: 0, total: 0 }));
+
+      for (const pid of joueursDeLaManche(rt)) {
+        const points = rt.questions.map((q, i) => {
+          const a = reponseDuTour(rt, i + 2, pid);
+          if (!a) return { repondu: false, correct: false, base: 0, speed: 0 };
+          parQuestion[i].total += 1;
+          const correct = questionReussie(q, a.value);
+          if (correct) parQuestion[i].bons += 1;
+          const reste = DUREE_QUESTION_MS - Math.min(DUREE_QUESTION_MS, Math.max(0, a.at - (rt.debutsDeTour?.[i + 2] ?? rt.startedAt)));
+          return {
+            repondu: true,
+            correct,
+            base: correct ? POINTS_CACHE : 0,
+            speed: correct ? bonusRapidite(reste, RAPIDITE_CACHE) : 0,
+          };
+        });
+        detail.set(pid, points);
+        const base = points.reduce((n, p) => n + p.base, 0);
+        const speed = points.reduce((n, p) => n + p.speed, 0);
+        results.set(pid, {
+          base,
+          speed,
+          correct: points.some((p) => p.correct),
+          bons: points.filter((p) => p.correct).length,
+          rates: points.filter((p) => p.repondu && !p.correct).length,
+        });
+      }
+
+      const classement = [...results.entries()]
+        .map(([pid, r]) => ({ pid, points: (detail.get(pid) || []).map((p) => p.base + p.speed), total: r.base + r.speed }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, CLASSEMENT_CACHE);
+
+      const stats = {
+        kind: 'cache',
+        total: [...results.keys()].length,
+        // LA MATRICE PORTE SES ADRESSES. Le client ne déduit JAMAIS une adresse
+        // d'un identifiant — même règle que les visages et les objets : le jour où
+        // la banque change de nommage, il n'y a qu'un endroit à corriger.
+        matrice: rt.matrice.map((o) => ({ ...o, src: srcDObjet(o.id) })),
+        questions: rt.questions.map((q, i) => ({
+          texte: q.texte, reponse: q.reponse, place: q.place,
+          bons: parQuestion[i].bons, repondants: parQuestion[i].total,
+        })),
+      };
+      return {
+        results,
+        detail,
+        reveal: { type: 'cache_cache', text: rt.text, matrice: rt.matrice, stats },
+        prives: { classement },
       };
     },
   },

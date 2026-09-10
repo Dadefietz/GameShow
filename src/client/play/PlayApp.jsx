@@ -18,6 +18,8 @@ import { Chainons } from '../shared/Chainons.jsx';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
+import { EmblemeCache } from '../shared/EmblemeCache.jsx';
+import { GrilleCache } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { Symbole } from '../shared/Symbole.jsx';
@@ -385,6 +387,10 @@ const ANNONCES = {
     emblem: <ChronoBuzzer taille={86} />,
     regle: "Un chrono va s'effacer sans s'arrêter. Stoppe-le au bon moment.",
   },
+  cache_cache: {
+    emblem: <EmblemeCache taille={104} />,
+    regle: 'Neuf objets, montrés une fois chacun. Cinq questions ensuite.',
+  },
 };
 
 function AnnonceScreen({ nom, type, annonce }) {
@@ -501,7 +507,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, element, buzz }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, element, buzz, objetCache, tourClos }) {
   // Le visage de CETTE manche, et d'aucune autre. Sans le garde sur l'identifiant
   // de manche, un visage attardé de la manche précédente s'afficherait une
   // fraction de seconde sur la nouvelle — et dans ce jeu, un visage vu est un
@@ -588,6 +594,12 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   const [estimate, setEstimate] = useState('');
   // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
   const [mot, setMot] = useState('');
+  // ET À CHAQUE TOUR, pas seulement à chaque manche. « Cache-cache » pose cinq
+  // questions dans la même manche, et trois d'entre elles se répondent au clavier :
+  // sans cette remise à zéro, la réponse de la question précédente attendrait déjà
+  // dans le champ de la suivante — prête à partir d'une touche, sur un jeu où le
+  // joueur a dix secondes et regarde ailleurs.
+  useEffect(() => { setMot(''); }, [current?.roundId, current?.tour]);
   const isVote = type === 'vote';
   // LES DEUX TOURS DU VOTE. Le premier demande ce que le joueur pense, le second
   // ce qu'il croit que le cercle a répondu. Un sondage n'a qu'un tour et se tait.
@@ -656,7 +668,15 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
         : 'Réponse envoyée',
     }
     : timeUp
-      ? { closed: true, text: isVote ? 'Vote clos' : "Temps écoulé — tu n'as pas répondu" }
+      // « CACHE-CACHE » A SA PROPRE PHRASE, et l'énoncé la donne mot pour mot :
+      // « ceux qui n'ont pas eu le temps vont avoir le petit message "Trop tard
+      // pour celle-là..." ». Les trois points comptent : il reste quatre
+      // questions, et « temps écoulé » laisserait croire la manche finie.
+      ? {
+        closed: true,
+        text: type === 'cache_cache' ? 'Trop tard pour celle-là…'
+          : isVote ? 'Vote clos' : "Temps écoulé — tu n'as pas répondu",
+      }
       : null;
 
   function optClass(chosen) {
@@ -689,6 +709,19 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
               ) : null}
             </p>
           </div>
+          {/* LA GRILLE NUMÉROTÉE DE « CACHE-CACHE », entre le numéro de manche et
+              le chronomètre, « à la même taille que le chronomètre ».
+              Elle est là pour une raison précise : les questions désignent les
+              cases par leur numéro (« quel objet se cache derrière 2 ? »), et sans
+              la grille sous les yeux, le joueur doit reconstruire de mémoire une
+              numérotation qu'on ne lui a jamais montrée en même temps que les
+              objets. Ce n'est pas une aide : c'est l'énoncé. */}
+          {type === 'cache_cache' && current.phase === 'question' ? (
+            <GrilleCache bloc="ccg" modificateur="ccg--hud" taille={76} testid="cc-grille-hud"
+              etiquette="Grille numérotée"
+              montre={(place) => <span className="ccg__num">{place}</span>} />
+          ) : null}
+
           {/* LE CHRONO DE MANCHE DISPARAÎT SUR « LE JUSTE TEMPS », et c'est la
               correction la plus importante de ce jeu.
               Il compte les secondes de la FENÊTRE de réponse. Vu à l'écran : le
@@ -697,7 +730,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
               plus qu'à lire. Tout le jeu consiste à ne pas savoir où en est le
               chrono ; en laisser un second à l'écran le rendait sans objet.
               Ici le cadran EST le chrono, et il n'y en a pas d'autre. */}
-          {type === 'juste_temps' ? null : (
+          {type === 'juste_temps' || (type === 'cache_cache' && current.phase === 'grille') ? null : (
           <div
             className={`q-chrono${urgent ? ' q-chrono--urgent' : ''}${timeUp ? ' q-chrono--over' : ''}`}
             style={{ '--q-frac': `${Math.round(frac * 100)}%` }}
@@ -732,10 +765,25 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           <p className="q-text cbj__consigne" id="q-text" data-testid="cb-consigne">
             Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
           </p>
-        ) : type === 'lien' ? null : (
+        ) : type === 'lien' ? null : type === 'cache_cache' && current.phase === 'grille' ? (
+          /* PENDANT LE DÉVOILEMENT, pas d'énoncé : il n'y a rien à répondre, et
+             tout ce qui n'est pas la grille détourne l'œil de ce qu'il faut
+             retenir. Une seule ligne, au-dessus, pour dire ce qu'on attend. */
+          <p className="q-text" id="q-text" data-testid="question-text">Retiens ce que tu vois.</p>
+        ) : (
           <p className={`q-text${disabled ? ' q-text--frozen' : ''}`} id="q-text"
             data-bind="module.text" data-testid="question-text">{current.text}</p>
         )}
+
+        {/* LE NUMÉRO DE LA QUESTION EN COURS — « on doit savoir à quel numéro on
+            est ». Cinq questions s'enchaînent sans que l'écran change de forme :
+            sans ce repère, le joueur ne sait plus s'il en est à la deuxième ou à
+            la quatrième, et ne peut pas juger ce qu'il lui reste. */}
+        {type === 'cache_cache' && current.phase === 'question' ? (
+          <p className="q-consigne" data-testid="cc-numero">
+            <span className="q-consigne__tour">Question {current.numero}/{current.nbQuestions}</span>
+          </p>
+        ) : null}
 
         {/* LA CONSIGNE DU TOUR — « Vote » se joue en deux temps, et la question ne
             change pas entre les deux : c'est CE QU'ON DEMANDE qui change. Sans
@@ -751,7 +799,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}`} data-bind="module.options" data-testid="answer-zone">
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {type === 'true_false' ? (
             [['Vrai', true], ['Faux', false]].map(([label, val]) => {
               const chosen = myAnswer === val;
@@ -797,6 +845,62 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                 {answered ? 'Buzz envoyé' : 'Déjà vu ce visage !'}
               </button>
             </div>
+          ) : type === 'cache_cache' ? (
+            /* « CACHE-CACHE ». Deux écrans en un, selon la phase.
+
+               LE DÉVOILEMENT : la grille prend la place, les cases sont vides et
+               une seule s'allume à la fois. C'est le serveur qui décide de ce qui
+               est visible et quand — l'objet arrive et repart par le réseau. Une
+               grille envoyée d'un bloc serait LISIBLE dans l'inspecteur avant
+               d'avoir été vue, et le jeu de mémoire deviendrait un copier-coller.
+
+               LES QUESTIONS : la grille numérotée est remontée dans le bandeau
+               (voir plus haut) et la place revient à la question. Deux formes de
+               réponse selon la question : cinq couleurs à toucher, ou un mot à
+               taper. */
+            current.phase === 'grille' ? (
+              <div className="ccjeu">
+                <GrilleCache bloc="ccg" modificateur="ccg--grande" testid="cc-grille" vive={objetCache?.place || null}
+                  etiquette={objetCache ? `Objet visible en case ${objetCache.place}` : 'Grille, tout est caché'}
+                  montre={(place) => (objetCache && objetCache.place === place
+                    ? <img className="ccg__objet" src={objetCache.src} alt="" />
+                    : null)} />
+              </div>
+            ) : (
+              <div className="ccjeu">
+                {Array.isArray(current.options) && current.options.length ? (
+                  <div className="q-zone" data-testid="cc-couleurs">
+                    {current.options.map((c, i) => (
+                      <button key={c} className={optClass(myAnswer === i)} type="button"
+                        data-testid="answer-option" data-action="play:answer"
+                        data-state={myAnswer === i ? 'selected' : 'idle'}
+                        disabled={disabled} onClick={() => onAnswer(i)}>
+                        <span className="opt__key" aria-hidden="true">{KEYS[i]}</span>
+                        <span className="opt__label">{c}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  /* LA RÉPONSE SE TAPE — et la touche de validation du clavier
+                     l'envoie, comme partout ailleurs dans le projet (A26). Dix
+                     secondes ne laissent pas le temps de chercher un bouton. */
+                  <form className="est" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
+                    <label className="p-label" htmlFor="cc-mot">Ta réponse</label>
+                    <div className="est__shell">
+                      <input className="est__input est__input--mot" id="cc-mot" type="text"
+                        inputMode="text" enterKeyHint="send" autoComplete="off" autoCapitalize="off"
+                        maxLength={40} value={mot} disabled={disabled}
+                        data-testid="cc-saisie"
+                        onChange={(e) => setMot(e.target.value)} placeholder="Le nom de l'objet" />
+                    </div>
+                    <button className="p-btn p-btn--primary" type="submit" disabled={disabled || !mot.trim()}
+                      data-testid="answer-submit" data-action="play:answer">
+                      {answered ? 'Réponse envoyée' : 'Envoyer'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )
           ) : type === 'retour_flamme' ? (
             /* RETOUR DE FLAMME. L'image occupe l'écran, le buzz est dessous — et
                il n'y a rien d'autre : c'est un jeu d'attention, tout ce qui
@@ -1061,7 +1165,8 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           )}
 
           {status ? (
-            <div className={`q-status${status.closed ? ' q-status--closed' : ''}`} role="status" data-bind="play.accepted">
+            <div className={`q-status${status.closed ? ' q-status--closed' : ''}`} role="status"
+              data-bind="play.accepted" data-testid="answer-status">
               <span aria-hidden="true" style={{ flex: 'none', color: status.closed ? 'var(--c-bad)' : 'var(--c-pine)' }}>
                 {status.closed ? <Ico.clock s={20} /> : <Ico.checkCircle s={20} />}
               </span>
@@ -1077,6 +1182,66 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
 // ============================================================
 // J4 — Résultat de manche (aucun rang, jamais)
 // ============================================================
+// « CACHE-CACHE » — L'ÉCRAN DES RÉPONSES QUI TOMBENT.
+//
+// Il ne montre qu'UNE réponse à la fois, la dernière dévoilée, avec ce qu'elle a
+// rapporté au joueur et son total courant. Les précédentes restent en dessous, en
+// petit : c'est ce qui permet de suivre sa manche sans attendre la fin.
+//
+// LE TOTAL AFFICHÉ N'EST PAS LE SCORE DU JOUEUR, et l'écran le dit : c'est ce que
+// la manche lui rapporte jusqu'ici. Son score, lui, ne bouge qu'à la révélation —
+// mélanger les deux ferait un compteur qui saute.
+function DevoilementScreen({ devoilements, compte, score, nom }) {
+  const dernier = devoilements[devoilements.length - 1];
+  const gagne = compte && compte.n === dernier.n ? compte : null;
+  return (
+    <main className="screen screen--hearth" data-state="devoilement" aria-labelledby="cc-dev-titre">
+      <div className="screen__main">
+        <div className="q-hud">
+          <span className="p-cap p-cap--sunk"><span className="p-cap__label">{nom || 'Cache-cache'}</span></span>
+          <span className="p-cap">
+            <span className="p-cap__label">Score</span>
+            <span className="p-cap__value">{fmtNum(score)}</span>
+          </span>
+        </div>
+
+        <p className="q-consigne" data-testid="cc-dev-numero">
+          <span className="q-consigne__tour">Réponse {dernier.n}/{dernier.total}</span>
+        </p>
+        <h1 className="p-title p-title--sm" id="cc-dev-titre">{dernier.texte}</h1>
+
+        <div className="ccdev">
+          <div className="ccdev__objet">
+            <img src={dernier.objet.src} alt="" />
+            <span className="ccdev__place">Case {dernier.place}</span>
+          </div>
+          <p className="ccdev__reponse" data-testid="cc-dev-reponse">
+            <span className="p-label p-label--tiny">La réponse</span>
+            <strong>{dernier.reponse}</strong>
+          </p>
+        </div>
+
+        {gagne ? (
+          <p className={`ccdev__verdict${gagne.correct ? ' ccdev__verdict--bon' : ''}`} data-testid="cc-dev-verdict">
+            {gagne.correct
+              ? `Trouvé — +${fmtNum(gagne.base + gagne.speed)}`
+              : gagne.repondu ? 'Raté — 0 point' : "Tu n'as pas répondu à celle-là"}
+          </p>
+        ) : null}
+
+        <div className="breakdown">
+          <div className="breakdown__cell">
+            <span className="p-label p-label--tiny">Total de la manche</span>
+            <span className="breakdown__value" data-testid="cc-dev-total">
+              {fmtNum(gagne ? gagne.total : 0)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, presentAuLancement }) {
   const rv = reveal || {};
   const isVote = (rv.type || current?.type) === 'vote';
@@ -1093,6 +1258,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isJusteTemps = (rv.type || current?.type) === 'juste_temps';
   const isBuche = (rv.type || current?.type) === 'coupe_buche';
   const isRetour = (rv.type || current?.type) === 'retour_flamme';
+  const isCache = (rv.type || current?.type) === 'cache_cache';
   const pointsRetour = current?.meta?.points ?? null;
   // LES DEUX JEUX QUI SE GAGNENT PAR PALIERS DE PROXIMITÉ. Tout ce qui suit —
   // la voix, le verdict, la comparaison chiffrée, la ligne d'exactitude — leur
@@ -1201,6 +1367,16 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     if (isRetour) {
       if (monResultat.bons === 6 && monResultat.rates === 0) return 'retour.parfait';
       return (monResultat.brut || 0) > 0 ? 'retour.marque' : 'retour.brule';
+    }
+    // « CACHE-CACHE ». Quatre issues, sur cinq questions. Une phrase unique
+    // dirait la même chose au sans-faute et à celui qui n'a rien reconnu : ce
+    // sont deux manches sans rapport. Et le bas de l'échelle ne punit pas — ne
+    // pas se rappeler n'est pas une faute, c'est le jeu.
+    if (isCache) {
+      const bons = monResultat.bons || 0;
+      if (bons >= 5) return 'cache.parfait';
+      if (bons >= 3) return 'cache.beaucoup';
+      return bons > 0 ? 'cache.quelques' : 'cache.rien';
     }
     if (isSondage) return 'vote.sondage';
     // LE VOTE SE GAGNE EN DEVINANT LE CERCLE, plus en faisant partie de sa
@@ -1344,6 +1520,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     // n'a pas raté : il a été trop pressé, et ça ne lui coûte rien.
                     ? (monResultat?.bons === 6 && monResultat?.rates === 0 ? 'Sans faute'
                       : correct === true ? 'Bien vu' : 'Trop pressé')
+                  : isCache
+                    // CINQ QUESTIONS, ET UN TITRE QUI LES COMPTE. « Raté » dirait
+                    // la même chose à celui qui en a trouvé quatre et à celui qui
+                    // n'a rien reconnu.
+                    ? (monResultat?.bons >= 5 ? 'Sans faute'
+                      : monResultat?.bons > 0 ? `${monResultat.bons} sur 5` : 'La grille a gagné')
                     : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
               {/* La voix du jeu remplace les commentaires figés : « Ça se
@@ -1352,6 +1534,19 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
 
 
             </div>
+
+            {/* « LE DERNIER ÉCRAN VISIBLE DU JEU C'EST LA MATRICE DÉVOILÉE
+                COMPLÈTEMENT. » Le joueur revoit d'un coup les neuf objets qu'il
+                n'a vus qu'un par un — c'est le moment où l'on comprend ce qu'on a
+                manqué, et c'est ce qui donne envie de rejouer. */}
+            {isCache && Array.isArray(rv.stats?.matrice) ? (
+              <GrilleCache bloc="ccg" modificateur="ccg--finale" testid="cc-grille-finale"
+                etiquette="Grille entièrement dévoilée"
+                montre={(place) => {
+                  const o = rv.stats.matrice.find((x) => x.place === place);
+                  return o ? <img className="ccg__objet" src={o.src} alt={`${o.nom} ${o.couleur}`} /> : null;
+                }} />
+            ) : null}
 
             {!isSondage ? (
               <div className="gain">
@@ -2084,6 +2279,23 @@ export function PlayApp() {
     );
   }
 
+  // « CACHE-CACHE » : LES RÉPONSES QUI TOMBENT UNE PAR UNE.
+  //
+  // Cet écran occupe l'intervalle entre la dernière question et la révélation de
+  // la manche — un intervalle qui n'existe dans aucun autre jeu. « Comme les 5
+  // réponses sont dévoilées les unes après les autres, l'écran doit être évolutif.
+  // On doit voir le total sur le moment [...] et on doit savoir à quel numéro de
+  // réponse on est. »
+  //
+  // POURQUOI LA MANCHE N'EST PAS ENCORE RÉVÉLÉE : révéler crédite les points,
+  // recalcule les places et fait parler le plateau. Le faire à la première réponse
+  // afficherait le total de la manche avant que le joueur ait vu les quatre
+  // autres — la fin de l'histoire avant l'histoire.
+  if (!g.reveal && g.devoilements.length > 0) {
+    return <DevoilementScreen devoilements={g.devoilements} compte={g.monCompte}
+      score={g.you?.score || 0} nom={g.current?.meta?.name} />;
+  }
+
   // L'ANNONCE d'un jeu qui n'a pas encore démarré — le jingle du « Lien ».
   if (g.annonce && !g.current) {
     return <AnnonceScreen nom={g.annonce.name} type={g.annonce.type} annonce={g.annonce} />;
@@ -2101,6 +2313,8 @@ export function PlayApp() {
         onAnswer={handleAnswer}
         element={g.element}
         buzz={g.buzz}
+        objetCache={g.objetCache}
+        tourClos={g.tourClos}
       />
     );
   }

@@ -448,6 +448,23 @@ describe('les jeux à défilé le DÉCLARENT', () => {
       let rt;
       try { rt = mod.buildRound({ id: 'q' }); } catch { continue; }
       if (!Array.isArray(rt.ordre)) continue;
+      // DEUX FAÇONS DE POUSSER UNE SÉRIE, et le moteur les connaît toutes les deux.
+      //   - `defile` : une CADENCE régulière, une image après l'autre, sans blanc.
+      //     C'est le cas des visages et de « Retour de flamme ».
+      //   - `devoilementGrille` : un HORAIRE irrégulier, où chaque objet s'allume
+      //     puis s'éteint avec un intervalle noir entre deux. C'est
+      //     « Cache-cache », dont la série ne tient pas dans une cadence : trois
+      //     secondes visibles, une seconde de noir, et une ouverture de trois
+      //     secondes avant la première.
+      // Ce qui reste interdit, c'est de produire un `ordre` sans déclarer NI l'un
+      // NI l'autre : le moteur ne pousserait jamais rien, et l'écran resterait
+      // vide sans que rien ne le signale.
+      if (mod.meta.devoilementGrille) {
+        expect(rt.matrice, `« ${type} » dévoile une grille mais n'en produit pas`).toBeDefined();
+        expect(rt.ordre.length, `« ${type} » : l'ordre de dévoilement ne couvre pas la grille`)
+          .toBe(rt.matrice.length);
+        continue;
+      }
       const defile = mod.meta.defile;
       expect(defile, `« ${type} » produit une série mais ne déclare aucun défilé : le moteur ne la poussera jamais`).toBeDefined();
       expect(defile.cadenceMs, `« ${type} » : cadence de défilé absente`).toBeGreaterThan(0);

@@ -105,6 +105,10 @@ describe('convention de la voix — contrôle bloquant', () => {
         'estimation.correct', 'estimation.loin', 'estimation.hors'],
       juste_temps: ['estimation.exact', 'estimation.mille', 'estimation.proche',
         'estimation.correct', 'estimation.loin', 'estimation.hors'],
+      // « CACHE-CACHE » a sa propre famille : cinq questions dans la même manche,
+      // et donc un résultat qui se compte en cases retrouvées — ce qu'aucune
+      // famille existante ne sait dire.
+      cache_cache: ['cache.parfait', 'cache.beaucoup', 'cache.quelques', 'cache.rien'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

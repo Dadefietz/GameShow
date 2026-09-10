@@ -380,6 +380,88 @@
   .cbj__buche { margin-top: auto; }
   .cbj .p-btn--buzz { margin-top: auto; }
 
+  /* ===== « CACHE-CACHE » — LA GRILLE 3×3 =====
+     Une seule géométrie pour les trois emplois de l'écran du joueur : la grande
+     grille du dévoilement, la petite grille numérotée du bandeau, et celle des
+     réponses. Ce qui change est une TAILLE, passée en variable — le reste est
+     commun, et le reste doit le rester : trois grilles qui divergeraient, ce sont
+     trois numérotations qui finissent par ne plus désigner les mêmes cases.
+
+     LES CASES SONT CARRÉES, et c'est structurel : `aspect-ratio` sur la case, pas
+     une hauteur en pixels. Une grille dont les cases s'aplatissent au premier
+     téléphone étroit ne se lit plus comme une grille. */
+  .ccg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-2);
+    width: var(--ccg-taille, 100%);
+    max-width: var(--ccg-taille, 100%);
+  }
+  .ccg__case {
+    aspect-ratio: 1;
+    border-radius: var(--r-s);
+    background: var(--c-surface-sunk);
+    /* UN FILET SUR LES CASES VIDES, et il est nécessaire : pendant le
+       dévoilement, huit cases sur neuf sont éteintes. Sans contour, le fond sombre
+       les avale et il ne reste qu'un objet flottant — le joueur ne voit plus la
+       GRILLE, donc ne peut pas situer ce qu'il voit. Or les questions désignent
+       les cases par leur position. */
+    box-shadow: var(--sh-inset), inset 0 0 0 1px var(--c-line);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  /* LA CASE PLEINE EST CLAIRE. Les icônes sont des dessins à trait noir sur fond
+     détouré : posées sur le fond sombre du système, elles disparaîtraient. La
+     plaque claire est ce qui les rend lisibles — c'est aussi ce que montre la
+     référence fournie. */
+  .ccg__case--pleine {
+    background: var(--c-plaque);
+    box-shadow: var(--sh-1);
+  }
+  .ccg__objet { width: 86%; height: 86%; object-fit: contain; }
+  .ccg__num {
+    font: 500 var(--fs-400) / 1 var(--f-mono);
+    color: var(--c-ink-2);
+  }
+  /* LA GRILLE DU BANDEAU — « à la même taille que le chronomètre ». Ses chiffres
+     doivent rester lisibles à 76 px : « la police des chiffres dans la matrice
+     doit être assez fine pour que ce soit lisible ». */
+  .ccg--hud .ccg__case { border-radius: var(--r-xs); }
+  .ccg--hud .ccg__num { font-size: var(--fs-200); color: var(--c-ink-3); }
+  .ccg--hud { gap: 2px; }
+  /* LA GRANDE GRILLE — « lors du dévoilement, la matrice prend la majeure partie
+     de l'écran ». */
+  .ccjeu { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); width: 100%; }
+  /* « Lors du dévoilement, la matrice prend la majeure partie de l'écran. » La
+     zone de réponse est ancrée en bas partout ailleurs ; ici il n'y a rien à
+     toucher, et tout à regarder. */
+  .q-zone--cache { margin-top: 0; flex: 1; justify-content: center; }
+  .ccg--grande { width: min(100%, 52vh); }
+  /* La grille entière, sur l'écran de résultat : plus petite que celle du
+     dévoilement — elle accompagne le verdict, elle ne le remplace pas. */
+  .ccg--finale { width: min(100%, 34vh); margin: var(--sp-4) auto; }
+  .ccg--grande .ccg__case--vive { box-shadow: var(--sh-2), 0 0 0 2px var(--c-ember); }
+
+  /* L'ÉCRAN DES RÉPONSES QUI TOMBENT — une à la fois, avec ce qu'elle rapporte. */
+  .ccdev { display: flex; align-items: center; gap: var(--sp-5); margin: var(--sp-5) 0; }
+  .ccdev__objet {
+    display: grid;
+    place-items: center;
+    gap: var(--sp-2);
+    width: 42%;
+    padding: var(--sp-3);
+    border-radius: var(--r-m);
+    background: var(--c-plaque);
+    box-shadow: var(--sh-1);
+  }
+  .ccdev__objet img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+  .ccdev__place { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .ccdev__reponse { display: grid; gap: var(--sp-1); margin: 0; }
+  .ccdev__reponse strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
+  .ccdev__verdict { margin: 0; font: 500 var(--fs-400) / 1.35 var(--f-ui); color: var(--c-ink-2); }
+  .ccdev__verdict--bon { color: var(--c-good); }
+
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {
     min-height: var(--hit-lg);

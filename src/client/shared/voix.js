@@ -309,6 +309,57 @@ export const MOMENTS = {
     ],
   },
 
+  // ---------- VOIX INTIME : cache-cache ----------
+  //
+  // QUATRE ISSUES, PARCE QU'IL Y A CINQ QUESTIONS. Ce jeu ne se gagne pas d'un
+  // coup : on en trouve trois, ou une, ou aucune. Une phrase unique dirait la même
+  // chose à celui qui a fait un sans-faute et à celui qui n'a rien reconnu — et
+  // ce sont deux manches sans rapport.
+  //
+  // ON NE PUNIT PAS L'ERREUR DE MÉMOIRE, jamais. Ne pas se rappeler n'est pas une
+  // faute : c'est le jeu. Les phrases du bas disent ce qui s'est passé, elles ne
+  // jugent pas celui à qui c'est arrivé.
+  'cache.parfait': {
+    surface: 'play',
+    quand: 'les cinq questions trouvées — le maximum du jeu',
+    phrases: [
+      'Cinq sur cinq. Rien ne t’a échappé.',
+      'Tu avais tout retenu. Absolument tout.',
+      'Mémoire de braise : la grille entière.',
+      'Sans faute. Le cercle peut trembler.',
+    ],
+  },
+  'cache.beaucoup': {
+    surface: 'play',
+    quand: 'la majorité des questions trouvées, sans le sans-faute',
+    phrases: [
+      'Tu en as retenu l’essentiel. C’est déjà beaucoup.',
+      'La grille t’a livré la plupart de ses secrets.',
+      'Bien vu — quelques cases se sont défendues.',
+      'Belle mémoire. Il en restait un ou deux dans l’ombre.',
+    ],
+  },
+  'cache.quelques': {
+    surface: 'play',
+    quand: 'au moins une bonne réponse, sans atteindre la majorité',
+    phrases: [
+      'Quelques cases sont restées. C’est autant de pris.',
+      'Ta mémoire a gardé des morceaux. Ça compte.',
+      'Une partie de la grille t’est restée.',
+      'Il en reste toujours quelque chose. La preuve.',
+    ],
+  },
+  'cache.rien': {
+    surface: 'play',
+    quand: 'aucune bonne réponse sur les cinq questions',
+    phrases: [
+      'Tout s’est effacé. Ça arrive, et ça ne coûte rien.',
+      'Les objets ont bien fait leur travail : ils se sont cachés.',
+      'Rien n’est resté cette fois. Ton total est intact.',
+      'La grille a gagné cette manche-là.',
+    ],
+  },
+
   // ---------- VOIX INTIME : le lien ----------
   //
   // PHRASES PROVISOIRES, à relire par l'auteur. Elles suivent la règle du

@@ -36,6 +36,13 @@ export function useGame(token) {
   // ils ne peuvent pas tourner en même temps, et deux états jumeaux auraient
   // divergé au premier correctif.
   const [element, setElement] = useState(null);    // { roundId, place, id, src }
+  // « CACHE-CACHE » — l'objet actuellement allumé dans la grille, les réponses
+  // déjà dévoilées, et le compte personnel du joueur. Trois états séparés parce
+  // qu'ils vivent à trois moments différents de la même manche.
+  const [objetCache, setObjetCache] = useState(null);   // { roundId, place, id, src }
+  const [devoilements, setDevoilements] = useState([]); // [{ n, texte, reponse, place, objet }]
+  const [monCompte, setMonCompte] = useState(null);     // { n, correct, base, speed, total }
+  const [tourClos, setTourClos] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
   const [fatal, setFatal] = useState(null);               // salon mort / token invalide (irrécupérable)
@@ -88,6 +95,14 @@ export function useGame(token) {
       // suivante : elle resterait affichée jusqu'à la première image de la
       // nouvelle série, à l'écran, pendant deux secondes.
       setElement(null);
+      // La grille de « Cache-cache » repart vide à chaque tour : un objet resté
+      // allumé du tour précédent serait montré une seconde fois, gratuitement.
+      setObjetCache(null);
+      setTourClos(false);
+      // Les réponses dévoilées n'appartiennent qu'à leur manche. Le tour 1 d'une
+      // NOUVELLE manche les efface ; les tours suivants de la même manche non —
+      // sans quoi la deuxième question effacerait la première.
+      if (m.tour == null || m.tour <= 1) { setDevoilements([]); setMonCompte(null); }
       // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
       // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
       setMonChoix(m.monChoix ?? null);
@@ -103,6 +118,12 @@ export function useGame(token) {
     });
     s.on('module:distribution', (d) => setDistribution(d));
     s.on('serie:element', (v) => setElement(v && v.id ? v : null));
+    s.on('cache:objet', (v) => setObjetCache(v && v.place ? v : null));
+    s.on('cache:devoilement', (d) => setDevoilements((prev) => (
+      prev.some((x) => x.n === d.n) ? prev : [...prev, d].sort((a, b) => a.n - b.n)
+    )));
+    s.on('cache:tonpoint', (d) => setMonCompte(d));
+    s.on('module:tourClos', () => setTourClos(true));
     s.on('host:error', (e) => setServerError({ ...e, at: Date.now() }));
     s.on('module:tick', (t) => setTick(t));
     s.on('module:answersCount', (c) => setTick((prev) => ({ ...(prev || {}), answers: c.count })));
@@ -149,7 +170,7 @@ export function useGame(token) {
     socketRef.current?.off(event, handler);
   }, []);
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, objetCache, devoilements, monCompte, tourClos, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

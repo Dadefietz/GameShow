@@ -1308,6 +1308,27 @@
         Le nom prenait 672 px des 924 disponibles et rejetait trois colonnes de
         47 px contre le bord. Le nom est maintenant borné : il garde de quoi lire
         un pseudo long, le reste va aux chiffres, qui sont ce qu'on vient lire. */
+  /* « CACHE-CACHE » — le panneau des réponses de l'animateur. La grille à gauche,
+     la question et sa réponse à droite, le classement dessous. */
+  .ccrep { display: flex; gap: var(--sp-4); align-items: flex-start; margin-bottom: var(--sp-4); }
+  .ccrep__grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-1); width: var(--ccg-taille, 168px); }
+  .ccrep__grille__case {
+    aspect-ratio: 1;
+    border-radius: var(--r-xs);
+    background: var(--c-surface-sunk);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .ccrep__grille__case--pleine { background: var(--c-plaque); }
+  .ccrep__grille__case--vive { box-shadow: 0 0 0 2px var(--c-ember); }
+  .ccrep__grille__case img { width: 84%; height: 84%; object-fit: contain; }
+  .ccrep__num { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-4); }
+  .ccrep__texte { display: grid; gap: var(--sp-3); }
+  .ccrep__question { margin: 0; font: 500 var(--fs-400) / 1.35 var(--f-ui); color: var(--c-ink); }
+  .ccrep__reponse { display: grid; gap: var(--sp-1); margin: 0; }
+  .ccrep__reponse strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ember-bright); }
+
   .clsm {
     --clsm-cols: 3;
     --clsm-col-w: 5.5rem;

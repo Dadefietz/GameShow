@@ -13,6 +13,7 @@ import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-e
 import { formatteurDe, secondes as secondesFr } from '../shared/temps.js';
 import { pourcent } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
+import { GrilleCache } from '../shared/GrilleCache.jsx';
 import { Symbole } from '../shared/Symbole.jsx';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
@@ -562,6 +563,29 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
 // Ce panneau existe pour une seule raison — le temps qui sépare l'annonce du
 // premier visage appartient à l'animateur, qui présente le jeu à l'antenne. Sans
 // lui, les visages commenceraient à défiler pendant qu'il finit sa phrase.
+function DepartCache({ jeu, onDemarrer, onAnnuler }) {
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Cache-cache" data-testid="depart-cache">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Neuf objets se montrent un par un, trois secondes chacun — trente-huit
+        secondes en tout. Cinq questions suivent, dix secondes chacune, et c'est toi
+        qui les enchaînes. Donne le départ quand tu es prêt.
+      </p>
+      <div className="lien-saisie__actions">
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerCache" data-testid="cache-demarrer"
+          onClick={() => onDemarrer(jeu)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
   return (
     <section className="private lien-saisie" aria-label="Démarrer Les visages" data-testid="depart-visages">
@@ -660,6 +684,75 @@ const COLONNES_CLASSEMENT = {
     ['Ratés', (l) => fmt(l.rates)],
   ],
 };
+
+// « CACHE-CACHE » — CE QUE L'ANIMATEUR VOIT PENDANT LES RÉPONSES.
+//
+// Trois choses, et l'énoncé les demande ensemble : « la matrice qui révèle la
+// bonne case doit être affichée avec à côté la question et la réponse [...] Il
+// faut également un tableau en-dessous du classement des 50 premières personnes
+// avec leur nombre de points à chaque dévoilement. »
+//
+// LE CLASSEMENT SE CONSTRUIT COLONNE PAR COLONNE. À la première réponse dévoilée
+// il ne juge que la première question ; à la cinquième il a sept colonnes — le
+// nom, les cinq questions, le total. C'est le SERVEUR qui les envoie, sur le
+// canal de l'animateur seul : les noms ne partent jamais vers le stream.
+function CacheReponses({ g, roundId }) {
+  const [classement, setClassement] = useState(null);
+  useEffect(() => {
+    const onClsm = (d) => setClassement(d && d.roundId === roundId ? d : null);
+    g.on('cache:classement', onClsm);
+    return () => g.off('cache:classement', onClsm);
+  }, [g, roundId]);
+
+  const devoilements = g.devoilements;
+  if (!devoilements.length) return null;
+  const dernier = devoilements[devoilements.length - 1];
+
+  return (
+    <section className="private" aria-label="Réponses de Cache-cache" data-testid="cache-reponses">
+      <p className="private__title">
+        <I.eye s={16} /> Réponse {dernier.n}/{dernier.total} — toi seul
+      </p>
+      <div className="ccrep">
+        <GrilleCache bloc="ccrep__grille" taille={168} testid="cache-matrice"
+          etiquette={`Case ${dernier.place} dévoilée`}
+          vive={dernier.place}
+          montre={(place) => {
+            const d = devoilements.find((x) => x.place === place);
+            return d ? <img src={d.objet.src} alt="" /> : <span className="ccrep__num">{place}</span>;
+          }} />
+        <div className="ccrep__texte">
+          <p className="ccrep__question">{dernier.texte}</p>
+          <p className="ccrep__reponse">
+            <span className="p-label p-label--tiny">La réponse</span>
+            <strong data-testid="cache-reponse">{dernier.reponse}</strong>
+          </p>
+        </div>
+      </div>
+
+      {classement && classement.lignes.length ? (
+        <div className="clsm" style={{ '--clsm-cols': dernier.n + 1 }} data-testid="cache-classement">
+          <div className="clsm__ligne clsm__ligne--tete">
+            <span className="clsm__rang" />
+            <span className="clsm__nom">Joueur</span>
+            {Array.from({ length: dernier.n }, (_, i) => (
+              <span className="clsm__col" key={i}>Q{i + 1}</span>
+            ))}
+            <span className="clsm__col">Total</span>
+          </div>
+          {classement.lignes.map((l, i) => (
+            <div className="clsm__ligne" key={`${l.pseudo}-${i}`}>
+              <span className="clsm__rang">{i + 1}</span>
+              <span className="clsm__nom" title={l.pseudo}>{l.pseudo}</span>
+              {l.points.map((p, j) => <span className="clsm__col" key={j}>{fmt(p)}</span>)}
+              <span className="clsm__col"><strong>{fmt(l.total)}</strong></span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 function ClassementManche({ g, roundId, revealed }) {
   const [donnee, setDonnee] = useState(null);
@@ -1835,11 +1928,11 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
 // sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
 // verrait la manche repartir avec les mots de la précédente.
-const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche'];
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache'];
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -1859,6 +1952,17 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
   const classement = g.leaderboard || [];
   const hasScores = classement.some((p) => (p.score || 0) > 0);
   const moduleName = (current && current.meta && current.meta.name) || 'Épreuve';
+
+  // « CACHE-CACHE » — où en est la manche.
+  //
+  // Elle a un temps que les autres n'ont pas : après la dernière question et
+  // AVANT la révélation, cinq réponses se dévoilent une par une, au rythme de
+  // l'animateur. `devoilements` compte celles qui sont déjà tombées.
+  const estCache = current?.type === 'cache_cache';
+  const devoilees = g.devoilements.length;
+  // On est « aux réponses » dès que la dernière question est close.
+  const cacheAuxReponses = estCache && !revealed
+    && (devoilees > 0 || (current.tour >= current.tours && g.tourClos));
 
   const revealLabel = revealed ? (() => {
     if (reveal.type === 'true_false') return reveal.correct ? 'Vrai' : 'Faux';
@@ -1986,6 +2090,9 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
               <FileAttente g={g} moduleId={prepare.id} nomJeu={prepare.name} />
             </>
           ) : null}
+          {prepare && prepare.type === 'cache_cache' ? (
+            <DepartCache jeu={prepare} onDemarrer={onDemarrerCache} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
               onMode={onModeRetour} onFamille={onFamilleRetour}
@@ -1997,6 +2104,7 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
 
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
+          {estCache ? <CacheReponses g={g} roundId={current && current.roundId} /> : null}
           <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA SÉRIE DE VISAGES, À LA RÉVÉLATION. Elle vient de `reveal.stats` et
@@ -2085,7 +2193,12 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
         ) : (
           <>
             <button className="button button--primary button--lg" type="button"
-              data-action="host:reveal" onClick={() => g.emit('host:reveal')}
+              /* UN SEUL MESSAGE, QUEL QUE SOIT LE MOMENT. C'est le serveur qui
+                 décide de ce que « révéler » veut dire à cet instant : passer au
+                 tour suivant, dévoiler une réponse de plus, ou révéler la manche.
+                 La console ne fait que NOMMER ce qui va se passer. */
+              data-action="host:reveal"
+              onClick={() => g.emit('host:reveal')}
               data-testid="host-reveler">
               {/* LE BOUTON NE RÉVÈLE PAS TOUJOURS. Sur une manche à deux tours —
                   « Vote » — il OUVRE LE SECOND tant qu'il en reste un : révéler la
@@ -2093,9 +2206,17 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
                   serveur tranche seul (`finDeFenetre`) ; l'écran dit seulement ce
                   qui va se passer, pour que l'animateur ne l'apprenne pas en
                   cliquant. */}
-              {current && current.tours > 1 && current.tour < current.tours
-                ? `Passer au tour ${current.tour + 1}`
-                : 'Révéler maintenant'}
+              {/* « CACHE-CACHE » compte à part : cinq réponses dévoilées une par
+                  une, puis la grille — qui est aussi la révélation de la manche.
+                  L'animateur doit lire sur le bouton ce qu'il va montrer, pas le
+                  découvrir en appuyant. */}
+              {estCache && cacheAuxReponses
+                ? (devoilees >= (current.nbQuestions || 5)
+                  ? 'Dévoiler la grille'
+                  : `Dévoiler la réponse ${devoilees + 1}`)
+                : current && current.tours > 1 && current.tour < current.tours
+                  ? (estCache ? `Question ${current.tour}` : `Passer au tour ${current.tour + 1}`)
+                  : 'Révéler maintenant'}
             </button>
             <ModuleMenu jeux={jeux} currentId={current && current.moduleId} onPick={onChangeModule} />
           </>
@@ -2417,6 +2538,19 @@ export function HostApp() {
 
   // LE DÉPART DE LA SÉRIE DE VISAGES. Rien à transmettre : la série est TIRÉE
   // par le serveur, qui seul la connaît. L'animateur n'envoie qu'un top.
+  // LE DÉPART DE « CACHE-CACHE ». Rien à transmettre : la grille, l'ordre de
+  // dévoilement et les cinq questions sont TIRÉS PAR LE SERVEUR, qui seul les
+  // connaît. L'animateur n'envoie qu'un top.
+  const demarrerCache = useCallback((jeu) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `cc-${Date.now()}` },
+    });
+  }, [g]);
+
   const demarrerVisages = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
@@ -2558,6 +2692,7 @@ export function HostApp() {
           onFamilleRetour={setFamilleRetour}
           onDemarrerRetour={demarrerRetour}
           onDemarrerVisages={demarrerVisages}
+          onDemarrerCache={demarrerCache}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

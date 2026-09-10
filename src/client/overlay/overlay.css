@@ -901,6 +901,53 @@
   }
 
   /* ===== LE LIEN, à l'échelle de l'antenne ===== */
+  /* ===== « CACHE-CACHE » À L'ANTENNE =====
+     Deux dispositions, comme sur le téléphone, mais aux mesures de la scène.
+
+     PENDANT LES QUESTIONS, la zone du quiz est COUPÉE EN DEUX à parts égales —
+     « à gauche la question et les choix, à droite la matrice numérotée ». La
+     grille n'est pas décorative : les questions désignent les cases par leur
+     numéro, et le public ne peut pas suivre sans l'avoir sous les yeux. */
+  .st-cache { display: grid; gap: var(--gap-st); width: 100%; }
+  .st-cache--question { grid-template-columns: 1fr 1fr; align-items: center; }
+  .st-cache--grille { place-items: center; }
+  .st-cache__gauche { display: grid; gap: var(--sp-4); min-height: 0; }
+  /* CINQ CHOIX AU LIEU DE QUATRE, dans la moitié de la largeur. Les pavés du quiz
+     sont taillés pour quatre réponses sur toute la scène ; à cinq et sur une
+     demi-scène, le dernier passait sous le bord du canevas — mesuré à l'écran,
+     « Vert » coupé en deux. Ils se resserrent ici, et là seulement. */
+  .st-cache--question .st-options { gap: var(--sp-3); justify-content: center; }
+  .st-cache--question .st-opt { min-height: 0; padding: var(--sp-3) var(--sp-5); gap: var(--sp-4); }
+  .st-cache--question .st-opt__label { font-size: var(--fs-st-300); }
+  .st-cache--question .st-opt__key { width: 56px; height: 56px; font-size: var(--fs-st-200); }
+  .st-cache__droite { display: grid; place-items: center; }
+
+  .st-ccg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+    width: min(100%, 420px);
+  }
+  .st-ccg__case {
+    aspect-ratio: 1;
+    border-radius: var(--r-m);
+    background: var(--c-surface-sunk);
+    box-shadow: var(--sh-inset);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  /* Même raison que sur le téléphone : les icônes sont des dessins à trait noir,
+     il leur faut un support clair pour exister sur une scène de nuit. */
+  .st-ccg__case--pleine { background: var(--c-plaque); box-shadow: var(--sh-2); }
+  .st-ccg__case--vive { box-shadow: var(--sh-2), 0 0 0 3px var(--c-ember); }
+  .st-ccg__objet { width: 86%; height: 86%; object-fit: contain; }
+  .st-ccg__num { font: 500 var(--fs-st-400) / 1 var(--f-mono); color: var(--c-ink-2); }
+  /* AU DÉVOILEMENT, la grille prend la scène : c'est le seul moment du jeu où il
+     n'y a rien d'autre à regarder, et tout à retenir. */
+  .st-ccg--grande { width: min(100%, 62vh); }
+  .st-ccg--grande .st-ccg__num { font-size: var(--fs-st-600); }
+
   .st-annonce__emblem {
     display: grid;
     /* ALIGNÉ SUR LE TITRE, pas centré sur la scène. Le reste du bloc — sur-titre,

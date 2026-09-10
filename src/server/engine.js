@@ -8,6 +8,8 @@
 //    final est public à la fin de la partie.
 import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, coupeDuJoueur, auCentieme, creneauDe as creneauSerie } from './modules.js';
 import { srcDeVisage } from './visages.js';
+import { srcDObjet } from './objets.js';
+import { momentsDuDevoilement } from './cache-cache.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
 // du barème. Un seul endroit la calcule ici comme à la révélation, pour que les
@@ -322,6 +324,41 @@ export function startModule(io, room, jeu, question) {
     }, defile.cadenceMs);
   }
 
+  // LE DÉVOILEMENT DE LA GRILLE DE « CACHE-CACHE ».
+  //
+  // Neuf objets qui s'allument un par un, trois secondes chacun, séparés d'une
+  // seconde de noir. C'est le jeu tout entier : ce qu'on a vu, et rien d'autre.
+  //
+  // POURQUOI LE SERVEUR LES POUSSE UN PAR UN au lieu d'envoyer la grille et de
+  // laisser les écrans l'animer. Une grille envoyée d'un bloc serait LISIBLE
+  // AVANT D'ÊTRE VUE : il suffirait d'ouvrir l'inspecteur pour connaître les neuf
+  // objets et leurs places, et le jeu de mémoire deviendrait un jeu de copier-
+  // coller. Même règle que la série des visages, pour la même raison.
+  //
+  // ON POUSSE AUSSI L'EXTINCTION. Laisser le client masquer après trois secondes
+  // marcherait — mais une image restée allumée sur un téléphone qui a ramé
+  // donnerait à son propriétaire un temps de mémorisation que les autres n'ont
+  // pas. L'arbitre décide de ce qui est visible, et quand.
+  if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
+  if (mod.meta.devoilementGrille && Array.isArray(rt.ordre)) {
+    const parPlace = new Map((rt.matrice || []).map((o) => [o.place, o]));
+    room._grille = [];
+    rt.ordre.forEach((place, i) => {
+      const { debut, fin } = momentsDuDevoilement(i);
+      const objet = parPlace.get(place);
+      room._grille.push(setTimeout(() => {
+        if (room.currentModule !== rt || rt.revealed) return;
+        toRoom(io, room).emit('cache:objet', {
+          roundId: rt.roundId, place, id: objet.id, src: srcDObjet(objet.id), rang: i + 1,
+        });
+      }, debut));
+      room._grille.push(setTimeout(() => {
+        if (room.currentModule !== rt || rt.revealed) return;
+        toRoom(io, room).emit('cache:objet', { roundId: rt.roundId, place: null, rang: i + 1 });
+      }, fin));
+    });
+  }
+
   // Tick de compte à rebours (1s) pour toutes les surfaces.
   //
   // NE PAS TOUCHER AU DÉFILÉ ICI. Partout ailleurs, arrêter le tick
@@ -343,13 +380,41 @@ export function startModule(io, room, jeu, question) {
 // manche, pas à l'ouverture d'une fenêtre. Un second tour ne rejoue pas la série.
 function armerLaFenetre(io, room, rt) {
   if (room._timer) clearTimeout(room._timer);
-  room._timer = setTimeout(() => finDeFenetre(io, room), rt.durationMs + 50);
+  // CERTAINS JEUX N'ENCHAÎNENT PAS TOUT SEULS. « Quand les joueurs ont répondu ou
+  // que le temps est écoulé pour une question, c'est à l'animateur de lancer la
+  // question suivante. » La fenêtre se ferme donc — plus personne ne répond — mais
+  // la manche attend. Sans quoi les cinq questions de « Cache-cache » défileraient
+  // en cinquante secondes sans que personne ne les commente.
+  // Le module décide TOUR PAR TOUR. « Cache-cache » n'attend personne à la fin du
+  // dévoilement — la grille a une longueur fixe, il n'y a rien à commenter — mais
+  // il attend entre chaque question.
+  const mod = modules[rt.type];
+  const attendre = typeof mod?.attendLAnimateur === 'function'
+    ? mod.attendLAnimateur(rt)
+    : mod?.meta?.attendreLAnimateur === true;
+  room._timer = setTimeout(() => {
+    if (attendre) { fermerLaFenetre(io, room); return; }
+    finDeFenetre(io, room);
+  }, rt.durationMs + 50);
   if (room._tick) clearInterval(room._tick);
   room._tick = setInterval(() => {
     const rem = Math.max(0, Math.ceil((room.currentModule?.deadline - Date.now()) / 1000));
     toRoom(io, room).emit('module:tick', { timeLeft: rem, answers: room.currentModule?.answers.size || 0 });
     if (rem <= 0) clearInterval(room._tick);
   }, 1000);
+}
+
+// LA FERMETURE DOUCE D'UNE FENÊTRE — le temps est écoulé, la manche continue.
+//
+// Elle ne fait qu'une chose : cesser d'accepter les réponses et le dire aux trois
+// surfaces. C'est ce qui permet à l'écran du joueur d'afficher « Trop tard pour
+// celle-là… » sans que rien n'enchaîne derrière.
+function fermerLaFenetre(io, room) {
+  const rt = room.currentModule;
+  if (!rt || rt.revealed || rt.tourClos) return;
+  rt.tourClos = true;
+  if (room._tick) clearInterval(room._tick);
+  toRoom(io, room).emit('module:tourClos', { roundId: rt.roundId, tour: rt.tour });
 }
 
 // LA FIN D'UNE FENÊTRE DE RÉPONSE : soit on passe au tour suivant, soit on révèle.
@@ -363,6 +428,18 @@ export function finDeFenetre(io, room) {
   const rt = room.currentModule;
   if (!rt || rt.revealed) return;
   if ((rt.tours || 1) > (rt.tour || 1)) return tourSuivant(io, room);
+  // « CACHE-CACHE » : LA DERNIÈRE QUESTION NE FINIT PAS LA MANCHE. Il reste cinq
+  // réponses à rendre une par une, et c'est l'animateur qui les rythme. Révéler
+  // ici afficherait le total de la manche avant la première réponse — la fin de
+  // l'histoire avant l'histoire.
+  //
+  // C'EST BIEN ICI QUE ÇA SE TRANCHE, et pas dans la console : « le seul endroit
+  // qui tranche, et il tranche sur ce que la MANCHE déclare ». L'écran de
+  // l'animateur ne fait que nommer le bouton.
+  if (modules[rt.type]?.meta?.devoilementGrille
+    && (rt.devoilees || 0) < (rt.questions?.length || 0)) {
+    return devoilerReponse(io, room);
+  }
   return reveal(io, room);
 }
 
@@ -384,8 +461,19 @@ function tourSuivant(io, room) {
   rt.tour += 1;
   rt.answers = new Map();
   rt.startedAt = Date.now();
+  // LA DURÉE PEUT CHANGER D'UN TOUR À L'AUTRE, et un seul jeu le demande :
+  // « Cache-cache » ouvre par trente-huit secondes de grille puis enchaîne cinq
+  // questions de dix. Le module la déclare ; le moteur ne connaît pas les tours
+  // par leur numéro.
+  if (typeof mod.dureeDuTour === 'function') rt.durationMs = mod.dureeDuTour(rt);
   rt.deadline = rt.startedAt + rt.durationMs;
   rt.closed = false;
+  rt.tourClos = false;
+  // L'HEURE DE DÉPART DE CHAQUE TOUR, gardée. Le barème d'un jeu à plusieurs tours
+  // note la rapidité de CHAQUE réponse : sans ce repère, les quatre premières
+  // questions se compteraient depuis le départ du dernier tour, et vaudraient
+  // toutes zéro.
+  rt.debutsDeTour = { ...(rt.debutsDeTour || {}), [rt.tour]: rt.startedAt };
   roomManager.touch(room);
 
   // On rejoue le lancement à l'identique — c'est ce qui remet les écrans à zéro
@@ -412,12 +500,88 @@ function tourSuivant(io, room) {
   armerLaFenetre(io, room, rt);
 }
 
+// LE DÉVOILEMENT DES RÉPONSES, UNE PAR UNE — « CACHE-CACHE ».
+//
+// « Une fois que les joueurs ont répondu aux 5 questions, les réponses s'affichent
+// une par une, et encore une fois, c'est l'animateur qui passe de la réponse d'une
+// question à la réponse suivante. »
+//
+// POURQUOI LA MANCHE N'EST PAS ENCORE RÉVÉLÉE. Révéler, dans ce projet, veut dire
+// une chose précise : créditer les points, nourrir les séries, recalculer les
+// places, faire parler le plateau. Le faire à la première réponse dévoilée
+// afficherait le total de la manche sur le téléphone du joueur avant qu'il ait vu
+// les quatre autres réponses — c'est-à-dire la fin de l'histoire avant l'histoire.
+// La révélation, la vraie, arrive au dernier geste : « Dévoiler la grille ».
+//
+// CHACUN REÇOIT SA PART, ET RIEN DE PLUS :
+//   - tout le monde voit la question, sa bonne réponse et la case qu'elle désigne ;
+//   - chaque joueur reçoit SON résultat sur cette question et son total courant ;
+//   - l'animateur seul reçoit le classement nominatif, colonne par colonne.
+export function devoilerReponse(io, room) {
+  const rt = room.currentModule;
+  if (!rt || rt.revealed) return;
+  const mod = modules[rt.type];
+  if (!mod?.meta?.devoilementGrille) return;
+  // Les cinq réponses d'abord ; le sixième geste révèle la manche.
+  if ((rt.devoilees || 0) >= rt.questions.length) return reveal(io, room);
+
+  rt.devoilees = (rt.devoilees || 0) + 1;
+  const n = rt.devoilees;
+  const q = rt.questions[n - 1];
+  const objet = rt.matrice.find((o) => o.place === q.place);
+  const { detail } = mod.score(rt);
+
+  toRoom(io, room).emit('cache:devoilement', {
+    roundId: rt.roundId,
+    n,
+    total: rt.questions.length,
+    texte: q.texte,
+    reponse: q.reponse,
+    place: q.place,
+    objet: { id: objet.id, src: srcDObjet(objet.id), nom: objet.nom, couleur: objet.couleur },
+  });
+
+  // À CHAQUE JOUEUR SON COMPTE. Diffuser les points de tout le monde ferait de la
+  // charge utile un classement lisible par n'importe qui — et les noms n'ont
+  // jamais quitté le canal de l'animateur dans ce projet.
+  for (const [pid, p] of room.players) {
+    if (!p.socketId) continue;
+    const points = detail.get(pid) || [];
+    const jusquIci = points.slice(0, n);
+    io.to(p.socketId).emit('cache:tonpoint', {
+      roundId: rt.roundId,
+      n,
+      correct: points[n - 1]?.correct === true,
+      repondu: points[n - 1]?.repondu === true,
+      base: points[n - 1]?.base || 0,
+      speed: points[n - 1]?.speed || 0,
+      total: jusquIci.reduce((s2, x) => s2 + x.base + x.speed, 0),
+    });
+  }
+
+  // LE CLASSEMENT DE L'ANIMATEUR, colonne par colonne — « à chaque dévoilement,
+  // une colonne de plus, et les points totaux dans la dernière ».
+  const lignes = [...detail.entries()]
+    .map(([pid, points]) => {
+      const p = room.players.get(pid);
+      if (!p) return null;
+      const jusquIci = points.slice(0, n).map((x) => x.base + x.speed);
+      return { pseudo: p.pseudo, points: jusquIci, total: jusquIci.reduce((a, b) => a + b, 0) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 50);
+  io.to(room.code + ':host').emit('cache:classement', { roundId: rt.roundId, n, lignes });
+  roomManager.touch(room);
+}
+
 export function closeWindow(io, room) {
   const rt = room.currentModule;
   if (!rt || rt.closed) return;
   rt.closed = true;
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
+  if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
   toRoom(io, room).emit('module:closed', { answers: rt.answers.size });
 }
 
@@ -724,6 +888,7 @@ export function backToLobby(io, room) {
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
+  if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
   room.state = RoomState.WAITING;
   room.currentModule = null;
   room.history = [];
@@ -744,6 +909,7 @@ export function endGame(io, room) {
   if (room._timer) clearTimeout(room._timer);
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
+  if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
   const podium = roomManager.leaderboard(room, 3);
   // Fin de partie : le classement final devient public + récap des manches (B3,
   // question + révélation — jamais le détail par joueur).

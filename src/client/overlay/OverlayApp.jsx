@@ -23,6 +23,8 @@ import { segmentsAdresse } from '../shared/adresse.js';
 import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
+import { EmblemeCache } from '../shared/EmblemeCache.jsx';
+import { GrilleCache } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
@@ -379,6 +381,11 @@ function QuestionStage({ g }) {
   const visageSrc = elementOk ? g.element.src : null;
   const visagePlace = elementOk ? g.element.place : null;
 
+  // « CACHE-CACHE » — l'objet actuellement allumé. Même garde que le visage : un
+  // objet attardé de la manche précédente ne doit pas s'afficher sur la nouvelle.
+  const objetCache = g.objetCache && g.objetCache.roundId === g.current?.roundId ? g.objetCache : null;
+  const devoilements = g.devoilements;
+
   // LE BLANC ENTRE DEUX IMAGES — à l'antenne aussi, et pour la même raison : deux
   // images identiques qui se suivent ne se distinguent pas sans lui, et le public
   // ne verrait pas ce que le cercle doit repérer.
@@ -642,6 +649,77 @@ function QuestionStage({ g }) {
           <div className="st-visage" data-testid="stream-visage" data-place={visagePlace || ''}>
             {visageId ? <Visage id={visageId} src={visageSrc} taille={420} /> : null}
           </div>
+        ) : current.type === 'cache_cache' && devoilements.length > 0 ? (
+          /* LES RÉPONSES, À L'ANTENNE — « à gauche la question et les réponses
+             avec la bonne réponse en couleur, et à droite la matrice qui révèle
+             la case associée à la réponse ».
+             La grille garde TOUT ce qui a déjà été dévoilé : c'est ce qui permet
+             au public de reconstruire la partie au fur et à mesure, au lieu de
+             voir neuf cases s'allumer et s'éteindre sans mémoire. */
+          <div className="st-cache st-cache--question" data-testid="stream-cc-devoilement">
+            <div className="st-cache__gauche">
+              <p className="st-kicker">Réponse {devoilements[devoilements.length - 1].n}/{devoilements[devoilements.length - 1].total}</p>
+              <p className="st-title">{devoilements[devoilements.length - 1].texte}</p>
+              <p className="st-answer" data-testid="stream-cc-reponse">
+                <span className="st-answer__label">La réponse</span>
+                <span className="st-answer__value">{devoilements[devoilements.length - 1].reponse}</span>
+              </p>
+            </div>
+            <div className="st-cache__droite">
+              <GrilleCache bloc="st-ccg" testid="stream-cc-matrice"
+                vive={devoilements[devoilements.length - 1].place}
+                etiquette="Grille, cases dévoilées"
+                montre={(place) => {
+                  const d = devoilements.find((x) => x.place === place);
+                  return d ? <img className="st-ccg__objet" src={d.objet.src} alt="" />
+                    : <span className="st-ccg__num">{place}</span>;
+                }} />
+            </div>
+          </div>
+        ) : current.type === 'cache_cache' ? (
+          /* « CACHE-CACHE », À L'ANTENNE. Deux dispositions, selon la phase.
+
+             LE DÉVOILEMENT : la grille prend la scène, comme la série des
+             visages. Le public suit avec le cercle, à la même seconde — c'est le
+             serveur qui allume et qui éteint.
+
+             LES QUESTIONS : « on reprend cette même zone mais on la découpe en
+             deux (50/50) : à gauche la question et les choix, à droite la matrice
+             numérotée ». La grille numérotée n'est pas un ornement : les questions
+             désignent les cases par leur numéro, et le public ne peut pas suivre
+             sans l'avoir sous les yeux. */
+          current.phase === 'grille' ? (
+            <div className="st-cache st-cache--grille">
+              <GrilleCache bloc="st-ccg" modificateur="st-ccg--grande" testid="stream-cc-grille"
+                vive={objetCache?.place || null}
+                etiquette={objetCache ? `Objet visible en case ${objetCache.place}` : 'Grille, tout est caché'}
+                montre={(place) => (objetCache && objetCache.place === place
+                  ? <img className="st-ccg__objet" src={objetCache.src} alt="" />
+                  : null)} />
+            </div>
+          ) : (
+            <div className="st-cache st-cache--question" data-testid="stream-cc-question">
+              <div className="st-cache__gauche">
+                {options.length > 0 ? (
+                  <div className="st-options" data-bind="module.options">
+                    {options.map((opt, i) => (
+                      <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
+                        <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
+                        <span className="st-opt__label">{opt}</span>
+                        <span className="st-opt__mark" aria-hidden="true" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="st-lead">La réponse se tape sur le téléphone.</p>
+                )}
+              </div>
+              <div className="st-cache__droite">
+                <GrilleCache bloc="st-ccg" testid="stream-cc-numeros" etiquette="Grille numérotée"
+                  montre={(place) => <span className="st-ccg__num">{place}</span>} />
+              </div>
+            </div>
+          )
         ) : options.length > 0 ? (
           <div className="st-options" data-bind="module.options">
             {options.map((opt, i) => (
@@ -656,7 +734,19 @@ function QuestionStage({ g }) {
       ) : (
         /* Révélation : la répartition prend toute la place. */
         <div className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`} data-bind="reveal.stats" data-testid="stats-panel">
-          {stats?.kind === 'visages' ? (
+          {stats?.kind === 'cache' ? (
+            /* « LE DERNIER ÉCRAN VISIBLE DU JEU C'EST LA MATRICE DÉVOILÉE
+               COMPLÈTEMENT. » Neuf objets, tous montrés — c'est le moment où le
+               public revoit d'un coup ce qu'il n'a vu qu'un par un. */
+            <div className="st-cache st-cache--grille" data-testid="stream-cc-finale">
+              <GrilleCache bloc="st-ccg" modificateur="st-ccg--grande" testid="stream-cc-matrice-finale"
+                etiquette="Grille entièrement dévoilée"
+                montre={(place) => {
+                  const o = (stats.matrice || []).find((x) => x.place === place);
+                  return o ? <img className="st-ccg__objet" src={o.src} alt="" /> : null;
+                }} />
+            </div>
+          ) : stats?.kind === 'visages' ? (
             <SerieStream stats={stats} />
           ) : stats?.kind === 'retour' ? (
             <SerieRetourStream stats={stats} />
@@ -779,6 +869,7 @@ const ANNONCES_STREAM = {
       : 'Une image revient deux images plus tard. Le cercle doit la reconnaître.'),
   },
   juste_temps: { emblem: <ChronoBuzzer taille={170} />, regle: "Un chrono s'efface sans s'arrêter. Le cercle doit le stopper au bon moment." },
+  cache_cache: { emblem: <EmblemeCache taille={190} />, regle: 'Neuf objets, montrés une fois chacun. Cinq questions ensuite.' },
 };
 
 function AnnonceStage({ nom, type, annonce }) {

@@ -38,6 +38,9 @@ const MODULE_TYPES = {
   // à l'antenne, sur la console. Rien à préparer ici.
   juste_temps: { label: 'Le juste temps', subtitle: 'Arrêter un chrono qu\'on ne voit plus', icon: 'clock', color: 'flame', direct: true },
   vote:       { label: 'Vote',       subtitle: 'Sondage groupe',   icon: 'bar-chart-2',  color: 'info' },
+  // EN DIRECT lui aussi : sa grille de neuf objets et ses cinq questions sont
+  // tirées par le serveur au lancement. Rien à préparer ici.
+  cache_cache: { label: 'Cache-cache', subtitle: 'Neuf objets, vus une fois', icon: 'grid', color: 'info', direct: true },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];

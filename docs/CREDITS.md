@@ -58,6 +58,27 @@ photoréaliste, et la normalisation du fond par masque ovale — essayée, mesur
 laissait des morceaux de décor, amputait les chevelures et ne corrigeait ni la
 pose ni la lumière.
 
+## Les objets du jeu « Cache-cache »
+
+**200 icônes fournies par l'auteur** : quarante objets déclinés dans les cinq
+mêmes couleurs (bleu, jaune, rose, rouge, vert). Les droits et la licence de ces
+images relèvent de lui ; ce dépôt les sert, il ne les revendique pas. Si une
+attribution est due à leur source, elle se pose ici.
+
+**Traitement appliqué** : détourage du fond blanc, puis conversion en WebP —
+qualité 82, méthode 6, le réglage de la banque de portraits.
+
+**Le détourage part des BORDS**, il ne rend pas « tout le blanc » transparent. La
+distinction n'est pas un détail : le verre d'une ampoule, la vitre d'une voiture
+et les hublots d'un avion sont blancs eux aussi. Un détourage naïf les aurait
+troués, et l'objet serait apparu percé sur la plaque claire de sa case.
+
+**Le nom et la couleur sont déclarés dans `src/server/objets.js`**, pas lus dans
+le nom de fichier. Ils ne sont pas décoratifs : les questions du jeu portent sur
+eux, et les règles de tirage les contraignent. Un jeu qui lirait ses données dans
+un nom de fichier se casserait au premier renommage, sans que personne sache
+pourquoi.
+
 ## Polices
 
 - **Mulish**, **Barlow Semi Condensed**, **IBM Plex Mono** — licence SIL Open
