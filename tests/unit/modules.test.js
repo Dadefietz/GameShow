@@ -33,7 +33,11 @@ describe('quiz', () => {
   // en réunion de ramener le complément à 250 « pour équilibrer le score par
   // rapport à la base de 700 ». Ce n'est pas une régression, c'est une règle qui
   // change ; le contrôle change avec elle et dit pourquoi.
-  it('base fixe à 700 ; complément de vitesse plafonné à 250 (chantier v4)', () => {
+  it('base de 250 et rapidité jusqu\'à 200 (séance du 10/09)', () => {
+    // LE BARÈME A CHANGÉ DE VALEURS ET DE FORME. Il valait 700 de base plus un
+    // complément linéaire de 250 ; il vaut désormais « une bonne réponse donne
+    // 250 points de base » plus « un bonus de rapidité allant de 0 à 200 points »,
+    // avec un plateau et un plancher — voir `bonusRapidite`.
     const rt = round(modules.quiz, QUIZ_Q);
     rt.answers.set('fast', { value: 1, at: rt.startedAt });
     rt.answers.set('slow', { value: 1, at: rt.deadline });
@@ -41,14 +45,13 @@ describe('quiz', () => {
     const rapide = results.get('fast');
     const lent = results.get('slow');
 
-    expect(rapide.base).toBe(700);
-    expect(lent.base).toBe(700);
-    expect(rapide.speed).toBe(250);
+    expect(rapide.base).toBe(250);
+    expect(lent.base).toBe(250);
+    expect(rapide.speed).toBe(200);
     expect(lent.speed).toBe(0);
-    // Le maximum d'une manche de quiz : 950, et non plus 1150 — le supplément du
-    // plus rapide ayant lui aussi disparu du calcul (décision 4.2).
-    expect(rapide.base + rapide.speed).toBe(950);
-    expect(lent.base + lent.speed).toBe(700);
+    // Le maximum d'une manche de quiz : 450.
+    expect(rapide.base + rapide.speed).toBe(450);
+    expect(lent.base + lent.speed).toBe(250);
     expect(rapide.correct).toBe(true);
   });
 

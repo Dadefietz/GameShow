@@ -157,7 +157,12 @@ try {
   s1.emit('play:answer', { value: 1 });
   const acc1 = await waitFor(s1, 'play:accepted');
   check('réponse Alice acceptée', acc1.ok);
-  await sleep(900);
+  // BOB RÉPOND BIEN PLUS TARD, et il le faut. Il attendait 900 ms : depuis le
+  // 10/09 la courbe de rapidité commence par un PLATEAU de deux secondes, où
+  // toute réponse vaut le maximum. Deux réponses séparées de 900 ms y valaient
+  // donc la même chose, et le contrôle « le rapide bat le lent » ne mesurait plus
+  // rien — il constatait le plateau.
+  await sleep(4_500);
   s2.emit('play:answer', { value: 1 });
   s3.emit('play:answer', { value: 0 });
   await sleep(200);
@@ -166,24 +171,32 @@ try {
   check('R7 doublon refusé', !(await dup).ok);
 
   // ---- R7 : à 0, révélation AUTOMATIQUE (bonne réponse + stats) ----
+  //
+  // L'ATTENTE COUVRE LES QUINZE SECONDES DE LA FENÊTRE. Elle en couvrait six,
+  // parce que les questions de ce banc portaient `durationSec: 3`. Depuis la
+  // séance du 10/09, la fenêtre du quiz et du vrai/faux est une RÈGLE et non un
+  // réglage — « fixer le temps pour répondre à 15 secondes » — et le champ de la
+  // banque n'est plus lu. Ce contrôle attend donc la vraie fin du chrono ; c'est
+  // ce qu'il prétend mesurer.
+  const FIN_DU_CHRONO = 20_000;
   const [revealP, revealOv, youA, youB, youC] = await Promise.all([
-    waitFor(s1, 'module:reveal', 6000),
-    waitFor(ov, 'module:reveal', 6000),
-    waitFor(s1, 'play:you', 6000),
-    waitFor(s2, 'play:you', 6000),
-    waitFor(s3, 'play:you', 6000),
+    waitFor(s1, 'module:reveal', FIN_DU_CHRONO),
+    waitFor(ov, 'module:reveal', FIN_DU_CHRONO),
+    waitFor(s1, 'play:you', FIN_DU_CHRONO),
+    waitFor(s2, 'play:you', FIN_DU_CHRONO),
+    waitFor(s3, 'play:you', FIN_DU_CHRONO),
   ]);
   check('R7 révélation auto à la fin du chrono', revealP.correctIndex === 1);
   check('R8 stats de répartition diffusées', revealOv.stats && revealOv.stats.kind === 'options' && revealOv.stats.total === 3, JSON.stringify(revealOv.stats?.tally));
   check('R7 play:you sans rang en cours de partie', !('rank' in youA), JSON.stringify(youA));
   check('R7 play:you contient placesDelta', 'placesDelta' in youA);
 
-  // ---- BARÈME (actions 8 et 17) : base + complément de vitesse, RIEN D'AUTRE ----
-  // La base ne dépend plus de la rapidité : elle vaut 700 pour toute bonne
-  // réponse. C'est le complément qui départage le rapide du lent.
-  check('base identique quelle que soit la rapidité', youA.base === 700 && youB.base === 700, `${youA.base} vs ${youB.base}`);
-  check('rapide > lent, sur le COMPLÉMENT de vitesse', youA.speed > youB.speed, `${youA.speed} vs ${youB.speed}`);
-  check('supplément du plus rapide inclus dans la vitesse', youA.speed >= 150, String(youA.speed));
+  // ---- BARÈME (actions 8 et 17, revu le 10/09) : base + rapidité, RIEN D'AUTRE ----
+  // La base ne dépend pas de la rapidité : elle vaut 250 pour toute bonne réponse
+  // de quiz. C'est le bonus de rapidité qui départage le rapide du lent.
+  check('base identique quelle que soit la rapidité', youA.base === 250 && youB.base === 250, `${youA.base} vs ${youB.base}`);
+  check('rapide > lent, sur le BONUS DE RAPIDITÉ', youA.speed > youB.speed, `${youA.speed} vs ${youB.speed}`);
+  check('le plateau haut donne son maximum à la réponse immédiate', youA.speed === 200, String(youA.speed));
   // Aucune pénalité nulle part (T1) : une mauvaise réponse ne rapporte rien et
   // ne coûte rien. Et le champ « malus » n'existe plus du tout.
   check('mauvaise réponse : zéro point, aucune pénalité',
@@ -208,7 +221,9 @@ try {
   const q2 = await started2;
   check('R5 vrai/faux lançable (bug truefalse corrigé)', q2.type === 'true_false', q2.questionId);
   s1.emit('play:answer', { value: true }); // tf-soleil : correct = true
-  const youA2 = await waitFor(s1, 'play:you', 15000);
+  // La révélation de cette manche est AUTOMATIQUE : elle tombe à la fin des
+  // quinze secondes. Quinze secondes d'attente, c'était la limite exacte.
+  const youA2 = await waitFor(s1, 'play:you', FIN_DU_CHRONO);
   // La série est SUIVIE — elle vaut deux bonnes réponses d'affilée — mais elle
   // n'ajoute plus un seul point : le total reste base + complément de vitesse.
   check('série comptée à la 2e bonne réponse', youA2.streak === 2, JSON.stringify(youA2));

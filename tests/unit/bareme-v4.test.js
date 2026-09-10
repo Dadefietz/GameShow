@@ -34,13 +34,13 @@ function round(mod, q) {
 describe('le complément de vitesse (action 4)', () => {
   const Q = { id: 'q', text: '?', options: ['a', 'b'], correctIndex: 0, durationSec: 20 };
 
-  it('plafonne à 250, et une manche de quiz à 950', () => {
+  it('plafonne à 200, et une manche de quiz à 450 (séance du 10/09)', () => {
     const rt = round(modules.quiz, Q);
     rt.answers.set('immediat', { value: 0, at: rt.startedAt });
     const { results } = modules.quiz.score(rt);
     const r = results.get('immediat');
-    expect(r.speed).toBe(250);
-    expect(r.base + r.speed, 'le maximum d\'une manche de quiz doit être 950').toBe(950);
+    expect(r.speed).toBe(200);
+    expect(r.base + r.speed, 'le maximum d\'une manche de quiz doit être 450').toBe(450);
   });
 });
 
@@ -219,7 +219,7 @@ describe('l\'estimation (action 5)', () => {
 // non dans un commentaire : un tableau qui vit dans la suite ne peut pas devenir
 // faux en silence.
 describe('les maximums par module, consignés', () => {
-  it('quiz 950 · vrai-faux 950 · estimation 1200 · vote base fixe', () => {
+  it('quiz 450 · vrai-faux 400 · estimation 1200 · vote base fixe', () => {
     const q = round(modules.quiz, { id: 'q', text: '?', options: ['a', 'b'], correctIndex: 0, durationSec: 20 });
     q.answers.set('x', { value: 0, at: q.startedAt });
     const rq = modules.quiz.score(q).results.get('x');
@@ -237,6 +237,11 @@ describe('les maximums par module, consignés', () => {
     // 1200 depuis A4, et non plus 1600 : le joueur seul en lice touche son palier
     // (1000) et son exactitude (200), mais plus le filet du plus proche — il est
     // dans une plage, la manche rapporte déjà.
-    expect(maxima).toEqual({ quiz: 950, vrai_faux: 950, estimation: 1200 });
+    //
+    // LE QUIZ ET LE VRAI/FAUX ONT CHANGÉ D'ÉCHELLE le 10/09 : 250 + 200 pour le
+    // premier, 200 + 200 pour le second. Ils ne valent plus la même chose, et
+    // c'est voulu — on tombe juste une fois sur deux au vrai/faux en tirant à
+    // pile ou face, ce que le quiz ne permet pas.
+    expect(maxima).toEqual({ quiz: 450, vrai_faux: 400, estimation: 1200 });
   });
 });

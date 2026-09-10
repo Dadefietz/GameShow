@@ -543,14 +543,28 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   // c'est de lui que le compte à rebours affiché se déduit, et une constante ne
   // peut pas se lire avant sa déclaration.
   const estBuche = type === 'coupe_buche';
-  const ecouleBuche = useBalayage(current, estBuche);
+  // LA COUPE, UNE FOIS FRAPPÉE — l'instant local du geste, gardé ici.
+  //
+  // « Lorsque le joueur clique sur le bouton COUPE !, le curseur doit s'arrêter
+  // instantanément à l'endroit de la coupe, et ce sera donc le résultat de sa
+  // proportion. » Le curseur continuait de balayer après le coup : le joueur
+  // voyait passer une lame qui ne coupait plus rien, et n'apprenait où il avait
+  // frappé qu'à la révélation, une minute plus tard.
+  //
+  // ELLE EST REMISE À ZÉRO À CHAQUE MANCHE, sur l'identifiant de manche : sans
+  // ça, la bûche suivante s'ouvrirait déjà coupée à l'endroit de la précédente.
+  const [coupeMs, setCoupeMs] = useState(null);
+  useEffect(() => { setCoupeMs(null); }, [current?.roundId]);
+  // Le balayage s'arrête à la frappe. Le crochet cesse alors de demander des
+  // images : un curseur figé ne coûte plus rien.
+  const ecouleBuche = useBalayage(current, estBuche && coupeMs == null);
   const positionBuche = estBuche && current.periodeMs
-    ? positionDuCurseur(ecouleBuche, current.periodeMs)
+    ? positionDuCurseur(coupeMs != null ? coupeMs : ecouleBuche, current.periodeMs)
     : 0;
   // Le chrono du JEU pour la bûche — dix secondes, décomptées du même balayage
   // que le curseur, donc parfaitement d'accord avec lui.
   const timeLeft = estBuche && current.dureeCoupeMs != null
-    ? Math.max(0, Math.ceil((current.dureeCoupeMs - ecouleBuche) / 1000))
+    ? Math.max(0, Math.ceil((current.dureeCoupeMs - (coupeMs != null ? coupeMs : ecouleBuche)) / 1000))
     : timeLeftBrut;
   // La durée de référence de la jauge suit le même principe : celle du JEU.
   const totalSec = Math.max(1, Math.round(
@@ -830,22 +844,53 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                seule heure d'arrivée mesurerait la latence de la liaison, pas
                l'adresse du joueur. */
             <div className="cbj">
-              <div className="cbj__buche" data-testid="cb-buche"
+              <div className={`cbj__buche${coupeMs != null ? ' cbj__buche--coupee' : ''}`} data-testid="cb-buche"
+                data-coupee={coupeMs != null || undefined}
                 role="img" aria-label={`Bûche, curseur à ${Math.round(positionBuche)} %`}>
-                {/* LE TRAIT DU CURSEUR — la seule chose qui bouge. Sa position est
-                    une PROPORTION : la part de bûche à sa gauche. */}
+                {/* L'ÉCORCE — des entailles sur la longueur. « Il faut juste
+                    ajouter des traits sur la longueur de la bûche pour que ça
+                    fasse un peu plus écorce », sans toucher à la forme : elles
+                    sont donc peintes en fond, à l'intérieur du rondin. */}
+                {/* LE TRAIT DU CURSEUR — la seule chose qui bouge, jusqu'au coup.
+                    Sa position est une PROPORTION : la part de bûche à sa gauche. */}
                 <span className="cbj__curseur" style={{ left: `${positionBuche}%` }} aria-hidden="true" />
               </div>
+              {/* LE RÉSULTAT, SOUS LA BÛCHE, à l'instant du coup — « que le
+                  résultat (la proportion en %) du joueur s'affiche juste en
+                  dessous de la bûche et du curseur ». Il ne remplace pas le
+                  verdict de la révélation : il dit seulement OÙ le joueur a
+                  frappé, tout de suite, pendant qu'il s'en souvient. */}
+              <p className="cbj__coupe" data-testid="cb-coupe" aria-live="polite">
+                {coupeMs != null
+                  ? <>{'Tu as coupé à\u00a0'}<strong>{pourcent(positionBuche)}</strong></>
+                  : <span className="cbj__coupe--attente">Frappe quand le trait y est</span>}
+              </p>
               <button
                 className="p-btn p-btn--primary p-btn--buzz"
                 type="button"
                 data-testid="answer-submit"
                 data-action="play:answer"
                 disabled={disabled}
-                onClick={() => onAnswer(Math.round(Math.min(
-                  current.dureeCoupeMs,
-                  ecouleMaintenant(current) ?? ecouleBuche,
-                )))}
+                /* AU CONTACT DU DOIGT, PAS À SON RELÂCHEMENT.
+                   « Il y a eu des tests réalisés et avec un appareil, la coupe
+                   n'est pas instantanée. Il y a 15% de décalage avec la réalité. »
+                   Voilà les 15 % : un `click` ne part pas quand le doigt touche,
+                   il part quand il QUITTE l'écran. Une frappe posée tient cent à
+                   deux cents millisecondes — et le curseur parcourt cent points
+                   de bûche par seconde. Dix à vingt points d'écart, toujours dans
+                   le même sens, et d'autant plus grands que le doigt s'attarde :
+                   c'est exactement ce qui a été mesuré à l'antenne.
+                   `pointerdown` part au contact. Le `click` qui suit ne fait
+                   rien : le bouton est déjà verrouillé. */
+                onPointerDown={() => {
+                  if (disabled || coupeMs != null) return;
+                  const t = Math.round(Math.min(
+                    current.dureeCoupeMs,
+                    ecouleMaintenant(current) ?? ecouleBuche,
+                  ));
+                  setCoupeMs(t);
+                  onAnswer(t);
+                }}
               >
                 {answered ? 'Coupe envoyée' : 'COUPE !'}
               </button>

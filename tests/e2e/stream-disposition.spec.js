@@ -134,6 +134,39 @@ test.describe('Disposition du stream', () => {
         expect(r.recouvre, `« ${nom} » passe derrière la pastille sur l'annonce de ${jeu}`).toBe(false);
       }
     });
+
+    test(`le logo de l'annonce de ${jeu} tient dans le cadre, et pas contre le bord`, async ({ browser }) => {
+      // CE QUI A ÉTÉ DEMANDÉ : « positionner plus bas le logo afin qu'il ne soit
+      // pas collé au haut de l'écran ».
+      //
+      // CE QU'IL Y AVAIT, MESURÉ : le haut de l'emblème tombait à −37 px. Il
+      // n'était pas collé au bord, il SORTAIT du canevas — donc coupé à
+      // l'antenne, sur tous les jeux à la fois. La cause n'était pas dans
+      // l'emblème mais dans la scène : l'écran d'annonce réservait à la pastille
+      // « rejoindre » une colonne à gauche ET une bande de 484 px en bas. Il
+      // restait 532 px de haut pour un bloc qui en demande 734, et le centrage
+      // répartissait le débordement des deux côtés.
+      //
+      // Un débordement par le haut ne se signale nulle part : rien ne casse, le
+      // navigateur ne dit rien, et le contrôle de recouvrement de la pastille —
+      // juste au-dessus — restait vert puisqu'il regarde le coin d'en bas.
+      await ouvrirStream(browser, ['Cadre']);
+      await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+      await lancerJeu(hote.page, jeu);
+      await expect(stream.getByTestId('stream-annonce')).toBeVisible({ timeout: 15_000 });
+
+      const m = await stream.evaluate(() => {
+        const e = document.querySelector('.st-annonce__emblem');
+        const r = e.getBoundingClientRect();
+        return { haut: Math.round(r.top), bas: Math.round(r.bottom), ecran: window.innerHeight };
+      });
+      console.log(`  ${jeu} · logo → ${m.haut} px du haut`);
+      expect(m.haut, `le logo de ${jeu} sort du cadre par le haut`).toBeGreaterThanOrEqual(0);
+      expect(m.bas, `le logo de ${jeu} sort du cadre par le bas`).toBeLessThanOrEqual(m.ecran);
+      // ET PAS COLLÉ AU BORD. Un centième de la hauteur ne serait pas une marge,
+      // ce serait un hasard : on demande de quoi respirer, soit 5 % du canevas.
+      expect(m.haut, `le logo de ${jeu} est collé au haut de l'écran`).toBeGreaterThan(m.ecran * 0.05);
+    });
   }
 
   test('le QR garde une taille scannable', async ({ browser }) => {

@@ -635,18 +635,67 @@
   /* LA BÛCHE — « elle doit faire un peu moins de la largeur de l'écran de
      téléphone ». Le rondin est un bloc plein aux bouts arrondis : c'est sur LUI
      que le curseur se lit, et un contour vide se lirait comme une jauge. */
+  /* L'ÉCORCE — des entailles sur la longueur, et RIEN D'AUTRE.
+     « La bûche dans le jeu doit être améliorée esthétiquement. Il ne faut surtout
+     pas toucher à la forme qui est très bien. Il faut juste ajouter des traits
+     sur la longueur de la bûche pour que ça fasse un peu plus écorce. »
+     Elles sont peintes en FOND, en dégradés répétés : aucun élément de plus dans
+     le DOM, donc rien qui puisse passer devant le curseur ou décaler la mesure.
+     Les deux couches sont décalées et d'espacements premiers l'une par rapport à
+     l'autre (23 px et 31 px) : le motif ne se répète pas à l'œil sur la longueur
+     du rondin, là où un pas régulier se lirait comme une règle graduée — et une
+     graduation, sur ce jeu-là, serait une aide que personne n'a demandée. */
   .cbj__buche {
     position: relative;
     width: 88%;
     height: 96px;
     border-radius: var(--r-full);
-    background: var(--c-surface);
     box-shadow: var(--sh-2), var(--sh-edge);
+    /* L'ÉCORCE — « ajouter des traits SUR LA LONGUEUR de la bûche ».
+       Quatre entailles horizontales, de longueurs et de hauteurs inégales, comme
+       sur la référence fournie. Rien d'autre ne bouge : « il ne faut surtout pas
+       toucher à la forme qui est très bien ».
+       PREMIER ESSAI ÉCARTÉ, ET IL FAUT LE DIRE : des traits VERTICAUX, régulièrement
+       espacés. Vu à l'écran, le rondin devenait une RÈGLE GRADUÉE — et sur ce
+       jeu-là, une graduation n'est pas un ornement, c'est une aide à viser que
+       personne n'a demandée.
+       ELLES SONT DANS LE FOND, pas dans le DOM : rien de plus à dessiner, rien qui
+       puisse passer devant le curseur ni décaler une mesure. Et le raccourci
+       `background` porte les entailles ET la couleur — écrites séparément, un
+       `background:` plus bas les effaçait en silence. */
+    background:
+      linear-gradient(var(--ecorce), var(--ecorce)) 16% 30% / 30% 2px no-repeat,
+      linear-gradient(var(--ecorce), var(--ecorce)) 66% 42% / 20% 2px no-repeat,
+      linear-gradient(var(--ecorce-pale), var(--ecorce-pale)) 26% 58% / 26% 2px no-repeat,
+      linear-gradient(var(--ecorce-pale), var(--ecorce-pale)) 72% 70% / 14% 2px no-repeat,
+      var(--c-surface);
+    --ecorce: color-mix(in oklch, var(--c-ink) 14%, transparent);
+    --ecorce-pale: color-mix(in oklch, var(--c-ink) 9%, transparent);
   }
   /* LE CURSEUR — un trait franc, et rien d'autre. Il traverse toute la hauteur du
      rondin : c'est la coupe qu'il annonce, pas une position sur une règle.
      `translateX(-50%)` le centre sur sa proportion — sans quoi le trait serait
      décalé de sa propre épaisseur, soit un point de bûche entier près des bords. */
+  /* LE RÉSULTAT DE LA COUPE, sous le rondin. Il occupe sa ligne en permanence —
+     avec une invite tant que rien n'est frappé — pour que la bûche ne SAUTE pas
+     de vingt pixels à l'instant du coup, c'est-à-dire au moment précis où le
+     joueur regarde où il a coupé. */
+  .cbj__coupe {
+    margin: 0;
+    min-height: var(--row-form, 2.5rem);
+    display: flex;
+    align-items: center;
+    font: 500 var(--fs-400) / 1.35 var(--f-ui);
+    color: var(--c-ink-2);
+    text-align: center;
+  }
+  .cbj__coupe strong { color: var(--c-ember-bright); font-weight: 700; }
+  .cbj__coupe--attente { color: var(--c-ink-3); }
+  /* LA BÛCHE COUPÉE : le trait cesse de bouger et s'affirme. Rien d'autre ne
+     change — la forme est celle qu'on a demandé de ne pas toucher. */
+  .cbj__buche--coupee .cbj__curseur {
+    box-shadow: 0 0 0 1px var(--c-canvas), 0 0 12px var(--c-flame);
+  }
   .cbj__curseur {
     position: absolute;
     top: -8px;

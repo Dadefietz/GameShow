@@ -13,8 +13,9 @@
 export const GRILLE = { largeur: 120, hauteur: 92 };
 export const TRAIT = 6;
 
-// LE RONDIN — couché, aux bouts arrondis, occupant la moitié gauche et basse.
-export const BUCHE = { x: 6, y: 46, largeur: 78, hauteur: 40, rayon: 20 };
+// LE RONDIN — couché sur toute la largeur, aux bouts arrondis, dans le bas de la
+// grille. Il occupe le bas parce que la hache occupe le haut : elle tombe dessus.
+export const BUCHE = { x: 6, y: 50, largeur: 108, hauteur: 36, rayon: 18 };
 
 // LES CERNES DU BOUT GAUCHE — ce qui fait lire « bois coupé » plutôt que
 // « gélule ». Deux anneaux FERMÉS et concentriques ; trois brouillent à petite
@@ -25,43 +26,61 @@ export const BUCHE = { x: 6, y: 46, largeur: 78, hauteur: 40, rayon: 20 };
 // rondin montre des anneaux COMPLETS, et l'ovale dit en plus que la coupe est vue
 // de biais.
 export const CERNES = [
-  'M26 54a10 12 0 1 0 0 24a10 12 0 1 0 0-24',
-  'M26 61a3.5 5 0 1 0 0 10a3.5 5 0 1 0 0-10',
+  'M26 57a10 11 0 1 0 0 22a10 11 0 1 0 0-22',
+  'M26 63a3.5 5 0 1 0 0 10a3.5 5 0 1 0 0-10',
 ];
 
-// CE QUE LA RÉFÉRENCE PORTE ET QUE CE DESSIN NE REPREND PAS : les entailles
-// d'écorce dans le corps du rondin, et le coin planté dans son dos.
-//
-// Essayés, tracés, REGARDÉS : à un trait de six sur une grille de cent vingt, ces
-// deux ajouts ne sont pas des détails, ce sont des BARRES. Les entailles se
-// collaient aux cernes et l'ensemble devenait une masse ; le coin se lisait comme
-// la queue d'une citrouille. La référence est un dessin PLEIN, aux lignes fines :
-// elle peut porter cinq éléments, un tracé au trait épais n'en porte que deux.
-// On garde donc ce qui fait le sens — le rondin, ses cernes, la hache.
+// L'ÉCORCE — « il manque juste des petits traits sur le long pour que ça fasse
+// écorce ». Trois entailles horizontales, de longueurs inégales, à droite des
+// cernes. Horizontales, et c'est le sujet : verticales et régulières, elles
+// faisaient du rondin une règle graduée — essayé sur l'écran de jeu, écarté là
+// aussi.
+export const ECORCE = ['M48 61h28', 'M54 75h30', 'M88 68h16'];
+// L'ÉCORCE SE TRACE PLUS FIN QUE LE RESTE. À l'épaisseur du système, trois
+// entailles deviennent trois BARRES et le rondin se lit comme un radiateur.
+export const TRAIT_ECORCE = 3;
 
-// LA HACHE — À CÔTÉ DU RONDIN, PAS DEDANS, comme sur la référence.
+// LA HACHE — LEVÉE AU-DESSUS DU RONDIN, TRANCHANT VERS LUI.
 //
-// TROIS DESSINS FAUTIFS AVANT CELUI-CI, tous vus à l'écran.
-//   1. Un PARALLÉLOGRAMME en biais sur le manche : il se lisait comme un nœud
-//      papillon, deux triangles se touchant par la pointe.
-//   2. Une lame évasée AU BOUT du manche, plantée dans le rondin : l'emblème
-//      entier se lisait « PELLE ». Une hache ne se reconnaît ni à sa masse ni à
-//      son manche, mais au rapport entre un talon étroit et un tranchant large.
-//   3. Le même godet retourné : toujours une pelle.
+// « Le logo du jeu doit ressembler à une hache qui s'apprête à couper une bûche. »
+// Elle était posée À CÔTÉ, comme sur la première référence : deux objets dans la
+// même image, mais aucun geste. Ici le fer surplombe le bois, le tranchant tourné
+// vers lui, et le manche relevé : c'est l'instant d'avant le coup.
 //
-// CE QUI LE CORRIGE, ET IL FALLAIT REGARDER LA RÉFÉRENCE POUR LE VOIR : le
-// tranchant est à GAUCHE, en arc, le talon à droite, et le manche part vers le
-// BAS-DROIT. La hache ne touche pas le rondin — elle est posée au-dessus, à
-// côté. C'est cette silhouette-là qu'on reconnaît, pas une lame plantée.
-export const FER = 'M76 8a15 15 0 000 24l24-4v-16z';
-export const MANCHE = 'M99 20L112 40';
+// ELLE NE TOUCHE PAS LE RONDIN, et ce n'est pas un détail : une hache déjà entrée
+// dans le bois raconte la fin du geste, alors que le jeu tout entier se joue sur
+// le CHOIX de l'endroit où frapper.
+//
+// TROIS DESSINS FAUTIFS AVANT CELUI-CI, tous vus à l'écran :
+//   1. un parallélogramme en biais sur le manche — un nœud papillon ;
+//   2. une lame évasée au bout du manche — une pelle ;
+//   3. le même contour, tracé au lieu d'être plein — une loupe. Un petit contour
+//      fermé à un trait de six se lit comme un ANNEAU. Un tranchant est une masse.
+// LE FER — un tranchant LARGE et presque droit, un talon ÉTROIT. C'est ce
+// rapport-là qui fait lire « hache », et rien d'autre : ni la taille, ni le
+// manche.
+//   - l'arc du bas bombe VERS LE BOIS. Écrit avec l'autre sens de balayage, il se
+//     creusait vers le haut et le fer devenait une tente ;
+//   - il est PRESQUE plat (rayon 40 pour une corde de 32, soit trois unités de
+//     bombement). Trop rond — rayon 17 —, la tête devenait une LOUCHE.
+// ET IL EST ASYMÉTRIQUE. Centré sur le manche, le fer devenait un BALAI : un
+// trapèze régulier au bout d'un bâton. Une hache déborde d'un seul côté — un
+// tranchant long à gauche, un talon court à droite —, et c'est ce déséquilibre
+// qu'on reconnaît avant toute autre chose.
+export const FER = 'M34 34a44 44 0 0 0 38 0L68 20L54 20z';
 
-// LA BOÎTE DE L'ENCRE, trait compris — même convention que les quatre emblèmes
-// classiques. Tout est tracé : trois unités au-delà de chaque coordonnée extrême.
-// À gauche le rondin, en haut le fer, à droite le manche, en bas le rondin.
-// Le fer est PLEIN : son encre s'arrête à ses coordonnées, sans demi-trait —
-// même convention que les quatre emblèmes classiques.
-export const BOITE = { g: 3, d: 115, h: 8, b: 89 };
+// LE MANCHE — À L'APLOMB, et pas en biais.
+//
+// En biais, il sortait du fer par le CÔTÉ : l'ensemble se lisait comme une louche
+// ou une truelle. Une hache se tient perpendiculaire à son tranchant ; le
+// tranchant étant horizontal, le manche est vertical. Il part de l'intérieur du
+// fer, ce qui le fait passer À TRAVERS la tête plutôt que d'y être collé.
+export const MANCHE = 'M60 30L60 6';
+
+// LA BOÎTE DE L'ENCRE, trait compris pour ce qui est tracé, aux coordonnées pour
+// ce qui est plein (le fer). À gauche et à droite le rondin, en haut le fer, en
+// bas le rondin.
+export const BOITE = { g: 3, d: 117, h: 3, b: 89 };
 
 // Ce qui reste de la grille autour du dessin.
 export function margeDeGrille() {
@@ -74,6 +93,8 @@ export const BUCHE_HACHE = {
   trait: TRAIT,
   buche: BUCHE,
   cernes: CERNES,
+  ecorce: ECORCE,
+  traitEcorce: TRAIT_ECORCE,
   manche: MANCHE,
   fer: FER,
 };

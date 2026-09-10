@@ -130,6 +130,84 @@ test.describe('Coupe ta bûche', () => {
     expect(m.bouton.b, 'le bouton flotte loin du bord').toBeGreaterThan(m.ecran * 0.9);
   });
 
+  test('LE CURSEUR SE FIGE AU COUP, et la coupe s\'affiche sous la bûche', async ({ browser }) => {
+    // DEUX DEMANDES DE LA MÊME SÉANCE, et elles vont ensemble : « le curseur doit
+    // s'arrêter instantanément à l'endroit de la coupe, et ce sera donc le
+    // résultat de sa proportion », « que le résultat (la proportion en %) du
+    // joueur s'affiche juste en dessous de la bûche et du curseur ».
+    //
+    // CE QU'IL Y AVAIT : le balayage continuait après le coup. Le joueur voyait
+    // passer une lame qui ne coupait plus rien, et n'apprenait où il avait frappé
+    // qu'à la révélation — après les autres, une fois l'instant passé.
+    await annoncer(browser);
+    await hote.page.getByTestId('cb-cible').fill(CIBLE);
+    await hote.page.getByTestId('cb-diffuser').click();
+
+    const j = joueurs[0].page;
+    const buche = j.getByTestId('cb-buche');
+    await expect(buche).toBeVisible({ timeout: 15_000 });
+    const lire = async () => await buche.getAttribute('aria-label');
+
+    // Avant le coup, il bouge.
+    const avant = await lire();
+    await j.waitForTimeout(300);
+    expect(await lire(), 'le curseur ne bouge pas avant le coup').not.toBe(avant);
+
+    await j.getByTestId('answer-submit').click();
+    const auCoup = await lire();
+    await j.waitForTimeout(700);
+    expect(await lire(), 'le curseur a continué de balayer après le coup').toBe(auCoup);
+
+    // ET LA COUPE EST ÉCRITE, tout de suite, avec la même valeur que celle du
+    // curseur figé : deux nombres différents sur le même écran seraient pires
+    // que pas de nombre du tout.
+    const position = Number(auCoup.match(/(\d+) %/)[1]);
+    await expect(j.getByTestId('cb-coupe')).toContainText(`${position} %`);
+  });
+
+  test("L'ALLURE RAPIDE double la vitesse du curseur, sans raccourcir la manche", async ({ browser }) => {
+    // « On ajouterait donc un 2e mode "Rapide" où le curseur parcourrait la
+    // longueur de la bûche en 0.5 seconde et il ferait l'aller-retour en 1
+    // seconde (la manche durerait toujours 10 secondes). »
+    //
+    // L'ALLURE VOYAGE JUSQU'AUX DEUX ÉCRANS. Si elle restait sur le serveur, le
+    // cercle verrait le curseur à l'ancienne vitesse pendant que l'arbitre
+    // compterait sur la nouvelle : chaque coupe tomberait ailleurs qu'où le
+    // joueur l'a vue, sans que rien ne le signale.
+    await annoncer(browser);
+    await hote.page.getByTestId('cb-allure-rapide').click();
+    await hote.page.getByTestId('cb-cible').fill(CIBLE);
+    await hote.page.getByTestId('cb-diffuser').click();
+
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('cb-buche')).toBeVisible({ timeout: 15_000 });
+    // La période n'est pas exposée à l'écran : on la mesure sur le curseur
+    // lui-même, en comptant ses changements de sens.
+    const extremes = await j.evaluate(async () => {
+      const lire = () => Number(document.querySelector('[data-testid="cb-buche"]')
+        .getAttribute('aria-label').match(/(\d+) %/)[1]);
+      let hauts = 0; let montait = null; let precedent = lire();
+      const fin = performance.now() + 2_000;
+      while (performance.now() < fin) {
+        await new Promise((r) => setTimeout(r, 20));
+        const v = lire();
+        const monte = v > precedent;
+        if (montait !== null && monte !== montait) hauts += 1;
+        if (v !== precedent) montait = monte;
+        precedent = v;
+      }
+      return hauts;
+    });
+    // Deux secondes d'observation : deux allers-retours en rapide, donc au moins
+    // trois changements de sens. En allure normale il y en aurait deux au plus.
+    console.log(`  changements de sens en 2 s (rapide) : ${extremes}`);
+    expect(extremes, "le curseur ne va pas plus vite en allure rapide").toBeGreaterThanOrEqual(3);
+
+    // ET LA MANCHE DURE TOUJOURS DIX SECONDES.
+    const chrono = j.locator('[role="timer"]').first();
+    expect(Number((await chrono.innerText()).trim())).toBeLessThanOrEqual(10);
+  });
+
   test('la coupe part une seule fois, et la révélation rend le graphique du barème', async ({ browser }) => {
     // PSEUDOS CHOISIS AVEC SOIN : le filtre de pseudos du projet rejette tout ce
     // qui contient « con ». Un pseudo refusé fait échouer le contrôle sur un

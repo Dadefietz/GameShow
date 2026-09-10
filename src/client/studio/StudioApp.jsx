@@ -17,8 +17,13 @@ import './studio.css';
 // l'animateur enregistrait quoi que ce soit dans son Studio. Le jeu disparaissait
 // de son menu, sans le moindre message.
 const MODULE_TYPES = {
-  quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire' },
-  true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest' },
+  // FENÊTRE FIXE : « fixer le temps pour répondre à 15 secondes ». Ces deux jeux
+  // ne lisent plus la durée de la banque — le barème de rapidité est calibré sur
+  // cette fenêtre-là (plateau jusqu'à 13 s restantes, plancher sous 2 s), et il
+  // ne voudrait plus rien dire sur une fenêtre d'une autre longueur. Le champ est
+  // donc verrouillé plutôt que muet : un réglage sans effet est un mensonge.
+  quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire', dureeFixe: 15 },
+  true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest', dureeFixe: 15 },
   estimation: { label: 'Estimation', subtitle: 'Réponse chiffrée', icon: 'target',       color: 'flame' },
   // EN DIRECT : sa question — deux mots — se tape à l'antenne. Il n'y a donc rien
   // à préparer ici, et le Studio ne doit pas prétendre le contraire.
@@ -582,6 +587,10 @@ function EditorPanel({
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
+  // La fenêtre de réponse de ce type de jeu, quand elle est une règle et non un
+  // réglage — voir MODULE_TYPES.
+  const dureeFixe = MODULE_TYPES[module.type]?.dureeFixe || null;
+
   const saveLabel = saveState === 'saving' ? 'Enregistrement…'
     : saveState === 'invalid' ? `Enregistrer — ${validationErrors.length} point${validationErrors.length > 1 ? 's' : ''} à corriger`
     : 'Enregistrer';
@@ -621,11 +630,16 @@ function EditorPanel({
               <label className="flabel" htmlFor={`dur-${module.id}`}>Durée</label>
               <span className="input-suffix">
                 <input className="input" id={`dur-${module.id}`} type="number" inputMode="numeric" min="3"
-                  value={module.duration} data-bind="module.duration"
+                  value={dureeFixe || module.duration} data-bind="module.duration"
+                  disabled={!!dureeFixe} data-testid={dureeFixe ? 'duree-fixe' : undefined}
                   onChange={(e) => onPatchModule({ duration: Number(e.target.value) || 0 })} />
                 <span className="input-suffix__unit">s</span>
               </span>
-              <p className="fhint">3 s minimum.</p>
+              <p className="fhint">
+                {dureeFixe
+                  ? `Fixée à ${dureeFixe} s pour ce type de jeu : le barème de rapidité est calibré dessus.`
+                  : '3 s minimum.'}
+              </p>
             </div>
             <div className="fgroup">
               <span className="flabel" id={`color-${module.id}`}>Couleur d'accent</span>

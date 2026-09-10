@@ -14,6 +14,8 @@ import {
   TOLERANCE_COUPE_MS,
   plagesEstimation,
   modules,
+  ALLURES_COUPE,
+  periodeDeLAllure,
 } from '../../src/server/modules.js';
 import { positionDuCurseur as positionEcran, pourcent } from '../../src/client/shared/proportion.js';
 import { margeDeGrille, GRILLE, BOITE } from '../../src/client/shared/marque-buche.js';
@@ -146,6 +148,62 @@ describe('le module', () => {
     // le curseur s'arrêter deux secondes avant la fin de son compte à rebours.
     expect(meta.dureeCoupeMs).toBe(DUREE_COUPE * 1000);
     expect(meta.periodeMs).toBe(PERIODE_COUPE);
+  });
+});
+
+describe('les deux allures du curseur', () => {
+  it('déclare une allure normale et une allure rapide, dans ce rapport', () => {
+    // « Le curseur parcourt la longueur de la bûche en 1 seconde et fait donc un
+    // aller-retour en 2 secondes » — c'est le mode Normal. Le mode Rapide fait
+    // « l'aller-retour en 1 seconde ».
+    expect(ALLURES_COUPE.normal.periodeMs).toBe(2000);
+    expect(ALLURES_COUPE.rapide.periodeMs).toBe(1000);
+    expect(periodeDeLAllure('rapide')).toBe(1000);
+  });
+
+  it("retombe sur l'allure normale devant un mode inconnu", () => {
+    // L'allure vient du réseau et commande un balayage. Une valeur inventée ne
+    // doit pas figer le curseur ni le rendre fou : elle retombe sur la règle.
+    for (const mauvais of [undefined, null, '', 'turbo', 0, {}]) {
+      expect(periodeDeLAllure(mauvais)).toBe(PERIODE_COUPE);
+    }
+  });
+
+  it("ARBITRE SUR LA PÉRIODE DE LA MANCHE, pas sur celle par défaut", () => {
+    // LE DÉFAUT QUE CE CONTRÔLE GARDE. `coupeDuJoueur` employait la période par
+    // défaut : en allure rapide, le joueur aurait frappé à un endroit et le
+    // serveur en aurait compté un autre — à l'autre bout de la bûche, le curseur
+    // allant deux fois plus vite. Rien n'aurait cassé.
+    const rt = { startedAt: 0, periodeMs: 1000 };
+    // 250 ms sur une période de 1000 : la moitié du trajet aller, donc 50 %.
+    expect(coupeDuJoueur(rt, { at: 260, value: 250 })).toBe(50);
+    // Le même instant sur la période normale vaudrait 25 %.
+    expect(coupeDuJoueur({ startedAt: 0, periodeMs: 2000 }, { at: 260, value: 250 })).toBe(25);
+  });
+});
+
+describe("le geste du joueur", () => {
+  it("part au CONTACT du doigt, pas à son relâchement", () => {
+    // CE QUI A ÉTÉ RAPPORTÉ : « avec un appareil, la coupe n'est pas instantanée.
+    // Il y a 15% de décalage avec la réalité. »
+    //
+    // VOILÀ LES 15 %. Un `click` ne part pas quand le doigt touche l'écran : il
+    // part quand il le QUITTE. Une frappe posée tient cent à deux cents
+    // millisecondes, et le curseur parcourt cent points de bûche par seconde —
+    // dix à vingt points d'écart, toujours dans le même sens, et d'autant plus
+    // grands que le doigt s'attarde. En allure rapide, le double.
+    //
+    // Un contrôle de bout en bout ne verrait rien : Playwright presse et relâche
+    // dans la même milliseconde. C'est donc la SOURCE qu'on lit ici.
+    const src = fs.readFileSync('src/client/play/PlayApp.jsx', 'utf8');
+    // Le bloc de la bûche, isolé de son écran : « juste_temps » apparaît AVANT
+    // dans le fichier, une découpe naïve rendait une chaîne vide — et un contrôle
+    // qui lit le vide est content de tout.
+    const debut = src.indexOf('<div className="cbj">');
+    const bloc = src.slice(debut, src.indexOf('</div>', src.indexOf('COUPE !', debut)));
+    expect(bloc.length, "le bloc de la bûche n'a pas été retrouvé dans l'écran").toBeGreaterThan(200);
+    expect(bloc.includes('onPointerDown'), 'la coupe attend le relâchement du doigt').toBe(true);
+    expect(/onClick=\{[^}]*onAnswer/.test(bloc), 'la coupe part encore sur un clic').toBe(false);
   });
 });
 

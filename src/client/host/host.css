@@ -1295,10 +1295,35 @@
   /* Le nombre de colonnes vient du JSX : il dépend du jeu — deux pour le juste
      temps, trois pour retour de flamme. La valeur par défaut est déclarée ici
      pour que le jeton existe même si personne ne le pose. */
-  .clsm { --clsm-cols: 3; display: flex; flex-direction: column; }
+  /* LE CLASSEMENT DE MANCHE — une ligne par joueur, une colonne par chiffre.
+     DEUX DÉFAUTS CORRIGÉS ENSEMBLE, ET LE PREMIER EXPLIQUE LE SECOND.
+     1. LES COLONNES ÉTAIENT EN `ch`. Or l'unité `ch` se mesure sur la police de
+        l'ÉLÉMENT — et l'en-tête n'a pas la même taille que les lignes. Chaque
+        ligne étant sa propre grille, l'en-tête calculait des colonnes plus
+        étroites que les données : les titres ne tombaient pas sur leurs chiffres,
+        et « RÉUSSIS » chevauchait « RATÉS ». Mesuré à l'écran : 47 px par
+        colonne, deux titres superposés. La largeur est désormais un JETON en rem,
+        indépendant de la police de la ligne — toutes les grilles s'accordent.
+     2. « Les informations sont toutes à droite du tableau un peu écrasées. »
+        Le nom prenait 672 px des 924 disponibles et rejetait trois colonnes de
+        47 px contre le bord. Le nom est maintenant borné : il garde de quoi lire
+        un pseudo long, le reste va aux chiffres, qui sont ce qu'on vient lire. */
+  .clsm {
+    --clsm-cols: 3;
+    --clsm-col-w: 5.5rem;
+    /* EN REM, ET PAS EN `ch` : même piège que les colonnes. Un `ch` sur la ligne
+       de titres ne vaut pas un `ch` sur les lignes de données, et toute la
+       grille se décalait de 27 px — mesuré. */
+    --clsm-nom-w: 11rem;
+    display: flex;
+    flex-direction: column;
+  }
   .clsm__ligne {
     display: grid;
-    grid-template-columns: var(--sp-6) minmax(0, 1fr) repeat(var(--clsm-cols, 3), minmax(0, 6ch));
+    grid-template-columns:
+      var(--sp-6)
+      minmax(0, var(--clsm-nom-w))
+      repeat(var(--clsm-cols, 3), minmax(0, var(--clsm-col-w)));
     align-items: baseline;
     gap: var(--sp-3);
     padding: 3px 0;

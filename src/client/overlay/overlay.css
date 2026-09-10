@@ -72,8 +72,23 @@
      que de la seule phrase : une phrase décalée sous un titre qui ne l'est pas
      se lirait comme un défaut d'alignement. La réserve est calculée à partir des
      jetons de la pastille — elle suivra si celle-ci change de taille. */
-  .stream__stage[data-state="annonce"] {
+  /* `.stream` en tête : la règle générale des écrans courts (plus bas dans ce
+     fichier) a la même spécificité et gagnait par sa position. */
+  .stream .stream__stage[data-state="annonce"] {
     padding-left: calc(var(--pad-st) + var(--pastille-st) + var(--sp-6));
+    /* ET PAS AUSSI LA HAUTEUR. La règle générale des écrans courts réserve en bas
+       la HAUTEUR de la pastille (voir plus bas) : l'annonce payait donc DEUX FOIS
+       le même coin — une colonne à gauche et une bande de 484 px en bas.
+       CE QUE ÇA FAISAIT, MESURÉ : il restait 532 px de haut pour un bloc qui en
+       demande 734 — emblème, sur-titre, nom du jeu, règle. Un enfant de boîte
+       flexible ne se laisse pas rogner : il déborde, et le centrage répartit le
+       débordement des deux côtés. Le haut de l'emblème tombait à −37 px, donc
+       COUPÉ par le bord du canevas. « Positionner plus bas le logo afin qu'il ne
+       soit pas collé au haut de l'écran » : il n'y était pas collé, il en sortait.
+       L'annonce s'écarte déjà de la pastille par la gauche ; elle n'a rien à lui
+       céder en hauteur. Le bloc retrouve 952 px et se centre : 173 px de marge
+       haute, autant en bas. */
+    padding-bottom: var(--pad-st);
   }
 
 
@@ -888,7 +903,11 @@
   /* ===== LE LIEN, à l'échelle de l'antenne ===== */
   .st-annonce__emblem {
     display: grid;
-    place-items: center;
+    /* ALIGNÉ SUR LE TITRE, pas centré sur la scène. Le reste du bloc — sur-titre,
+       nom du jeu, règle — est aligné à gauche ; un emblème centré sur une scène
+       dont le remplissage gauche fait 478 px flottait à six cents pixels du texte
+       qu'il annonce. Ça ne se voyait pas tant qu'il sortait du cadre par le haut. */
+    justify-items: start;
     margin-bottom: var(--sp-6);
     color: var(--c-ember-bright);
   }

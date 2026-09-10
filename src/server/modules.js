@@ -35,22 +35,70 @@ const BASE_POINTS = 1000;
 // « base », si bien que l'écran du joueur annonçait un « bonus vitesse » alors
 // que la vitesse agissait déjà, invisible, dans la ligne du dessus. On ne change
 // pas le calcul, on cesse de le cacher.
-const BASE_BONNE_REPONSE = 700;
-// CHANTIER v4, décision 4.1 : de 300 à 250. Motif donné en réunion — « équilibrer
-// le score par rapport à la base de 700 points ». Le maximum d'une manche de quiz
-// tombe ainsi de 1150 à 950, le supplément du plus rapide étant supprimé (4.2).
-const COMPLEMENT_VITESSE_MAX = 250;
-
-// Part de la durée restant au moment de la réponse : 1 (immédiate) -> 0 (dernière seconde).
-function fractionRestante(runtime, answeredAt) {
-  const total = runtime.durationMs;
-  const elapsed = Math.min(Math.max(answeredAt - runtime.startedAt, 0), total);
-  return total > 0 ? 1 - elapsed / total : 1;
+// ============================================================
+// LA RAPIDITÉ — UNE SEULE COURBE, TROIS RÉGLAGES
+// ============================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ (séance du 10/09) : « un bonus de rapidité allant de 0
+// point à 200 points, le chrono partant de 15sec jusqu'à 0sec, de 15sec à 13sec
+// = 200pts, et de 2sec à 0 = 0pt, je te laisse ajuster l'entre deux ».
+//
+// LA COURBE A DONC TROIS MORCEAUX, et non un seul comme la précédente :
+//   - un PLATEAU HAUT : répondre dans les deux premières secondes vaut le maximum.
+//     Sans lui, deux joueurs qui buzzent au dixième de seconde près se séparent
+//     de plusieurs points pour un réflexe que rien ne distingue ;
+//   - une PENTE, linéaire, entre les deux seuils ;
+//   - un PLANCHER : les dernières secondes ne rapportent rien. C'est ce qui
+//     distingue « répondre » de « répondre à temps ».
+//
+// ELLE EST ÉCRITE UNE FOIS ET PARAMÉTRÉE, parce que trois jeux l'emploient avec
+// trois réglages : le quiz et le vrai/faux (200 points, 13 s / 2 s sur une
+// fenêtre de 15), et « Cache-cache » (100 points, 9 s / 2 s sur une fenêtre de
+// 10). Trois copies auraient fini par diverger — et une courbe de score qui
+// diverge ne casse rien, elle fausse.
+//
+// LES DEUX EXEMPLES DE L'ÉNONCÉ SONT DES CONTRÔLES : « une réponse à 7.5sec
+// vaudra surement 100pts » sur le quiz, « une réponse à 5.5sec vaudra surement
+// 50pts » sur Cache-cache. Les deux tombent juste, à l'unité.
+export function bonusRapidite(resteMs, { plateau, plancher, max }) {
+  const reste = Math.max(0, Number(resteMs) || 0) / 1000;
+  if (reste >= plateau) return max;
+  if (reste <= plancher) return 0;
+  return Math.round(max * ((reste - plancher) / (plateau - plancher)));
 }
 
-// Complément de vitesse d'une bonne réponse : 0 à 250 points selon la rapidité.
+// Ce qu'il restait au chrono quand la réponse est arrivée.
+function resteAuBuzz(runtime, answeredAt) {
+  const total = runtime.durationMs;
+  const ecoule = Math.min(Math.max(answeredAt - runtime.startedAt, 0), total);
+  return total - ecoule;
+}
+
+// LES DEUX JEUX À QUESTIONS COURTES — quiz et vrai/faux.
+//
+// LA FENÊTRE EST UNE RÈGLE, PAS UN RÉGLAGE : « fixer le temps pour répondre à 15
+// secondes ». Elle ne se lit plus dans la banque, et le Studio le dit. Les deux
+// vont ensemble : les seuils de la courbe (13 s et 2 s) sont des SECONDES, pas
+// des proportions — sur une fenêtre de trente secondes, « plateau jusqu'à 13 s
+// restantes » voudrait dire dix-sept secondes de réflexion au tarif maximum.
+export const DUREE_QUESTION_COURTE = 15;
+const RAPIDITE_QUESTION_COURTE = { plateau: 13, plancher: 2, max: 200 };
+
+// LES DEUX BASES, séparées : « une bonne réponse donne 250 points » au quiz,
+// 200 au vrai/faux. Le vrai/faux vaut moins parce qu'on y tombe juste une fois
+// sur deux en tirant à pile ou face — ce que le quiz ne permet pas.
+const BASE_QUIZ = 250;
+const BASE_VRAI_FAUX = 200;
+
+// LE VOTE N'EST PAS TOUCHÉ par cette séance : deviner ce que pense le cercle vaut
+// toujours 700, sans rapidité — on n'y gagne rien à être prompt, la manche ne se
+// juge qu'au second tour. La constante reste donc la sienne, et porte désormais
+// son nom : partagée, elle laissait croire que changer le quiz changeait le vote.
+const BASE_VOTE = 700;
+
+// Le complément de vitesse d'une bonne réponse à une question courte.
 function complementVitesse(runtime, answeredAt) {
-  return Math.round(COMPLEMENT_VITESSE_MAX * fractionRestante(runtime, answeredAt));
+  return bonusRapidite(resteAuBuzz(runtime, answeredAt), RAPIDITE_QUESTION_COURTE);
 }
 
 // PALIERS DE PRÉCISION DE L'ESTIMATION (action 13).
@@ -477,7 +525,26 @@ export function valeurDuBuzz(rt, reponse) {
 // l'autre, une seconde par trajet. Les joueurs frappent quand ils croient le
 // curseur sur la proportion demandée. Dix secondes, donc cinq allers-retours.
 export const DUREE_COUPE = 10;          // secondes de jeu
-export const PERIODE_COUPE = 2000;      // un aller-retour complet
+export const PERIODE_COUPE = 2000;      // un aller-retour complet, allure normale
+
+// LES DEUX ALLURES DU CURSEUR (séance du 10/09).
+//
+// « Pour le moment le jeu se lance avec le curseur qui parcourt la longueur de la
+// bûche en 1 seconde [...] Il faudrait que ce soit le mode "Normal". On ajouterait
+// donc un 2e mode "Rapide" où le curseur parcourrait la longueur de la bûche en
+// 0.5 seconde [...] (la manche durerait toujours 10 secondes). »
+//
+// L'ALLURE EST UNE PROPRIÉTÉ DE LA MANCHE, pas du module : elle voyage avec la
+// question publique, comme la cible. Les deux écrans dessinent le balayage à
+// partir de ce nombre-là — s'il vivait en dur quelque part, le mode rapide
+// n'aurait changé que ce que le serveur compte, et le cercle aurait vu l'ancien.
+export const ALLURES_COUPE = {
+  normal: { periodeMs: 2000, label: 'Normal' },
+  rapide: { periodeMs: 1000, label: 'Rapide' },
+};
+export function periodeDeLAllure(allure) {
+  return ALLURES_COUPE[allure]?.periodeMs || PERIODE_COUPE;
+}
 const MARGE_COUPE = 1200;               // voir `buildRound` du juste temps
 export const TOLERANCE_COUPE_MS = 750;  // ce que le réseau a le droit de coûter
 
@@ -530,7 +597,10 @@ export function coupeDuJoueur(rt, reponse) {
     ? reponse.value
     : arrivee;
   const t = Math.min(Math.max(annonce, arrivee - TOLERANCE_COUPE_MS), arrivee);
-  return Math.round(positionDuCurseur(Math.min(plafond, Math.max(0, t))));
+  // LA PÉRIODE EST CELLE DE LA MANCHE, pas la période par défaut : en allure
+  // rapide, arbitrer sur deux secondes d'aller-retour placerait la coupe à
+  // l'autre bout de la bûche.
+  return Math.round(positionDuCurseur(Math.min(plafond, Math.max(0, t)), rt.periodeMs || PERIODE_COUPE));
 }
 
 // ============================================================
@@ -836,7 +906,7 @@ export const modules = {
         text: q.text,
         options: q.options,
         correctIndex: q.correctIndex,
-        durationMs: (q.durationSec || 20) * 1000,
+        durationMs: DUREE_QUESTION_COURTE * 1000,
       };
     },
     publicQuestion(rt) {
@@ -851,7 +921,7 @@ export const modules = {
       for (const [pid, a] of rt.answers) {
         const correct = a.value === rt.correctIndex;
         results.set(pid, {
-          base: correct ? BASE_BONNE_REPONSE : 0,
+          base: correct ? BASE_QUIZ : 0,
           speed: correct ? complementVitesse(rt, a.at) : 0,
           correct,
         });
@@ -869,7 +939,7 @@ export const modules = {
         questionId: q.id,
         text: q.text,
         correct: !!q.correct,
-        durationMs: (q.durationSec || 12) * 1000,
+        durationMs: DUREE_QUESTION_COURTE * 1000,
       };
     },
     publicQuestion(rt) {
@@ -887,7 +957,7 @@ export const modules = {
         if (a.value === true) vrai += 1;
         const correct = a.value === rt.correct;
         results.set(pid, {
-          base: correct ? BASE_BONNE_REPONSE : 0,
+          base: correct ? BASE_VRAI_FAUX : 0,
           speed: correct ? complementVitesse(rt, a.at) : 0,
           correct,
         });
@@ -1594,6 +1664,10 @@ export const modules = {
         nature: 'proportion',
         text: 'Coupe la bûche à la bonne proportion.',
         durationMs: DUREE_COUPE * 1000 + MARGE_COUPE,
+        // L'ALLURE CHOISIE À L'ANTENNE. Elle est blanchie : une valeur venue du
+        // réseau ne commande pas directement un balayage — un mode inconnu
+        // retombe sur l'allure normale plutôt que de figer le curseur.
+        periodeMs: periodeDeLAllure(q.allure),
       };
     },
     publicQuestion(rt) {
@@ -1606,7 +1680,7 @@ export const modules = {
         // cette bûche à 80 % ».
         cible: rt.target,
         dureeCoupeMs: DUREE_COUPE * 1000,
-        periodeMs: PERIODE_COUPE,
+        periodeMs: rt.periodeMs,
       };
     },
     // UN COUP A UNE HEURE. Ce que le client annonce — l'instant local de sa
@@ -1746,7 +1820,7 @@ export const modules = {
           // ce que pense la salle, et récompenser la rapidité pousserait à
           // cliquer avant d'avoir lu. Aucune pénalité pour qui se trompe : mal
           // lire le cercle n'est pas une faute, c'est un pari perdu.
-          base: trouve ? BASE_BONNE_REPONSE : 0,
+          base: trouve ? BASE_VOTE : 0,
           speed: 0,
           correct: trouve,
           // CE QUE LE JOUEUR AVAIT RÉPONDU SINCÈREMENT. Il ne sert pas au calcul :

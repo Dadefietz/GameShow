@@ -396,17 +396,21 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
 // découvrirait devant son public.
 function SaisieBuche({ jeu, onDiffuser, onAnnuler }) {
   const [cible, setCible] = useState('');
+  // L'ALLURE DU CURSEUR, choisie avant de diffuser. Elle survit d'une manche à
+  // l'autre : un animateur qui enchaîne trois bûches en rapide ne veut pas la
+  // rechoisir à chaque fois — même règle que le mode de « Retour de flamme ».
+  const [allure, setAllure] = useState('normal');
   const dansLaBuche = cible !== '' && Number.isFinite(Number(cible))
     && Number(cible) >= 0 && Number(cible) <= 100;
   return (
     <section className="private lien-saisie" aria-label="Préparer Coupe ta bûche" data-testid="saisie-buche">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
       <p className="lien-saisie__aide">
-        Un curseur balaie la bûche, un aller-retour par seconde. Le cercle frappe
-        quand il le croit sur la proportion demandée. Dix secondes de jeu.
+        Un curseur balaie la bûche{allure === 'rapide' ? ', deux allers-retours par seconde' : ', un aller-retour par seconde'}.
+        Le cercle frappe quand il le croit sur la proportion demandée. Dix secondes de jeu.
       </p>
       <form className="lien-saisie__form fields"
-        onSubmit={(e) => { e.preventDefault(); if (dansLaBuche) onDiffuser(jeu, Number(cible)); }}>
+        onSubmit={(e) => { e.preventDefault(); if (dansLaBuche) onDiffuser(jeu, Number(cible), allure); }}>
         <div className="frow">
           <div className="fgroup fgroup--short">
             <label className="flabel" htmlFor="cb-cible">Proportion cible</label>
@@ -423,6 +427,21 @@ function SaisieBuche({ jeu, onDiffuser, onAnnuler }) {
           La part de bûche <strong>à gauche</strong> du trait. Le cercle la voit
           écrite pendant toute la manche : c'est la consigne, pas la réponse.
         </p>
+        {/* L'ALLURE — « l'animateur aurait donc la possibilité de choisir le mode
+            Normal ou le mode Rapide avant de lancer le jeu ». Deux boutons plutôt
+            qu'une liste : en direct, un bouton ne rate jamais sa cible. */}
+        <div className="fgroup">
+          <span className="flabel" id="cb-allure">Allure du curseur</span>
+          <div className="seg" role="radiogroup" aria-labelledby="cb-allure">
+            {[['normal', 'Normal', '1 s par trajet'], ['rapide', 'Rapide', '0,5 s par trajet']].map(([cle, label, aide]) => (
+              <button key={cle} type="button" role="radio" aria-checked={allure === cle}
+                className={`button ${allure === cle ? 'button--primary' : 'button--quiet'}`}
+                data-testid={`cb-allure-${cle}`} onClick={() => setAllure(cle)}>
+                {label} <span className="fhint" style={{ marginLeft: 'var(--sp-2)' }}>{aide}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="lien-saisie__actions">
           <button className="button button--primary" type="submit" disabled={!dansLaBuche}
             data-action="host:diffuserBuche" data-testid="cb-diffuser">
@@ -1955,7 +1974,17 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
             <SaisieBuche jeu={prepare} onDiffuser={onDiffuserBuche} onAnnuler={onAnnulerLien} />
           ) : null}
           {prepare && !JEUX_A_PREPARER.includes(prepare.type) ? (
-            <DepartSimple jeu={prepare} onDemarrer={onDemarrerSimple} onAnnuler={onAnnulerLien} />
+            <>
+              <DepartSimple jeu={prepare} onDemarrer={onDemarrerSimple} onAnnuler={onAnnulerLien} />
+              {/* LA FILE, AVANT LE DÉPART — « lors du lancement des jeux à
+                  questions, l'animateur doit avoir la possibilité de choisir la
+                  1ère question ».
+                  Elle n'apparaissait qu'une fois la manche lancée : l'animateur
+                  découvrait la question EN MÊME TEMPS que le cercle, et ne
+                  pouvait réordonner que pour la suivante. Le jingle lui laisse
+                  désormais le temps de mettre en tête celle qu'il veut ouvrir. */}
+              <FileAttente g={g} moduleId={prepare.id} nomJeu={prepare.name} />
+            </>
           ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
@@ -2002,8 +2031,16 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
               l'énoncé, le numéro, la poignée et les commandes tiennent sur une
               seule ligne, sans rien comprimer. Et l'ordre de lecture dit ce que
               l'animateur fait : ce qui est à l'antenne, puis ce qui vient. */}
-          <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name}
-            enCours={current && current.text} />
+          {/* PAS DE FILE POUR LES JEUX SANS BANQUE (« hors Quiz, Vrai / Faux, Vote,
+              Estimation, supprimer le bloc "à venir" »). Le lien, les visages, le
+              juste temps, retour de flamme et la bûche se préparent à l'antenne :
+              leur file est vide par construction, et le bloc n'affichait qu'une
+              phrase invitant à « ajouter des questions au Studio » — pour un jeu
+              qui n'en aura jamais. */}
+          {current?.meta?.direct ? null : (
+            <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name}
+              enCours={current && current.text} />
+          )}
         </div>
 
         <aside className="rail">
@@ -2314,11 +2351,11 @@ export function HostApp() {
 
   // LA DIFFUSION DE LA PROPORTION : c'est ELLE qui démarre la manche et lance le
   // balayage du curseur.
-  const diffuserBuche = useCallback((jeu, cible) => {
+  const diffuserBuche = useCallback((jeu, cible, allure) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
     setPrepare(null);
-    g.emit('host:startModule', { moduleId: jeu.id, question: { id: `cb-${Date.now()}`, cible } });
+    g.emit('host:startModule', { moduleId: jeu.id, question: { id: `cb-${Date.now()}`, cible, allure } });
   }, [g]);
 
   // LE DÉPART D'UN JEU ORDINAIRE : le serveur tire la question dans la réserve du

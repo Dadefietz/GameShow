@@ -117,7 +117,12 @@ describe('engine.reveal', () => {
   });
 
   it('placesDelta reflète les places gagnées', () => {
-    b.score = 500; // Bob devant avant la manche
+    // Bob devant avant la manche, mais d'assez peu pour qu'une bonne réponse de
+    // quiz suffise à le doubler. Le repère était 500, calibré sur l'ancien barème
+    // (700 de base) ; depuis le 10/09 une manche de quiz vaut 250 + rapidité, et
+    // 500 était devenu hors d'atteinte — le contrôle ne mesurait plus les places
+    // gagnées mais l'échelle des points.
+    b.score = 300;
     const rt = setRound(room, 'quiz', QUIZ_Q, [[a.id, { value: 1, at: Date.now() - 4000 }]]);
     engine.reveal(io, room);
     const ya = youOf(a);
