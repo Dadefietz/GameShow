@@ -12,7 +12,7 @@
 // dont les quotas se répondent, et jamais deux questions sur la même image. Un
 // tirage qui violerait l'une d'elles ne casse rien — il produit une manche
 // injouable ou une question sans réponse, en direct.
-import { BASSIN_OBJETS, COULEURS } from './objets.js';
+import { BASSIN_OBJETS } from './objets.js';
 
 // ---------------------------------------------------------------------------
 // LA GRILLE
@@ -63,14 +63,45 @@ function melanger(liste, alea = Math.random) {
 // toujours posable et toujours sans ambiguïté. L'énoncé le dit : « normalement il
 // doit y avoir 4*2 couleurs + 1 couleur ». Ce n'est pas « normalement », c'est
 // forcé — et le contrôle le vérifie sur des milliers de tirages.
+// LES COULEURS D'UNE BANQUE SONT CELLES QU'ELLE CONTIENT.
+//
+// LE DÉFAUT QUE CECI RÉPARE. La matrice tirait ses couleurs de la CONSTANTE du
+// dépôt, pas de la banque reçue. L'écran de modération laissait pourtant changer
+// la couleur d'un objet : la renommer « Turquoise » faisait chercher au tirage un
+// couple « nom|Bleu » qui n'existait plus, les quarante essais échouaient, le
+// serveur levait — et l'animateur cliquait « Lancer » sans que rien ne parte. Un
+// formulaire qui accepte une valeur que le jeu ne sait pas lire est pire qu'un
+// formulaire absent : il promet.
+export function couleursDuBassin(bassin = BASSIN_OBJETS) {
+  return [...new Set(bassin.map((o) => o.couleur).filter(Boolean))];
+}
+
+// COMBIEN DE COULEURS UNE GRILLE DE NEUF CASES ADMET-ELLE ?
+//
+// Chaque couleur présente une ou deux fois, les neuf cases remplies : il faut au
+// moins CEIL(9/2) = 5 couleurs — quatre couleurs n'en couvrent que huit — et au
+// plus 9, une par case. Entre les deux, `CASES - n` couleurs sont doublées.
+//
+// À CINQ COULEURS, ET SEULEMENT À CINQ, il y a exactement UNE couleur unique
+// (4 doublées + 1 seule). C'est ce qui rend la question « quelle couleur n'est
+// présente qu'une seule fois ? » toujours posable et sans ambiguïté. À six, il y
+// en a trois ; la question n'a plus de réponse, et elle n'est plus tirée.
+export const COULEURS_MIN = Math.ceil(CASES / 2);
+export const COULEURS_MAX = CASES;
+
 export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS) {
   const noms = [...new Set(bassin.map((o) => o.nom))];
+  if (noms.length < CASES) return null;
   const neufNoms = melanger(noms, alea).slice(0, CASES);
 
-  const couleurs = melanger(COULEURS, alea);
-  const seule = couleurs[0];
+  const palette = couleursDuBassin(bassin);
+  if (palette.length < COULEURS_MIN || palette.length > COULEURS_MAX) return null;
+  const couleurs = melanger(palette, alea);
+  // Les `CASES - n` PREMIÈRES sont doublées ; les autres ne paraissent qu'une
+  // fois. À cinq couleurs on retrouve exactement les quatre doubles et l'unique.
+  const doublees = CASES - couleurs.length;
   const parts = [];
-  for (const c of couleurs) parts.push(c, ...(c === seule ? [] : [c]));
+  couleurs.forEach((c, i) => parts.push(c, ...(i < doublees ? [c] : [])));
 
   const affectees = melanger(parts, alea);
   const parCle = new Map(bassin.map((o) => [`${o.nom}|${o.couleur}`, o]));
@@ -86,12 +117,18 @@ export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS) {
   return sortie.some((o) => o === null) ? null : sortie;
 }
 
-// La couleur qui n'apparaît qu'une fois — il y en a toujours exactement une.
+// La couleur qui n'apparaît qu'une fois — À CONDITION QU'IL N'Y EN AIT QU'UNE.
+//
+// Avec les cinq couleurs du dépôt, c'est toujours le cas. Avec une banque modérée
+// à six couleurs ou plus, il y en a plusieurs : la question « quelle couleur n'est
+// présente qu'une seule fois ? » aurait alors trois bonnes réponses et une seule
+// acceptée. On rend `null`, la question n'est pas fabriquée, et le tirage se
+// rabat sur une autre répartition — plutôt que de poser une question truquée.
 export function couleurUnique(matrice) {
   const compte = new Map();
   for (const o of matrice) compte.set(o.couleur, (compte.get(o.couleur) || 0) + 1);
-  for (const [c, n] of compte) if (n === 1) return c;
-  return null;
+  const seules = [...compte].filter(([, n]) => n === 1);
+  return seules.length === 1 ? seules[0][0] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -383,7 +420,15 @@ export function tirerLaManche(alea = Math.random, contenu = {}, essais = 40) {
     if (!matrice) continue;
     const questions = construireQuestions(matrice, alea, gabarits);
     if (questions && questions.length === QUESTIONS_PAR_PARTIE) {
-      return { matrice, questions, ordre: melanger(matrice.map((o) => o.place), alea) };
+      // LA PALETTE VOYAGE AVEC LA MANCHE. Sans elle, les boutons proposés au
+      // joueur seraient ceux du dépôt alors que la bonne réponse serait celle de
+      // la banque modérée : une question sans réponse possible.
+      return {
+        matrice,
+        questions,
+        couleurs: couleursDuBassin(bassin),
+        ordre: melanger(matrice.map((o) => o.place), alea),
+      };
     }
   }
   return null;

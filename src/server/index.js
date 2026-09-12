@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static';
 import { Server as IOServer } from 'socket.io';
 import { z } from 'zod';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { config } from './config.js';
@@ -16,6 +17,7 @@ import {
 } from './cache-cache.js';
 import { BASSIN_OBJETS, COULEURS, srcDObjet } from './objets.js';
 import { srcDeVisage } from './visages.js';
+import { getServiceClient } from './supabase.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
 
@@ -40,7 +42,11 @@ await app.register(cors, { origin: config.corsOrigins });
 const SECURITY_HEADERS = {
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; " +
-    "img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws: wss:; " +
+    // LES IMAGES DÉPOSÉES AU STUDIO SONT SERVIES PAR SUPABASE STORAGE. Sans cette
+    // autorisation, elles seraient bloquées par la CSP — silencieusement, et sur
+    // toutes les surfaces à la fois : la case resterait une plaque vide au stream
+    // et sur les téléphones, sans message ni erreur visible.
+    "img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws: wss:; " +
     "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -56,6 +62,25 @@ app.addHook('onSend', (req, reply, payload, done) => {
 // Statique : build front + assets publics.
 const distDir = path.resolve(process.cwd(), config.clientDist);
 app.register(fastifyStatic, { root: distDir, prefix: '/', decorateReply: true, wildcard: false });
+
+// LES IMAGES D'OBJETS DÉPOSÉES AU STUDIO.
+//
+// Le seau Supabase est le rangement de production — durable, c'est la leçon de
+// M1. Le dossier local ne sert qu'au développement et aux contrôles de bout en
+// bout, pour que la chaîne entière reste vérifiable sans clé de service. Il vit
+// sous DATA_DIR, donc jamais dans le dépôt.
+const SEAU_OBJETS = 'objets';
+const POIDS_IMAGE_MAX = 2 * 1024 * 1024;
+const DOSSIER_IMAGES = path.resolve(process.cwd(), process.env.DATA_DIR || 'data', 'objets-perso');
+fs.mkdirSync(DOSSIER_IMAGES, { recursive: true });
+// `wildcard: true` ET C'EST NÉCESSAIRE ICI. Le service statique en mode « sans
+// joker » parcourt le dossier AU DÉMARRAGE et enregistre une route par fichier
+// trouvé : une image déposée ensuite n'existe pour personne, et répond 404 alors
+// qu'elle est bien sur le disque. Le dossier du build, lui, ne bouge jamais en
+// cours d'exécution — il garde son réglage.
+app.register(fastifyStatic, {
+  root: DOSSIER_IMAGES, prefix: '/objets-perso/', decorateReply: false, wildcard: true,
+});
 
 // ANIMATEURS AUTORISÉS (R1) : vérifie la session ET, si HOST_EMAIL est configuré,
 // que l'email figure dans la liste. Sans Supabase ni HOST_EMAIL : mode dev ouvert.
@@ -188,6 +213,68 @@ app.post('/api/modules/restore', async (req, reply) => {
   const modules = banksStore.restaurerModulesDeDepart(host.sub);
   await banksStore.sauverEnBase(host.sub, modules).catch(() => {});
   return { modules, types: typesPourLeStudio() };
+});
+
+// DÉPOSER UNE IMAGE D'OBJET DEPUIS LE STUDIO.
+//
+// CE QUI A ÉTÉ DEMANDÉ : « déposer une image et codifier (nom, couleur) ».
+//
+// LE SERVEUR NE DÉCODE JAMAIS L'IMAGE. Elle arrive déjà détourée et convertie en
+// WebP par le navigateur (voir `src/client/studio/imageObjet.js`) ; ici on
+// VÉRIFIE — le type par sa signature d'octets, le poids, l'identifiant — puis on
+// range. Décoder un fichier venu du dehors, c'est ouvrir un décodeur d'images à
+// une entrée non maîtrisée ; s'en abstenir supprime la classe entière de défauts,
+// et évite trente mégaoctets de binaire natif sur l'hébergeur.
+//
+// DEUX RANGEMENTS, ET IL LE DIT. En production, Supabase Storage — durable, servi
+// publiquement, c'est la leçon de M1 : le disque de l'hébergeur repart vierge à
+// chaque redémarrage. En développement, faute de clé de service, le disque local
+// sous DATA_DIR, pour que la chaîne complète reste vérifiable. La réponse porte
+// `durable`, et le Studio le montre : une image posée sur un rangement qui
+// s'efface ne doit jamais passer pour rangée.
+const SIGNATURE_WEBP = (buf) => buf.length > 12
+  && buf.toString('ascii', 0, 4) === 'RIFF'
+  && buf.toString('ascii', 8, 12) === 'WEBP';
+
+const imageSchema = z.object({
+  id: z.string().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    'identifiant attendu en minuscules, chiffres et tirets'),
+  webp: z.string().min(1).max(4_000_000),
+});
+
+app.post('/api/cache/image', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  const parsed = imageSchema.safeParse(req.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'image-invalide', detail: parsed.error.issues[0]?.message });
+
+  const { id, webp } = parsed.data;
+  const brut = webp.startsWith('data:') ? webp.slice(webp.indexOf(',') + 1) : webp;
+  let octets;
+  try { octets = Buffer.from(brut, 'base64'); } catch { return reply.code(400).send({ error: 'base64-invalide' }); }
+  if (!SIGNATURE_WEBP(octets)) return reply.code(400).send({ error: 'pas-un-webp' });
+  if (octets.length > POIDS_IMAGE_MAX) {
+    return reply.code(413).send({ error: 'image-trop-lourde', octets: octets.length, max: POIDS_IMAGE_MAX });
+  }
+
+  const chemin = `${host.sub}/${id}.webp`;
+  const sb = getServiceClient();
+  if (sb) {
+    const { error } = await sb.storage.from(SEAU_OBJETS)
+      .upload(chemin, octets, { contentType: 'image/webp', upsert: true });
+    if (error) {
+      req.log.error({ err: error }, 'dépôt image : Supabase a refusé');
+      return reply.code(503).send({ error: 'depot-refuse', detail: error.message });
+    }
+    const { data } = sb.storage.from(SEAU_OBJETS).getPublicUrl(chemin);
+    return { id, src: data.publicUrl, octets: octets.length, durable: true };
+  }
+
+  // Pas de Supabase : on range sur le disque, et on le DIT.
+  const dossier = path.join(DOSSIER_IMAGES, String(host.sub));
+  await fs.promises.mkdir(dossier, { recursive: true });
+  await fs.promises.writeFile(path.join(dossier, `${id}.webp`), octets);
+  return { id, src: `/objets-perso/${host.sub}/${id}.webp`, octets: octets.length, durable: false };
 });
 
 // LE CATALOGUE DE « CACHE-CACHE » — ce que le Studio a besoin de connaître pour

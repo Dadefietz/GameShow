@@ -441,6 +441,39 @@
     white-space: nowrap;
   }
   .cmod__objet .cmod__tete { min-width: 0; grid-column: 2 / -1; }
+  /* LE CHAMP DE FICHIER NATIF EST MASQUÉ, PAS SUPPRIMÉ. `display: none` le
+     retirerait de l'ordre de tabulation et le rendrait inatteignable au clavier ;
+     on le rend transparent et on l'étale sur son étiquette, qui porte l'allure du
+     système. Le clic et la touche Entrée marchent tous les deux. */
+  .cmod__depot {
+    grid-column: 2 / -1;
+    position: relative;
+    min-height: var(--row-form);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    border-radius: var(--r-s);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+    color: var(--c-ink-2);
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    cursor: pointer;
+  }
+  .cmod__depot input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .cmod__etat {
+    grid-column: 2 / -1;
+    margin: 0;
+    font: 500 var(--fs-200) / 1.4 var(--f-ui);
+    color: var(--c-ink-2);
+  }
+  .cmod__etat--ok { color: var(--c-pine); }
+  .cmod__etat--erreur { color: var(--c-bad); }
   .cmod__objet .input--mono { grid-column: 2 / -1; }
   .cmod__objet .cmod__id { flex: 1; }
   .input--mono { font-family: var(--f-mono); font-size: var(--fs-200); }

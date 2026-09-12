@@ -945,15 +945,20 @@ function joueursDeLaManche(rt) {
 // se tapent, et se comparent au nom sans casse, sans accents et sans ponctuation
 // (voir `memeNom`).
 // LA LISTE DE CHOIX D'UNE FORME, ou `null` si la réponse se tape.
-function listeDeChoix(forme) {
+//
+// LA PALETTE EST CELLE DE LA MANCHE, PAS CELLE DU DÉPÔT. Une banque modérée peut
+// porter d'autres couleurs ; proposer les cinq du dépôt donnerait au joueur des
+// boutons dont aucun n'est la bonne réponse. Le repli sur `COULEURS` ne sert
+// qu'aux manches d'avant ce changement, rechargées après un redémarrage.
+function listeDeChoix(forme, rt) {
   const quoi = FORMES[forme]?.choix;
-  if (quoi === 'couleurs') return COULEURS;
+  if (quoi === 'couleurs') return (rt?.couleurs?.length ? rt.couleurs : COULEURS);
   if (quoi === 'cases') return NUMEROS;
   return null;
 }
 
-function questionReussie(q, valeur) {
-  const liste = listeDeChoix(q.forme);
+function questionReussie(q, valeur, rt) {
+  const liste = listeDeChoix(q.forme, rt);
   if (liste) return liste[valeur] === q.reponse;
   return memeNom(valeur, q.reponse);
 }
@@ -2021,6 +2026,9 @@ export const modules = {
         matrice: tirage.matrice,
         ordre: tirage.ordre,
         questions: tirage.questions,
+        // La palette de CETTE banque : elle commande les boutons du joueur et la
+        // correction. Voir `listeDeChoix`.
+        couleurs: tirage.couleurs,
         // Le tour 1 est la grille ; les cinq suivants sont les questions.
         tours: 1 + QUESTIONS_PAR_PARTIE,
         tour: 1,
@@ -2072,14 +2080,17 @@ export const modules = {
         text: q.texte,
         // DEUX LISTES DE CHOIX, ET LE RESTE SE TAPE. Les couleurs pour deux
         // formes, les neuf numéros pour celle qui demande une case.
-        options: listeDeChoix(q.forme),
+        options: listeDeChoix(q.forme, rt),
         saisie: !FORMES[q.forme].choix,
       };
     },
     validateAnswer(rt, value) {
       if (rt.tour <= 1) return null; // on ne répond pas pendant la grille
       const q = rt.questions[rt.tour - 2];
-      const liste = listeDeChoix(q.forme);
+      // MÊME PALETTE QU'À L'AFFICHAGE. Une banque à six couleurs proposerait six
+      // boutons et n'en accepterait que cinq : le sixième serait refusé en
+      // silence, et le joueur ne saurait pas pourquoi sa réponse n'est pas partie.
+      const liste = listeDeChoix(q.forme, rt);
       if (liste) {
         const i = Number(value);
         return Number.isInteger(i) && i >= 0 && i < liste.length ? i : null;
@@ -2097,7 +2108,7 @@ export const modules = {
           const a = reponseDuTour(rt, i + 2, pid);
           if (!a) return { repondu: false, correct: false, base: 0, speed: 0 };
           parQuestion[i].total += 1;
-          const correct = questionReussie(q, a.value);
+          const correct = questionReussie(q, a.value, rt);
           if (correct) parQuestion[i].bons += 1;
           const reste = DUREE_QUESTION_MS - Math.min(DUREE_QUESTION_MS, Math.max(0, a.at - (rt.debutsDeTour?.[i + 2] ?? rt.startedAt)));
           return {

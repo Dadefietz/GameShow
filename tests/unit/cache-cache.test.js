@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   construireMatrice, construireQuestions, tirerLaManche, couleurUnique,
+  couleursDuBassin, COULEURS_MIN, COULEURS_MAX,
   repartitionsPossibles, normaliserReponse, memeNom, momentsDuDevoilement,
   DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE, CASES, PAIRES, FORMES,
 } from '../../src/server/cache-cache.js';
@@ -437,5 +438,104 @@ describe('la modération de « Cache-cache »', () => {
         expect(g.gabarit, `le gabarit de « ${g.forme} » n'emploie pas ${tag}`).toContain(tag);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LES COULEURS DE LA BANQUE SONT CELLES DU JEU
+// ---------------------------------------------------------------------------
+//
+// LE DÉFAUT QUE CES CONTRÔLES GARDENT. L'écran de modération laissait changer la
+// couleur d'un objet ; le tirage, lui, lisait la CONSTANTE du dépôt. Renommer
+// « Bleu » en « Turquoise » faisait chercher un couple « nom|Bleu » disparu : les
+// quarante essais échouaient, le serveur levait, et l'animateur cliquait
+// « Lancer » sans que rien ne parte — à l'antenne.
+//
+// POURQUOI LE PREMIER CONTRÔLE DE LA MODÉRATION NE L'AVAIT PAS VU : sa fausse
+// banque était bâtie AVEC `COULEURS`. Il vérifiait les noms et croyait vérifier
+// les couleurs. Ceux-ci emploient des teintes que le dépôt ne connaît pas.
+describe('les couleurs d\'une banque modérée', () => {
+  const banque = (teintes, nbNoms = 10) => teintes.flatMap((couleur) => (
+    Array.from({ length: nbNoms }, (_, j) => (
+      { id: `o-${couleur}-${j}`, nom: `Objet${j}`, couleur, src: '/objets/x.webp' }
+    ))
+  ));
+
+  it('une couleur renommée au Studio ne casse plus la manche', () => {
+    const teintes = ['Turquoise', 'Safran', 'Fuchsia', 'Grenat', 'Olive'];
+    const rt = tirerLaManche(Math.random, { objets: banque(teintes) });
+    expect(rt, 'aucune manche ne sort d\'une banque aux couleurs renommées').not.toBeNull();
+    for (const o of rt.matrice) expect(teintes).toContain(o.couleur);
+    expect(rt.couleurs.sort()).toEqual([...teintes].sort());
+  });
+
+  it('les boutons proposés au joueur sont ceux de SA banque', () => {
+    // LE PIÈGE LE PLUS SILENCIEUX : le tirage passe, mais l'écran propose les
+    // couleurs du dépôt. Aucun des boutons n'est la bonne réponse, et le joueur
+    // ne peut pas savoir pourquoi il a tout raté.
+    const teintes = ['Turquoise', 'Safran', 'Fuchsia', 'Grenat', 'Olive'];
+    const cc = modules.cache_cache;
+    const rt = cc.buildRound({ id: 'cc', contenu: {
+      objets: banque(teintes),
+      gabarits: [{ id: 'g', forme: 'couleur_de', gabarit: 'Couleur de « {objet} » ?', min: 5, max: 5, actif: true }],
+    } });
+    rt.tour = 2;
+    const pub = cc.publicQuestion(rt);
+    expect(pub.options.sort()).toEqual([...teintes].sort());
+    // Et la correction emploie la même liste que l'affichage.
+    const bonne = pub.options.indexOf(rt.questions[0].reponse);
+    expect(bonne, 'la bonne réponse ne figure pas dans les boutons proposés').toBeGreaterThanOrEqual(0);
+    expect(cc.validateAnswer(rt, bonne)).toBe(bonne);
+    rt.debutsDeTour = { 2: 0 };
+    rt.answers = new Map([['juste', { value: bonne, at: 0 }]]);
+    expect(cc.score(rt).results.get('juste').bons).toBe(1);
+  });
+
+  it('accepte de cinq à neuf couleurs, et refuse en dehors', () => {
+    // Neuf cases, chaque couleur une ou deux fois : quatre couleurs ne couvrent
+    // que huit cases, dix n'en remplissent que dix. L'arithmétique, pas un choix.
+    expect([COULEURS_MIN, COULEURS_MAX]).toEqual([5, 9]);
+    const teinte = (n) => Array.from({ length: n }, (_, i) => `T${i}`);
+    for (let n = 1; n <= 12; n += 1) {
+      const rt = tirerLaManche(Math.random, { objets: banque(teinte(n)) });
+      const admis = n >= COULEURS_MIN && n <= COULEURS_MAX;
+      expect(!!rt, `${n} couleur(s) : attendu ${admis ? 'admis' : 'refusé'}`).toBe(admis);
+      if (rt) {
+        const compte = new Map();
+        for (const o of rt.matrice) compte.set(o.couleur, (compte.get(o.couleur) || 0) + 1);
+        expect(compte.size, `${n} couleurs : toutes doivent paraître`).toBe(n);
+        for (const [c, k] of compte) expect(k, `${c} paraît ${k} fois`).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('« la couleur présente une seule fois » n\'est posée que si elle existe seule', () => {
+    // À cinq couleurs : quatre doublées et une seule — la question est toujours
+    // posable. À six : trois seules — elle aurait trois bonnes réponses et une
+    // seule acceptée. On préfère ne pas la poser.
+    for (let n = COULEURS_MIN; n <= COULEURS_MAX; n += 1) {
+      const teintes = Array.from({ length: n }, (_, i) => `T${i}`);
+      const matrice = construireMatrice(Math.random, banque(teintes));
+      expect(matrice, `${n} couleurs`).not.toBeNull();
+      const unique = couleurUnique(matrice);
+      if (n === 5) expect(unique, 'à cinq couleurs, il y en a toujours une seule').toBeTruthy();
+      else expect(unique, `à ${n} couleurs, la question n'a pas de réponse unique`).toBeNull();
+    }
+  });
+
+  it('une banque à six couleurs joue quand même, sans cette question', () => {
+    const teintes = ['Bleu', 'Jaune', 'Rose', 'Rouge', 'Vert', 'Ocre'];
+    for (let i = 0; i < 40; i += 1) {
+      const rt = tirerLaManche(Math.random, { objets: banque(teintes) });
+      expect(rt, 'une banque à six couleurs doit rester jouable').not.toBeNull();
+      expect(rt.questions.some((q) => q.forme === 'couleur_unique')).toBe(false);
+    }
+  });
+
+  it('couleursDuBassin lit la banque, pas le dépôt', () => {
+    expect(couleursDuBassin(banque(['A', 'B'])).sort()).toEqual(['A', 'B']);
+    expect(couleursDuBassin([])).toEqual([]);
+    // Le dépôt, lui, en porte bien cinq.
+    expect(couleursDuBassin().sort()).toEqual([...COULEURS].sort());
   });
 });

@@ -79,6 +79,27 @@ eux, et les règles de tirage les contraignent. Un jeu qui lirait ses données d
 un nom de fichier se casserait au premier renommage, sans que personne sache
 pourquoi.
 
+**Les images déposées depuis le Studio suivent LE MÊME traitement.** Il est
+refait dans le navigateur (`src/client/studio/imageObjet.js`) : détourage par les
+bords, 512 px de côté, WebP qualité 82. Le serveur ne décode jamais l'image — il
+vérifie la signature d'octets, le poids et l'identifiant, puis range. Refaire la
+conversion côté serveur demanderait `sharp`, trente mégaoctets de binaire natif
+sur l'hébergeur, pour ce que le canevas fait en dix lignes ; et ne pas décoder un
+fichier venu du dehors supprime une classe entière de défauts.
+
+Une différence subsiste et elle est écrite ici pour n'avoir pas à la retrouver :
+**l'encodeur WebP du navigateur n'est pas `cwebp` méthode 6**. À qualité égale,
+il produit des fichiers légèrement différents des deux cents icônes d'origine. Sur
+des aplats de couleur à douze kilo-octets, l'écart ne se voit pas ; il se verrait
+sur des photographies, et c'est pourquoi la banque de portraits, elle, n'est pas
+déposable par cette voie.
+
+**Où vont ces images.** Seau Supabase `objets`, lecture publique, écriture
+réservée au service role — l'autorisation d'animateur est tenue côté serveur, à
+un seul endroit. Le disque local ne sert qu'au développement, et l'écran le dit
+lorsqu'il l'emploie : le disque de l'hébergeur repart vierge à chaque redémarrage,
+c'est la leçon de M1.
+
 **Ce fichier est le DÉPÔT, pas la dernière autorité.** Depuis la modération du
 Studio, un module peut porter sa propre base d'images — nom, couleur et chemin
 corrigés par l'animateur — et c'est elle que le tirage emploie alors. Le dépôt

@@ -7,6 +7,7 @@
 // vérité du jeu — ce qu'on enregistre ici est ce que le moteur jouera.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '../shared/supabaseClient.js';
+import { preparerImage, identifiantDObjet } from './imageObjet.js';
 import './studio.css';
 
 // --- Référentiel des types de module (icône + variante couleur du mockup) ---
@@ -424,10 +425,45 @@ export function StudioApp() {
           if (!String(o.couleur || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de couleur.` });
           if (!String(o.src || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de fichier.` });
         }
-        const noms = new Set(objets.map((o) => String(o.nom || '').trim()).filter(Boolean));
-        const teintes = new Set(objets.map((o) => String(o.couleur || '').trim()).filter(Boolean));
-        if (noms.size < 9) problems.push({ qid: null, tag: null, msg: `La grille demande 9 noms différents ; la banque en offre ${noms.size}.` });
-        if (teintes.size < 5) problems.push({ qid: null, tag: null, msg: `La grille demande 5 couleurs ; la banque en offre ${teintes.size}.` });
+        const teintes = [...new Set(objets.map((o) => String(o.couleur || '').trim()).filter(Boolean))];
+
+        // COMBIEN DE COULEURS LA GRILLE ADMET. Neuf cases, chaque couleur une ou
+        // deux fois : quatre n'en couvrent que huit, dix n'en remplissent que dix.
+        if (teintes.length < COULEURS_MIN || teintes.length > COULEURS_MAX) {
+          problems.push({ qid: null, tag: null,
+            msg: `La banque porte ${teintes.length} couleur${teintes.length > 1 ? 's' : ''} : il en faut de ${COULEURS_MIN} à ${COULEURS_MAX} pour remplir neuf cases.` });
+        }
+
+        // LA BANQUE DOIT ÊTRE COMPLÈTE, PAS SEULEMENT FOURNIE.
+        //
+        // Le tirage choisit neuf NOMS, puis leur affecte les couleurs. Un nom qui
+        // n'existe pas dans la couleur tirée fait échouer la matrice entière, et
+        // l'échec se répète. Il faut donc neuf noms disponibles dans TOUTES les
+        // couleurs — un nom présent dans quatre teintes sur cinq ne compte pas.
+        const parNom = new Map();
+        for (const o of objets) {
+          const nom = String(o.nom || '').trim();
+          const c = String(o.couleur || '').trim();
+          if (!nom || !c) continue;
+          if (!parNom.has(nom)) parNom.set(nom, new Set());
+          parNom.get(nom).add(c);
+        }
+        const complets = [...parNom].filter(([, cs]) => cs.size === teintes.length);
+        if (teintes.length >= COULEURS_MIN && complets.length < 9) {
+          const manque = [...parNom].filter(([, cs]) => cs.size < teintes.length).slice(0, 3).map(([n]) => n);
+          problems.push({ qid: null, tag: null,
+            msg: `Seuls ${complets.length} noms existent dans les ${teintes.length} couleurs ; il en faut 9.`
+              + (manque.length ? ` Incomplets : ${manque.join(', ')}…` : '') });
+        }
+
+        // « QUELLE COULEUR N'EST PRÉSENTE QU'UNE SEULE FOIS ? » N'EXISTE QU'À CINQ.
+        // Quatre doublées et une seule : c'est la seule répartition possible, et
+        // c'est ce qui rend la question sans ambiguïté. À six, il y en a trois.
+        const unique = gabarits.find((g) => g.forme === 'couleur_unique' && (Number(g.min) || 0) > 0);
+        if (unique && teintes.length !== 5) {
+          problems.push({ qid: null, tag: null,
+            msg: `« ${unique.gabarit} » exige exactement 5 couleurs ; la banque en porte ${teintes.length}. Mets son minimum à 0 ou reviens à 5 couleurs.` });
+        }
       }
     }
     return problems;
@@ -698,6 +734,12 @@ function ModuleCard({ module, selected, onEdit, typeServeur }) {
 // quotas que le Studio laisse régler.
 const QUESTIONS_PAR_MANCHE = 5;
 
+// NEUF CASES, CHAQUE COULEUR UNE OU DEUX FOIS. Quatre couleurs ne couvrent que
+// huit cases ; dix n'en remplissent que dix. Ces bornes ne sont pas un réglage,
+// c'est l'arithmétique de la grille — le serveur les tient aussi.
+const COULEURS_MIN = 5;
+const COULEURS_MAX = 9;
+
 // UNE VIGNETTE POUR LES LIGNES SANS IMAGE. Pointer sur un fichier qui n'existe
 // pas ferait une requête perdue par ligne et l'icône brisée du navigateur ; un
 // pixel transparent laisse voir la plaque claire, et le champ du chemin dit le
@@ -722,7 +764,7 @@ const VIGNETTE_VIDE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAA
 // LES VARIABLES SONT DES BALISES, comme demandé : `{objet}`, `{case}`, `{objetA}`.
 // Elles sont remplies au tirage. Chaque forme n'accepte que les siennes, et le
 // serveur les annonce — l'écran ne les recopie pas.
-function ModerationCache({ contenu, catalogue, onChange }) {
+function ModerationCache({ contenu, catalogue, onChange, moduleId }) {
   const gabarits = contenu?.gabarits?.length ? contenu.gabarits : (catalogue?.gabarits || []);
   const objets = contenu?.objets?.length ? contenu.objets : (catalogue?.objets || []);
   const couleurs = catalogue?.couleurs || [];
@@ -737,6 +779,12 @@ function ModerationCache({ contenu, catalogue, onChange }) {
   // plus de cent écrans de défilement : la capacité demandée existerait sans être
   // utilisable. Le filtre porte sur l'identifiant, le nom et la couleur.
   const [filtre, setFiltre] = useState('');
+  const palette = [...new Set(objets.map((o) => o.couleur).filter(Boolean))];
+  // L'ÉTAT DU DERNIER DÉPÔT, et de lui seul : un envoi à la fois. Deux fichiers
+  // convertis en parallèle sur un téléphone d'animateur, c'est deux canevas de
+  // 512 × 512 et un écran figé — pour un gain nul, puisqu'on dépose une image
+  // après l'autre de toute façon.
+  const [depot, setDepot] = useState(null);   // { id, etat: 'envoi'|'ok'|'erreur', message, durable }
 
   const poser = (champ, valeur) => onChange({
     kind: 'contenu-cache',
@@ -746,6 +794,42 @@ function ModerationCache({ contenu, catalogue, onChange }) {
 
   const majGabarit = (i, patch) => poser('gabarits', gabarits.map((g, j) => (j === i ? { ...g, ...patch } : g)));
   const majObjet = (i, patch) => poser('objets', objets.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+
+  // DÉPOSER UNE IMAGE SUR UNE LIGNE.
+  //
+  // L'IDENTIFIANT SE DÉDUIT DU NOM ET DE LA COULEUR, comme les deux cents icônes
+  // du dépôt (`guitare-bleu`). C'est pour cela qu'on exige les deux AVANT le
+  // fichier : sans eux l'image n'aurait pas de nom stable, et redéposer la même
+  // paire accumulerait des copies orphelines au lieu de remplacer.
+  const deposer = async (i, fichier) => {
+    const o = objets[i];
+    const id = identifiantDObjet(o.nom, o.couleur);
+    if (!id) {
+      setDepot({ id: o.id, etat: 'erreur', message: 'Renseigne le nom ET la couleur avant de déposer l\'image.' });
+      return;
+    }
+    setDepot({ id: o.id, etat: 'envoi', message: 'Conversion…' });
+    try {
+      const { dataUrl, octets } = await preparerImage(fichier);
+      const res = await fetch('/api/cache/image', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, webp: dataUrl }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || detail.error || `refus du serveur (${res.status})`);
+      }
+      const recu = await res.json();
+      majObjet(i, { id, src: recu.src });
+      setDepot({
+        id, etat: 'ok', durable: recu.durable,
+        message: `Déposée — ${Math.round(octets / 1024)} ko. N'oublie pas « Enregistrer ».`,
+      });
+    } catch (err) {
+      setDepot({ id: o.id, etat: 'erreur', message: err.message || 'Dépôt impossible.' });
+    }
+  };
 
   return (
     <>
@@ -814,6 +898,16 @@ function ModerationCache({ contenu, catalogue, onChange }) {
           Le nom et la couleur sont la matière des questions : les changer ici
           change ce que le jeu demande.
         </p>
+        {/* LA PALETTE EST UN FAIT DE LA BANQUE, PAS UN RÉGLAGE. On l'affiche
+            parce qu'elle commande deux règles du jeu — le nombre de couleurs
+            admissibles, et la possibilité même de la question « quelle couleur
+            n'est présente qu'une seule fois ? ». */}
+        <p className="fhint" data-testid="cache-palette">
+          Palette : {palette.length ? palette.join(' · ') : 'aucune'} ({palette.length}).
+          {palette.length === 5
+            ? ' Cinq couleurs : la question « présente une seule fois » est posable.'
+            : ` Neuf cases, chaque couleur une ou deux fois : il en faut de ${COULEURS_MIN} à ${COULEURS_MAX}.`}
+        </p>
         <button className="button button--quiet" type="button" data-testid="cache-voir-images"
           onClick={() => setVoirImages((v) => !v)}>
           {voirImages ? 'Replier la base' : `Ouvrir la base (${objets.length} images)`}
@@ -823,6 +917,9 @@ function ModerationCache({ contenu, catalogue, onChange }) {
           <input className="input" type="text" value={filtre} aria-label="Filtrer la base d'images"
             placeholder="Filtrer par nom, couleur ou identifiant"
             onChange={(e) => setFiltre(e.target.value)} />
+          <datalist id={`teintes-${moduleId}`}>
+            {palette.map((c) => <option key={c} value={c} />)}
+          </datalist>
           <div className="cmod cmod--images">
             {/* LE FILTRE CACHE DES LIGNES, IL N'EN SUPPRIME AUCUNE. L'indice `i`
                 reste celui de la liste complète : une modification faite sur une
@@ -844,10 +941,14 @@ function ModerationCache({ contenu, catalogue, onChange }) {
                 </div>
                 <input className="input" type="text" value={o.nom} aria-label={`Nom de ${o.id}`}
                   placeholder="Nom" onChange={(e) => majObjet(i, { nom: e.target.value })} />
-                <select className="input" value={o.couleur} aria-label={`Couleur de ${o.id}`}
-                  onChange={(e) => majObjet(i, { couleur: e.target.value })}>
-                  {[...new Set([...couleurs, o.couleur].filter(Boolean))].map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                {/* CHAMP LIBRE, ET NON UNE LISTE FERMÉE. Une liste ne laisserait
+                    que choisir parmi les couleurs existantes : impossible d'en
+                    CODIFIER une nouvelle, ce qui est précisément ce qu'on demande
+                    à une base modérable. La liste des couleurs déjà employées est
+                    proposée en suggestion — on pioche ou on invente. */}
+                <input className="input" type="text" value={o.couleur} list={`teintes-${moduleId}`}
+                  aria-label={`Couleur de ${o.id}`} placeholder="Couleur"
+                  onChange={(e) => majObjet(i, { couleur: e.target.value })} />
                 {/* LE CHEMIN DE L'IMAGE EST VISIBLE ET MODIFIABLE, parce que le
                     Studio NE SAIT PAS envoyer un fichier : il n'y a pas de route
                     pour cela, et prétendre le contraire ferait ajouter des lignes
@@ -855,6 +956,24 @@ function ModerationCache({ contenu, catalogue, onChange }) {
                 <input className="input input--mono" type="text" value={o.src || ''}
                   aria-label={`Image de ${o.id}`} placeholder="/objets/mon-image.webp"
                   onChange={(e) => majObjet(i, { src: e.target.value })} />
+                {/* LE DÉPÔT DE FICHIER. Le champ natif est masqué et habillé : son
+                    rendu par défaut change d'un navigateur à l'autre et n'accepte
+                    ni la grille ni les jetons du système. */}
+                <label className="cmod__depot">
+                  <input type="file" accept="image/*" aria-label={`Déposer une image pour ${o.id}`}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) deposer(i, f); }} />
+                  <I.plus s={14} />
+                  <span>{o.src ? 'Remplacer l\'image' : 'Déposer une image'}</span>
+                </label>
+                {depot && depot.id === o.id ? (
+                  <p className={`cmod__etat cmod__etat--${depot.etat}`} role="status">
+                    {depot.message}
+                    {depot.etat === 'ok' && depot.durable === false
+                      // UN RANGEMENT QUI S'EFFACE NE DOIT PAS PASSER POUR UN RANGEMENT.
+                      ? ' Attention : rangée sur le disque local, elle ne survivra pas à un redémarrage du serveur.'
+                      : ''}
+                  </p>
+                ) : null}
               </div>
             ))}
             {objets.length && !objets.some((o) => `${o.id} ${o.nom} ${o.couleur}`.toLowerCase()
@@ -961,7 +1080,7 @@ function EditorPanel({
             une base d'images, dont le serveur tire cinq questions à chaque manche.
             L'écran suit cette réalité plutôt que de la travestir en liste. */}
         {module.type === 'cache_cache' ? (
-          <ModerationCache contenu={module.contenuCache} catalogue={catalogueCache}
+          <ModerationCache contenu={module.contenuCache} catalogue={catalogueCache} moduleId={module.id}
             onChange={(contenuCache) => onPatchModule({ contenuCache })} />
         ) : (
         <div className="fgroup">

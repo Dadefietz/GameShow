@@ -243,3 +243,69 @@ Décision par décision, confrontée au code — pas un balayage d'ensemble.
   de l'énoncé** : casse, accents ET ponctuation sont ignorés. À l'antenne, sur un
   clavier de téléphone, c'est le bon sens ; c'est dit ici parce que ce n'est pas
   écrit dans le document source.
+
+
+---
+
+## 6. Suite de séance — la banque d'images gérée en ligne
+
+Demande postérieure au chantier, formulée le 12/09 : « Est-ce que je peux gérer la
+banque d'image moi-même en ligne ? ajouter des images, des couleurs etc. »
+
+### M17 — les couleurs modérées commandent vraiment le jeu (DÉFAUT)
+
+**Ce n'était pas une évolution, c'était une panne**, et elle a été livrée avec M8.
+L'écran laissait changer la couleur d'un objet ; le tirage lisait la CONSTANTE du
+dépôt. Renommer « Bleu » en « Turquoise » faisait chercher un couple « nom|Bleu »
+disparu : les quarante essais échouaient, le serveur levait, et l'animateur
+cliquait « Lancer » sans que rien ne parte. Mesuré avant correction.
+
+Quatre points de contact, pas un :
+`construireMatrice` (la matrice), `listeDeChoix` (les boutons du joueur),
+`validateAnswer` (la borne de l'indice reçu) et `couleurUnique`.
+
+**Pourquoi le contrôle de M8 ne l'avait pas vu** : sa fausse banque était bâtie
+AVEC `COULEURS`. Il vérifiait les noms et croyait vérifier les couleurs.
+
+### M18 — combien de couleurs une grille de neuf cases admet
+
+Généralisation, décidée ici. Chaque couleur une ou deux fois, neuf cases
+remplies : il en faut de **5 à 9**. Quatre n'en couvrent que huit ; dix n'en
+remplissent que dix. Le Studio refuse en dehors, et le dit.
+
+**« Quelle couleur n'est présente qu'une seule fois ? » n'existe qu'à cinq.**
+Quatre doublées et une seule : c'est la seule répartition possible, et c'est ce
+qui rend la question sans ambiguïté. À six, il y a trois couleurs uniques — la
+question aurait trois bonnes réponses et une seule acceptée. Elle n'est alors plus
+tirée, et le Studio refuse qu'on lui impose un minimum.
+
+### M19 — déposer une image, et la codifier
+
+Le champ couleur devient LIBRE, avec les couleurs connues en suggestion : une
+liste fermée ne laisserait que choisir, jamais codifier.
+
+| Où | Quoi |
+| --- | --- |
+| Navigateur | détourage par les bords, 512 px, WebP 82 — le traitement des 200 icônes |
+| Serveur | ne décode jamais : signature d'octets, poids, identifiant, puis rangement |
+| Rangement | seau Supabase `objets` (public en lecture, écriture service role) ; disque local en développement, et l'écran le DIT |
+| Identifiant | déduit du nom et de la couleur (`guitare-bleu`) — donc redéposer remplace au lieu d'accumuler |
+
+**Deux pièges rencontrés, tous deux silencieux :**
+
+1. **La CSP n'autorisait que `img-src 'self' data:`.** Une image servie par
+   Supabase aurait été bloquée — sur le stream ET sur les téléphones, sans
+   message, sans erreur visible. La case serait restée une plaque vide.
+2. **Le service statique enregistrait ses routes AU DÉMARRAGE** (`wildcard:
+   false`). Une image déposée ensuite répondait 404 tout en étant bien sur le
+   disque. C'est ce que garde le contrôle de bout en bout, vu rouge.
+
+### Ce qui reste ouvert
+
+- **Le chemin Supabase Storage n'est pas couvert par la suite.** Le seau existe,
+  sa politique de lecture publique est vérifiée, le code est relu — mais aucune
+  clé de service ne vit hors de l'hébergeur, donc la première écriture réelle se
+  fera en production. Le chemin disque, lui, est couvert de bout en bout.
+- **Ajouter une couleur, c'est ajouter QUARANTE images**, une par objet : la
+  banque doit rester complète, chaque nom présent dans toutes les couleurs. Le
+  Studio le vérifie et nomme les objets incomplets.

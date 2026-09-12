@@ -100,7 +100,12 @@ test.describe('La modération de Cache-cache', () => {
     const idObjet = (await premier.locator('.cmod__id').textContent()).trim();
 
     await premier.getByLabel(`Nom de ${idObjet}`).fill('Trombone à coulisse');
-    await premier.getByLabel(`Couleur de ${idObjet}`).selectOption('Vert');
+    // LE CHAMP COULEUR EST LIBRE, ET C'EST LA DEMANDE. Une liste fermée ne
+    // laisserait que CHOISIR parmi les couleurs existantes ; codifier une teinte
+    // neuve serait impossible, ce qui vide de son sens une base modérable. On
+    // vérifie donc qu'un nom absent du dépôt est accepté.
+    await expect(premier.getByLabel(`Couleur de ${idObjet}`)).toHaveJSProperty('tagName', 'INPUT');
+    await premier.getByLabel(`Couleur de ${idObjet}`).fill('Vert');
 
     // « Ajouter de nouvelle ligne » : la 201e. Elle arrive VIDE, et le Studio la
     // refuse tant qu'elle l'est — une image sans fichier ne se verrait qu'à
@@ -116,6 +121,8 @@ test.describe('La modération de Cache-cache', () => {
     const idNeuf = (await neuf.locator('.cmod__id').textContent()).trim();
     await neuf.getByLabel(`Nom de ${idNeuf}`).fill('Sifflet');
     await neuf.getByLabel(`Image de ${idNeuf}`).fill('/objets/ampoule-bleu.webp');
+    await expect(base.getByTestId('cache-palette'),
+      'la palette affichée ne suit pas la banque').toContainText('(5)');
 
     await editeur.getByRole('button', { name: /^Enregistrer/ }).click();
     await expect(editeur.locator('.save-state--saved')).toBeVisible({ timeout: 15_000 });
