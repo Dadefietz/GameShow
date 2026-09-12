@@ -11,6 +11,10 @@ import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
 import { MODULE_TYPES, modules } from './modules.js';
+import {
+  contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
+} from './cache-cache.js';
+import { BASSIN_OBJETS, COULEURS, srcDObjet } from './objets.js';
 import { srcDeVisage } from './visages.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
@@ -120,20 +124,46 @@ const questionSchema = z.object({
   target: z.number().optional(),
   durationSec: z.number().positive().optional(),
 }).passthrough();
+
+// LA BANQUE DE « CACHE-CACHE » NE CONTIENT PAS DES QUESTIONS MAIS SON CONTENU
+// MODÉRÉ : les gabarits de questions et la base d'images. Elle emprunte le même
+// champ — c'est ce qui la rend durable sans table nouvelle — mais elle n'a ni
+// énoncé ni bonne réponse, et le schéma des questions la refuserait.
+const contenuCacheSchema = z.object({
+  kind: z.literal('contenu-cache'),
+  gabarits: z.array(z.object({
+    id: z.string().min(1),
+    forme: z.string().min(1),
+    gabarit: z.string().min(1),
+    min: z.number().int().min(0).max(5),
+    max: z.number().int().min(0).max(5),
+    actif: z.boolean().optional(),
+  })).optional(),
+  objets: z.array(z.object({
+    id: z.string().min(1),
+    nom: z.string().min(1),
+    couleur: z.string().min(1),
+    src: z.string().min(1).optional(),
+  })).optional(),
+}).passthrough();
 const moduleSchema = z.object({
   id: z.string().min(1),
   type: z.enum(MODULE_TYPES),
   name: z.string().min(1),
   duration: z.number().positive().optional(),
   color: z.string().optional(),
-  questions: z.array(questionSchema),
+  questions: z.array(z.union([contenuCacheSchema, questionSchema])),
 }).passthrough();
 const modulesSchema = z.array(moduleSchema);
 
 app.get('/api/modules', async (req, reply) => {
   const host = await requireHost(req, reply);
   if (!host) return;
-  return { modules: banksStore.getModules(host.sub) };
+  // ON RELIT LA BASE À L'OUVERTURE DU STUDIO. Le disque de l'hébergement est
+  // éphémère : après un redémarrage, il ne connaît plus rien. C'est la base qui
+  // sait — voir la note de `store.js`.
+  const modules = await banksStore.rafraichirDepuisLaBase(host.sub);
+  return { modules, types: typesPourLeStudio() };
 });
 
 app.put('/api/modules', async (req, reply) => {
@@ -141,14 +171,62 @@ app.put('/api/modules', async (req, reply) => {
   if (!host) return;
   const parsed = modulesSchema.safeParse(req.body?.modules ?? req.body);
   if (!parsed.success) return reply.code(400).send({ error: 'bad-modules' });
-  return { modules: banksStore.setModules(host.sub, parsed.data) };
+  // L'ÉCHEC DE LA BASE REMONTE JUSQU'AU STUDIO. Un « Enregistré » affiché sur une
+  // écriture perdue est précisément le défaut qu'on vient de corriger.
+  try {
+    const modules = await banksStore.enregistrerModules(host.sub, parsed.data);
+    return { modules, types: typesPourLeStudio() };
+  } catch (e) {
+    app.log.error({ err: e }, 'enregistrement en base impossible');
+    return reply.code(503).send({ error: 'save-failed', detail: String(e.message || e) });
+  }
 });
 
 app.post('/api/modules/restore', async (req, reply) => {
   const host = await requireHost(req, reply);
   if (!host) return;
-  return { modules: banksStore.restaurerModulesDeDepart(host.sub) };
+  const modules = banksStore.restaurerModulesDeDepart(host.sub);
+  await banksStore.sauverEnBase(host.sub, modules).catch(() => {});
+  return { modules, types: typesPourLeStudio() };
 });
+
+// LE CATALOGUE DE « CACHE-CACHE » — ce que le Studio a besoin de connaître pour
+// laisser l'animateur modérer le jeu.
+//
+// Il ne porte PAS le contenu de l'animateur (qui vit dans sa banque, avec ses
+// modules) mais ce qui l'encadre : les objets livrés avec le dépôt, les couleurs
+// admises, les formes de questions existantes et les variables que chacune sait
+// remplir. Le Studio ne recopie rien de tout cela.
+app.get('/api/cache/catalogue', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return {
+    objets: BASSIN_OBJETS.map((o) => ({ ...o, src: srcDObjet(o.id) })),
+    couleurs: COULEURS,
+    gabarits: GABARITS_PAR_DEFAUT,
+    variables: VARIABLES_PAR_FORME,
+    libelles: LIBELLES_PAR_FORME,
+  };
+});
+
+// LES DURÉES RÉELLES, DÉCLARÉES PAR LES MODULES.
+//
+// Le Studio affichait la durée écrite dans la BANQUE — un nombre réglable que la
+// plupart des jeux ne lisent pas : « Coupe ta bûche » y annonçait vingt secondes
+// pour un jeu qui en dure dix. Elles viennent maintenant du serveur, d'un seul
+// endroit, et le Studio ne les recopie pas.
+function typesPourLeStudio() {
+  const sortie = {};
+  for (const t of MODULE_TYPES) {
+    const meta = modules[t].meta;
+    sortie[t] = {
+      dureeS: meta.dureeS ?? null,
+      dureeFixe: meta.dureeFixe === true,
+      direct: meta.direct === true,
+    };
+  }
+  return sortie;
+}
 
 // Questions d'un JEU précis. Plus de fusion de toutes les questions d'un type :
 // lancer « Culture générale » tire dans « Culture générale », et nulle part
@@ -466,6 +544,13 @@ io.on('connection', (socket) => {
     if (!module_) return socket.emit('host:error', { code: 'no-module' });
     // Un échec ne doit JAMAIS être silencieux : l'animateur reçoit host:error.
     try {
+      // « CACHE-CACHE » EMPORTE SON CONTENU MODÉRÉ. Les gabarits de questions et
+      // la banque d'objets sont rangés dans la banque du module — c'est ce qui
+      // les rend durables et modifiables au Studio. Le moteur ne va pas les
+      // chercher : ils voyagent avec le top de départ.
+      if (module_.type === 'cache_cache' && question) {
+        question.contenu = contenuDeLaBanque(module_.questions);
+      }
       const pool = await poolFor(r.ownerId, module_);
       let q = question;
       if (q) {
@@ -655,6 +740,16 @@ app.setNotFoundHandler((req, reply) => {
 
 // Purge périodique des salons inactifs.
 setInterval(() => roomManager.sweep(), 60 * 1000);
+
+// AVANT D'OUVRIR LE PORT : on rapatrie les bibliothèques depuis la base.
+//
+// L'hébergement repart d'un disque vierge à chaque déploiement. Sans ce rappel,
+// une console qui se reconnecte par le seul socket — sans passer par le Studio —
+// jouerait sur un compte vide, et l'animateur découvrirait ses questions perdues
+// à l'antenne.
+await banksStore.restaurerTousLesComptes()
+  .then(({ comptes }) => { if (comptes) app.log.info(`bibliothèques restaurées : ${comptes} compte(s)`); })
+  .catch((e) => app.log.warn({ err: e }, 'restauration des bibliothèques impossible'));
 
 app.listen({ port: config.port, host: config.host }).then(() => {
   console.log(`[game-server] écoute sur ${config.host}:${config.port}`);

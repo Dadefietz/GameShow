@@ -552,9 +552,11 @@
   .st-count__label { font: 500 var(--fs-st-300) / 1 var(--f-ui); color: var(--c-ink-2); }
 
   /* ---- Question (S3) ---- */
+  /* L'ÉNONCÉ SUIT LE NOMBRE DE CHOIX — voir `mesuresDeScene`. Par défaut il garde
+     exactement la taille qu'il avait. */
   .st-question {
     margin: 0;
-    font: 500 var(--fs-st-500) / 0.98 var(--f-display);
+    font: 500 var(--st-q-fs, var(--fs-st-500)) / 0.98 var(--f-display);
     letter-spacing: var(--tr-display);
     text-wrap: pretty;
   }
@@ -625,20 +627,24 @@
   }
 
   /* ---- Options : rangées du système à l'échelle stream ---- */
+  /* LES CHOIX S'ADAPTENT À LEUR NOMBRE — les mesures viennent de l'écran
+     (`mesuresDesChoix`), qui seul peut en déduire une taille de police. Les
+     valeurs par défaut sont celles d'avant : une liste rendue sans mesure garde
+     exactement l'allure qu'elle avait. */
   .st-options {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--sp-4);
+    gap: var(--st-opt-gap, var(--sp-4));
     justify-content: flex-end;
   }
   .st-opt {
     position: relative;
-    min-height: var(--row-st);
+    min-height: var(--st-opt-h, var(--row-st));
     display: flex;
     align-items: center;
     gap: var(--sp-6);
-    padding: var(--sp-5) var(--sp-7);
+    padding: var(--st-opt-pad, var(--sp-5)) var(--sp-7);
     border-radius: var(--r-l);
     background: var(--c-surface);
     box-shadow: var(--sh-1), var(--sh-edge);
@@ -663,13 +669,16 @@
   .st-opt--correct .st-opt__fill { background: var(--c-leaf-wash); }
   .st-opt__key {
     position: relative;
-    width: var(--dot-st);
-    height: var(--dot-st);
+    width: var(--st-opt-dot, var(--dot-st));
+    height: var(--st-opt-dot, var(--dot-st));
     flex: none;
     border-radius: var(--r-full);
     background: var(--c-surface-2);
     color: var(--c-ink-2);
-    font: 600 var(--fs-st-300) / var(--dot-st) var(--f-mono);
+    /* LA PASTILLE SUIT LA RANGÉE. Sa taille était pilotée par les mesures, mais
+       pas son GLYPHE : à neuf choix, la lettre débordait de son rond et retombait
+       sous le texte de l'option. */
+    font: 600 var(--st-opt-key-fs, var(--fs-st-300)) / var(--st-opt-dot, var(--dot-st)) var(--f-mono);
     text-align: center;
   }
   .st-opt--correct .st-opt__key {
@@ -684,7 +693,7 @@
     position: relative;
     flex: 1;
     min-width: 0;
-    font: 500 var(--fs-st-300) / 1.2 var(--f-ui);
+    font: 500 var(--st-opt-fs, var(--fs-st-300)) / 1.2 var(--f-ui);
   }
   .st-opt--correct .st-opt__label { font-weight: 600; }
   .st-opt__mark {
@@ -911,15 +920,22 @@
   .st-cache { display: grid; gap: var(--gap-st); width: 100%; }
   .st-cache--question { grid-template-columns: 1fr 1fr; align-items: center; }
   .st-cache--grille { place-items: center; }
-  .st-cache__gauche { display: grid; gap: var(--sp-4); min-height: 0; }
-  /* CINQ CHOIX AU LIEU DE QUATRE, dans la moitié de la largeur. Les pavés du quiz
-     sont taillés pour quatre réponses sur toute la scène ; à cinq et sur une
-     demi-scène, le dernier passait sous le bord du canevas — mesuré à l'écran,
-     « Vert » coupé en deux. Ils se resserrent ici, et là seulement. */
-  .st-cache--question .st-options { gap: var(--sp-3); justify-content: center; }
-  .st-cache--question .st-opt { min-height: 0; padding: var(--sp-3) var(--sp-5); gap: var(--sp-4); }
-  .st-cache--question .st-opt__label { font-size: var(--fs-st-300); }
-  .st-cache--question .st-opt__key { width: 56px; height: 56px; font-size: var(--fs-st-200); }
+  .st-cache__gauche { display: grid; gap: var(--sp-4); min-height: 0; align-content: center; }
+  /* L'ÉNONCÉ DE LA RÉPONSE EN COURS — lisible, pas monumental. */
+  .st-cache__question {
+    margin: 0;
+    font: 500 var(--fs-st-400) / 1.1 var(--f-display);
+    letter-spacing: var(--tr-display);
+    text-wrap: pretty;
+  }
+  /* LES CHOIX DE « CACHE-CACHE » NE SE RÈGLENT PLUS ICI.
+     Ils l'ont été un temps, à la main, pour faire tenir cinq réponses dans une
+     demi-scène — et ces réglages ÉCRASAIENT ensuite la mise à l'échelle générale
+     (`mesuresDesChoix`), qui sait faire tenir neuf réponses. Vu à l'écran sur la
+     question « derrière quel numéro… » : cinq choix visibles sur neuf, les quatre
+     derniers sous le bord du canevas. Une règle plus spécifique qui répète une
+     règle générale finit toujours par la contredire. */
+  .st-cache--question .st-options { justify-content: center; }
   .st-cache__droite { display: grid; place-items: center; }
 
   .st-ccg {

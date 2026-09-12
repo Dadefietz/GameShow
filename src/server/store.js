@@ -21,14 +21,98 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { MODULE_TYPES, modules as moduleDefs, demoQuestions } from './modules.js';
+import { getServiceClient } from './supabase.js';
 
 const DATA_DIR = process.env.DATA_DIR || 'data';
 const LEGACY_FILE = path.join(DATA_DIR, 'banks.json');
 const OWNERS_DIR = path.join(DATA_DIR, 'owners');
 
-// Cache mémoire par compte : le disque est la source de vérité, mais le moteur
-// lit à chaque lancement d'épreuve et n'a pas à toucher le disque pour ça.
+// Cache mémoire par compte : le disque répond vite, mais il n'est PAS durable —
+// voir la note ci-dessous. Le moteur lit à chaque lancement d'épreuve et n'a pas
+// à toucher le disque pour ça.
 const cache = new Map();
+
+// ============================================================
+// LA PERSISTANCE DURABLE — ET POURQUOI LE DISQUE NE SUFFIT PAS
+// ============================================================
+//
+// CE QUI A ÉTÉ RAPPORTÉ : « L'ajout et la modification de questions dans des
+// modules ne se sauvegarde pas quand on redémarre le serveur. Il faut que ces
+// modifications survivent à tout et que je les retrouve peu importe ce qui se
+// passe. »
+//
+// LA CAUSE N'EST PAS DANS CE FICHIER, ELLE EST SOUS LUI. Le service tourne sur
+// un hébergement dont le SYSTÈME DE FICHIERS EST ÉPHÉMÈRE : chaque déploiement,
+// chaque redémarrage, chaque mise en veille repart d'une machine neuve. Le
+// fichier était bien écrit, il était bien relu — et il disparaissait entre les
+// deux. Rien dans le code ne pouvait le signaler : à son réveil, le serveur
+// trouvait un compte vierge et le semait de bonne foi.
+//
+// LA BASE EST DÉSORMAIS LA SOURCE DE VÉRITÉ, le disque n'est plus qu'un cache.
+// La table `modules` existait déjà, avec exactement la forme de ce fichier
+// (id, owner_id, type, name, duration, color, questions) — elle n'avait jamais
+// servi. Elle sert maintenant.
+//
+// TROIS RÈGLES :
+//   1. TOUT ENREGISTREMENT VA EN BASE. Le Studio n'est pas prévenu du résultat
+//      autrement que par l'échec de sa requête : une écriture qui échoue doit
+//      échouer visiblement, pas se perdre.
+//   2. AU DÉMARRAGE, ON RELIT LA BASE, pour tous les comptes qu'elle contient.
+//      C'est ce qui fait survivre le travail « peu importe ce qui se passe ».
+//   3. LE DÉVELOPPEMENT N'EN DÉPEND PAS. Sans configuration Supabase — et avec
+//      un compte de développement dont l'identifiant n'est pas un UUID — tout
+//      continue de fonctionner sur le seul disque.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function compteDurable(ownerId) {
+  // La colonne `owner_id` référence `auth.users` : un identifiant qui n'est pas
+  // un UUID ne peut pas y entrer, et c'est le cas du compte de développement.
+  return UUID.test(String(ownerId || '')) ? String(ownerId) : null;
+}
+
+// ÉCRITURE EN BASE — remplace la bibliothèque du compte, en entier.
+//
+// Un remplacement complet plutôt qu'un patch : c'est déjà ce que fait le disque,
+// et c'est la seule façon de faire DISPARAÎTRE un module supprimé. Un `upsert`
+// seul laisserait les suppressions derrière lui, et l'animateur retrouverait au
+// redémarrage les jeux qu'il avait retirés.
+export async function sauverEnBase(ownerId, modulesDuCompte) {
+  const id = compteDurable(ownerId);
+  const sb = getServiceClient();
+  if (!id || !sb) return { durable: false };
+  const lignes = modulesDuCompte.map((m) => ({
+    id: m.id, owner_id: id, type: m.type, name: m.name,
+    duration: Number(m.duration) || 20, color: m.color || 'fire',
+    questions: Array.isArray(m.questions) ? m.questions : [],
+    updated_at: new Date().toISOString(),
+  }));
+  const gardes = lignes.map((l) => l.id);
+  const { error: erreurEcriture } = lignes.length
+    ? await sb.from('modules').upsert(lignes, { onConflict: 'id' })
+    : { error: null };
+  if (erreurEcriture) throw new Error(`base indisponible : ${erreurEcriture.message}`);
+  // Puis on retire ce qui n'est plus là. `not in ()` refuse une liste vide : on
+  // distingue donc le cas « plus aucun module » du cas ordinaire.
+  const suppression = sb.from('modules').delete().eq('owner_id', id);
+  const { error: erreurSuppression } = gardes.length
+    ? await suppression.not('id', 'in', `(${gardes.map((x) => `"${x}"`).join(',')})`)
+    : await suppression;
+  if (erreurSuppression) throw new Error(`base indisponible : ${erreurSuppression.message}`);
+  return { durable: true };
+}
+
+// LECTURE EN BASE, au démarrage et à chaque ouverture du Studio.
+async function lireEnBase(ownerId) {
+  const id = compteDurable(ownerId);
+  const sb = getServiceClient();
+  if (!id || !sb) return null;
+  const { data, error } = await sb
+    .from('modules')
+    .select('id, type, name, duration, color, questions, created_at')
+    .eq('owner_id', id)
+    .order('created_at', { ascending: true });
+  if (error || !Array.isArray(data)) return null;
+  return data.map(normaliser).filter(Boolean);
+}
 
 // Un identifiant de compte devient un nom de fichier : on n'accepte que des
 // caractères sûrs, pour qu'un identifiant inattendu ne puisse jamais désigner un
@@ -212,6 +296,54 @@ export function setModules(ownerId, next) {
   cache.set(String(ownerId || 'dev-host'), etat);
   ecrire(ownerId, etat);
   return etat.modules;
+}
+
+// L'ENREGISTREMENT COMPLET : le cache, le disque, ET LA BASE.
+//
+// Il est asynchrone et il LAISSE REMONTER SON ÉCHEC. C'est délibéré : le Studio
+// affiche « Enregistré » sur la foi de la réponse du serveur, et une écriture
+// perdue en silence est exactement le défaut qu'on vient de corriger.
+export async function enregistrerModules(ownerId, next) {
+  const liste = setModules(ownerId, next);
+  await sauverEnBase(ownerId, liste);
+  return liste;
+}
+
+// LA RELECTURE DEPUIS LA BASE — ce qui fait survivre le travail à un redémarrage.
+//
+// La base gagne sur le disque quand elle a quelque chose à dire. Elle ne dit rien
+// dans deux cas : elle n'est pas configurée, ou ce compte n'y a rien encore —
+// alors on garde ce que le disque connaît, et le premier enregistrement l'y
+// portera.
+export async function rafraichirDepuisLaBase(ownerId) {
+  const enBase = await lireEnBase(ownerId);
+  if (!enBase || !enBase.length) return getModules(ownerId);
+  const cle = String(ownerId || 'dev-host');
+  const etat = { seeded: true, semence: SEMENCE, modules: enBase };
+  // LA SEMENCE S'APPLIQUE AUSSI À CE QUI VIENT DE LA BASE : un jeu ajouté au
+  // projet depuis le dernier enregistrement doit apparaître, sinon « Cache-cache »
+  // resterait invisible pour un compte dont la bibliothèque est en base.
+  const monte = monterLaSemence(etat);
+  cache.set(cle, etat);
+  ecrire(cle, etat);
+  if (monte) await sauverEnBase(ownerId, etat.modules).catch(() => {});
+  return etat.modules;
+}
+
+// AU DÉMARRAGE : on rapatrie TOUS les comptes que la base connaît.
+//
+// Sans ce rappel, un animateur dont la console se reconnecte par la seule voie
+// du socket — sans jamais demander la bibliothèque par HTTP — jouerait sur le
+// disque vierge d'une machine neuve. Le volume est minuscule : une poignée de
+// lignes, une fois, avant d'ouvrir le port.
+export async function restaurerTousLesComptes() {
+  const sb = getServiceClient();
+  if (!sb) return { comptes: 0 };
+  const { data, error } = await sb.from('modules').select('owner_id');
+  if (error || !Array.isArray(data)) return { comptes: 0 };
+  const comptes = [...new Set(data.map((l) => l.owner_id).filter(Boolean))];
+  for (const c of comptes) await rafraichirDepuisLaBase(c).catch(() => {});
+  return { comptes: comptes.length };
 }
 
 // Remet les jeux livrés d'office, sans toucher à ceux que l'animateur a créés :

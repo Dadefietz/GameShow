@@ -17,13 +17,12 @@ import './studio.css';
 // l'animateur enregistrait quoi que ce soit dans son Studio. Le jeu disparaissait
 // de son menu, sans le moindre message.
 const MODULE_TYPES = {
-  // FENÊTRE FIXE : « fixer le temps pour répondre à 15 secondes ». Ces deux jeux
-  // ne lisent plus la durée de la banque — le barème de rapidité est calibré sur
-  // cette fenêtre-là (plateau jusqu'à 13 s restantes, plancher sous 2 s), et il
-  // ne voudrait plus rien dire sur une fenêtre d'une autre longueur. Le champ est
-  // donc verrouillé plutôt que muet : un réglage sans effet est un mensonge.
-  quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire', dureeFixe: 15 },
-  true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest', dureeFixe: 15 },
+  // LES DURÉES NE SONT PLUS ÉCRITES ICI. Elles viennent du serveur, qui les
+  // déclare module par module (`/api/modules` → `types`) : le Studio affichait la
+  // durée de la BANQUE, un nombre réglable que la plupart des jeux ne lisent pas,
+  // et « Coupe ta bûche » y annonçait vingt secondes pour un jeu qui en dure dix.
+  quiz:       { label: 'Quiz',       subtitle: 'Choix multiple',   icon: 'help-circle',  color: 'fire' },
+  true_false: { label: 'Vrai/Faux',  subtitle: 'Binaire',          icon: 'check-square', color: 'forest' },
   estimation: { label: 'Estimation', subtitle: 'Réponse chiffrée', icon: 'target',       color: 'flame' },
   // EN DIRECT : sa question — deux mots — se tape à l'antenne. Il n'y a donc rien
   // à préparer ici, et le Studio ne doit pas prétendre le contraire.
@@ -140,7 +139,14 @@ function serveurVersStudio(m) {
     name: typeof m.name === 'string' && m.name ? m.name : MODULE_TYPES[type].label,
     duration: Number.isFinite(Number(m.duration)) ? Number(m.duration) : 20,
     color: COLOR_KEYS.includes(m.color) ? m.color : MODULE_TYPES[type].color,
-    questions: (Array.isArray(m.questions) ? m.questions : []).map((q) => serverToStudioQuestion(type, q)),
+    // LE CONTENU DE « CACHE-CACHE » VOYAGE À PART, et ne passe pas par la
+    // moulinette des questions : ce n'en sont pas. Il emprunte le même champ en
+    // base — c'est ce qui le rend durable sans table nouvelle — mais il porte des
+    // gabarits et une banque d'images, pas des énoncés.
+    contenuCache: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === 'contenu-cache') || null,
+    questions: (Array.isArray(m.questions) ? m.questions : [])
+      .filter((q) => q?.kind !== 'contenu-cache')
+      .map((q) => serverToStudioQuestion(type, q)),
   };
 }
 
@@ -151,9 +157,12 @@ function studioVersServeur(m) {
     name: m.name,
     duration: Number(m.duration) || 20,
     color: m.color,
-    questions: (m.questions || [])
-      .filter((q) => (q.prompt || '').trim())
-      .map((q) => studioToServerQuestion(m.type, q, m.duration)),
+    questions: [
+      ...(m.contenuCache ? [m.contenuCache] : []),
+      ...(m.questions || [])
+        .filter((q) => (q.prompt || '').trim())
+        .map((q) => studioToServerQuestion(m.type, q, m.duration)),
+    ],
   };
 }
 
@@ -209,6 +218,14 @@ export function StudioApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [mode, setMode] = useState('local');        // 'local' | 'server' | 'supabase'
+  // LES DURÉES RÉELLES DES JEUX, telles que le serveur les déclare. Le Studio ne
+  // les invente pas et ne les recopie pas : il les affiche.
+  const [typesServeur, setTypesServeur] = useState({});
+  // LE CATALOGUE DE « CACHE-CACHE » — les formes de questions que le serveur sait
+  // calculer, les couleurs de la banque et les deux cents objets. Chargé SEULEMENT
+  // quand un module de ce type est ouvert : c'est deux cents lignes d'images, et
+  // les neuf dixièmes des visites au Studio n'y touchent jamais.
+  const [catalogueCache, setCatalogueCache] = useState(null);
   const [authed, setAuthed] = useState(null);
   const [saveState, setSaveState] = useState('idle'); // idle|saving|saved|local|error|invalid
   const [validationErrors, setValidationErrors] = useState([]);
@@ -218,6 +235,17 @@ export function StudioApp() {
   const [remoteLoading, setRemoteLoading] = useState(() => !!getSupabase());
 
   const sb = useMemo(() => getSupabase(), []);
+
+  const typeOuvert = modules.find((m) => m.id === selectedId)?.type;
+  useEffect(() => {
+    if (typeOuvert !== 'cache_cache' || catalogueCache) return;
+    let alive = true;
+    fetch('/api/cache/catalogue')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => { if (alive && c) setCatalogueCache(c); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [typeOuvert, catalogueCache]);
 
   // En-têtes d'autorisation pour /api/banks. LE DÉFAUT CORRIGÉ : le Studio
   // appelait cette route SANS aucun en-tête. En développement, `requireHost` est
@@ -257,7 +285,8 @@ export function StudioApp() {
         const res = await fetch('/api/modules', { headers: await entetesHote() });
         if (!alive) return;
         if (res.ok) {
-          const { modules: recus } = await res.json();
+          const { modules: recus, types } = await res.json();
+          if (types) setTypesServeur(types);
           const mapped = (recus || []).map(serveurVersStudio).filter(Boolean);
           if (mapped.length) { setModules(mapped); setMode('server'); }
         } else if (res.status === 403) {
@@ -309,6 +338,12 @@ export function StudioApp() {
         body: JSON.stringify({ modules: restants.map(studioVersServeur) }),
       });
       if (res.status === 403) { setSaveState('unauthorized'); return; }
+      // 503 : LE SERVEUR A REÇU, MAIS LA BASE N'A PAS PRIS. C'est le cas qu'il
+      // faut distinguer d'une panne réseau : la saisie n'est durable nulle part,
+      // et un « Enregistré » affiché ici serait exactement le mensonge qu'on
+      // vient de corriger (le disque de l'hébergement ne survit pas au
+      // redémarrage).
+      if (res.status === 503) { setSaveState('nondurable'); return; }
       if (!res.ok) throw new Error('save-failed-' + res.status);
       setMode('server');
       setSaveState('saved');
@@ -349,6 +384,52 @@ export function StudioApp() {
         problems.push({ qid: q.id, tag, msg: 'La cible doit être un nombre.' });
       }
     });
+
+    // LA MODÉRATION DE « CACHE-CACHE » SE VALIDE ICI, ET C'EST NÉCESSAIRE.
+    //
+    // Le serveur n'a pas de rattrapage : un tirage impossible LÈVE une erreur, et
+    // l'animateur clique « Lancer » sans que rien ne parte. Trois réglages
+    // produisent cela, et aucun des trois ne se voit en lisant le formulaire :
+    //   - la somme des minimums dépasse cinq — il n'y a pas assez de questions
+    //     dans une manche pour les tenir toutes ;
+    //   - la somme des maximums est sous cinq — on ne peut pas en fabriquer cinq ;
+    //   - la banque n'offre plus neuf noms distincts, ou plus les cinq couleurs.
+    // La première et la deuxième sont EXACTEMENT la condition d'existence d'une
+    // répartition : entre ces deux sommes, tout total entier est atteignable.
+    if (m.type === 'cache_cache' && m.contenuCache) {
+      const gabarits = (m.contenuCache.gabarits || []).filter((g) => g.actif !== false);
+      let sMin = 0; let sMax = 0;
+      gabarits.forEach((g, i) => {
+        const tag = `Q${i + 1}`;
+        if (!String(g.gabarit || '').trim()) problems.push({ qid: null, tag, msg: "L'énoncé est vide." });
+        const min = Math.max(0, Number(g.min) || 0);
+        const max = Math.max(0, Number(g.max) || 0);
+        if (max < min) problems.push({ qid: null, tag, msg: `« ${g.forme} » : le maximum est sous le minimum.` });
+        sMin += min; sMax += Math.max(min, max);
+      });
+      if (!gabarits.length) {
+        problems.push({ qid: null, tag: null, msg: 'Laisse au moins une question active.' });
+      } else if (sMin > QUESTIONS_PAR_MANCHE) {
+        problems.push({ qid: null, tag: null, msg: `Les minimums totalisent ${sMin} : une manche n'a que ${QUESTIONS_PAR_MANCHE} questions.` });
+      } else if (sMax < QUESTIONS_PAR_MANCHE) {
+        problems.push({ qid: null, tag: null, msg: `Les maximums totalisent ${sMax} : il en faut ${QUESTIONS_PAR_MANCHE} pour remplir une manche.` });
+      }
+
+      const objets = m.contenuCache.objets || [];
+      if (objets.length) {
+        // Une ligne incomplète est refusée PAR LE SERVEUR de toute façon — mais
+        // il répond « enregistrement refusé » sans dire laquelle. On le dit.
+        for (const o of objets) {
+          if (!String(o.nom || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de nom.` });
+          if (!String(o.couleur || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de couleur.` });
+          if (!String(o.src || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de fichier.` });
+        }
+        const noms = new Set(objets.map((o) => String(o.nom || '').trim()).filter(Boolean));
+        const teintes = new Set(objets.map((o) => String(o.couleur || '').trim()).filter(Boolean));
+        if (noms.size < 9) problems.push({ qid: null, tag: null, msg: `La grille demande 9 noms différents ; la banque en offre ${noms.size}.` });
+        if (teintes.size < 5) problems.push({ qid: null, tag: null, msg: `La grille demande 5 couleurs ; la banque en offre ${teintes.size}.` });
+      }
+    }
     return problems;
   };
 
@@ -464,6 +545,7 @@ export function StudioApp() {
           <section className="grid" aria-label="Liste des modules">
             {modules.map((m) => (
               <ModuleCard key={m.id} module={m} selected={m.id === selectedId}
+                typeServeur={typesServeur[m.type]}
                 onSelect={() => selectModule(m.id)} onEdit={() => selectModule(m.id)} />
             ))}
           </section>
@@ -473,6 +555,8 @@ export function StudioApp() {
       {selected ? (
         <EditorPanel
           module={selected}
+          typeServeur={typesServeur[selected.type]}
+          catalogueCache={catalogueCache}
           editingQuestionId={editingQuestionId}
           invalidQids={invalidQids}
           saveState={saveState}
@@ -551,21 +635,46 @@ function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
 // ---------------------------------------------------------------------------
 // E2 — Carte de module
 // ---------------------------------------------------------------------------
-function ModuleCard({ module, selected, onEdit }) {
+// Le nombre d'énoncés que le serveur livre d'office pour « Cache-cache ». Il ne
+// sert qu'à l'étiquette de la carte, avant que le catalogue ne soit chargé — la
+// carte ne va pas chercher deux cents images pour écrire un nombre.
+const GABARITS_CACHE_PAR_DEFAUT = 6;
+
+function ModuleCard({ module, selected, onEdit, typeServeur }) {
   const t = MODULE_TYPES[module.type] || MODULE_TYPES.quiz;
   const noQuestion = module.questions.length === 0;
+  // LA DURÉE AFFICHÉE EST CELLE DU JEU. Quand le serveur l'impose, elle prime sur
+  // celle de la banque — sans quoi la carte et l'éditeur annoncent deux nombres
+  // différents pour la même chose, ce qui a été rapporté.
+  const duree = typeServeur?.dureeS ?? module.duration;
+  // « CACHE-CACHE » COMPTE SES GABARITS, PAS SES QUESTIONS. Sa banque tient dans
+  // une entrée marquée du même champ `questions` ; la compter comme une question
+  // afficherait « 1 question » pour six énoncés et deux cents images.
+  const estModere = module.type === 'cache_cache';
+  const nbGabarits = estModere
+    ? (module.contenuCache?.gabarits?.length ?? GABARITS_CACHE_PAR_DEFAUT)
+    : 0;
   return (
     <article className={`mcard mcard--${module.color}${selected ? ' mcard--selected' : ''}`}
-      data-state={noQuestion ? 'no-question' : 'ready'}>
+      data-state={noQuestion && !estModere ? 'no-question' : 'ready'}>
       <h2 className="mcard__name" data-bind="module.name">{module.name}</h2>
       <div className="mcard__caps">
         <span className="mcard__cap" data-bind="module.type">{t.label}</span>
-        <span className="mcard__cap" data-bind="module.duration">{module.duration} s</span>
-        <span className={`mcard__cap${noQuestion ? ' mcard__cap--warn' : ''}`} data-bind="module.questionCount">
-          {noQuestion ? 'Aucune question' : `${module.questions.length} question${module.questions.length > 1 ? 's' : ''}`}
+        <span className="mcard__cap" data-bind="module.duration">{duree} s</span>
+        <span className={`mcard__cap${noQuestion && !estModere ? ' mcard__cap--warn' : ''}`} data-bind="module.questionCount">
+          {estModere
+            ? `${nbGabarits} question${nbGabarits > 1 ? 's' : ''} modérée${nbGabarits > 1 ? 's' : ''}`
+            : noQuestion ? 'Aucune question' : `${module.questions.length} question${module.questions.length > 1 ? 's' : ''}`}
         </span>
       </div>
-      {MODULE_TYPES[module.type]?.direct ? (
+      {estModere ? (
+        /* « CACHE-CACHE » N'A PAS DE BANQUE ÉCRITE, ET POURTANT IL Y A À
+           PRÉPARER. La carte disait « Aucune question — rien à préparer ici » :
+           faux des deux côtés depuis la modération. Six énoncés et deux cents
+           images se règlent dans cet éditeur ; la carte doit y conduire, pas en
+           détourner. */
+        <p className="mcard__note">Ses questions se tirent au sort. Énoncés, quotas et images se règlent ici.</p>
+      ) : MODULE_TYPES[module.type]?.direct ? (
         /* UN JEU EN DIRECT N'EST PAS UN JEU VIDE. Sa question — deux mots — se
            tape à l'antenne, au moment de lancer. Lui reprocher son absence de
            questions serait un contresens. */
@@ -575,10 +684,198 @@ function ModuleCard({ module, selected, onEdit }) {
       ) : null}
       <div className="mcard__actions">
         <button className="button button--block" type="button" data-action="studio:editModule" onClick={onEdit}>
-          {noQuestion ? 'Ajouter des questions' : 'Éditer'}
+          {/* UN SEUL MOT, TOUJOURS LE MÊME. « Éditer » ici, « Ajouter des
+              questions » là : deux libellés pour le même bouton, selon un état
+              que l'animateur ne contrôle pas. */}
+          Modifier
         </button>
       </div>
     </article>
+  );
+}
+
+// Cinq questions par manche — le nombre que le serveur tire, et le plafond des
+// quotas que le Studio laisse régler.
+const QUESTIONS_PAR_MANCHE = 5;
+
+// UNE VIGNETTE POUR LES LIGNES SANS IMAGE. Pointer sur un fichier qui n'existe
+// pas ferait une requête perdue par ligne et l'icône brisée du navigateur ; un
+// pixel transparent laisse voir la plaque claire, et le champ du chemin dit le
+// reste.
+const VIGNETTE_VIDE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+// ---------------------------------------------------------------------------
+// E3 bis — LA MODÉRATION DE « CACHE-CACHE »
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ : « il faudrait que j'aie accès aux questions possibles
+// [...] la question avec ses variables [...] le nombre d'apparitions minimum et
+// maximum par manche » et « accès à la base de données des images [...] son Nom
+// et sa Couleur [...] modifier les informations et ajouter de nouvelle ligne ».
+//
+// CE QU'ON PEUT MODÉRER, ET CE QU'ON NE PEUT PAS. On réécrit l'énoncé d'une
+// question, on change ses quotas, on l'éteint, on en ajoute une variante ; on ne
+// peut pas inventer une FORME. « Quelle est la couleur de… » et « derrière quel
+// numéro… » ne diffèrent pas par leur texte mais par ce que le serveur calcule —
+// la bonne réponse, la liste de choix, la case à dévoiler. Le Studio le dit.
+//
+// LES VARIABLES SONT DES BALISES, comme demandé : `{objet}`, `{case}`, `{objetA}`.
+// Elles sont remplies au tirage. Chaque forme n'accepte que les siennes, et le
+// serveur les annonce — l'écran ne les recopie pas.
+function ModerationCache({ contenu, catalogue, onChange }) {
+  const gabarits = contenu?.gabarits?.length ? contenu.gabarits : (catalogue?.gabarits || []);
+  const objets = contenu?.objets?.length ? contenu.objets : (catalogue?.objets || []);
+  const couleurs = catalogue?.couleurs || [];
+  const variables = catalogue?.variables || {};
+  // Le libellé vient du serveur, avec le nom de code en dernier recours : une
+  // forme ajoutée sans libellé se voit, elle ne disparaît pas.
+  const libelles = catalogue?.libelles || {};
+  const nomDeForme = (f) => libelles[f] || f;
+  const [voirImages, setVoirImages] = useState(false);
+  // DEUX CENTS LIGNES SANS FILTRE NE SE MODÈRENT PAS. À deux cents rangées dans
+  // une fenêtre de quatre cent vingt pixels, atteindre une image précise demande
+  // plus de cent écrans de défilement : la capacité demandée existerait sans être
+  // utilisable. Le filtre porte sur l'identifiant, le nom et la couleur.
+  const [filtre, setFiltre] = useState('');
+
+  const poser = (champ, valeur) => onChange({
+    kind: 'contenu-cache',
+    gabarits: champ === 'gabarits' ? valeur : gabarits,
+    objets: champ === 'objets' ? valeur : objets,
+  });
+
+  const majGabarit = (i, patch) => poser('gabarits', gabarits.map((g, j) => (j === i ? { ...g, ...patch } : g)));
+  const majObjet = (i, patch) => poser('objets', objets.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+
+  return (
+    <>
+      <div className="fgroup" data-testid="cache-gabarits">
+        <span className="flabel">Questions possibles ({gabarits.length})</span>
+        <p className="fhint">
+          Les accolades sont des variables, remplies au tirage. Le minimum et le
+          maximum comptent les apparitions dans une manche de cinq questions.
+        </p>
+        <div className="cmod">
+          {gabarits.map((g, i) => (
+            <div className="cmod__ligne" key={g.id}>
+              <div className="cmod__tete">
+                <span className="cmod__forme">{nomDeForme(g.forme)}</span>
+                <span className="cmod__vars">{(variables[g.forme] || []).join(' ') || 'aucune variable'}</span>
+                <label className="cmod__actif">
+                  <input type="checkbox" checked={g.actif !== false}
+                    onChange={(e) => majGabarit(i, { actif: e.target.checked })} />
+                  <span>Active</span>
+                </label>
+              </div>
+              <input className="input" type="text" value={g.gabarit}
+                aria-label={`Énoncé de ${nomDeForme(g.forme)}`}
+                onChange={(e) => majGabarit(i, { gabarit: e.target.value })} />
+              <div className="cmod__quotas">
+                <label className="cmod__quota">
+                  <span className="flabel">Min</span>
+                  <input className="input" type="number" min="0" max="5" value={g.min}
+                    onChange={(e) => majGabarit(i, { min: Number(e.target.value) || 0 })} />
+                </label>
+                <label className="cmod__quota">
+                  <span className="flabel">Max</span>
+                  <input className="input" type="number" min="0" max="5" value={g.max}
+                    onChange={(e) => majGabarit(i, { max: Number(e.target.value) || 0 })} />
+                </label>
+                <button className="qrow__btn qrow__btn--danger" type="button"
+                  aria-label={`Supprimer la question ${i + 1}`}
+                  onClick={() => poser('gabarits', gabarits.filter((_, j) => j !== i))}>
+                  <I.trash s={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* AJOUTER UNE QUESTION, C'EST CHOISIR UNE FORME. Le reste — l'énoncé, les
+            quotas — se règle ensuite, ligne par ligne. */}
+        <div className="cmod__ajouts">
+          {Object.keys(variables).map((forme) => (
+            <button className="button button--quiet" key={forme} type="button"
+              data-testid={`cache-ajouter-${forme}`}
+              onClick={() => poser('gabarits', [...gabarits, {
+                id: `g-${forme}-${Date.now().toString(36)}`,
+                forme,
+                gabarit: (catalogue?.gabarits || []).find((x) => x.forme === forme)?.gabarit || '',
+                min: 0, max: 1, actif: true,
+              }])}>
+              <I.plus s={16} /> {nomDeForme(forme)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="fgroup" data-testid="cache-objets">
+        <span className="flabel">Base d'images ({objets.length})</span>
+        <p className="fhint">
+          Le nom et la couleur sont la matière des questions : les changer ici
+          change ce que le jeu demande.
+        </p>
+        <button className="button button--quiet" type="button" data-testid="cache-voir-images"
+          onClick={() => setVoirImages((v) => !v)}>
+          {voirImages ? 'Replier la base' : `Ouvrir la base (${objets.length} images)`}
+        </button>
+        {voirImages ? (
+          <>
+          <input className="input" type="text" value={filtre} aria-label="Filtrer la base d'images"
+            placeholder="Filtrer par nom, couleur ou identifiant"
+            onChange={(e) => setFiltre(e.target.value)} />
+          <div className="cmod cmod--images">
+            {/* LE FILTRE CACHE DES LIGNES, IL N'EN SUPPRIME AUCUNE. L'indice `i`
+                reste celui de la liste complète : une modification faite sur une
+                ligne filtrée écrit au bon endroit. */}
+            {objets.map((o, i) => [o, i]).filter(([o]) => {
+              const q = filtre.trim().toLowerCase();
+              if (!q) return true;
+              return `${o.id} ${o.nom} ${o.couleur}`.toLowerCase().includes(q);
+            }).map(([o, i]) => (
+              <div className="cmod__objet" key={o.id}>
+                <img className="cmod__vignette" src={o.src || VIGNETTE_VIDE} alt="" loading="lazy" />
+                <div className="cmod__tete">
+                  <span className="cmod__id" title={o.id}>{o.id}</span>
+                  <button className="qrow__btn qrow__btn--danger" type="button"
+                    aria-label={`Retirer ${o.id}`}
+                    onClick={() => poser('objets', objets.filter((_, j) => j !== i))}>
+                    <I.trash s={16} />
+                  </button>
+                </div>
+                <input className="input" type="text" value={o.nom} aria-label={`Nom de ${o.id}`}
+                  placeholder="Nom" onChange={(e) => majObjet(i, { nom: e.target.value })} />
+                <select className="input" value={o.couleur} aria-label={`Couleur de ${o.id}`}
+                  onChange={(e) => majObjet(i, { couleur: e.target.value })}>
+                  {[...new Set([...couleurs, o.couleur].filter(Boolean))].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {/* LE CHEMIN DE L'IMAGE EST VISIBLE ET MODIFIABLE, parce que le
+                    Studio NE SAIT PAS envoyer un fichier : il n'y a pas de route
+                    pour cela, et prétendre le contraire ferait ajouter des lignes
+                    sans image que rien ne signalerait avant l'antenne. */}
+                <input className="input input--mono" type="text" value={o.src || ''}
+                  aria-label={`Image de ${o.id}`} placeholder="/objets/mon-image.webp"
+                  onChange={(e) => majObjet(i, { src: e.target.value })} />
+              </div>
+            ))}
+            {objets.length && !objets.some((o) => `${o.id} ${o.nom} ${o.couleur}`.toLowerCase()
+              .includes(filtre.trim().toLowerCase()))
+              ? <p className="fhint">Aucune image ne correspond à ce filtre.</p> : null}
+            <button className="qadd" type="button" data-testid="cache-ajouter-objet"
+              onClick={() => poser('objets', [...objets, {
+                id: `obj-${Date.now().toString(36)}`, nom: '', couleur: couleurs[0] || 'Bleu', src: '',
+              }])}>
+              <I.plus s={16} />
+              <span>Ajouter une image</span>
+            </button>
+            <p className="fhint">
+              Le fichier doit déjà être servi par le jeu. Le Studio règle le nom, la
+              couleur et le chemin ; il n'envoie pas de fichier.
+            </p>
+          </div>
+          </>
+        ) : null}
+      </div>
+    </>
   );
 }
 
@@ -587,12 +884,14 @@ function ModuleCard({ module, selected, onEdit }) {
 // ---------------------------------------------------------------------------
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
+  typeServeur, catalogueCache,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
-  // La fenêtre de réponse de ce type de jeu, quand elle est une règle et non un
-  // réglage — voir MODULE_TYPES.
-  const dureeFixe = MODULE_TYPES[module.type]?.dureeFixe || null;
+  // La durée de jeu telle que le SERVEUR la déclare : fixe pour la plupart des
+  // jeux (c'est une règle, pas un réglage), réglable pour les trois qui la lisent
+  // vraiment — l'estimation, le vote et le lien.
+  const dureeFixe = typeServeur?.dureeFixe ? typeServeur.dureeS : null;
 
   const saveLabel = saveState === 'saving' ? 'Enregistrement…'
     : saveState === 'invalid' ? `Enregistrer — ${validationErrors.length} point${validationErrors.length > 1 ? 's' : ''} à corriger`
@@ -640,7 +939,7 @@ function EditorPanel({
               </span>
               <p className="fhint">
                 {dureeFixe
-                  ? `Fixée à ${dureeFixe} s pour ce type de jeu : le barème de rapidité est calibré dessus.`
+                  ? `Fixée à ${dureeFixe} s par les règles de ce jeu.`
                   : '3 s minimum.'}
               </p>
             </div>
@@ -657,6 +956,14 @@ function EditorPanel({
           </div>
         </div>
 
+        {/* « CACHE-CACHE » NE SE MODÈRE PAS COMME LES AUTRES. Sa banque n'est pas
+            une liste de questions écrites d'avance : c'est un jeu de gabarits et
+            une base d'images, dont le serveur tire cinq questions à chaque manche.
+            L'écran suit cette réalité plutôt que de la travestir en liste. */}
+        {module.type === 'cache_cache' ? (
+          <ModerationCache contenu={module.contenuCache} catalogue={catalogueCache}
+            onChange={(contenuCache) => onPatchModule({ contenuCache })} />
+        ) : (
         <div className="fgroup">
           <span className="flabel">Questions ({module.questions.length})</span>
           <div className="qlist">
@@ -673,8 +980,10 @@ function EditorPanel({
             ) : null}
           </div>
           {!MODULE_TYPES[module.type]?.direct ? (
-            <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}
-              style={{ marginTop: 'var(--sp-2)' }}><I.plus s={16} /> Ajouter une question</button>
+            <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}>
+              <I.plus s={16} />
+              <span>Ajouter une question</span>
+            </button>
           ) : (
             <p className="fhint" data-testid="studio-jeu-direct">
               Ce jeu se prépare à l'antenne : l'animateur tape ses deux mots au moment
@@ -682,6 +991,7 @@ function EditorPanel({
             </p>
           )}
         </div>
+        )}
 
         {/* Suppression : confirmation en deux temps, comme sur la surface animateur. */}
         <div className="fgroup">
@@ -712,7 +1022,7 @@ function EditorPanel({
             <I.check s={16} dashed /> Enregistré — le jeu utilisera ces questions.
           </p>
         ) : null}
-        {saveState === 'error' || saveState === 'local' || saveState === 'unauthorized' ? (
+        {saveState === 'error' || saveState === 'local' || saveState === 'unauthorized' || saveState === 'nondurable' ? (
           <p className="save-state save-state--failed" role="alert" data-testid="save-failed">
             <I.alert s={18} />
             {/* Un refus d'AUTORISATION doit se distinguer d'une panne : c'est le
@@ -720,6 +1030,8 @@ function EditorPanel({
                 envoyait chercher au mauvais endroit. */}
             {saveState === 'unauthorized'
               ? "Enregistrement refusé : connecte-toi d'abord au poste de pilotage (/host) avec ton compte animateur."
+              : saveState === 'nondurable'
+                ? "La base n'a pas accepté l'enregistrement : rien n'est conservé. Le serveur redémarré, tu ne retrouverais pas ces questions. Réessaie."
               : saveState === 'local'
                 ? "Serveur injoignable — ta saisie est conservée localement. Réessaie."
                 : "Enregistrement refusé — ta saisie est conservée localement. Réessaie."}

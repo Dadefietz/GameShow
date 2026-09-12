@@ -1857,6 +1857,27 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     );
   }
 
+  // « CACHE-CACHE », QUESTION À SAISIE : les mots les plus donnés.
+  //
+  // Un histogramme n'a aucun sens sur du texte libre ; savoir que douze personnes
+  // ont écrit « marteau » et trois « tournevis », si. C'est la même lecture que
+  // les groupes du « Lien », et c'est ce qui se commente à l'antenne.
+  if (dist.kind === 'mots') {
+    if (!dist.groupes?.length) {
+      return <p className="dist__empty">Les réponses s'afficheront ici, en direct.</p>;
+    }
+    // LA MÊME LIGNE QUE PARTOUT AILLEURS (`DistLigne`) : une barre lue depuis
+    // `--om-to`, jamais une largeur posée à côté — voir la note de `.dist__fill`.
+    return (
+      <div className="dist" data-testid="dist-mots">
+        {dist.groupes.map((g) => (
+          <DistLigne key={g.mot} lettre="" label={g.mot} count={g.count}
+            total={dist.total || 1} showKey={false} correct={false} />
+        ))}
+      </div>
+    );
+  }
+
   // LE RAPPEL DU TOUR PRÉCÉDENT — « Vote », second tour, animateur seul.
   //
   // Ce panneau montre le tour EN COURS. Au second tour d'un vote, c'est le tour
@@ -2029,40 +2050,13 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
             </div>
           ) : null}
 
-          <section className="stage__card" aria-label="Question en cours">
-            <p className="h-label">Énoncé à l'antenne</p>
-            <p className={`stage__question${revealed ? ' stage__question--revealed' : ''}`}
-              data-bind="module.text" data-testid="question-text">
-              {current && current.text ? current.text : 'En attente de la question…'}
-            </p>
-            {revealLabel != null ? (
-              <div className="reveal" data-bind="reveal.correct" data-testid="reveal-value">
-                <span className="reveal__badge" aria-hidden="true"><I.check s={18} dashed /></span>
-                <div>
-                  <p className="h-label" style={{ color: 'var(--c-pine)' }}>Bonne réponse</p>
-                  <p className="reveal__value">{revealLabel}</p>
-                </div>
-              </div>
-            ) : null}
-          </section>
-
-          <section className={`private${revealed ? ' private--public' : ''}`} data-testid="stats-panel"
-            data-bind="module.distribution" aria-label="Répartition des réponses">
-            <p className="private__title">
-              <I.eye s={16} />
-              {revealed ? 'Répartition — affichée sur le stream' : 'Répartition en direct — visible par toi seul'}
-              {/* LE TOUR EN COURS. L'animateur commente à l'antenne : il doit
-                  savoir si le cercle est en train de dire ce qu'il pense ou de
-                  parier sur lui-même. Rien d'autre à l'écran ne le lui dit. */}
-              {!revealed && current?.tours > 1 ? (
-                <span className="private__count" data-testid="host-tour">Tour {current.tour}/{current.tours}</span>
-              ) : null}
-            </p>
-            <AnswerDistribution current={current} distribution={g.distribution}
-              answersCount={answersCount} revealed={revealed} reveal={reveal} />
-            {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
-          </section>
-
+          {/* LE PANNEAU DE PRÉPARATION, TOUT EN HAUT DE L'ÉCRAN.
+              « Le bloc qui permet de relancer une partie d'un jeu lorsque l'on
+              clique sur "Question suivante" devrait s'afficher tout en haut. »
+              Il était sous l'énoncé et sous la répartition — c'est-à-dire sous
+              deux blocs qui ne parlent plus que du passé à cet instant précis.
+              L'animateur devait faire défiler sa console pour trouver le seul
+              bouton qui l'intéresse, en direct. */}
           {/* LA SAISIE DU LIEN prend la place de la scène tant que les deux mots
               ne sont pas diffusés : c'est LE geste de l'animateur à cet instant. */}
           {prepare && prepare.type === 'lien' ? (
@@ -2101,6 +2095,48 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
           {prepare && prepare.type === 'visages' ? (
             <DepartVisages jeu={prepare} onDemarrer={onDemarrerVisages} onAnnuler={onAnnulerLien} />
           ) : null}
+
+          <section className="stage__card" aria-label="Question en cours">
+            <p className="h-label">Énoncé à l'antenne</p>
+            <p className={`stage__question${revealed ? ' stage__question--revealed' : ''}`}
+              data-bind="module.text" data-testid="question-text">
+              {current && current.text ? current.text : 'En attente de la question…'}
+            </p>
+            {revealLabel != null ? (
+              <div className="reveal" data-bind="reveal.correct" data-testid="reveal-value">
+                <span className="reveal__badge" aria-hidden="true"><I.check s={18} dashed /></span>
+                <div>
+                  <p className="h-label" style={{ color: 'var(--c-pine)' }}>Bonne réponse</p>
+                  <p className="reveal__value">{revealLabel}</p>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          {/* PAS DE RÉPARTITION PENDANT LE DÉVOILEMENT DES RÉPONSES.
+              « Le bloc "Répartition en direct" n'est pas important lors du
+              dévoilement des réponses. Il faut l'enlever. » À cet instant il
+              montre le décompte de la DERNIÈRE question posée, pendant que
+              l'animateur commente la PREMIÈRE réponse : deux questions
+              différentes sur le même écran. */}
+          {cacheAuxReponses ? null : (
+          <section className={`private${revealed ? ' private--public' : ''}`} data-testid="stats-panel"
+            data-bind="module.distribution" aria-label="Répartition des réponses">
+            <p className="private__title">
+              <I.eye s={16} />
+              {revealed ? 'Répartition — affichée sur le stream' : 'Répartition en direct — visible par toi seul'}
+              {/* LE TOUR EN COURS. L'animateur commente à l'antenne : il doit
+                  savoir si le cercle est en train de dire ce qu'il pense ou de
+                  parier sur lui-même. Rien d'autre à l'écran ne le lui dit. */}
+              {!revealed && current?.tours > 1 ? (
+                <span className="private__count" data-testid="host-tour">Tour {current.tour}/{current.tours}</span>
+              ) : null}
+            </p>
+            <AnswerDistribution current={current} distribution={g.distribution}
+              answersCount={answersCount} revealed={revealed} reveal={reveal} />
+            {!revealed ? <p className="private__hint">Publique à la révélation</p> : null}
+          </section>
+          )}
 
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
@@ -2186,8 +2222,15 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
       <nav className="actions" aria-label="Contrôles animateur">
         {revealed ? (
           <>
+            {/* « POUR LES MODULES SANS QUESTIONS, IL NE DEVRAIT PAS Y AVOIR
+                ÉCRIT "QUESTION SUIVANTE" MAIS "NOUVELLE PARTIE". »
+                Un jeu en direct n'a pas de banque : il n'y a pas de question
+                suivante à aller chercher, il y a une partie à relancer. Le
+                libellé disait le contraire de ce que le bouton fait. */}
             <button className="button button--primary button--lg" type="button"
-              data-action="host:startModule" onClick={onNextQuestion}>Question suivante</button>
+              data-action="host:startModule" data-testid="host-suivant" onClick={onNextQuestion}>
+              {current?.meta?.direct ? 'Nouvelle partie' : 'Question suivante'}
+            </button>
             <ModuleMenu jeux={jeux} currentId={current && current.moduleId} onPick={onChangeModule} />
           </>
         ) : (

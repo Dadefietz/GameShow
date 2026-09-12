@@ -340,9 +340,19 @@
     font: 500 var(--fs-200) / 1.4 var(--f-ui);
     color: var(--c-pine);
   }
+  /* « LE BOUTON + AJOUTER UNE QUESTION N'EST PAS ALIGNÉ. IL FAUT QUE CE SOIT SUR
+     UNE MÊME LIGNE ET CENTRÉ. »
+     Le bouton n'avait aucune mise en page : le « + » et son texte étaient deux
+     enfants d'un bloc, donc empilés — l'icône au-dessus, le texte en dessous,
+     tous deux collés à gauche. Une boîte flexible centrée les remet côte à côte. */
   .qadd {
     width: 100%;
     min-height: var(--row-form);
+    margin-top: var(--sp-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
     border: 0;
     border-radius: var(--r-s);
     background: var(--c-surface);
@@ -350,6 +360,90 @@
     color: var(--c-ink);
     font: 500 var(--fs-300) / 1 var(--f-ui);
   }
+
+  /* ====================== MODÉRATION DE « CACHE-CACHE » ======================
+     Deux tables demandées : les questions possibles avec leurs quotas, et la base
+     d'images avec nom et couleur.
+
+     POURQUOI DES LIGNES ET NON UNE GRILLE. Une vraie table à colonnes fixes
+     casserait dans le panneau d'édition, qui fait 420 px : l'énoncé d'une question
+     y tient sur toute la largeur, les quotas sur une ligne à part. Chaque entrée
+     est donc une carte, pas une rangée.
+
+     LA BASE D'IMAGES EST REPLIÉE PAR DÉFAUT. Deux cents vignettes déroulées sous
+     un formulaire qu'on ouvre pour renommer un module, c'est deux cents requêtes
+     et un panneau illisible. Le bouton dit combien il y en a. */
+  .cmod { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .cmod__ligne {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+  }
+  .cmod__tete { display: flex; align-items: center; gap: var(--sp-3); }
+  .cmod__forme {
+    font: 600 var(--fs-200) / 1 var(--f-mono);
+    color: var(--c-ink);
+  }
+  .cmod__vars {
+    flex: 1;
+    min-width: 0;
+    font: 400 var(--fs-200) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cmod__actif {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    color: var(--c-ink-2);
+  }
+  .cmod__quotas { display: flex; align-items: flex-end; gap: var(--sp-3); }
+  .cmod__quota { display: flex; flex-direction: column; gap: var(--sp-1); width: 88px; }
+  .cmod__quota .input { text-align: center; }
+  .cmod__quota + .qrow__btn { margin-left: auto; }
+  .cmod__ajouts { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+  .cmod__ajouts .button { font-family: var(--f-mono); font-size: var(--fs-200); }
+
+  .cmod--images { max-height: 420px; overflow-y: auto; }
+  /* LE NOM ET LA COULEUR PARTAGENT UNE LIGNE. Quatre champs empilés faisaient une
+     rangée de 228 px : deux cents rangées, quarante-cinq mille pixels, et une
+     base qu'on ne parcourt plus. Les deux champs courts tiennent côte à côte. */
+  .cmod__objet {
+    display: grid;
+    grid-template-columns: 40px 1fr 120px;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2);
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+  }
+  /* LA VIGNETTE EST POSÉE SUR LA PLAQUE CLAIRE du système, comme dans le jeu :
+     les objets sont détourés, et sur le fond sombre du studio un objet foncé
+     disparaîtrait. */
+  .cmod__vignette {
+    grid-row: span 3;
+    width: 40px; height: 40px;
+    border-radius: var(--r-s);
+    background: var(--c-plaque);
+    object-fit: contain;
+  }
+  .cmod__id {
+    font: 400 var(--fs-100) / 1 var(--f-mono);
+    color: var(--c-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cmod__objet .cmod__tete { min-width: 0; grid-column: 2 / -1; }
+  .cmod__objet .input--mono { grid-column: 2 / -1; }
+  .cmod__objet .cmod__id { flex: 1; }
+  .input--mono { font-family: var(--f-mono); font-size: var(--fs-200); }
 
   /* ---- Barre d'enregistrement : 5 états ---- */
   .save-state {

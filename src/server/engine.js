@@ -9,7 +9,7 @@
 import { modules, histogrammeBareme, plagesEstimation, REGLES_VISAGES, valeurDuBuzz, coupeDuJoueur, auCentieme, creneauDe as creneauSerie } from './modules.js';
 import { srcDeVisage } from './visages.js';
 import { srcDObjet } from './objets.js';
-import { momentsDuDevoilement } from './cache-cache.js';
+import { momentsDuDevoilement, normaliserReponse } from './cache-cache.js';
 
 // L'ouverture minimale de l'échelle : la demi-largeur de la plage la plus large
 // du barème. Un seul endroit la calcule ici comme à la révélation, pour que les
@@ -118,6 +118,44 @@ export function answerDistribution(rt) {
       precedent: rt.answersTour1
         ? { counts: compter(rt.answersTour1), total: rt.answersTour1.size }
         : null,
+    };
+  }
+  // « CACHE-CACHE » — CE QUE L'ANIMATEUR VOIT PENDANT UNE QUESTION.
+  //
+  // CE QUI A ÉTÉ RAPPORTÉ : « le bloc "Répartition en direct" ne fonctionne pas.
+  // Les données des joueurs ne remontent pas. » Et pour cause : ce jeu n'était
+  // traité nulle part ici. Les autres types tombaient chacun dans leur branche,
+  // celui-là traversait la fonction et repartait sans rien.
+  //
+  // DEUX FORMES DE QUESTION, DONC DEUX RÉPARTITIONS :
+  //   - à choix (couleurs, numéros) : le décompte par option, comme un quiz ;
+  //   - à saisie : les MOTS les plus donnés, comme « Le lien ». Un histogramme
+  //     n'aurait aucun sens sur du texte libre, mais savoir que douze personnes
+  //     ont écrit « marteau » et trois « tournevis », c'est exactement ce qui se
+  //     commente à l'antenne.
+  if (rt.type === 'cache_cache') {
+    if (rt.tour <= 1) return { kind: 'options', counts: [], total: 0 };
+    const pub = modules.cache_cache.publicQuestion(rt);
+    if (Array.isArray(pub.options) && pub.options.length) {
+      const counts = new Array(pub.options.length).fill(0);
+      for (const a of rt.answers.values()) {
+        if (Number.isInteger(a.value) && a.value >= 0 && a.value < counts.length) counts[a.value] += 1;
+      }
+      return { kind: 'options', counts, total: rt.answers.size, options: pub.options };
+    }
+    const groupes = new Map();
+    for (const a of rt.answers.values()) {
+      const mot = String(a.value ?? '').trim();
+      if (!mot) continue;
+      const cle = normaliserReponse(mot);
+      const g = groupes.get(cle) || { mot, count: 0 };
+      g.count += 1;
+      groupes.set(cle, g);
+    }
+    return {
+      kind: 'mots',
+      total: rt.answers.size,
+      groupes: [...groupes.values()].sort((a, b) => b.count - a.count).slice(0, 6),
     };
   }
   if (rt.type === 'true_false') {
@@ -349,7 +387,7 @@ export function startModule(io, room, jeu, question) {
       room._grille.push(setTimeout(() => {
         if (room.currentModule !== rt || rt.revealed) return;
         toRoom(io, room).emit('cache:objet', {
-          roundId: rt.roundId, place, id: objet.id, src: srcDObjet(objet.id), rang: i + 1,
+          roundId: rt.roundId, place, id: objet.id, src: objet.src || srcDObjet(objet.id), rang: i + 1,
         });
       }, debut));
       room._grille.push(setTimeout(() => {
@@ -538,7 +576,7 @@ export function devoilerReponse(io, room) {
     texte: q.texte,
     reponse: q.reponse,
     place: q.place,
-    objet: { id: objet.id, src: srcDObjet(objet.id), nom: objet.nom, couleur: objet.couleur },
+    objet: { id: objet.id, src: objet.src || srcDObjet(objet.id), nom: objet.nom, couleur: objet.couleur },
   });
 
   // À CHAQUE JOUEUR SON COMPTE. Diffuser les points de tout le monde ferait de la

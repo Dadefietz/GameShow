@@ -12,6 +12,10 @@ import {
   DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE, CASES, PAIRES, FORMES,
 } from '../../src/server/cache-cache.js';
 import { BASSIN_OBJETS, COULEURS, NOMS_OBJETS, srcDObjet } from '../../src/server/objets.js';
+import {
+  NUMEROS, contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME,
+  LIBELLES_PAR_FORME, MARQUE_CONTENU,
+} from '../../src/server/cache-cache.js';
 import { modules, bonusRapidite } from '../../src/server/modules.js';
 
 describe('la banque des deux cents objets', () => {
@@ -82,13 +86,23 @@ describe('le dévoilement de la grille', () => {
 });
 
 describe('le tirage des cinq questions', () => {
-  it('respecte les quotas de chaque forme', () => {
+  it('respecte les quotas de chaque question', () => {
+    // LES QUOTAS APPARTIENNENT AU GABARIT, PLUS À LA FORME. Depuis la modération
+    // du Studio, deux gabarits peuvent partager une même forme avec des quotas
+    // différents — « derrière quel numéro » posée une fois en début de manche et
+    // une autre fois autrement. La répartition est donc indexée par identifiant
+    // de gabarit, et c'est le gabarit qui dit son minimum et son maximum.
+    const parId = new Map(GABARITS_PAR_DEFAUT.map((g) => [g.id, g]));
     for (const r of repartitionsPossibles()) {
       const total = Object.values(r).reduce((a, b) => a + b, 0);
       expect(total).toBe(QUESTIONS_PAR_PARTIE);
       for (const [cle, n] of Object.entries(r)) {
-        expect(n).toBeGreaterThanOrEqual(FORMES[cle].min);
-        expect(n).toBeLessThanOrEqual(FORMES[cle].max);
+        const g = parId.get(cle);
+        expect(g, `répartition indexée sur « ${cle} », qui n'est pas un gabarit`).toBeTruthy();
+        expect(n).toBeGreaterThanOrEqual(g.min);
+        expect(n).toBeLessThanOrEqual(g.max);
+        // Et le gabarit reste dans les bornes que la FORME autorise.
+        expect(n).toBeLessThanOrEqual(FORMES[g.forme].max);
       }
     }
     expect(repartitionsPossibles().length).toBeGreaterThan(0);
@@ -128,8 +142,11 @@ describe('le tirage des cinq questions', () => {
       const parPlace = new Map(matrice.map((o) => [o.place, o]));
       for (const q of questions) {
         const o = parPlace.get(q.place);
-        if (FORMES[q.forme].choix) expect(COULEURS).toContain(q.reponse);
+        if (FORMES[q.forme].choix === 'couleurs') expect(COULEURS).toContain(q.reponse);
+        if (FORMES[q.forme].choix === 'cases') expect(NUMEROS).toContain(q.reponse);
         if (q.forme === 'couleur_de' || q.forme === 'couleur_unique') expect(q.reponse).toBe(o.couleur);
+        // « Derrière quel numéro se cache … ? » : la réponse EST la case.
+        else if (q.forme === 'numero_de') expect(q.reponse).toBe(String(o.place));
         else expect(q.reponse).toBe(o.nom);
       }
     }
@@ -164,10 +181,15 @@ describe('le barème de cache-cache', () => {
 
   it('vaut 200 par bonne réponse, plus 0 à 100 de rapidité', () => {
     expect(cc.meta.points).toBe(200);
-    expect(cc.meta.rapidite).toEqual({ plateau: 9, plancher: 2, max: 100 });
-    // « une réponse à 5.5sec vaudra surement 50pts de rapidité » — l'exemple de
-    // l'énoncé, à l'unité.
-    expect(bonusRapidite(5.5 * 1000, cc.meta.rapidite)).toBe(50);
+    // LA FENÊTRE EST PASSÉE DE DIX À SEIZE SECONDES (séance du 11/09), et la
+    // courbe a suivi : une seconde de plateau en tête, deux de plancher en queue.
+    // L'exemple d'origine — « 5.5sec vaut 50pts » — était calibré sur dix
+    // secondes ; sur seize, c'est la MOITIÉ DE LA PENTE qui vaut la moitié du
+    // bonus, et elle tombe à 8,5 s restantes.
+    expect(cc.meta.rapidite).toEqual({ plateau: 15, plancher: 2, max: 100 });
+    expect(bonusRapidite(8.5 * 1000, cc.meta.rapidite)).toBe(50);
+    expect(bonusRapidite(16 * 1000, cc.meta.rapidite)).toBe(100);
+    expect(bonusRapidite(2 * 1000, cc.meta.rapidite)).toBe(0);
   });
 
   it('plafonne une manche à 1500 points, ce que l\'énoncé annonce', () => {
@@ -178,7 +200,9 @@ describe('le barème de cache-cache', () => {
     for (let tour = 2; tour <= rt.tours; tour += 1) {
       const q = rt.questions[tour - 2];
       rt.debutsDeTour[tour] = tour * 100_000;
-      const valeur = FORMES[q.forme].choix ? COULEURS.indexOf(q.reponse) : q.reponse;
+      const liste = FORMES[q.forme].choix === 'couleurs' ? COULEURS
+        : FORMES[q.forme].choix === 'cases' ? NUMEROS : null;
+      const valeur = liste ? liste.indexOf(q.reponse) : q.reponse;
       const carte = new Map([['p', { value: valeur, at: rt.debutsDeTour[tour] }]]);
       if (tour === rt.tours) { rt.answers = carte; rt.tour = tour; } else rt[`answersTour${tour}`] = carte;
     }
@@ -231,5 +255,187 @@ describe('le barème de cache-cache', () => {
     // enchaîne toute seule, sinon la manche s'arrête sur une grille vide.
     expect(cc.attendLAnimateur({ tour: 1 })).toBe(false);
     expect(cc.attendLAnimateur({ tour: 2 })).toBe(true);
+  });
+});
+
+describe('« Derrière quel numéro se cache … ? » — la sixième forme', () => {
+  it('propose les neuf numéros, et sa réponse est la case', () => {
+    // AJOUTÉE À LA SÉANCE DU 11/09, et c'est l'inverse exact de « quel objet se
+    // cache derrière 2 ? » : la même paire objet/case, lue dans l'autre sens.
+    expect(FORMES.numero_de).toEqual({ min: 1, max: 3, choix: 'cases' });
+    expect(NUMEROS).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+  });
+
+  it('apparaît dans toute manche — son quota commence à un', () => {
+    for (let i = 0; i < 500; i += 1) {
+      const { questions } = tirerLaManche();
+      const n = questions.filter((q) => q.forme === 'numero_de').length;
+      expect(n).toBeGreaterThanOrEqual(1);
+      expect(n).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('se note sur le NUMÉRO choisi, pas sur un nom', () => {
+    const cc = modules.cache_cache;
+    const rt = cc.buildRound({ id: 'cc' });
+    // On force la première question à cette forme pour la noter seule.
+    const q = rt.questions.find((x) => x.forme === 'numero_de');
+    const tour = rt.questions.indexOf(q) + 2;
+    rt.debutsDeTour = { [tour]: 0 };
+    // LA MANCHE EST POSÉE SUR CE TOUR-LÀ, et les réponses vont dans `rt.answers`.
+    // Le contrôle écrivait dans `answersTour${tour}` en laissant `rt.tour` sur le
+    // DERNIER tour : quand le tirage plaçait cette question en dernier — une fois
+    // sur six — les deux coïncidaient, le moteur lisait `rt.answers` (vide), et
+    // le contrôle tombait sans qu'aucun défaut n'existe. Un contrôle qui échoue
+    // une fois sur six finit par être cru à tort, dans un sens ou dans l'autre.
+    rt.tour = tour;
+    rt.answers = new Map([
+      ['juste', { value: Number(q.reponse) - 1, at: 0 }],
+      ['faux', { value: (Number(q.reponse) % 9), at: 0 }],
+    ]);
+    const { results } = cc.score(rt);
+    expect(results.get('juste').bons).toBe(1);
+    expect(results.get('faux').bons).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LA MODÉRATION — CE QUE L'ANIMATEUR RÈGLE AU STUDIO COMMANDE VRAIMENT LE TIRAGE
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ : « il faudrait que j'aie accès aux questions possibles
+// [...] Je dois pouvoir voir, modifier et créer : la question avec ses variables
+// [...] le nombre d'apparitions minimum et maximum de la question par manche »,
+// et « accès dans le studio à la base de données des images [...] son Nom et sa
+// Couleur [...] modifier les informations et ajouter de nouvelle ligne ».
+//
+// LE DÉFAUT CONTRE LEQUEL CES CONTRÔLES EXISTENT est celui d'un écran qui ne
+// commande rien : des champs qu'on remplit, qu'on enregistre, et que le jeu
+// ignore. Rien à l'écran du Studio ne le dirait. On ne vérifie donc pas que le
+// formulaire s'affiche — on vérifie que ce qu'il écrit ARRIVE DANS LA MANCHE.
+describe('la modération de « Cache-cache »', () => {
+  // UN HASARD REPRODUCTIBLE, PAS UNE CONSTANTE. Un `() => 0.42` n'est pas un
+  // tirage : le battage devient l'identité, la même répartition est choisie aux
+  // quarante essais, et une manche impossible le reste — le contrôle échouerait
+  // sur un jeu qui, lui, fonctionne. Une suite congruentielle donne des tirages
+  // différents ET rejouables.
+  const graine = (n) => () => {
+    n = (n * 1664525 + 1013904223) % 4294967296;
+    return n / 4294967296;
+  };
+  const alea = graine(7);
+
+  it('un énoncé réécrit au Studio est celui que les joueurs lisent', () => {
+    const contenu = {
+      gabarits: [
+        { id: 'g-seul', forme: 'couleur_de', gabarit: 'DE QUELLE TEINTE EST {objet} ?', min: 5, max: 5, actif: true },
+      ],
+    };
+    const rt = tirerLaManche(alea, contenu);
+    expect(rt).not.toBeNull();
+    expect(rt.questions).toHaveLength(QUESTIONS_PAR_PARTIE);
+    for (const q of rt.questions) {
+      expect(q.forme).toBe('couleur_de');
+      expect(q.texte).toMatch(/^DE QUELLE TEINTE EST /);
+      // La balise est REMPLACÉE, pas recopiée : c'est toute la différence entre
+      // une variable et un morceau de texte.
+      expect(q.texte).not.toContain('{objet}');
+    }
+  });
+
+  it('un gabarit éteint ne sort plus, et ses quotas ne bloquent pas le tirage', () => {
+    const contenu = {
+      gabarits: GABARITS_PAR_DEFAUT.map((g) => (
+        g.forme === 'couleur_de' ? { ...g, actif: false } : { ...g, min: 0, max: 5 }
+      )),
+    };
+    for (let i = 0; i < 30; i += 1) {
+      const rt = tirerLaManche(graine(i + 1), contenu);
+      expect(rt).not.toBeNull();
+      expect(rt.questions.some((q) => q.forme === 'couleur_de')).toBe(false);
+    }
+  });
+
+  it('les quotas réglés au Studio sont tenus, pas ceux du dépôt', () => {
+    // Le dépôt plafonne « derrière quel numéro » à trois. L'animateur en demande
+    // quatre : c'est SON réglage qui fait loi, sinon le champ ne sert à rien.
+    const contenu = {
+      gabarits: [
+        { id: 'g-num', forme: 'numero_de', gabarit: 'Derrière quel numéro se cache « {objet} » ?', min: 4, max: 4, actif: true },
+        { id: 'g-uni', forme: 'couleur_unique', gabarit: "Quelle couleur n'est là qu'une fois ?", min: 1, max: 1, actif: true },
+      ],
+    };
+    const rt = tirerLaManche(alea, contenu);
+    expect(rt).not.toBeNull();
+    expect(rt.questions.filter((q) => q.forme === 'numero_de')).toHaveLength(4);
+    expect(rt.questions.filter((q) => q.forme === 'couleur_unique')).toHaveLength(1);
+  });
+
+  it('un nom et une couleur corrigés au Studio deviennent la question ET la réponse', () => {
+    // Les quarante noms du dépôt sont remplacés par neuf objets inventés. Si le
+    // tirage lisait encore la banque du dépôt, aucun de ces noms n'apparaîtrait.
+    // DIX NOMS DÉCLINÉS DANS LES CINQ COULEURS, comme la vraie banque en décline
+    // quarante : la matrice exige neuf NOMS distincts et les cinq couleurs, il
+    // faut donc au moins neuf noms et de quoi choisir dans chacune.
+    const objets = COULEURS.flatMap((couleur, i) => (
+      Array.from({ length: 10 }, (_, j) => (
+        { id: `faux-${i}-${j}`, nom: `Bidule${j}`, couleur, src: '/objets/faux.webp' }
+      ))
+    ));
+    const contenu = {
+      objets,
+      gabarits: [
+        { id: 'g-c', forme: 'couleur_de', gabarit: 'Couleur de « {objet} » ?', min: 5, max: 5, actif: true },
+      ],
+    };
+    const rt = tirerLaManche(alea, contenu);
+    expect(rt).not.toBeNull();
+    for (const o of rt.matrice) expect(o.nom).toMatch(/^Bidule/);
+    for (const q of rt.questions) {
+      expect(q.texte).toMatch(/Bidule/);
+      expect(COULEURS).toContain(q.reponse);
+    }
+  });
+
+  it('une banque vide ou absente retombe sur le dépôt plutôt que de casser l\'antenne', () => {
+    // L'animateur peut tout effacer d'un module. Le jeu doit repartir, pas mourir.
+    for (const contenu of [undefined, {}, { gabarits: [], objets: [] }]) {
+      const rt = tirerLaManche(alea, contenu);
+      expect(rt, `contenu ${JSON.stringify(contenu)}`).not.toBeNull();
+      expect(rt.questions).toHaveLength(QUESTIONS_PAR_PARTIE);
+    }
+  });
+
+  it('contenuDeLaBanque lit l\'entrée marquée et ignore le reste', () => {
+    const gabarits = [{ id: 'g', forme: 'couleur_de', gabarit: 'X {objet} ?', min: 5, max: 5, actif: true }];
+    const lu = contenuDeLaBanque([
+      { id: 'q1', text: 'une question d\'un autre jeu' },
+      { kind: MARQUE_CONTENU, gabarits, objets: [] },
+    ]);
+    expect(lu.gabarits).toEqual(gabarits);
+    // Pas d'entrée marquée : le dépôt, jamais une banque vide.
+    expect(contenuDeLaBanque([]).gabarits).toEqual(GABARITS_PAR_DEFAUT);
+  });
+
+  it('toute forme que le Studio propose est une forme que le serveur sait calculer', () => {
+    // LE PIÈGE : ajouter une forme au catalogue du Studio sans la fabrique
+    // correspondante. Le bouton existerait, la question serait ajoutée, et la
+    // manche entière échouerait au tirage — à l'antenne, sans rien pour le dire.
+    for (const forme of Object.keys(VARIABLES_PAR_FORME)) {
+      expect(FORMES[forme], `la forme « ${forme} » est proposée mais inconnue du tirage`).toBeTruthy();
+    }
+    for (const forme of Object.keys(FORMES)) {
+      expect(VARIABLES_PAR_FORME[forme], `la forme « ${forme} » n'a pas de variables déclarées`).toBeTruthy();
+      // ET SON NOM DEVANT L'ANIMATEUR. Sans libellé, le Studio afficherait le nom
+      // de code — « couleur_de » dans un formulaire de modération — ou, pire, le
+      // vide. C'est le genre d'oubli qu'on ne voit qu'en ouvrant l'écran.
+      expect(LIBELLES_PAR_FORME[forme], `la forme « ${forme} » n'a pas de libellé`).toBeTruthy();
+    }
+    // Et chaque balise déclarée est bien celle qu'emploie le gabarit du dépôt.
+    for (const g of GABARITS_PAR_DEFAUT) {
+      for (const tag of VARIABLES_PAR_FORME[g.forme]) {
+        expect(g.gabarit, `le gabarit de « ${g.forme} » n'emploie pas ${tag}`).toContain(tag);
+      }
+    }
   });
 });

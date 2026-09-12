@@ -202,7 +202,14 @@ test.describe('Le juste temps', () => {
     await expect(j.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
 
     // L'ANIMATEUR RELANCE : ses deux champs reviennent.
-    await hote.page.getByRole('button', { name: 'Question suivante' }).click();
+    // « POUR LES MODULES SANS QUESTIONS, IL NE DEVRAIT PAS Y AVOIR ÉCRIT
+    // "QUESTION SUIVANTE" MAIS "NOUVELLE PARTIE". » Ce jeu n'a pas de banque : sa
+    // manche se saisit à l'antenne. Le bouton le dit désormais, et le contrôle
+    // vérifie le LIBELLÉ avant de cliquer — sans quoi il ne garderait que la
+    // relance, et le renommage pourrait repartir sans que rien ne le signale.
+    await expect(hote.page.getByRole('button', { name: 'Question suivante' }),
+      'un jeu sans banque annonce encore « Question suivante »').toHaveCount(0);
+    await hote.page.getByRole('button', { name: 'Nouvelle partie' }).click();
     await expect(hote.page.getByTestId('saisie-juste-temps')).toBeVisible({ timeout: 15_000 });
 
     // LE CERCLE ET L'ANTENNE N'ONT PAS BOUGÉ. On laisse passer un instant : un

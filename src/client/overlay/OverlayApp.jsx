@@ -24,7 +24,7 @@ import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
-import { GrilleCache } from '../shared/GrilleCache.jsx';
+import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
@@ -304,6 +304,56 @@ function StreamHistogram({ histo, total, plages, cible, ecrire = fmt,
   );
 }
 
+// LA TAILLE DES CHOIX SUIT LEUR NOMBRE.
+//
+// CE QUI A ÉTÉ DEMANDÉ : « il faut adapter le design et la taille de la police au
+// nombre de choix pour que tout soit visible à l'écran stream. Si j'ai 9 choix à
+// la question, alors je dois voir les 9 choix à l'écran. »
+//
+// POURQUOI C'EST CALCULÉ ICI ET NON EN CSS. Une boîte flexible sait répartir une
+// hauteur entre N enfants ; elle ne sait pas en déduire une TAILLE DE POLICE. Et
+// le canevas du stream est fixe — 1920 × 1080, toujours — donc le calcul est
+// déterministe : il n'y a pas de cas où la mesure dépendrait de l'écran qui
+// regarde.
+//
+// LES BORNES PROTÈGENT LES DEUX EXTRÊMES : deux choix ne doivent pas devenir des
+// pancartes, neuf ne doivent pas devenir illisibles. Entre les deux, la rangée
+// prend ce qui reste.
+const HAUTEUR_DES_CHOIX = 640;   // ce que la scène laisse aux options, en px
+
+// LES MESURES D'UNE SCÈNE DE QUESTION — l'énoncé ET les choix.
+//
+// « Cache-cache » n'a que la MOITIÉ de la largeur : son énoncé y tient sur deux
+// ou trois lignes là où un quiz en tient une. Il part donc d'un cran plus bas, et
+// les deux — énoncé et choix — se resserrent ensemble quand les réponses se
+// multiplient. Vu à l'écran : à neuf choix, cinq étaient visibles.
+function mesuresDeScene(current, n) {
+  const demiScene = current?.type === 'cache_cache';
+  const nombre = Math.max(1, n || 1);
+  const enonce = demiScene
+    ? (nombre >= 8 ? 52 : nombre >= 6 ? 62 : 72)
+    : (nombre >= 8 ? 72 : nombre >= 6 ? 86 : 100);
+  return {
+    ...mesuresDesChoix(nombre, demiScene ? HAUTEUR_DES_CHOIX - 40 : HAUTEUR_DES_CHOIX),
+    '--st-q-fs': `${enonce}px`,
+  };
+}
+function mesuresDesChoix(n, place = HAUTEUR_DES_CHOIX) {
+  const nombre = Math.max(1, n || 1);
+  const ecart = nombre <= 5 ? 20 : 10;
+  const brut = (place - (nombre - 1) * ecart) / nombre;
+  const hauteur = Math.max(46, Math.min(116, brut));
+  const police = Math.max(20, Math.min(46, Math.round(hauteur * 0.40)));
+  return {
+    '--st-opt-h': `${Math.round(hauteur)}px`,
+    '--st-opt-fs': `${police}px`,
+    '--st-opt-gap': `${ecart}px`,
+    '--st-opt-pad': `${Math.round(hauteur * 0.16)}px`,
+    '--st-opt-dot': `${Math.round(hauteur * 0.56)}px`,
+    '--st-opt-key-fs': `${Math.max(14, Math.min(46, Math.round(hauteur * 0.30)))}px`,
+  };
+}
+
 // Répartition par options (quiz, vrai/faux, vote) : une rangée par choix,
 // barre de remplissage proportionnelle, décompte à droite.
 function OptionBreakdown({ stats, correctIndex, leadingIndexes = [] }) {
@@ -385,6 +435,8 @@ function QuestionStage({ g }) {
   // objet attardé de la manche précédente ne doit pas s'afficher sur la nouvelle.
   const objetCache = g.objetCache && g.objetCache.roundId === g.current?.roundId ? g.objetCache : null;
   const devoilements = g.devoilements;
+  // Même règle qu'au téléphone : la plaque et le dessin arrivent ensemble.
+  const objetVisible = useObjetPret(objetCache);
 
   // LE BLANC ENTRE DEUX IMAGES — à l'antenne aussi, et pour la même raison : deux
   // images identiques qui se suivent ne se distinguent pas sans lui, et le public
@@ -491,8 +543,20 @@ function QuestionStage({ g }) {
     return typeSuffix ? `revealed ${typeSuffix}` : 'revealed';
   })() : (urgent ? 'live urgent' : 'live');
 
+  // LES MESURES DE LA SCÈNE SUIVENT LE NOMBRE DE CHOIX, et l'énoncé avec elles :
+  // à neuf réponses, un titre de 116 px mange la moitié de la hauteur avant que
+  // la première option ne soit dessinée. Elles sont posées sur la SCÈNE, pas sur
+  // la liste, parce que l'énoncé et les choix sont deux frères — chacun doit
+  // savoir ce que l'autre prend.
+  const mesures = mesuresDeScene(current, options.length);
+  // LE TEMPS DES RÉPONSES : la manche n'est pas révélée, mais les questions sont
+  // finies. C'est le seul moment du projet où l'écran de jeu ne montre plus la
+  // question en cours — il n'y en a plus.
+  const enDevoilement = current.type === 'cache_cache' && !revealed && devoilements.length > 0;
+
   return (
-    <div className="stream__stage" data-testid="stream-question" data-state={revealedState}>
+    <div className="stream__stage" data-testid="stream-question" data-state={revealedState}
+      style={mesures}>
       {/* Bandeau de manche : capsules et progression de séance à gauche, jauge
           de chrono à droite. La manche close ne garde que les capsules — plus
           rien ne court, donc ni jauge ni barre. */}
@@ -542,7 +606,10 @@ function QuestionStage({ g }) {
             se soit consumé, sur la toile que tout le monde regarde. Le cercle
             n'avait plus qu'à lire l'écran de stream pour savoir où en était le
             chrono qu'on venait de lui cacher. */}
-        {!revealed && current.type !== 'juste_temps' ? (
+        {/* NI CHRONO PENDANT LE DÉVOILEMENT DES RÉPONSES. Plus personne ne
+            répond : un anneau qui continue de tourner annonce une fenêtre qui
+            n'existe plus. */}
+        {!revealed && current.type !== 'juste_temps' && !enDevoilement ? (
           <div className={`st-chrono${urgent ? ' st-chrono--urgent' : ''}${over ? ' st-chrono--over' : ''}`}
             role="timer" aria-label={`Temps restant ${timeLeft ?? 0} secondes`}
             style={ringPct != null ? { '--om-ring': `${ringPct}%` } : undefined}>
@@ -567,6 +634,13 @@ function QuestionStage({ g }) {
           <span className="st-lienmots__chainons" aria-hidden="true"><Chainons taille={64} /></span>
           <span className="st-lienmots__mot">{current.mots[1]}</span>
         </div>
+      ) : enDevoilement ? (
+        /* PENDANT LE DÉVOILEMENT, L'ÉNONCÉ DE LA DERNIÈRE QUESTION DISPARAÎT.
+           « Il faut que sur l'écran il n'y ait que la question dont on est en
+           train de révéler la réponse, la réponse et la matrice qui se dévoile. »
+           Il restait affiché au-dessus, en grand : deux questions à l'écran, dont
+           une périmée, et le public lisait la mauvaise. */
+        null
       ) : (
         <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
           data-bind="module.text" data-testid="question-text">
@@ -659,7 +733,12 @@ function QuestionStage({ g }) {
           <div className="st-cache st-cache--question" data-testid="stream-cc-devoilement">
             <div className="st-cache__gauche">
               <p className="st-kicker">Réponse {devoilements[devoilements.length - 1].n}/{devoilements[devoilements.length - 1].total}</p>
-              <p className="st-title">{devoilements[devoilements.length - 1].texte}</p>
+              {/* « BAISSER LA POLICE D'ÉCRITURE POUR QUE TOUT SOIT AFFICHÉ À
+                  L'ÉCRAN. » Le titre de scène fait 116 px : une question de
+                  cinquante caractères y prenait cinq lignes et poussait la
+                  réponse hors du cadre. Ici on reprend l'allure de l'écran de
+                  l'animateur — l'énoncé se lit, il ne s'affiche pas. */}
+              <p className="st-cache__question">{devoilements[devoilements.length - 1].texte}</p>
               <p className="st-answer" data-testid="stream-cc-reponse">
                 <span className="st-answer__label">La réponse</span>
                 <span className="st-answer__value">{devoilements[devoilements.length - 1].reponse}</span>
@@ -691,17 +770,18 @@ function QuestionStage({ g }) {
           current.phase === 'grille' ? (
             <div className="st-cache st-cache--grille">
               <GrilleCache bloc="st-ccg" modificateur="st-ccg--grande" testid="stream-cc-grille"
-                vive={objetCache?.place || null}
-                etiquette={objetCache ? `Objet visible en case ${objetCache.place}` : 'Grille, tout est caché'}
-                montre={(place) => (objetCache && objetCache.place === place
-                  ? <img className="st-ccg__objet" src={objetCache.src} alt="" />
+                vive={objetVisible?.place || null}
+                etiquette={objetVisible ? `Objet visible en case ${objetVisible.place}` : 'Grille, tout est caché'}
+                montre={(place) => (objetVisible && objetVisible.place === place
+                  ? <img className="st-ccg__objet" src={objetVisible.src} alt="" />
                   : null)} />
             </div>
           ) : (
             <div className="st-cache st-cache--question" data-testid="stream-cc-question">
               <div className="st-cache__gauche">
                 {options.length > 0 ? (
-                  <div className="st-options" data-bind="module.options">
+                  <div className="st-options" data-bind="module.options"
+                    style={mesuresDesChoix(options.length, HAUTEUR_DES_CHOIX - 60)}>
                     {options.map((opt, i) => (
                       <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
                         <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
@@ -721,7 +801,7 @@ function QuestionStage({ g }) {
             </div>
           )
         ) : options.length > 0 ? (
-          <div className="st-options" data-bind="module.options">
+          <div className="st-options" data-bind="module.options" style={mesuresDesChoix(options.length)}>
             {options.map((opt, i) => (
               <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
                 <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>

@@ -3,7 +3,7 @@ import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
 import {
   CASES, DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE,
-  tirerLaManche, memeNom, FORMES,
+  tirerLaManche, memeNom, FORMES, NUMEROS,
 } from './cache-cache.js';
 
 // Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
@@ -911,7 +911,10 @@ function optionsDeTete(tally) {
 // 10sec jusqu'à 0, de 10sec à 9sec = 100pts, et de 2sec à 0 = 0pt ».
 // Cinq questions : 5 × (200 + 100) = 1500, « Maximum 1500pts ». Le compte tombe.
 const POINTS_CACHE = 200;
-const RAPIDITE_CACHE = { plateau: 9, plancher: 2, max: 100 };
+// Le plateau suit la fenêtre : une seconde en tête comme avant (16 → 15), et le
+// même plancher de deux secondes en queue. « De 10sec à 9sec = 100pts » devient
+// « de 16 à 15 », et la pente s'étire sur les treize secondes du milieu.
+const RAPIDITE_CACHE = { plateau: 15, plancher: 2, max: 100 };
 
 // « Il faut également un tableau en-dessous du classement des 50 premières
 // personnes avec leur nombre de points à chaque dévoilement. »
@@ -941,14 +944,46 @@ function joueursDeLaManche(rt) {
 // répondent par un choix — un indice dans la liste des couleurs ; les trois autres
 // se tapent, et se comparent au nom sans casse, sans accents et sans ponctuation
 // (voir `memeNom`).
+// LA LISTE DE CHOIX D'UNE FORME, ou `null` si la réponse se tape.
+function listeDeChoix(forme) {
+  const quoi = FORMES[forme]?.choix;
+  if (quoi === 'couleurs') return COULEURS;
+  if (quoi === 'cases') return NUMEROS;
+  return null;
+}
+
 function questionReussie(q, valeur) {
-  if (FORMES[q.forme].choix) return COULEURS[valeur] === q.reponse;
+  const liste = listeDeChoix(q.forme);
+  if (liste) return liste[valeur] === q.reponse;
   return memeNom(valeur, q.reponse);
 }
 
+// LA DURÉE RÉELLE D'UNE MANCHE, DÉCLARÉE PAR LE MODULE.
+//
+// CE QUI A ÉTÉ RAPPORTÉ : « l'information de temps en seconde dans le bloc d'un
+// module ne correspond pas à l'information de "durée" quand on veut modifier un
+// module. De plus, les valeurs de durée que l'on y trouve ne correspondent pas à
+// la réalité. (Exemple : pour "Coupe ta bûche", il est inscrit 20sec, or le jeu
+// dure 10 secondes.) »
+//
+// DEUX ÉCARTS, ET LA MÊME CAUSE : le Studio affichait le champ `duration` de la
+// BANQUE, un nombre que l'animateur pouvait régler — alors que la plupart des
+// jeux ne le lisent pas. « Coupe ta bûche » dure dix secondes par règle, « Les
+// visages » quarante, « Retour de flamme » soixante : leur banque disait vingt.
+//
+// Désormais chaque module DÉCLARE sa durée de jeu et si elle est fixe. Le Studio
+// la reçoit par l'API et l'affiche telle quelle — carte et éditeur lisent le même
+// nombre, et ce nombre est celui du jeu.
+//   - `dureeS`    : la durée réelle, en secondes. `null` = c'est la banque qui la
+//                   fixe (estimation, vote, le lien) ;
+//   - `dureeFixe` : le jeu l'impose, le champ est verrouillé.
 export const modules = {
   quiz: {
-    meta: { type: 'quiz', name: 'Quiz', icon: 'help-circle', color: 'primary', scored: true, malus: true, vitesse: true },
+    meta: {
+      type: 'quiz', name: 'Quiz', icon: 'help-circle', color: 'primary',
+      scored: true, malus: true, vitesse: true,
+      dureeS: DUREE_QUESTION_COURTE, dureeFixe: true,
+    },
     buildRound(q) {
       return {
         type: 'quiz',
@@ -982,7 +1017,11 @@ export const modules = {
   },
 
   true_false: {
-    meta: { type: 'true_false', name: 'Vrai / Faux', icon: 'check-square', color: 'forest', scored: true, malus: true, vitesse: true },
+    meta: {
+      type: 'true_false', name: 'Vrai / Faux', icon: 'check-square', color: 'forest',
+      scored: true, malus: true, vitesse: true,
+      dureeS: DUREE_QUESTION_COURTE, dureeFixe: true,
+    },
     buildRound(q) {
       return {
         type: 'true_false',
@@ -1018,7 +1057,12 @@ export const modules = {
   },
 
   estimation: {
-    meta: { type: 'estimation', name: 'Estimation', icon: 'target', color: 'flame', scored: true, malus: false, vitesse: false },
+    meta: {
+      type: 'estimation', name: 'Estimation', icon: 'target', color: 'flame',
+      scored: true, malus: false, vitesse: false,
+      // La durée vient de la banque : c'est l'un des trois jeux où le réglage agit.
+      dureeS: null, dureeFixe: false,
+    },
     buildRound(q) {
       return {
         type: 'estimation',
@@ -1162,6 +1206,7 @@ export const modules = {
     meta: {
       type: 'lien', name: 'Le lien', icon: 'link', color: 'info',
       scored: true, malus: false, vitesse: false,
+      dureeS: null, dureeFixe: false,
       // La question est SAISIE À L'ANTENNE, jamais tirée d'une réserve.
       direct: true,
     },
@@ -1238,6 +1283,7 @@ export const modules = {
     meta: {
       type: 'visages', name: 'Les visages', icon: 'users', color: 'forest',
       scored: true, malus: false,
+      dureeS: (REGLES_VISAGES.total * REGLES_VISAGES.cadenceMs) / 1000, dureeFixe: true,
       // La vitesse ne joue AUCUN rôle : on ne gagne pas en buzzant vite, on gagne
       // en buzzant sur le bon visage. Buzzer au plus tôt est même la faute du
       // jeu — c'est la première apparition.
@@ -1377,6 +1423,7 @@ export const modules = {
     meta: {
       type: 'juste_temps', name: 'Le juste temps', icon: 'clock', color: 'flame',
       scored: true, malus: false,
+      dureeS: DUREE_JUSTE_TEMPS, dureeFixe: true,
       // LA DURÉE DU CADRAN, PUBLIÉE DANS LA META — et pourquoi elle y est.
       //
       // L'écran de saisie de l'animateur doit borner ses deux champs AVANT que la
@@ -1529,6 +1576,7 @@ export const modules = {
     meta: {
       type: 'retour_flamme', name: 'Retour de flamme', icon: 'shuffle', color: 'fire',
       scored: true, malus: false,
+      dureeS: (TOTAL_RETOUR * CADENCE_RETOUR) / 1000, dureeFixe: true,
       // La rapidité ne joue aucun rôle : on buzze pendant l'image ou pas du tout.
       vitesse: false,
       // Pas de banque : la série est tirée à chaque lancement, comme « Les visages ».
@@ -1695,6 +1743,7 @@ export const modules = {
     meta: {
       type: 'coupe_buche', name: 'Coupe ta bûche', icon: 'zap', color: 'fire',
       scored: true, malus: false,
+      dureeS: DUREE_COUPE, dureeFixe: true,
       // La rapidité ne joue aucun rôle : on frappe au bon endroit ou pas.
       vitesse: false,
       // La proportion se saisit à l'antenne : pas de banque de questions.
@@ -1800,7 +1849,13 @@ export const modules = {
     // `scored` par défaut. Chaque question peut néanmoins repasser en SONDAGE
     // (`poll: true`) : on demande alors sincèrement à la salle, un seul tour,
     // personne ne marque — et c'est le runtime qui tranche, pas le type.
-    meta: { type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info', scored: true, malus: false, vitesse: false },
+    meta: {
+      type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info',
+      scored: true, malus: false, vitesse: false,
+      // La durée vient de la banque, et elle vaut POUR CHAQUE TOUR : un vote à
+      // deux tours dure deux fois ce nombre.
+      dureeS: null, dureeFixe: false,
+    },
     buildRound(q) {
       const poll = !!q.poll;
       return {
@@ -1931,6 +1986,8 @@ export const modules = {
     meta: {
       type: 'cache_cache', name: 'Cache-cache', icon: 'grid', color: 'info',
       scored: true, malus: false, vitesse: true,
+      // Le dévoilement de la grille PLUS les cinq questions : c'est la manche entière.
+      dureeS: (DUREE_GRILLE_MS + QUESTIONS_PAR_PARTIE * DUREE_QUESTION_MS) / 1000, dureeFixe: true,
       // La grille est tirée par le serveur au lancement : rien à préparer.
       direct: true,
       // LE MOTEUR LIT CES DEUX DRAPEAUX, et ne connaît pas ce jeu autrement.
@@ -1948,9 +2005,14 @@ export const modules = {
       points: POINTS_CACHE,
     },
     buildRound(q) {
-      const tirage = tirerLaManche();
+      // LE CONTENU MODÉRÉ VOYAGE AVEC LA QUESTION. Les gabarits et la banque
+      // d'objets appartiennent au MODULE de l'animateur — ils sont rangés dans sa
+      // banque, donc durables — et la console les joint au top de départ. Sans
+      // eux, on retombe sur ceux du dépôt.
+      const tirage = tirerLaManche(Math.random, q?.contenu || {});
       // Un tirage impossible ne se rattrape pas : mieux vaut un refus net que
-      // neuf cases dont deux portent le même nom.
+      // neuf cases dont deux portent le même nom. Il arrive quand la banque a été
+      // modérée au point de ne plus offrir neuf noms en cinq couleurs.
       if (!tirage) throw new Error('cache-cache : tirage impossible');
       return {
         type: 'cache_cache',
@@ -2008,17 +2070,19 @@ export const modules = {
         // il écrasait celui-ci. L'écran affichait « Question 1/1 ».
         nbQuestions: QUESTIONS_PAR_PARTIE,
         text: q.texte,
-        // Les questions de couleur se répondent d'un choix ; les autres se tapent.
-        options: FORMES[q.forme].choix ? COULEURS : null,
+        // DEUX LISTES DE CHOIX, ET LE RESTE SE TAPE. Les couleurs pour deux
+        // formes, les neuf numéros pour celle qui demande une case.
+        options: listeDeChoix(q.forme),
         saisie: !FORMES[q.forme].choix,
       };
     },
     validateAnswer(rt, value) {
       if (rt.tour <= 1) return null; // on ne répond pas pendant la grille
       const q = rt.questions[rt.tour - 2];
-      if (FORMES[q.forme].choix) {
+      const liste = listeDeChoix(q.forme);
+      if (liste) {
         const i = Number(value);
-        return Number.isInteger(i) && i >= 0 && i < COULEURS.length ? i : null;
+        return Number.isInteger(i) && i >= 0 && i < liste.length ? i : null;
       }
       const texte = String(value == null ? '' : value).slice(0, 40).trim();
       return texte.length ? texte : null;
@@ -2066,7 +2130,7 @@ export const modules = {
         // LA MATRICE PORTE SES ADRESSES. Le client ne déduit JAMAIS une adresse
         // d'un identifiant — même règle que les visages et les objets : le jour où
         // la banque change de nommage, il n'y a qu'un endroit à corriger.
-        matrice: rt.matrice.map((o) => ({ ...o, src: srcDObjet(o.id) })),
+        matrice: rt.matrice.map((o) => ({ ...o, src: o.src || srcDObjet(o.id) })),
         questions: rt.questions.map((q, i) => ({
           texte: q.texte, reponse: q.reponse, place: q.place,
           bons: parQuestion[i].bons, repondants: parQuestion[i].total,

@@ -79,6 +79,14 @@ eux, et les règles de tirage les contraignent. Un jeu qui lirait ses données d
 un nom de fichier se casserait au premier renommage, sans que personne sache
 pourquoi.
 
+**Ce fichier est le DÉPÔT, pas la dernière autorité.** Depuis la modération du
+Studio, un module peut porter sa propre base d'images — nom, couleur et chemin
+corrigés par l'animateur — et c'est elle que le tirage emploie alors. Le dépôt
+sert de point de départ et de filet : une banque vidée au Studio y retombe plutôt
+que d'éteindre le jeu. Ce que le Studio NE fait pas, c'est envoyer un fichier : il
+n'existe pas de route pour cela, et l'écran le dit plutôt que de le laisser
+découvrir. Une image ajoutée doit déjà être servie depuis `src/public/objets/`.
+
 ## Polices
 
 - **Mulish**, **Barlow Semi Condensed**, **IBM Plex Mono** — licence SIL Open

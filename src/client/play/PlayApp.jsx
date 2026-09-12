@@ -19,7 +19,7 @@ import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
-import { GrilleCache } from '../shared/GrilleCache.jsx';
+import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { Symbole } from '../shared/Symbole.jsx';
@@ -508,6 +508,9 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // J3 — Question : 4 modules × 3 états
 // ============================================================
 function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, element, buzz, objetCache, tourClos }) {
+  // L'objet de « Cache-cache » n'entre dans la grille qu'une fois son image
+  // chargée : la plaque claire et le dessin apparaissent ensemble.
+  const objetVisible = useObjetPret(objetCache);
   // Le visage de CETTE manche, et d'aucune autre. Sans le garde sur l'identifiant
   // de manche, un visage attardé de la manche précédente s'afficherait une
   // fraction de seconde sur la nouvelle — et dans ce jeu, un visage vu est un
@@ -860,10 +863,10 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                taper. */
             current.phase === 'grille' ? (
               <div className="ccjeu">
-                <GrilleCache bloc="ccg" modificateur="ccg--grande" testid="cc-grille" vive={objetCache?.place || null}
-                  etiquette={objetCache ? `Objet visible en case ${objetCache.place}` : 'Grille, tout est caché'}
-                  montre={(place) => (objetCache && objetCache.place === place
-                    ? <img className="ccg__objet" src={objetCache.src} alt="" />
+                <GrilleCache bloc="ccg" modificateur="ccg--grande" testid="cc-grille" vive={objetVisible?.place || null}
+                  etiquette={objetVisible ? `Objet visible en case ${objetVisible.place}` : 'Grille, tout est caché'}
+                  montre={(place) => (objetVisible && objetVisible.place === place
+                    ? <img className="ccg__objet" src={objetVisible.src} alt="" />
                     : null)} />
               </div>
             ) : (
@@ -882,17 +885,22 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                   </div>
                 ) : (
                   /* LA RÉPONSE SE TAPE — et la touche de validation du clavier
-                     l'envoie, comme partout ailleurs dans le projet (A26). Dix
-                     secondes ne laissent pas le temps de chercher un bouton. */
-                  <form className="est" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
+                     l'envoie, comme partout ailleurs dans le projet (A26). Seize
+                     secondes ne laissent pas le temps de chercher un bouton.
+
+                     ELLE A SA PROPRE MISE EN PAGE, et il l'a fallu. Elle empruntait
+                     celle de l'estimation, taillée pour un GRAND NOMBRE centré :
+                     police énorme, champ plus large que l'écran. Vu sur un
+                     téléphone : l'étiquette coupée à « ONSE », l'invite débordant
+                     des deux côtés. Ici on tape un MOT, sur un écran vertical. */
+                  <form className="ccsaisie" onSubmit={(e) => { e.preventDefault(); if (disabled) return; onAnswer(mot); }}>
                     <label className="p-label" htmlFor="cc-mot">Ta réponse</label>
-                    <div className="est__shell">
-                      <input className="est__input est__input--mot" id="cc-mot" type="text"
-                        inputMode="text" enterKeyHint="send" autoComplete="off" autoCapitalize="off"
-                        maxLength={40} value={mot} disabled={disabled}
-                        data-testid="cc-saisie"
-                        onChange={(e) => setMot(e.target.value)} placeholder="Le nom de l'objet" />
-                    </div>
+                    <input className="ccsaisie__champ" id="cc-mot" type="text"
+                      inputMode="text" enterKeyHint="send" autoComplete="off" autoCapitalize="off"
+                      autoCorrect="off" spellCheck={false}
+                      maxLength={40} value={mot} disabled={disabled}
+                      data-testid="cc-saisie"
+                      onChange={(e) => setMot(e.target.value)} placeholder="Le nom de l'objet" />
                     <button className="p-btn p-btn--primary" type="submit" disabled={disabled || !mot.trim()}
                       data-testid="answer-submit" data-action="play:answer">
                       {answered ? 'Réponse envoyée' : 'Envoyer'}
@@ -1229,7 +1237,25 @@ function DevoilementScreen({ devoilements, compte, score, nom }) {
           </p>
         ) : null}
 
+        {/* LE DÉTAIL DU GAIN, question par question — « s'il le joueur a une
+            bonne réponse, il doit avoir l'information du nombre de points de Base
+            (+200) et du nombre de points bonus grâce à la vitesse (entre 0 et
+            100) ». Sans ce détail, un joueur qui voit « +240 » ne sait pas ce
+            qu'il a gagné en justesse et ce qu'il a gagné en vitesse — et c'est
+            pourtant la seule des deux qu'il peut améliorer en jouant plus vite. */}
         <div className="breakdown">
+          {gagne?.correct ? (
+            <>
+              <div className="breakdown__cell">
+                <span className="p-label p-label--tiny">Base</span>
+                <span className="breakdown__value" data-testid="cc-dev-base">+{fmtNum(gagne.base)}</span>
+              </div>
+              <div className="breakdown__cell">
+                <span className="p-label p-label--tiny">Rapidité</span>
+                <span className="breakdown__value" data-testid="cc-dev-vitesse">+{fmtNum(gagne.speed)}</span>
+              </div>
+            </>
+          ) : null}
           <div className="breakdown__cell">
             <span className="p-label p-label--tiny">Total de la manche</span>
             <span className="breakdown__value" data-testid="cc-dev-total">

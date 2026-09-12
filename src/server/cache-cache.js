@@ -63,8 +63,8 @@ function melanger(liste, alea = Math.random) {
 // toujours posable et toujours sans ambiguïté. L'énoncé le dit : « normalement il
 // doit y avoir 4*2 couleurs + 1 couleur ». Ce n'est pas « normalement », c'est
 // forcé — et le contrôle le vérifie sur des milliers de tirages.
-export function construireMatrice(alea = Math.random) {
-  const noms = [...new Set(BASSIN_OBJETS.map((o) => o.nom))];
+export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS) {
+  const noms = [...new Set(bassin.map((o) => o.nom))];
   const neufNoms = melanger(noms, alea).slice(0, CASES);
 
   const couleurs = melanger(COULEURS, alea);
@@ -73,14 +73,17 @@ export function construireMatrice(alea = Math.random) {
   for (const c of couleurs) parts.push(c, ...(c === seule ? [] : [c]));
 
   const affectees = melanger(parts, alea);
-  const parCle = new Map(BASSIN_OBJETS.map((o) => [`${o.nom}|${o.couleur}`, o]));
-  return neufNoms.map((nom, i) => {
+  const parCle = new Map(bassin.map((o) => [`${o.nom}|${o.couleur}`, o]));
+  const sortie = neufNoms.map((nom, i) => {
     const objet = parCle.get(`${nom}|${affectees[i]}`);
     // Un couple absent de la banque signifierait que la banque n'est plus le
-    // produit cartésien annoncé. On ne bricole pas : on refuse.
-    if (!objet) throw new Error(`objet introuvable : ${nom} ${affectees[i]}`);
-    return { place: i + 1, id: objet.id, nom: objet.nom, couleur: objet.couleur };
+    // produit cartésien annoncé. On ne bricole pas : on REFUSE — et le tirage
+    // recommence avec d'autres noms. C'est le cas d'une banque modérée à la main
+    // où un nom n'existe pas dans les cinq couleurs.
+    if (!objet) return null;
+    return { place: i + 1, id: objet.id, nom: objet.nom, couleur: objet.couleur, src: objet.src || null };
   });
+  return sortie.some((o) => o === null) ? null : sortie;
 }
 
 // La couleur qui n'apparaît qu'une fois — il y en a toujours exactement une.
@@ -96,7 +99,18 @@ export function couleurUnique(matrice) {
 // ---------------------------------------------------------------------------
 
 export const QUESTIONS_PAR_PARTIE = 5;
-export const DUREE_QUESTION_MS = 10_000;
+
+// SEIZE SECONDES PAR QUESTION, et non plus dix (séance du 11/09).
+//
+// « Le temps pour répondre aux questions est actuellement de 10sec, on passe
+// maintenant à 16sec. »
+//
+// LA COURBE DE RAPIDITÉ SUIT, ET IL LE FAUT. Ses seuils sont des secondes
+// RESTANTES : avec un plateau à 9 s sur une fenêtre de 16, les sept premières
+// secondes vaudraient toutes le maximum et la moitié du jeu ne se jouerait plus.
+// On garde donc la FORME de la courbe — un plateau court en tête, un plancher de
+// deux secondes en queue — en la reportant sur la nouvelle fenêtre.
+export const DUREE_QUESTION_MS = 16_000;
 
 // LES PAIRES ALIGNÉES, telles que l'énoncé les donne — et la case qu'elles
 // encadrent. Ce sont les seules paires admises pour les deux questions « entre » :
@@ -113,14 +127,97 @@ export const PAIRES = [
   { paire: [7, 9], milieu: 8 },
 ];
 
-// LES CINQ FORMES, ET LEURS QUOTAS. Ils viennent de l'énoncé, tels quels.
-export const FORMES = {
-  couleur_de: { min: 1, max: 3, choix: true },
-  objet_derriere: { min: 1, max: 3, choix: false },
-  entre_noms: { min: 0, max: 2, choix: false },
-  entre_cases: { min: 0, max: 2, choix: false },
-  couleur_unique: { min: 0, max: 1, choix: true },
+// LE CONTENU MODÉRABLE DE « CACHE-CACHE ».
+//
+// CE QUI A ÉTÉ DEMANDÉ (séance du 11/09) :
+//   « il faudrait que j'aie accès aux questions possibles [...] Je dois pouvoir
+//     voir, modifier et créer : la question avec ses variables [...] le nombre
+//     d'apparitions minimum et maximum de la question par manche » ;
+//   « il faudrait que j'aie accès dans le studio à la base de données des images
+//     [...] l'image (et son ID), son Nom et sa Couleur. Il faut que je puisse
+//     modifier les informations et ajouter de nouvelle ligne. »
+//
+// OÙ CE CONTENU EST RANGÉ, ET POURQUOI PAS AILLEURS. Il vit dans la BANQUE DU
+// MODULE — le champ `questions` de sa ligne, jusqu'ici inutilisé puisque ce jeu
+// se prépare à l'antenne. Trois conséquences, toutes voulues :
+//   - il est durable du jour au lendemain, sans table nouvelle : il emprunte le
+//     chemin de persistance des modules, qui va en base ;
+//   - il s'enregistre par LE BOUTON « ENREGISTRER » du Studio, et par lui seul —
+//     c'est la règle posée par l'auteur ;
+//   - il appartient à l'animateur : deux comptes peuvent nommer leurs objets
+//     autrement sans se marcher dessus.
+//
+// CE QU'ON NE PEUT PAS MODÉRER, ET IL FAUT LE DIRE : la FORME d'une question.
+// « Quelle est la couleur de … » et « derrière quel numéro … » ne diffèrent pas
+// par leur texte mais par ce que le serveur doit calculer — la bonne réponse, la
+// liste de choix, la case à dévoiler. On peut donc réécrire l'énoncé d'une forme,
+// changer ses quotas, en ajouter une variante, la désactiver ; on ne peut pas
+// inventer une forme sans code.
+export const MARQUE_CONTENU = 'contenu-cache';
+
+// LES GABARITS PAR DÉFAUT — la formulation d'origine de chaque forme, et ses
+// quotas. Les accolades sont des VARIABLES, remplies au tirage.
+export const GABARITS_PAR_DEFAUT = [
+  { id: 'g-couleur', forme: 'couleur_de', gabarit: 'Quelle est la couleur de « {objet} » ?', min: 1, max: 3, actif: true },
+  { id: 'g-derriere', forme: 'objet_derriere', gabarit: 'Quel objet se cache derrière {case} ?', min: 1, max: 3, actif: true },
+  { id: 'g-numero', forme: 'numero_de', gabarit: 'Derrière quel numéro se cache « {objet} » ?', min: 1, max: 3, actif: true },
+  { id: 'g-entre-noms', forme: 'entre_noms', gabarit: 'Quel objet se trouve entre « {objetA} » et « {objetB} » ?', min: 0, max: 2, actif: true },
+  { id: 'g-entre-cases', forme: 'entre_cases', gabarit: 'Quel objet se trouve entre {caseA} et {caseB} ?', min: 0, max: 2, actif: true },
+  { id: 'g-couleur-unique', forme: 'couleur_unique', gabarit: "Quelle couleur n'est présente qu'une seule fois ?", min: 0, max: 1, actif: true },
+];
+
+// LES VARIABLES ADMISES PAR FORME — ce que le Studio propose, et ce que le
+// tirage sait remplir. Une accolade inconnue reste telle quelle : mieux vaut une
+// question visiblement fautive qu'une question silencieusement fausse.
+// COMMENT UNE FORME S'APPELLE DEVANT L'ANIMATEUR. `couleur_de` est un nom de
+// code : lisible par le serveur, illisible dans un formulaire. Le libellé est
+// déclaré ICI, à côté de la forme, et non côté Studio — une forme ajoutée sans
+// son libellé se verrait immédiatement, au lieu de sortir « undefined » à
+// l'écran. Un contrôle unitaire exige qu'elles en aient toutes un.
+export const LIBELLES_PAR_FORME = {
+  couleur_de: "La couleur d'un objet",
+  objet_derriere: "L'objet derrière un numéro",
+  numero_de: "Le numéro d'un objet",
+  entre_noms: 'L\'objet entre deux objets',
+  entre_cases: "L'objet entre deux numéros",
+  couleur_unique: 'La couleur présente une seule fois',
 };
+
+export const VARIABLES_PAR_FORME = {
+  couleur_de: ['{objet}'],
+  objet_derriere: ['{case}'],
+  numero_de: ['{objet}'],
+  entre_noms: ['{objetA}', '{objetB}'],
+  entre_cases: ['{caseA}', '{caseB}'],
+  couleur_unique: [],
+};
+
+// Le contenu d'un module, lu dans sa banque — avec repli sur les valeurs du dépôt.
+export function contenuDeLaBanque(questions) {
+  const entree = (Array.isArray(questions) ? questions : []).find((q) => q && q.kind === MARQUE_CONTENU);
+  return {
+    gabarits: Array.isArray(entree?.gabarits) && entree.gabarits.length ? entree.gabarits : GABARITS_PAR_DEFAUT,
+    objets: Array.isArray(entree?.objets) && entree.objets.length ? entree.objets : null,
+  };
+}
+
+// LES SIX FORMES, ET LEURS QUOTAS. Ils viennent de l'énoncé, tels quels.
+//
+// `choix` DIT DANS QUELLE LISTE ON RÉPOND, et non plus seulement « y a-t-il une
+// liste ». Deux listes existent : les cinq couleurs, et les neuf numéros de case
+// — cette seconde est arrivée avec la question « derrière quel numéro se cache
+// … ? » (séance du 11/09). Un booléen n'aurait pas pu les distinguer.
+export const FORMES = {
+  couleur_de: { min: 1, max: 3, choix: 'couleurs' },
+  objet_derriere: { min: 1, max: 3, choix: null },
+  numero_de: { min: 1, max: 3, choix: 'cases' },
+  entre_noms: { min: 0, max: 2, choix: null },
+  entre_cases: { min: 0, max: 2, choix: null },
+  couleur_unique: { min: 0, max: 1, choix: 'couleurs' },
+};
+
+// Les neuf numéros, tels qu'ils s'affichent en choix de réponse.
+export const NUMEROS = Array.from({ length: CASES }, (_, i) => String(i + 1));
 const CLES_FORMES = Object.keys(FORMES);
 
 // Les répartitions de cinq questions qui respectent tous les quotas. Elles sont
@@ -128,14 +225,18 @@ const CLES_FORMES = Object.keys(FORMES);
 // coincé — trois « couleur du » et deux « derrière » remplissent le compte sans
 // laisser de place aux autres, et rien ne l'aurait signalé sinon par une manche
 // qui refuse de démarrer, en direct.
-export function repartitionsPossibles(total = QUESTIONS_PAR_PARTIE) {
+export function repartitionsPossibles(total = QUESTIONS_PAR_PARTIE, gabarits = GABARITS_PAR_DEFAUT) {
+  // LES QUOTAS VIENNENT DES GABARITS, pas des formes : c'est ce que l'animateur
+  // règle au Studio. Un gabarit éteint ne compte pour rien.
+  const actifs = gabarits.filter((g) => g.actif !== false && FORMES[g.forme]);
   const sorties = [];
   const marcher = (i, reste, courant) => {
-    if (i === CLES_FORMES.length) { if (reste === 0) sorties.push({ ...courant }); return; }
-    const cle = CLES_FORMES[i];
-    const { min, max } = FORMES[cle];
+    if (i === actifs.length) { if (reste === 0) sorties.push({ ...courant }); return; }
+    const g = actifs[i];
+    const min = Math.max(0, Number(g.min) || 0);
+    const max = Math.max(min, Number(g.max) || 0);
     for (let n = min; n <= Math.min(max, reste); n += 1) {
-      marcher(i + 1, reste - n, { ...courant, [cle]: n });
+      marcher(i + 1, reste - n, { ...courant, [g.id]: n });
     }
   };
   marcher(0, total, {});
@@ -180,9 +281,11 @@ export function memeNom(reponse, nom) {
 //     derrière 5 » et « quel objet se trouve entre 4 et 6 » ont la même réponse ;
 //   - deux paires « entre » qui encadrent la même case, pour la même raison :
 //     quatre des huit paires admises encadrent toutes la case 5.
-export function construireQuestions(matrice, alea = Math.random) {
+export function construireQuestions(matrice, alea = Math.random, gabarits = GABARITS_PAR_DEFAUT) {
   const parPlace = new Map(matrice.map((o) => [o.place, o]));
-  const repartition = melanger(repartitionsPossibles(), alea)[0];
+  const actifs = gabarits.filter((g) => g.actif !== false && FORMES[g.forme]);
+  const repartition = melanger(repartitionsPossibles(QUESTIONS_PAR_PARTIE, gabarits), alea)[0];
+  if (!repartition) return null;
 
   const prises = new Set();       // places déjà utilisées comme RÉPONSE
   const questions = [];
@@ -192,63 +295,61 @@ export function construireQuestions(matrice, alea = Math.random) {
     !prises.has(milieu) && !prises.has(paire[0]) && !prises.has(paire[1])
   )), alea);
 
+  // LE TEXTE VIENT DU GABARIT, LES VALEURS DU TIRAGE. Une variable inconnue reste
+  // écrite telle quelle : mieux vaut une question visiblement fautive — que
+  // l'animateur voit et corrige — qu'une question silencieusement fausse.
+  const ecrire = (gabarit, valeurs) => String(gabarit || '').replace(/\{(\w+)\}/g, (tout, cle) => (
+    Object.prototype.hasOwnProperty.call(valeurs, cle) ? valeurs[cle] : tout
+  ));
+
   const fabriques = {
-    couleur_de: () => {
+    couleur_de: (g) => {
       const place = placesLibres()[0];
       if (place == null) return null;
       const o = parPlace.get(place);
-      // Même raison : « la couleur du marteau » demande le bon article, « la
-      // couleur de "Marteau" » n'en demande aucun.
-      return { forme: 'couleur_de', place, texte: `Quelle est la couleur de « ${o.nom} » ?`, reponse: o.couleur };
+      return { forme: 'couleur_de', place, texte: ecrire(g.gabarit, { objet: o.nom }), reponse: o.couleur };
     },
-    objet_derriere: () => {
+    objet_derriere: (g) => {
       const place = placesLibres()[0];
       if (place == null) return null;
       const o = parPlace.get(place);
-      // La formulation est celle de l'énoncé : « Quel objet se cache derrière 2 ? »
-      return { forme: 'objet_derriere', place, texte: `Quel objet se cache derrière ${place} ?`, reponse: o.nom };
+      return { forme: 'objet_derriere', place, texte: ecrire(g.gabarit, { case: place }), reponse: o.nom };
     },
-    entre_noms: () => {
+    // « Derrière quel numéro se cache … ? » — l'inverse exact de « quel objet se
+    // cache derrière <n> ? ». La même paire objet/case, lue dans l'autre sens.
+    numero_de: (g) => {
+      const place = placesLibres()[0];
+      if (place == null) return null;
+      const o = parPlace.get(place);
+      return { forme: 'numero_de', place, texte: ecrire(g.gabarit, { objet: o.nom }), reponse: String(place) };
+    },
+    entre_noms: (g) => {
       const p = pairesLibres()[0];
       if (!p) return null;
       const [a, b] = p.paire;
       const o = parPlace.get(p.milieu);
       return {
-        forme: 'entre_noms',
-        place: p.milieu,
-        bornes: [a, b],
-        // LES NOMS SE CITENT ENTRE GUILLEMETS plutôt qu'avec leur article.
-        // L'énoncé écrit « entre l'ampoule et les ciseaux » ; le faire demanderait
-        // de connaître le genre et le nombre des quarante noms, et un « le
-        // enveloppe » à l'antenne coûterait plus que la citation ne coûte.
-        texte: `Quel objet se trouve entre « ${parPlace.get(a).nom} » et « ${parPlace.get(b).nom} » ?`,
+        forme: 'entre_noms', place: p.milieu, bornes: [a, b],
+        texte: ecrire(g.gabarit, { objetA: parPlace.get(a).nom, objetB: parPlace.get(b).nom }),
         reponse: o.nom,
       };
     },
-    entre_cases: () => {
+    entre_cases: (g) => {
       const p = pairesLibres()[0];
       if (!p) return null;
       const [a, b] = p.paire;
       const o = parPlace.get(p.milieu);
       return {
-        forme: 'entre_cases',
-        place: p.milieu,
-        bornes: [a, b],
-        // Formulation de l'énoncé : « Quel objet se trouve entre 4 et 6 ? »
-        texte: `Quel objet se trouve entre ${a} et ${b} ?`,
+        forme: 'entre_cases', place: p.milieu, bornes: [a, b],
+        texte: ecrire(g.gabarit, { caseA: a, caseB: b }),
         reponse: o.nom,
       };
     },
-    couleur_unique: () => {
+    couleur_unique: (g) => {
       const c = couleurUnique(matrice);
       const o = matrice.find((x) => x.couleur === c);
       if (!o || prises.has(o.place)) return null;
-      return {
-        forme: 'couleur_unique',
-        place: o.place,
-        texte: "Quelle couleur n'est présente qu'une seule fois ?",
-        reponse: c,
-      };
+      return { forme: 'couleur_unique', place: o.place, texte: ecrire(g.gabarit, {}), reponse: c };
     },
   };
 
@@ -256,10 +357,11 @@ export function construireQuestions(matrice, alea = Math.random) {
   // case précise, les « entre » n'ont que huit paires : tirées en dernier, elles
   // se retrouvent sans place libre. Servies d'abord, les deux formes libres —
   // qui peuvent viser n'importe quelle case — comblent ce qui reste.
-  const ordre = ['couleur_unique', 'entre_noms', 'entre_cases', 'couleur_de', 'objet_derriere'];
-  for (const cle of ordre) {
-    for (let i = 0; i < (repartition[cle] || 0); i += 1) {
-      const q = fabriques[cle]();
+  const rang = { couleur_unique: 0, entre_noms: 1, entre_cases: 2, couleur_de: 3, numero_de: 4, objet_derriere: 5 };
+  const ordonnes = [...actifs].sort((a, b) => (rang[a.forme] ?? 9) - (rang[b.forme] ?? 9));
+  for (const g of ordonnes) {
+    for (let i = 0; i < (repartition[g.id] || 0); i += 1) {
+      const q = fabriques[g.forme](g);
       // Un tirage qui n'aboutit pas est REJETÉ EN BLOC plutôt que rapiécé : une
       // manche à quatre questions serait une manche fausse, et silencieuse.
       if (!q) return null;
@@ -273,10 +375,13 @@ export function construireQuestions(matrice, alea = Math.random) {
 
 // Le tirage complet d'une manche, contraintes comprises. Il réessaie plutôt que
 // de rendre une manche bancale — et il s'arrête plutôt que de tourner sans fin.
-export function tirerLaManche(alea = Math.random, essais = 40) {
+export function tirerLaManche(alea = Math.random, contenu = {}, essais = 40) {
+  const bassin = Array.isArray(contenu.objets) && contenu.objets.length ? contenu.objets : BASSIN_OBJETS;
+  const gabarits = Array.isArray(contenu.gabarits) && contenu.gabarits.length ? contenu.gabarits : GABARITS_PAR_DEFAUT;
   for (let i = 0; i < essais; i += 1) {
-    const matrice = construireMatrice(alea);
-    const questions = construireQuestions(matrice, alea);
+    const matrice = construireMatrice(alea, bassin);
+    if (!matrice) continue;
+    const questions = construireQuestions(matrice, alea, gabarits);
     if (questions && questions.length === QUESTIONS_PAR_PARTIE) {
       return { matrice, questions, ordre: melanger(matrice.map((o) => o.place), alea) };
     }
