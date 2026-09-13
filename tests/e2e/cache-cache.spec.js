@@ -120,6 +120,56 @@ test.describe('Cache-cache', () => {
       .toContainText('Trop tard pour celle-là', { timeout: 20_000 });
   });
 
+  test('AU DÉVOILEMENT, LE JOUEUR REVOIT SA PROPRE RÉPONSE quand elle était fausse', async ({ browser }) => {
+    // CE QUI A ÉTÉ DEMANDÉ (12/09) : « lors du dévoilement des réponses, il faut
+    // rajouter la réponse qu'a donnée le joueur lorsqu'il n'a pas la bonne
+    // réponse ».
+    //
+    // POURQUOI CELA COMPTE : l'écran donnait le verdict et la solution, jamais ce
+    // que le joueur avait proposé. Il apprenait s'être trompé sans savoir de quoi
+    // — et sur une grille vue une seule fois, c'est justement l'écart entre les
+    // deux qui lui apprend quelque chose.
+    //
+    // UN MOT QU'AUCUN OBJET NE PORTE, pour que la réponse soit fausse à coup sûr
+    // quelle que soit la matrice tirée : la banque n'a ni « Zibeline » ni couleur
+    // qui lui ressemble.
+    await annoncer(browser, ['Maladroit']);
+    await hote.page.getByTestId('cache-demarrer').click();
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
+
+    const donnees = [];
+    for (let n = 1; n <= 5; n += 1) {
+      await expect(j.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
+      donnees.push(await repondre(j, 'Zibeline'));
+      if (n < 5) await hote.page.getByTestId('host-reveler').click();
+    }
+
+    let vues = 0;
+    for (let n = 1; n <= 5; n += 1) {
+      await hote.page.getByTestId('host-reveler').click();
+      await expect(j.getByTestId('cc-dev-numero')).toContainText(`Réponse ${n}/5`, { timeout: 15_000 });
+      const verdict = await j.getByTestId('cc-dev-verdict').textContent();
+      if (/Raté/.test(verdict)) {
+        const donnee = j.getByTestId('cc-dev-donnee');
+        await expect(donnee, `réponse ${n} ratée, mais la réponse donnée n'est pas montrée`).toBeVisible();
+        // Le mot tapé, ou la couleur choisie — jamais un indice brut comme « 0 ».
+        // MOT POUR MOT CE QU'IL A RÉPONDU. Comparer à autre chose laisserait
+        // passer l'indice brut — une réponse de couleur voyage comme « 0 », et
+        // « 0 » affiché à l'écran ne veut rien dire pour personne.
+        const texte = (await donnee.textContent()).replace('Ta réponse', '').trim();
+        expect(texte, `réponse ${n} : l'écran montre « ${texte} », il a répondu « ${donnees[n - 1]} »`)
+          .toBe(donnees[n - 1]);
+        vues += 1;
+      } else {
+        // TROUVÉE PAR HASARD — une couleur sur cinq. On ne redit pas la réponse
+        // donnée : la bonne est déjà à l'écran, la répéter n'apprend rien.
+        await expect(j.getByTestId('cc-dev-donnee')).toHaveCount(0);
+      }
+    }
+    expect(vues, 'aucune réponse fausse sur cinq : le contrôle n\'a rien vérifié').toBeGreaterThan(0);
+  });
+
   test('la manche entière : cinq questions, cinq réponses, la grille', async ({ browser }) => {
     await annoncer(browser);
     await hote.page.getByTestId('cache-demarrer').click();
@@ -157,12 +207,21 @@ test.describe('Cache-cache', () => {
 
 // Répond à la question affichée, quelle que soit sa forme : cinq couleurs à
 // toucher, ou un mot à taper.
-async function repondre(page) {
-  const couleurs = page.getByTestId('cc-couleurs');
-  if (await couleurs.count()) {
-    await couleurs.getByTestId('answer-option').first().click();
-    return;
+// Rend CE QUI A ÉTÉ RÉPONDU, tel que le joueur l'a vu : le libellé du bouton
+// cliqué, ou le mot tapé. C'est la seule référence honnête pour vérifier ensuite
+// que l'écran de dévoilement lui rend sa propre réponse — et non l'indice brut
+// avec lequel elle voyage sur le réseau.
+async function repondre(page, mot = 'quelque chose') {
+  const choix = page.getByTestId('cc-couleurs');
+  if (await choix.count()) {
+    const bouton = choix.getByTestId('answer-option').first();
+    // LE LIBELLÉ SEUL, PAS LE BOUTON ENTIER : celui-ci porte aussi sa touche
+    // clavier, et « A1 » n'est pas une réponse.
+    const libelle = (await bouton.locator('.opt__label').textContent()).trim();
+    await bouton.click();
+    return libelle;
   }
-  await page.getByTestId('cc-saisie').fill('quelque chose');
+  await page.getByTestId('cc-saisie').fill(mot);
   await page.getByTestId('answer-submit').click();
+  return mot;
 }

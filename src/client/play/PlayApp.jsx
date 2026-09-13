@@ -1237,6 +1237,18 @@ function DevoilementScreen({ devoilements, compte, score, nom }) {
           </p>
         ) : null}
 
+        {/* CE QUE LE JOUEUR AVAIT RÉPONDU, quand ce n'était pas la bonne réponse.
+            L'écran disait « Raté » et donnait la solution, jamais ce qu'il avait
+            proposé : il apprenait s'être trompé sans savoir de quoi, et sur une
+            grille vue une seule fois c'est justement l'écart qui l'intéresse.
+            Rien ne s'affiche quand il a trouvé — la bonne réponse est déjà là. */}
+        {gagne && !gagne.correct && gagne.donnee ? (
+          <p className="ccdev__donnee" data-testid="cc-dev-donnee">
+            <span className="p-label p-label--tiny">Ta réponse</span>
+            <strong>{gagne.donnee}</strong>
+          </p>
+        ) : null}
+
         {/* LE DÉTAIL DU GAIN, question par question — « s'il le joueur a une
             bonne réponse, il doit avoir l'information du nombre de points de Base
             (+200) et du nombre de points bonus grâce à la vitesse (entre 0 et

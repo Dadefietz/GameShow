@@ -1047,10 +1047,24 @@
     gap: 2px;
     margin-top: var(--sp-2);
   }
-  .histo__regle-ligne { position: relative; height: 17px; }
+  /* L'ÉTIQUETTE AU-DESSUS, LE TRAIT EN DESSOUS — ILS NE SE DISPUTENT PLUS LA LIGNE.
+     
+     CE QUI A ÉTÉ RAPPORTÉ : « la ligne "± 0,5 s 500 pts" n'est pas bien calibrée,
+     elle est raccourcie sur la droite (légende mal placée peut-être) ». La
+     parenthèse était juste.
+     
+     L'étiquette porte un fond OPAQUE et s'ancre à la borne de son trait. Quand
+     cette borne approche du bord droit, elle bascule VERS LA GAUCHE pour ne pas
+     sortir du cadre — et se pose alors SUR la fin du trait qu'elle nomme. Mesuré :
+     douze pour cent du trait de « ± 20 % » cachés par sa propre étiquette, si bien
+     qu'il se lisait plus court que le palier qu'il CONTIENT. Un graphique de
+     plages emboîtées qui les dessine dans le désordre ne se corrige pas en
+     déplaçant l'étiquette : elle reviendra buter ailleurs. On leur donne chacune
+     leur bande. */
+  .histo__regle-ligne { position: relative; height: 21px; }
   .histo__regle-barre {
     position: absolute;
-    top: 7px;
+    top: 17px;
     height: 3px;
     border-radius: var(--r-full);
     background: var(--c-wood);

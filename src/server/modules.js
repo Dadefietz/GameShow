@@ -2084,6 +2084,25 @@ export const modules = {
         saisie: !FORMES[q.forme].choix,
       };
     },
+    // CE QUE LE JOUEUR A RÉPONDU, ÉCRIT COMME IL LE LIRA.
+    //
+    // CE QUI A ÉTÉ DEMANDÉ : « lors du dévoilement des réponses, il faut rajouter
+    // la réponse qu'a donnée le joueur lorsqu'il n'a pas la bonne réponse ».
+    //
+    // Une réponse est stockée soit comme un INDICE dans la liste de choix, soit
+    // comme le texte tapé. Le premier ne veut rien dire à l'écran — « 3 » — et
+    // c'est le serveur qui sait dans quelle liste le lire, puisque c'est lui qui
+    // l'a envoyée. Traduire côté joueur reviendrait à lui faire deviner la
+    // palette de la banque modérée ; il s'est déjà trompé une fois là-dessus.
+    reponseDonnee(rt, tour, pid) {
+      const q = rt.questions?.[tour - 2];
+      const a = q ? reponseDuTour(rt, tour, pid) : null;
+      if (!a) return null;
+      const liste = listeDeChoix(q.forme, rt);
+      if (liste) return liste[a.value] ?? null;
+      const texte = String(a.value ?? '').trim();
+      return texte || null;
+    },
     validateAnswer(rt, value) {
       if (rt.tour <= 1) return null; // on ne répond pas pendant la grille
       const q = rt.questions[rt.tour - 2];

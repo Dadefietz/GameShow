@@ -593,6 +593,12 @@ export function devoilerReponse(io, room) {
       repondu: points[n - 1]?.repondu === true,
       base: points[n - 1]?.base || 0,
       speed: points[n - 1]?.speed || 0,
+      // SA PROPRE RÉPONSE, quand elle était fausse. L'écran de dévoilement donnait
+      // la bonne réponse et le verdict, jamais ce que le joueur avait répondu : il
+      // apprenait qu'il s'était trompé sans savoir de quoi. Envoyée seulement dans
+      // ce cas — la bonne réponse est déjà à l'écran, la redire deux fois ne dit
+      // rien de plus.
+      donnee: points[n - 1]?.correct === true ? null : mod.reponseDonnee(rt, n + 1, pid),
       total: jusquIci.reduce((s2, x) => s2 + x.base + x.speed, 0),
     });
   }

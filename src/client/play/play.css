@@ -487,6 +487,11 @@
   .ccdev__reponse strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
   .ccdev__verdict { margin: 0; font: 500 var(--fs-400) / 1.35 var(--f-ui); color: var(--c-ink-2); }
   .ccdev__verdict--bon { color: var(--c-good); }
+  /* LA RÉPONSE DONNÉE, PLUS DISCRÈTE QUE LA BONNE. Les deux sont à l'écran ; si
+     elles avaient le même poids, le joueur lirait la sienne comme la solution —
+     c'est exactement ce qu'il ne faut pas retenir d'un jeu de mémoire. */
+  .ccdev__donnee { display: grid; gap: var(--sp-1); margin: 0; }
+  .ccdev__donnee strong { font: 500 var(--fs-400) / 1.2 var(--f-display); color: var(--c-ink-2); }
 
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {
