@@ -346,13 +346,27 @@
   /* LES DEUX DÉCOMPTES DU VOTE, côte à côte : ce que le cercle pense, et ce qu'il
      croyait penser. C'est la seule mise en regard qui répond à la question du
      jeu — l'un sous l'autre, sur une toile de 1080 de haut, ne tiendrait pas. */
+  /* LES DEUX COLONNES PARTAGENT LA HAUTEUR DISPONIBLE, elles ne la débordent pas.
+     `align-items: start` les laissait pousser jusqu'à leur contenu : à neuf
+     propositions, les dernières rangées des deux colonnes tombaient sous le bord
+     de l'écran. C'est le même défaut que le bloc de choix, au même endroit du
+     raisonnement — un enfant de boîte flexible ne se comprime que si on l'y
+     autorise. */
   .st-deuxtours {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--gap-st);
-    align-items: start;
+    align-items: stretch;
   }
-  .st-deuxtours__bloc { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+  .st-deuxtours__bloc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    min-width: 0;
+    min-height: 0;
+  }
   .st-deuxtours__titre {
     margin: 0;
     font: 600 var(--fs-st-200) / 1 var(--f-ui);
@@ -631,16 +645,28 @@
      (`mesuresDesChoix`), qui seul peut en déduire une taille de police. Les
      valeurs par défaut sont celles d'avant : une liste rendue sans mesure garde
      exactement l'allure qu'elle avait. */
+  /* `min-height: 0` N'EST PAS UNE PRÉCAUTION, C'EST LA RÈGLE QUI MANQUAIT. Un
+     enfant de boîte flexible ne descend pas sous la hauteur de son contenu tant
+     qu'on ne l'y autorise pas : le bloc des choix, en `flex: 1`, GRANDISSAIT
+     au-delà de sa part au lieu de la respecter. Mesuré : 656 px occupés pour 509
+     disponibles, et les deux dernières propositions sous le bord de l'écran. */
   .st-options {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: var(--st-opt-gap, var(--sp-4));
     justify-content: flex-end;
   }
+  /* LA RANGÉE SE LAISSE COMPRIMER. Sa hauteur calculée est une VISÉE, pas un
+     plancher : si la mesure se trompe d'un cheveu, les rangées se serrent au lieu
+     de sortir du cadre. Un choix un peu tassé se lit encore ; un choix hors de
+     l'écran n'existe pas. */
   .st-opt {
     position: relative;
-    min-height: var(--st-opt-h, var(--row-st));
+    flex: 0 1 auto;
+    height: var(--st-opt-h, var(--row-st));
+    min-height: 0;
     display: flex;
     align-items: center;
     gap: var(--sp-6);
@@ -694,20 +720,38 @@
     flex: 1;
     min-width: 0;
     font: 500 var(--st-opt-fs, var(--fs-st-300)) / 1.2 var(--f-ui);
+    /* LE NOMBRE DE LIGNES VIENT DE LA RANGÉE (voir `mesuresDesChoix`). Au-delà,
+       des points de suspension : un texte qui s'arrête visiblement vaut mieux
+       qu'un texte coupé par un bord, qu'on ne sait pas lire comme une coupure. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--st-opt-lignes, 2);
+    line-clamp: var(--st-opt-lignes, 2);
+    overflow: hidden;
   }
   .st-opt--correct .st-opt__label { font-weight: 600; }
   .st-opt__mark {
-    width: var(--mark-st);
-    height: var(--mark-st);
+    width: var(--st-opt-mark, var(--mark-st));
+    height: var(--st-opt-mark, var(--mark-st));
     flex: none;
     border-radius: var(--r-full);
     box-shadow: inset 0 0 0 var(--bw-st) var(--c-line-strong);
+  }
+  /* LA BOÎTE DES RANGÉES, ET RIEN QU'ELLES. C'est elle qu'on mesure : un titre de
+     colonne au-dessus ne doit pas passer pour de la place disponible. */
+  .st-opts-liste {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--st-opt-gap, var(--sp-4));
+    justify-content: flex-end;
   }
   .st-opt__count {
     position: relative;
     flex: none;
     text-align: right;
-    font: 600 var(--fs-st-300) / 1 var(--f-mono);
+    font: 600 var(--st-opt-count-fs, var(--fs-st-300)) / 1 var(--f-mono);
     color: var(--c-ink-2);
   }
   .st-opt--correct .st-opt__count { color: var(--c-pine); }
@@ -715,6 +759,7 @@
   /* ---- Répartition ---- */
   .st-stats {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: var(--sp-5);

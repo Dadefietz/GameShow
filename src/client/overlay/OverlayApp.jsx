@@ -10,7 +10,7 @@
 //   2. à la révélation, le stream montre la RÉPARTITION des réponses — jamais
 //      les points ni les places d'un joueur.
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
@@ -319,7 +319,56 @@ function StreamHistogram({ histo, total, plages, cible, ecrire = fmt,
 // LES BORNES PROTÈGENT LES DEUX EXTRÊMES : deux choix ne doivent pas devenir des
 // pancartes, neuf ne doivent pas devenir illisibles. Entre les deux, la rangée
 // prend ce qui reste.
-const HAUTEUR_DES_CHOIX = 640;   // ce que la scène laisse aux options, en px
+const HAUTEUR_DES_CHOIX = 640;   // repli, avant la première mesure
+
+// LA PLACE RÉELLEMENT LAISSÉE AUX CHOIX — MESURÉE, PLUS DEVINÉE.
+//
+// LE DÉFAUT QUE CECI RÉPARE, ET IL A ÉTÉ LIVRÉ DEUX FOIS. La hauteur disponible
+// était une CONSTANTE de 640 px, choisie d'après un quiz à quatre réponses. Le
+// vote place au-dessus de ses choix un énoncé plus long, parfois une consigne de
+// tour, et il ne restait pas 640 px mais 563. Mesuré : à neuf propositions,
+// « Hotel » finissait à 1131 px et « India » à 1209 dans une scène qui s'arrête à
+// 1080. Deux choix invisibles, et rien à l'écran pour le dire.
+//
+// LE CALCUL ÉTAIT JUSTE, IL PORTAIT SUR UN NOMBRE FAUX. C'est pourquoi il avait
+// été déclaré satisfait sans être regardé : on avait vérifié l'arithmétique, pas
+// la scène.
+//
+// ON MESURE LA BOÎTE DES RANGÉES, ET RIEN D'AUTRE. Une première version calculait
+// la place en soustrayant à la scène le haut du bloc et son écart bas. Deux
+// pièges s'y cachaient : le dévoilement pose un TITRE au-dessus de chaque colonne,
+// dont la soustraction ne tenait pas compte ; et le bloc est aligné en bas, si
+// bien que le haut de sa première rangée dépend de la taille des rangées — la
+// mesure se serait mordu la queue. En demandant sa hauteur à la boîte qui contient
+// EXACTEMENT les rangées, il n'y a plus rien à soustraire ni à supposer.
+//
+// `clientHeight`, ET NON `getBoundingClientRect`. La toile du stream est un
+// canevas fixe de 1920 × 1080 ramené à l'échelle de la fenêtre par une
+// transformation CSS. Une boîte relevée par `getBoundingClientRect` est en pixels
+// d'ÉCRAN ; les propriétés de disposition ignorent la transformation et rendent
+// des pixels de TOILE — l'unité dans laquelle on va réécrire les tailles.
+//
+// LA MESURE NE BOUCLE PAS : la boîte tient sa hauteur de sa PART de la scène
+// (`flex: 1; min-height: 0`), que la taille des rangées ne change pas.
+function usePlaceDesChoix(deps) {
+  const ref = useRef(null);
+  const [place, setPlace] = useState(HAUTEUR_DES_CHOIX);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const mesurer = () => {
+      const dispo = el.clientHeight;
+      if (dispo > 0) setPlace((p) => (Math.abs(p - dispo) > 1 ? dispo : p));
+    };
+    mesurer();
+    const ro = new ResizeObserver(mesurer);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return [ref, place];
+}
+
 
 // LES MESURES D'UNE SCÈNE DE QUESTION — l'énoncé ET les choix.
 //
@@ -333,10 +382,9 @@ function mesuresDeScene(current, n) {
   const enonce = demiScene
     ? (nombre >= 8 ? 52 : nombre >= 6 ? 62 : 72)
     : (nombre >= 8 ? 72 : nombre >= 6 ? 86 : 100);
-  return {
-    ...mesuresDesChoix(nombre, demiScene ? HAUTEUR_DES_CHOIX - 40 : HAUTEUR_DES_CHOIX),
-    '--st-q-fs': `${enonce}px`,
-  };
+  // L'ÉNONCÉ SEUL. Les tailles de choix ne se déduisent plus d'ici : elles
+  // dépendent de la place que cet énoncé laisse, qui se mesure après coup.
+  return { '--st-q-fs': `${enonce}px` };
 }
 function mesuresDesChoix(n, place = HAUTEUR_DES_CHOIX) {
   const nombre = Math.max(1, n || 1);
@@ -351,15 +399,34 @@ function mesuresDesChoix(n, place = HAUTEUR_DES_CHOIX) {
     '--st-opt-pad': `${Math.round(hauteur * 0.16)}px`,
     '--st-opt-dot': `${Math.round(hauteur * 0.56)}px`,
     '--st-opt-key-fs': `${Math.max(14, Math.min(46, Math.round(hauteur * 0.30)))}px`,
+    // LA PASTILLE DE DROITE SUIT LA RANGÉE, ELLE AUSSI. Elle gardait sa taille
+    // fixe : à neuf choix, un rond de 48 px dans une rangée de 48 px moins ses
+    // marges — il débordait de sa propre ligne de seize pixels. Rien ne se voyait
+    // sortir de l'ÉCRAN, et c'est ce qui rendait le défaut discret : le rond
+    // mordait sur ses voisines.
+    '--st-opt-mark': `${Math.max(16, Math.min(48, Math.round(hauteur * 0.46)))}px`,
+    // COMBIEN DE LIGNES LA RANGÉE PEUT TENIR — calculé, pas espéré.
+    //
+    // Une proposition de vote est une PHRASE, pas un mot. Sur deux colonnes — le
+    // dévoilement d'un vote montre les deux tours côte à côte — elle se replie sur
+    // deux lignes, et deux lignes ne tiennent pas dans une rangée de cinquante
+    // pixels : la seconde passait sous le bord, coupée net et sans rien pour le
+    // dire. On dit donc à la rangée combien de lignes elle peut porter ; au-delà,
+    // le texte s'arrête sur des points de suspension, ce qui SE VOIT. L'énoncé
+    // complet, lui, a été à l'écran pendant toute la question.
+    '--st-opt-count-fs': `${Math.max(14, Math.min(40, Math.round(hauteur * 0.34)))}px`,
+    '--st-opt-lignes': String(Math.max(1, Math.floor(
+      (hauteur - 2 * Math.round(hauteur * 0.16)) / (police * 1.2),
+    ))),
   };
 }
 
 // Répartition par options (quiz, vrai/faux, vote) : une rangée par choix,
 // barre de remplissage proportionnelle, décompte à droite.
-function OptionBreakdown({ stats, correctIndex, leadingIndexes = [] }) {
+function OptionBreakdown({ stats, correctIndex, leadingIndexes = [], liste }) {
   const total = Math.max(stats.total || 0, 1);
   return (
-    <>
+    <div className="st-opts-liste" ref={liste}>
       {(stats.options || []).map((opt, i) => {
         const count = stats.tally?.[i] || 0;
         const pct = Math.round((count / total) * 100);
@@ -380,7 +447,7 @@ function OptionBreakdown({ stats, correctIndex, leadingIndexes = [] }) {
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
@@ -549,6 +616,11 @@ function QuestionStage({ g }) {
   // la liste, parce que l'énoncé et les choix sont deux frères — chacun doit
   // savoir ce que l'autre prend.
   const mesures = mesuresDeScene(current, options.length);
+  // LE NOMBRE DE RANGÉES DE LA RÉVÉLATION vient des statistiques, pas de la
+  // question : celle-ci a disparu quand on dévoile.
+  const nbRangees = (stats?.options?.length) || options.length || 1;
+  const [refChoix, placeChoix] = usePlaceDesChoix([current?.questionId, current?.tour, options.length]);
+  const [refStats, placeStats] = usePlaceDesChoix([revealed, stats?.kind, nbRangees]);
   // LE TEMPS DES RÉPONSES : la manche n'est pas révélée, mais les questions sont
   // finies. C'est le seul moment du projet où l'écran de jeu ne montre plus la
   // question en cours — il n'y en a plus.
@@ -801,7 +873,8 @@ function QuestionStage({ g }) {
             </div>
           )
         ) : options.length > 0 ? (
-          <div className="st-options" data-bind="module.options" style={mesuresDesChoix(options.length)}>
+          <div className="st-options" data-bind="module.options"
+            ref={refChoix} style={mesuresDesChoix(options.length, placeChoix)}>
             {options.map((opt, i) => (
               <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
                 <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
@@ -813,7 +886,14 @@ function QuestionStage({ g }) {
         ) : null
       ) : (
         /* Révélation : la répartition prend toute la place. */
-        <div className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`} data-bind="reveal.stats" data-testid="stats-panel">
+        /* LA RÉVÉLATION PORTE LES MÊMES RANGÉES, et elle les oubliait. Les
+           tailles n'étaient posées que sur le bloc de question : au dévoilement,
+           `.st-opt` retombait sur ses valeurs par défaut, faites pour quatre
+           rangées. Neuf débordaient — et c'est précisément l'écran que l'auteur
+           citait comme le bon exemple. */
+        <div style={mesuresDesChoix(nbRangees, placeStats)}
+          className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`}
+          data-bind="reveal.stats" data-testid="stats-panel">
           {stats?.kind === 'cache' ? (
             /* « LE DERNIER ÉCRAN VISIBLE DU JEU C'EST LA MATRICE DÉVOILÉE
                COMPLÈTEMENT. » Neuf objets, tous montrés — c'est le moment où le
@@ -876,7 +956,8 @@ function QuestionStage({ g }) {
               <div className="st-deuxtours" data-testid="stream-vote-deux-tours">
                 <div className="st-deuxtours__bloc">
                   <p className="st-deuxtours__titre">Ce que le cercle pense</p>
-                  <OptionBreakdown stats={stats} correctIndex={-1} leadingIndexes={leadingIndexes} />
+                  <OptionBreakdown stats={stats} correctIndex={-1} leadingIndexes={leadingIndexes}
+                    liste={refStats} />
                 </div>
                 <div className="st-deuxtours__bloc">
                   <p className="st-deuxtours__titre">Ce qu'il croyait penser</p>
@@ -887,6 +968,7 @@ function QuestionStage({ g }) {
               </div>
             ) : (
               <OptionBreakdown
+                liste={refStats}
                 stats={stats}
                 correctIndex={reveal.type === 'quiz' ? reveal.correctIndex
                   : reveal.type === 'true_false' ? (reveal.correct ? 0 : 1) : -1}
