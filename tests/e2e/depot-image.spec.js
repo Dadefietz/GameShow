@@ -131,4 +131,33 @@ test.describe('Le dépôt d\'une image d\'objet', () => {
     expect(gros.status(), 'un corps de 1,4 Mo est refusé par le cadre, pas par la route').toBe(400);
     expect((await gros.json()).error).toBe('pas-un-webp');
   });
+
+  // L'IDENTIFIANT DU COMPTE ENTRE DANS UN CHEMIN DE FICHIER.
+  //
+  // En production il vient d'un jeton Supabase vérifié — un UUID. Mais en mode
+  // développement ouvert, `verifyHostSession` rend le `sub` du jeton SANS en
+  // vérifier la signature : un `sub` fabriqué en « ../../.. » sortirait du
+  // dossier. Le cas est étroit, il ne vaut pas moins d'être fermé — une donnée
+  // qui devient un chemin ne se relit jamais assez.
+  test('un identifiant de compte en forme de chemin ne sort pas du dossier', async ({ page }) => {
+    // Un jeton NON SIGNÉ, tel que le mode ouvert l'accepte, au `sub` hostile.
+    const entete = (charge) => {
+      const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      return `${b64({ alg: 'none', typ: 'JWT' })}.${b64(charge)}.`;
+    };
+    const jeton = entete({
+      sub: '../../../../tmp/evasion-e2e', email: 'x@y.z',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const rep = await page.request.post(`${BASE}/api/cache/image`, {
+      headers: { authorization: `Bearer ${jeton}` },
+      data: { id: 'x-y', webp: 'UklGRgAAAABXRUJQVlA4IAAAAAAwAQCdASoBAAEAAQAcJaQAA3AA/vuUAAA=' },
+    });
+    expect(rep.ok(), 'le jeton de développement devrait être accepté ici').toBe(true);
+    const { src } = await rep.json();
+    expect(src, "le chemin du compte n'a pas été nettoyé").not.toContain('..');
+    expect(src).toMatch(/^\/objets-perso\/[A-Za-z0-9_-]+\/x-y\.webp$/);
+    // Et le fichier est bien servi là où on l'a rangé, pas ailleurs.
+    expect((await page.request.get(BASE + src)).status()).toBe(200);
+  });
 });

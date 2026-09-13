@@ -266,7 +266,16 @@ app.post('/api/cache/image', {
     return reply.code(413).send({ error: 'image-trop-lourde', octets: octets.length, max: POIDS_IMAGE_MAX });
   }
 
-  const chemin = `${host.sub}/${id}.webp`;
+  // L'IDENTIFIANT DU COMPTE ENTRE DANS UN CHEMIN DE FICHIER : on le nettoie.
+  //
+  // En production il vient d'un jeton Supabase VÉRIFIÉ, donc c'est un UUID et le
+  // nettoyage ne change rien. Mais en mode développement ouvert — ni HOST_EMAIL
+  // ni vérificateur configuré — `verifyHostSession` rend le `sub` du jeton SANS
+  // en vérifier la signature. Un `sub` fabriqué en « ../../.. » sortirait alors du
+  // dossier. Le cas est étroit et n'existe pas sur le déploiement ; il coûte une
+  // ligne à fermer, et une donnée qui devient un chemin ne se relit jamais assez.
+  const compte = String(host.sub || '').replace(/[^A-Za-z0-9_-]/g, '') || 'inconnu';
+  const chemin = `${compte}/${id}.webp`;
   const sb = getServiceClient();
   if (sb) {
     const { error } = await sb.storage.from(SEAU_OBJETS)
@@ -280,10 +289,10 @@ app.post('/api/cache/image', {
   }
 
   // Pas de Supabase : on range sur le disque, et on le DIT.
-  const dossier = path.join(DOSSIER_IMAGES, String(host.sub));
+  const dossier = path.join(DOSSIER_IMAGES, compte);
   await fs.promises.mkdir(dossier, { recursive: true });
   await fs.promises.writeFile(path.join(dossier, `${id}.webp`), octets);
-  return { id, src: `/objets-perso/${host.sub}/${id}.webp`, octets: octets.length, durable: false };
+  return { id, src: `/objets-perso/${compte}/${id}.webp`, octets: octets.length, durable: false };
 });
 
 // LE CATALOGUE DE « CACHE-CACHE » — ce que le Studio a besoin de connaître pour
