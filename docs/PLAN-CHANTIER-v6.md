@@ -309,3 +309,49 @@ liste fermée ne laisserait que choisir, jamais codifier.
 - **Ajouter une couleur, c'est ajouter QUARANTE images**, une par objet : la
   banque doit rester complète, chaque nom présent dans toutes les couleurs. Le
   Studio le vérifie et nomme les objets incomplets.
+
+
+---
+
+## 7. M20 — le Studio n'était animateur QUE chez moi
+
+Rapporté le 13/09 : « ce que je veux c'est changer le nom des images, la couleur,
+et les images déjà chargées, le tout **en ligne via mon compte animateur** ».
+
+La demande décrivait ce qui venait d'être livré. C'était donc que rien ne
+marchait — et c'était le cas.
+
+### Le défaut
+
+Les deux routes ajoutées la veille appelaient l'API **sans en-tête d'animateur** :
+
+| Route | Effet en production |
+| --- | --- |
+| `GET /api/cache/catalogue` | 403 → le catalogue n'arrive jamais → l'écran de modération affiche **zéro question et zéro image**, sans message |
+| `POST /api/cache/image` | 403 → aucun dépôt ne peut aboutir |
+
+En développement, `requireHost` est OUVERT — ni HOST_EMAIL ni Supabase — et
+l'appel passe. Le symptôme est donc **invisible là où l'on travaille et total là
+où l'on diffuse**. Mesuré : un serveur lancé avec `HOST_EMAIL` répond 403 aux
+trois routes.
+
+**C'est la troisième fois que ce défaut se produit dans ce dépôt**, et ce fichier
+le documentait déjà pour `/api/modules`. Une note dans le code ne l'a pas empêché
+de revenir : ce qui se répète a besoin d'un CONTRÔLE, pas d'un avertissement.
+
+`tests/unit/studio-entetes.test.js` lit désormais la source du Studio et exige que
+tout `fetch` vers `/api` passe par `entetesHote()`. Il nomme les routes fautives.
+Un contrôle de bout en bout ne pouvait pas le voir : la campagne tourne
+précisément dans le mode où l'autorisation est ouverte.
+
+**Et l'échec se voit désormais.** Un panneau vide ne se distingue pas d'une banque
+effacée : le Studio affiche la raison, et invite à se reconnecter.
+
+### Le défaut voisin, trouvé en vérifiant
+
+La route annonçait deux mégaoctets d'image et en refusait déjà à **sept cent
+cinquante kilo-octets** : Fastify coupe le corps à un mégaoctet par défaut, et le
+base64 pèse un tiers de plus que les octets. Le refus venait du cadre, avant le
+gestionnaire, avec un message que le Studio ne pouvait pas traduire. La limite est
+maintenant déclarée sur la route et accordée à celle de l'image ; le Studio
+traduit 403 et 413 en phrases que l'animateur peut suivre.

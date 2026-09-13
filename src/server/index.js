@@ -242,7 +242,16 @@ const imageSchema = z.object({
   webp: z.string().min(1).max(4_000_000),
 });
 
-app.post('/api/cache/image', async (req, reply) => {
+//
+// LA LIMITE DE CORPS EST DÉCLARÉE, ET ACCORDÉE À CELLE DE L'IMAGE. Fastify coupe
+// à un mégaoctet par défaut : la route annonçait deux mégaoctets d'image et en
+// refusait déjà à sept cent cinquante kilo-octets, le base64 pesant un tiers de
+// plus que les octets. Le refus venait du cadre, avant le gestionnaire, avec un
+// message que le Studio ne pouvait pas traduire. Deux limites qui se contredisent
+// valent moins qu'une seule qui se voit.
+app.post('/api/cache/image', {
+  bodyLimit: Math.ceil(POIDS_IMAGE_MAX * 4 / 3) + 64 * 1024,
+}, async (req, reply) => {
   const host = await requireHost(req, reply);
   if (!host) return;
   const parsed = imageSchema.safeParse(req.body);

@@ -237,17 +237,6 @@ export function StudioApp() {
 
   const sb = useMemo(() => getSupabase(), []);
 
-  const typeOuvert = modules.find((m) => m.id === selectedId)?.type;
-  useEffect(() => {
-    if (typeOuvert !== 'cache_cache' || catalogueCache) return;
-    let alive = true;
-    fetch('/api/cache/catalogue')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((c) => { if (alive && c) setCatalogueCache(c); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [typeOuvert, catalogueCache]);
-
   // En-têtes d'autorisation pour /api/banks. LE DÉFAUT CORRIGÉ : le Studio
   // appelait cette route SANS aucun en-tête. En développement, `requireHost` est
   // ouvert et ça passait ; en production, où HOST_EMAIL est configuré, le serveur
@@ -265,6 +254,36 @@ export function StudioApp() {
       return base;
     }
   }, [sb]);
+
+  // LE CATALOGUE DE « CACHE-CACHE », chargé quand un module de ce type est ouvert.
+  //
+  // AVEC L'EN-TÊTE D'ANIMATEUR, et c'est tout le sujet. Cette route est derrière
+  // `requireHost`. Sans en-tête, elle passe en développement — où l'autorisation
+  // est ouverte — et répond 403 en production, où HOST_EMAIL est configuré : le
+  // catalogue n'arrivait jamais, et l'écran de modération restait VIDE sur le site
+  // déployé, sans qu'aucun message ne l'explique. C'est exactement le défaut que
+  // `/api/modules` avait connu ; un contrôle le garde désormais pour toutes les
+  // routes à la fois (tests/unit/studio-entetes.test.js).
+  const [catalogueRate, setCatalogueRate] = useState(null);
+  const typeOuvert = modules.find((m) => m.id === selectedId)?.type;
+  useEffect(() => {
+    if (typeOuvert !== 'cache_cache' || catalogueCache) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/cache/catalogue', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) { setCatalogueCache(await res.json()); setCatalogueRate(null); return; }
+        // ON LE DIT. Un panneau vide sans explication est pire qu'une erreur.
+        setCatalogueRate(res.status === 403
+          ? "Ta session d'animateur ne permet pas de lire le catalogue. Reconnecte-toi."
+          : `Le catalogue n'a pas pu être chargé (${res.status}).`);
+      } catch {
+        if (alive) setCatalogueRate("Le catalogue n'a pas pu être chargé.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [typeOuvert, catalogueCache, entetesHote]);
 
   // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
   //
@@ -593,6 +612,8 @@ export function StudioApp() {
           module={selected}
           typeServeur={typesServeur[selected.type]}
           catalogueCache={catalogueCache}
+          catalogueRate={catalogueRate}
+          entetesHote={entetesHote}
           editingQuestionId={editingQuestionId}
           invalidQids={invalidQids}
           saveState={saveState}
@@ -764,7 +785,7 @@ const VIGNETTE_VIDE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAA
 // LES VARIABLES SONT DES BALISES, comme demandé : `{objet}`, `{case}`, `{objetA}`.
 // Elles sont remplies au tirage. Chaque forme n'accepte que les siennes, et le
 // serveur les annonce — l'écran ne les recopie pas.
-function ModerationCache({ contenu, catalogue, onChange, moduleId }) {
+function ModerationCache({ contenu, catalogue, onChange, moduleId, entetesHote, catalogueRate }) {
   const gabarits = contenu?.gabarits?.length ? contenu.gabarits : (catalogue?.gabarits || []);
   const objets = contenu?.objets?.length ? contenu.objets : (catalogue?.objets || []);
   const couleurs = catalogue?.couleurs || [];
@@ -813,11 +834,17 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId }) {
       const { dataUrl, octets } = await preparerImage(fichier);
       const res = await fetch('/api/cache/image', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        // MÊME EN-TÊTE QUE LE RESTE DU STUDIO. Cette route est derrière
+        // `requireHost` : sans lui, tout dépôt répond 403 en production.
+        headers: await entetesHote(),
         body: JSON.stringify({ id, webp: dataUrl }),
       });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
+        // LES DEUX REFUS QUE L'ANIMATEUR PEUT CORRIGER LUI-MÊME, dits en clair.
+        // Un code d'état seul l'enverrait chercher la cause du mauvais côté.
+        if (res.status === 403) throw new Error("Ta session d'animateur a expiré. Reconnecte-toi, puis redépose.");
+        if (res.status === 413) throw new Error('Image trop lourde pour le serveur. Choisis-en une plus petite.');
         throw new Error(detail.detail || detail.error || `refus du serveur (${res.status})`);
       }
       const recu = await res.json();
@@ -833,6 +860,15 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId }) {
 
   return (
     <>
+      {/* UN PANNEAU VIDE NE DOIT JAMAIS PASSER POUR UN PANNEAU SANS CONTENU.
+          Si le catalogue n'est pas arrivé, l'écran affiche zéro question et zéro
+          image — exactement comme une banque qu'on aurait effacée. On le dit. */}
+      {catalogueRate ? (
+        <p className="save-state save-state--failed" role="alert" data-testid="cache-catalogue-rate">
+          {catalogueRate}
+        </p>
+      ) : null}
+
       <div className="fgroup" data-testid="cache-gabarits">
         <span className="flabel">Questions possibles ({gabarits.length})</span>
         <p className="fhint">
@@ -1003,7 +1039,7 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId }) {
 // ---------------------------------------------------------------------------
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
-  typeServeur, catalogueCache,
+  typeServeur, catalogueCache, catalogueRate, entetesHote,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
@@ -1081,6 +1117,7 @@ function EditorPanel({
             L'écran suit cette réalité plutôt que de la travestir en liste. */}
         {module.type === 'cache_cache' ? (
           <ModerationCache contenu={module.contenuCache} catalogue={catalogueCache} moduleId={module.id}
+            entetesHote={entetesHote} catalogueRate={catalogueRate}
             onChange={(contenuCache) => onPatchModule({ contenuCache })} />
         ) : (
         <div className="fgroup">

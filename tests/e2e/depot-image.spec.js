@@ -115,5 +115,20 @@ test.describe('Le dépôt d\'une image d\'objet', () => {
 
     const majuscules = await poster({ id: 'Ampoule-Bleu', webp: 'UklGRgAAAABXRUJQ' });
     expect(majuscules.status(), "l'identifiant doit rester en minuscules").toBe(400);
+
+    // LA LIMITE DE CORPS DE LA ROUTE EST ACCORDÉE À CELLE DE L'IMAGE.
+    //
+    // Fastify coupe à un mégaoctet par DÉFAUT. La route annonce deux mégaoctets
+    // d'image, mais le base64 pèse un tiers de plus que les octets : sans limite
+    // déclarée, tout dépôt au-delà de sept cent cinquante kilo-octets était
+    // refusé PAR LE CADRE, avant le gestionnaire, avec un message que le Studio
+    // ne pouvait pas traduire. Deux limites qui se contredisent valent moins
+    // qu'une seule qui se voit.
+    //
+    // La preuve que le gestionnaire a bien été atteint, c'est SON refus à lui —
+    // « pas-un-webp » — et non celui du cadre.
+    const gros = await poster({ id: 'gros-essai', webp: 'A'.repeat(1_400_000) });
+    expect(gros.status(), 'un corps de 1,4 Mo est refusé par le cadre, pas par la route').toBe(400);
+    expect((await gros.json()).error).toBe('pas-un-webp');
   });
 });
