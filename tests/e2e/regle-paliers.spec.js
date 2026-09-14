@@ -227,10 +227,6 @@ test.describe('La règle des paliers', () => {
     const { cible: ct, boite: bt, lignes: toile } = await relever(stream, 'st-histo');
     console.log('  stream  →', toile.map((l) => `${l.nom} ${l.barre.g.toFixed(0)}→${l.barre.d.toFixed(0)}%`).join('  '));
     verifier(toile, 'stream', ct, bt);
-    if (process.env.PLANCHE) {
-      await hote.page.locator('[data-testid="histogramme"]').screenshot({ path: '/tmp/regle-console.png' });
-      await stream.locator('.st-histo').screenshot({ path: '/tmp/regle-stream.png' });
-    }
   });
 
   test('« LE JUSTE TEMPS » — le cas rapporté, avec ses paliers en secondes', async ({ browser }) => {

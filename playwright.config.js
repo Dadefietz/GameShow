@@ -1,6 +1,8 @@
 // Config Playwright — E2E sur le vrai serveur de jeu (build + Fastify + Socket.IO).
 // workers: 1 (les tests partagent un serveur et des salons en mémoire).
 import { defineConfig, devices } from '@playwright/test';
+import os from 'node:os';
+import path from 'node:path';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -9,6 +11,22 @@ export default defineConfig({
   retries: 1,
   timeout: 45_000,
   reporter: [['list'], ['json', { outputFile: 'tests/results/playwright-results.json' }]],
+
+  // LES ARTEFACTS SORTENT DE L'ARBORESCENCE DU PROJET, ET CE N'EST PAS COSMÉTIQUE.
+  //
+  // Une campagne complète écrit une soixantaine de mégaoctets de captures et de
+  // traces. Ce dépôt vit sous `~/Documents`, donc DANS iCloud Drive : chacune de
+  // ces campagnes déclenchait une synchronisation de soixante-huit mégaoctets, et
+  // le démon de synchronisation prenait la moitié du processeur. Mesuré : une
+  // campagne de dix minutes passée à TROIS HEURES, avec des contrôles à seize
+  // minutes pièce — des famines de ressources que rien ne distingue, dans un
+  // rapport, d'un vrai défaut. Le `.gitignore` n'y pouvait rien : iCloud ne le
+  // lit pas.
+  //
+  // Les artefacts n'ont aucune raison d'être versionnés ni conservés : ils ne
+  // servent qu'à lire l'échec qui vient de se produire. Ils vont donc dans le
+  // dossier temporaire du système.
+  outputDir: path.join(os.tmpdir(), 'cercle-du-feu-e2e'),
   use: {
     baseURL: 'http://localhost:8788',
     screenshot: 'only-on-failure',

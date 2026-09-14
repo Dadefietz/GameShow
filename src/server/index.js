@@ -15,7 +15,7 @@ import { MODULE_TYPES, modules } from './modules.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
-import { BASSIN_OBJETS, COULEURS, srcDObjet } from './objets.js';
+import { BASSIN_OBJETS, BASSIN_NOIR, COULEURS, COULEUR_RESERVEE, srcDObjet } from './objets.js';
 import { srcDeVisage } from './visages.js';
 import { getServiceClient } from './supabase.js';
 import * as banksStore from './store.js';
@@ -306,8 +306,14 @@ app.get('/api/cache/catalogue', async (req, reply) => {
   const host = await requireHost(req, reply);
   if (!host) return;
   return {
-    objets: BASSIN_OBJETS.map((o) => ({ ...o, src: srcDObjet(o.id) })),
+    // LES DEUX TRANCHES DANS LA MÊME LISTE — c'est la banque telle que l'animateur
+    // la modère : deux cent quarante lignes, une seule page. Le partage se fait au
+    // TIRAGE, selon le mode, et nulle part ailleurs.
+    objets: [...BASSIN_OBJETS, ...BASSIN_NOIR].map((o) => ({ ...o, src: srcDObjet(o.id) })),
     couleurs: COULEURS,
+    // « NOIR » EST RÉSERVÉE : le Studio doit pouvoir le DIRE, sans quoi l'animateur
+    // la compterait comme une sixième couleur et se verrait refuser sa banque.
+    couleurReservee: COULEUR_RESERVEE,
     gabarits: GABARITS_PAR_DEFAUT,
     variables: VARIABLES_PAR_FORME,
     libelles: LIBELLES_PAR_FORME,
@@ -732,6 +738,11 @@ io.on('connection', (socket) => {
       // La durée du cadran, pour les jeux qui en ont un. C'est elle qui borne les
       // champs de saisie de l'animateur — voir la note dans la meta du module.
       dureeCompteMs: modules[m.type]?.meta?.dureeCompteMs ?? null,
+      // LES MODES DU JEU, QUAND IL EN A. C'est le serveur qui les nomme : un écran
+      // qui les recopierait finirait par proposer un mode que le tirage ne connaît
+      // pas — l'animateur cliquerait « Démarrer » et rien ne partirait.
+      modes: modules[m.type]?.meta?.modes ?? null,
+      modeParDefaut: modules[m.type]?.meta?.modeParDefaut ?? null,
     })));
   });
   // RÉVÉLATION ANTICIPÉE — qui, sur une manche à deux tours, OUVRE LE SECOND au

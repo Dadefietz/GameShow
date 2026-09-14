@@ -15,8 +15,9 @@ import {
 import { BASSIN_OBJETS, COULEURS, NOMS_OBJETS, srcDObjet } from '../../src/server/objets.js';
 import {
   NUMEROS, contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME,
-  LIBELLES_PAR_FORME, MARQUE_CONTENU,
+  LIBELLES_PAR_FORME, MARQUE_CONTENU, MODES, MODE_PAR_DEFAUT, modeDe,
 } from '../../src/server/cache-cache.js';
+import { BASSIN_NOIR, COULEUR_RESERVEE } from '../../src/server/objets.js';
 import { modules, bonusRapidite } from '../../src/server/modules.js';
 
 describe('la banque des deux cents objets', () => {
@@ -537,5 +538,147 @@ describe('les couleurs d\'une banque modérée', () => {
     expect(couleursDuBassin([])).toEqual([]);
     // Le dépôt, lui, en porte bien cinq.
     expect(couleursDuBassin().sort()).toEqual([...COULEURS].sort());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LES DEUX MODES — « COULEUR » ET « CLASSIQUE »
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ (12/09) : un second mode, plus facile, où « des images
+// uniquement de couleur noir devront être utilisées et chacune des images doit
+// avoir un nom différent », où « on ne peut pas poser de questions liées aux
+// couleurs », et — en capitales dans le document — où « les nouvelles images de
+// couleur noir ne doivent PAS être utilisées dans le mode Couleur ».
+//
+// LA RÈGLE NÉGATIVE EST LA PLUS DANGEREUSE, et c'est par elle qu'on commence. Une
+// icône noire glissée dans une manche « Couleur » ne casserait rien, ne lèverait
+// rien : elle rendrait simplement « quelle est la couleur de … ? » absurde, à
+// l'antenne, une fois sur mille. Elle ne se garde pas en la lisant dans le code —
+// elle se garde sur des milliers de tirages, dans les deux sens.
+describe('les deux modes de « Cache-cache »', () => {
+  const MANCHES = 400;
+
+  // LA BANQUE MODÉRÉE PORTE LES DEUX TRANCHES CÔTE À CÔTE — c'est le cas RÉEL, et
+  // le seul où la règle négative puisse être enfreinte.
+  //
+  // LA FAUTE À NE PAS REFAIRE : les premières versions de ces contrôles tiraient
+  // sur la banque PAR DÉFAUT, qui ne contient aucune icône noire. « Couleur ne
+  // voit jamais de noir » y était vrai gratuitement — vérifié par un sabotage qui
+  // ouvrait le mode Couleur à TOUTES les images et que le contrôle n'a pas vu.
+  // Un contrôle qui ne peut pas échouer ne garde rien.
+  const banqueComplete = () => [
+    ...BASSIN_OBJETS.map((o) => ({ ...o })),
+    ...BASSIN_NOIR.map((o) => ({ ...o })),
+  ];
+
+  it('« Couleur » ne voit JAMAIS une image noire, MÊME dans une banque qui en porte', () => {
+    const objets = banqueComplete();
+    expect(objets.filter((o) => o.couleur === COULEUR_RESERVEE).length,
+      'la banque d\'épreuve devrait contenir des icônes noires').toBe(40);
+    let vues = 0;
+    for (let i = 0; i < MANCHES; i += 1) {
+      const rt = tirerLaManche(Math.random, { objets }, 40, 'couleur');
+      expect(rt, 'une manche en mode Couleur a échoué').not.toBeNull();
+      vues += rt.matrice.filter((o) => o.couleur === COULEUR_RESERVEE).length;
+      expect(rt.couleurs, 'la palette du mode Couleur ne doit pas porter le noir')
+        .not.toContain(COULEUR_RESERVEE);
+    }
+    expect(vues, `${vues} cases noires sur ${MANCHES} manches en mode Couleur`).toBe(0);
+  });
+
+  it('« Classique » ne voit QUE des images noires, toutes de noms différents', () => {
+    const objets = banqueComplete();
+    for (const contenu of [{}, { objets }]) {
+      for (let i = 0; i < MANCHES / 2; i += 1) {
+        const rt = tirerLaManche(Math.random, contenu, 40, 'classique');
+        expect(rt, 'une manche en mode Classique a échoué').not.toBeNull();
+        for (const o of rt.matrice) expect(o.couleur).toBe(COULEUR_RESERVEE);
+        // « chacune des images doit avoir un nom différent »
+        expect(new Set(rt.matrice.map((o) => o.nom)).size).toBe(rt.matrice.length);
+        expect(rt.couleurs).toEqual([COULEUR_RESERVEE]);
+      }
+    }
+  });
+
+  it('« Classique » ne pose AUCUNE question de couleur', () => {
+    // Les quatre formes que le document énumère, et rien d'autre. Une question de
+    // couleur y aurait une seule réponse possible — la même à chaque fois.
+    const admises = new Set(MODES.classique.formes);
+    expect([...admises].sort()).toEqual(['entre_cases', 'entre_noms', 'numero_de', 'objet_derriere']);
+    for (let i = 0; i < MANCHES; i += 1) {
+      const rt = tirerLaManche(Math.random, { objets: banqueComplete() }, 40, 'classique');
+      expect(rt.questions).toHaveLength(QUESTIONS_PAR_PARTIE);
+      for (const q of rt.questions) {
+        expect(admises.has(q.forme), `« ${q.forme} » n'a rien à faire en mode Classique`).toBe(true);
+      }
+    }
+  });
+
+  it('« Couleur » garde ses six formes, dont celles de couleur', () => {
+    // L'AUTRE SENS DE LA MÊME GARDE : en réduisant « Classique », on ne doit pas
+    // avoir amputé le mode difficile. Sur quatre cents manches, les six formes
+    // doivent toutes paraître au moins une fois.
+    const vues = new Set();
+    for (let i = 0; i < MANCHES; i += 1) {
+      for (const q of tirerLaManche(Math.random, { objets: banqueComplete() }, 40, 'couleur').questions) vues.add(q.forme);
+    }
+    expect([...vues].sort()).toEqual(Object.keys(FORMES).sort());
+  });
+
+  it('la manche dit de quel mode elle est', () => {
+    // L'ÉCRAN NE DEVINE PAS LE MODE À LA COULEUR DES CASES. Une banque modérée
+    // pourrait porter des images sombres sans être en « Classique » ; c'est le
+    // serveur qui tranche, et il le dit.
+    expect(tirerLaManche(Math.random, {}, 40, 'classique').mode).toBe('classique');
+    expect(tirerLaManche(Math.random, {}, 40, 'couleur').mode).toBe('couleur');
+    // Sans précision, le mode difficile — celui qui existait avant.
+    expect(tirerLaManche(Math.random, {}).mode).toBe(MODE_PAR_DEFAUT);
+    expect(MODE_PAR_DEFAUT).toBe('couleur');
+  });
+
+  it('un mode inconnu retombe sur le mode par défaut plutôt que d\'éteindre le jeu', () => {
+    for (const cle of [undefined, null, '', 'facile', 'Classique ']) {
+      expect(modeDe(cle).cle, `« ${cle} »`).toBe(MODE_PAR_DEFAUT);
+    }
+    expect(modeDe('classique').cle).toBe('classique');
+  });
+
+  it('CHAQUE IMAGE NOIRE A UNE ADRESSE — sinon les neuf cases seraient vides', () => {
+    // LE DÉFAUT QUE CE CONTRÔLE GARDE, ET QUI A FAILLI PARTIR. L'index des
+    // adresses était bâti sur la SEULE banque en couleur : `srcDObjet` rendait
+    // `null` pour toute icône noire, et les neuf cases du mode « Classique » se
+    // seraient affichées VIDES sur les trois surfaces à la fois — sans erreur,
+    // sans trace, sans rien à chercher. Un index qui ignore la moitié de ce qu'on
+    // lui confie ne se signale jamais lui-même.
+    for (const o of BASSIN_NOIR) {
+      expect(srcDObjet(o.id), `« ${o.id} » n'a pas d'adresse`).toBe(`/objets/${o.id}.webp`);
+    }
+    // Et la manche les porte jusqu'au bout de la chaîne.
+    const rt = modules.cache_cache.buildRound({ id: 'cc', mode: 'classique' });
+    rt.tour = rt.tours; rt.answers = new Map(); rt.debutsDeTour = {};
+    for (const o of modules.cache_cache.score(rt).reveal.stats.matrice) {
+      expect(o.src, `la case ${o.place} (« ${o.id} ») n'a pas d'image`).toMatch(/-noir\.webp$/);
+    }
+  });
+
+  it('la banque noire porte un objet par nom, et aucun ne manque', () => {
+    expect(BASSIN_NOIR).toHaveLength(40);
+    expect(new Set(BASSIN_NOIR.map((o) => o.nom)).size).toBe(40);
+    for (const o of BASSIN_NOIR) expect(o.couleur).toBe(COULEUR_RESERVEE);
+    // LES MÊMES QUARANTE NOMS QUE LA BANQUE EN COULEUR. Un nom présent dans l'une
+    // et absent de l'autre ferait deux jeux qui ne parlent pas du même monde.
+    expect(BASSIN_NOIR.map((o) => o.nom).sort()).toEqual([...NOMS_OBJETS].sort());
+  });
+
+  it('une banque modérée sans image noire ne peut pas jouer en Classique', () => {
+    // Et elle ÉCHOUE FRANCHEMENT plutôt que de se rabattre sur les couleurs : un
+    // mode « Classique » qui montrerait des images colorées ne serait pas le jeu
+    // demandé, et personne ne le verrait avant l'antenne.
+    const sansNoir = COULEURS.flatMap((couleur) => (
+      Array.from({ length: 10 }, (_, j) => ({ id: `x-${couleur}-${j}`, nom: `Objet${j}`, couleur }))
+    ));
+    expect(tirerLaManche(Math.random, { objets: sansNoir }, 40, 'classique')).toBeNull();
+    expect(tirerLaManche(Math.random, { objets: sansNoir }, 40, 'couleur')).not.toBeNull();
   });
 });

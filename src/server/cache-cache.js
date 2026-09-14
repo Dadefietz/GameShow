@@ -12,7 +12,7 @@
 // dont les quotas se répondent, et jamais deux questions sur la même image. Un
 // tirage qui violerait l'une d'elles ne casse rien — il produit une manche
 // injouable ou une question sans réponse, en direct.
-import { BASSIN_OBJETS } from './objets.js';
+import { BASSIN_OBJETS, BASSIN_NOIR, COULEUR_RESERVEE } from './objets.js';
 
 // ---------------------------------------------------------------------------
 // LA GRILLE
@@ -89,12 +89,31 @@ export function couleursDuBassin(bassin = BASSIN_OBJETS) {
 export const COULEURS_MIN = Math.ceil(CASES / 2);
 export const COULEURS_MAX = CASES;
 
-export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS) {
+export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS, mode = MODES.couleur) {
   const noms = [...new Set(bassin.map((o) => o.nom))];
   if (noms.length < CASES) return null;
   const neufNoms = melanger(noms, alea).slice(0, CASES);
 
   const palette = couleursDuBassin(bassin);
+
+  // EN MODE « CLASSIQUE », IL N'Y A QU'UNE COULEUR, ET C'EST TOUT LE POINT.
+  //
+  // La règle « chaque couleur une ou deux fois, les cinq présentes » n'a plus
+  // d'objet : elle existait pour garantir qu'une couleur soit unique, donc qu'on
+  // puisse la demander. Ici on ne demande pas les couleurs. Ne reste que la
+  // contrainte que le document répète — « chacune des images doit avoir un nom
+  // différent » — déjà tenue par `neufNoms`.
+  const caseDe = (objet, i) => (objet
+    ? { place: i + 1, id: objet.id, nom: objet.nom, couleur: objet.couleur, src: objet.src || null }
+    : null);
+
+  if (mode.formes) {
+    if (palette.length !== 1) return null;
+    const parNom = new Map(bassin.map((o) => [o.nom, o]));
+    const sortie = neufNoms.map((nom, i) => caseDe(parNom.get(nom), i));
+    return sortie.some((o) => o === null) ? null : sortie;
+  }
+
   if (palette.length < COULEURS_MIN || palette.length > COULEURS_MAX) return null;
   const couleurs = melanger(palette, alea);
   // Les `CASES - n` PREMIÈRES sont doublées ; les autres ne paraissent qu'une
@@ -105,15 +124,11 @@ export function construireMatrice(alea = Math.random, bassin = BASSIN_OBJETS) {
 
   const affectees = melanger(parts, alea);
   const parCle = new Map(bassin.map((o) => [`${o.nom}|${o.couleur}`, o]));
-  const sortie = neufNoms.map((nom, i) => {
-    const objet = parCle.get(`${nom}|${affectees[i]}`);
-    // Un couple absent de la banque signifierait que la banque n'est plus le
-    // produit cartésien annoncé. On ne bricole pas : on REFUSE — et le tirage
-    // recommence avec d'autres noms. C'est le cas d'une banque modérée à la main
-    // où un nom n'existe pas dans les cinq couleurs.
-    if (!objet) return null;
-    return { place: i + 1, id: objet.id, nom: objet.nom, couleur: objet.couleur, src: objet.src || null };
-  });
+  // Un couple absent de la banque signifierait que la banque n'est plus le produit
+  // cartésien annoncé. On ne bricole pas : on REFUSE — et le tirage recommence
+  // avec d'autres noms. C'est le cas d'une banque modérée à la main où un nom
+  // n'existe pas dans toutes les couleurs.
+  const sortie = neufNoms.map((nom, i) => caseDe(parCle.get(`${nom}|${affectees[i]}`), i));
   return sortie.some((o) => o === null) ? null : sortie;
 }
 
@@ -191,6 +206,56 @@ export const PAIRES = [
 // changer ses quotas, en ajouter une variante, la désactiver ; on ne peut pas
 // inventer une forme sans code.
 export const MARQUE_CONTENU = 'contenu-cache';
+
+// ---------------------------------------------------------------------------
+// LES DEUX MODES DE « CACHE-CACHE »
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ (12/09) : « Nous avons actuellement le jeu qui est super
+// avec des couleurs. Appelons ce mode : le mode "Couleur", ce sera le mode
+// difficile du jeu. » Et pour le nouveau : « des images uniquement de couleur
+// noir […] chacune des images doit avoir un nom différent », « on ne peut pas
+// poser de questions liées aux couleurs », et, en capitales : « les nouvelles
+// images de couleur noir ne doivent PAS être utilisées dans le mode Couleur ».
+//
+// UN MODE N'EST PAS UN JEU DIFFÉRENT : même grille, même déroulé, même barème.
+// Ce qui change tient en deux lignes — quelles images entrent dans la matrice, et
+// quelles formes de questions ont encore un sens. On les déclare donc ICI, à côté
+// l'une de l'autre, plutôt que d'éparpiller des « si classique » dans le tirage.
+//
+// LA RÈGLE NÉGATIVE EST LA PLUS DANGEREUSE des deux : une icône noire qui se
+// glisserait dans une manche « Couleur » ne casserait rien, ne lèverait rien, et
+// rendrait simplement la question de couleur absurde — à l'antenne. Elle a son
+// contrôle, sur des milliers de tirages, dans les deux sens.
+export const MODES = {
+  couleur: {
+    cle: 'couleur',
+    nom: 'Couleur',
+    sous: 'Neuf objets, cinq couleurs',
+    // Le mode difficile : la couleur est une information de plus à retenir.
+    difficile: true,
+    // Toutes les images SAUF les noires.
+    admet: (o) => o.couleur !== COULEUR_RESERVEE,
+    // Toutes les formes de questions.
+    formes: null,
+  },
+  classique: {
+    cle: 'classique',
+    nom: 'Classique',
+    sous: 'Neuf objets, sans couleur',
+    difficile: false,
+    // Les noires, et elles seules.
+    admet: (o) => o.couleur === COULEUR_RESERVEE,
+    // AUCUNE QUESTION DE COULEUR. Les quatre formes que le document énumère —
+    // et c'est bien une liste blanche : une forme ajoutée plus tard ne doit pas
+    // se retrouver ici par défaut sans qu'on ait décidé qu'elle y a sa place.
+    formes: ['objet_derriere', 'numero_de', 'entre_noms', 'entre_cases'],
+  },
+};
+export const MODE_PAR_DEFAUT = 'couleur';
+export function modeDe(cle) {
+  return MODES[cle] || MODES[MODE_PAR_DEFAUT];
+}
 
 // LES GABARITS PAR DÉFAUT — la formulation d'origine de chaque forme, et ses
 // quotas. Les accolades sont des VARIABLES, remplies au tirage.
@@ -412,11 +477,31 @@ export function construireQuestions(matrice, alea = Math.random, gabarits = GABA
 
 // Le tirage complet d'une manche, contraintes comprises. Il réessaie plutôt que
 // de rendre une manche bancale — et il s'arrête plutôt que de tourner sans fin.
-export function tirerLaManche(alea = Math.random, contenu = {}, essais = 40) {
-  const bassin = Array.isArray(contenu.objets) && contenu.objets.length ? contenu.objets : BASSIN_OBJETS;
-  const gabarits = Array.isArray(contenu.gabarits) && contenu.gabarits.length ? contenu.gabarits : GABARITS_PAR_DEFAUT;
+export function tirerLaManche(alea = Math.random, contenu = {}, essais = 40, cleDuMode = MODE_PAR_DEFAUT) {
+  const mode = modeDe(cleDuMode);
+
+  // LE MODE DÉCOUPE LA BANQUE, ET C'EST LE SEUL ENDROIT OÙ IL LE FAIT.
+  //
+  // La banque de l'animateur porte les deux tranches côte à côte — les images en
+  // couleur et les noires — parce qu'il n'a qu'une page à modérer. Le partage se
+  // fait ICI, au tirage, plutôt qu'au rangement : deux listes séparées auraient
+  // fini par diverger, et c'est la règle « les images noires ne servent JAMAIS au
+  // mode Couleur » qui en aurait souffert en silence.
+  const toutes = Array.isArray(contenu.objets) && contenu.objets.length ? contenu.objets : BASSIN_OBJETS;
+  const noirs = Array.isArray(contenu.objets) && contenu.objets.length ? contenu.objets : BASSIN_NOIR;
+  const bassin = (mode.formes ? noirs : toutes).filter(mode.admet);
+
+  const tousLesGabarits = Array.isArray(contenu.gabarits) && contenu.gabarits.length
+    ? contenu.gabarits : GABARITS_PAR_DEFAUT;
+  // LES FORMES AUTORISÉES SONT UNE LISTE BLANCHE. En « Classique », toute question
+  // qui porte sur la couleur est écartée — non pas parce qu'elle serait fausse,
+  // mais parce qu'elle n'aurait qu'UNE réponse possible, la même à chaque fois.
+  const gabarits = mode.formes
+    ? tousLesGabarits.filter((g) => mode.formes.includes(g.forme))
+    : tousLesGabarits;
+
   for (let i = 0; i < essais; i += 1) {
-    const matrice = construireMatrice(alea, bassin);
+    const matrice = construireMatrice(alea, bassin, mode);
     if (!matrice) continue;
     const questions = construireQuestions(matrice, alea, gabarits);
     if (questions && questions.length === QUESTIONS_PAR_PARTIE) {
@@ -426,6 +511,7 @@ export function tirerLaManche(alea = Math.random, contenu = {}, essais = 40) {
       return {
         matrice,
         questions,
+        mode: mode.cle,
         couleurs: couleursDuBassin(bassin),
         ordre: melanger(matrice.map((o) => o.place), alea),
       };

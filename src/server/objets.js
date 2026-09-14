@@ -243,10 +243,83 @@ export function idsDuBassin() {
 // LES NOMS DISTINCTS — quarante. Le tirage en prend neuf.
 export const NOMS_OBJETS = [...new Set(BASSIN_OBJETS.map((o) => o.nom))];
 
+// ---------------------------------------------------------------------------
+// LES QUARANTE OBJETS NOIRS — LE MODE « CLASSIQUE »
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ (12/09) : un second mode, plus facile, où « des images
+// uniquement de couleur noir devront être utilisées et chacune des images doit
+// avoir un nom différent » — et, en capitales dans le document : « les nouvelles
+// images de couleur noir ne doivent PAS être utilisées dans le mode Couleur ».
+//
+// « NOIR » N'EST DONC PAS UNE SIXIÈME COULEUR, C'EST UNE COULEUR RÉSERVÉE.
+// C'est la seule lecture qui tienne la règle négative. Ces quarante objets vivent
+// dans la MÊME banque que les deux cents autres — une seule page de modération,
+// une seule liste à tenir — et c'est le MODE qui décide de la tranche employée :
+// « Couleur » prend tout sauf le noir, « Classique » ne prend que le noir.
+//
+// Les traiter comme une couleur ordinaire aurait fait six couleurs, et six
+// couleurs sur neuf cases donnent TROIS couleurs uniques : la question « quelle
+// couleur n'est présente qu'une seule fois ? » aurait perdu sa réponse.
+//
+// PAS DE CHAMP `couleur` ÉCRIT À LA MAIN : il est posé ci-dessous, une fois. Une
+// liste de quarante lignes où l'on répète quarante fois la même valeur finit
+// toujours par en porter une trente-neuvième fois.
+export const COULEUR_RESERVEE = 'Noir';
+
+export const BASSIN_NOIR = [
+  { id: 'ampoule-noir', nom: 'Ampoule' },
+  { id: 'arbre-noir', nom: 'Arbre' },
+  { id: 'avion-noir', nom: 'Avion' },
+  { id: 'ballon-noir', nom: 'Ballon' },
+  { id: 'banane-noir', nom: 'Banane' },
+  { id: 'bateau-noir', nom: 'Bateau' },
+  { id: 'bougie-noir', nom: 'Bougie' },
+  { id: 'cactus-noir', nom: 'Cactus' },
+  { id: 'cafe-noir', nom: 'Café' },
+  { id: 'chaise-noir', nom: 'Chaise' },
+  { id: 'ciseaux-noir', nom: 'Ciseaux' },
+  { id: 'cloche-noir', nom: 'Cloche' },
+  { id: 'cle-a-molette-noir', nom: 'Clé à molette' },
+  { id: 'couteau-noir', nom: 'Couteau' },
+  { id: 'enveloppe-noir', nom: 'Enveloppe' },
+  { id: 'etoile-noir', nom: 'Etoile' },
+  { id: 'fleur-noir', nom: 'Fleur' },
+  { id: 'fourchette-noir', nom: 'Fourchette' },
+  { id: 'guitare-noir', nom: 'Guitare' },
+  { id: 'lune-noir', nom: 'Lune' },
+  { id: 'main-noir', nom: 'Main' },
+  { id: 'maison-noir', nom: 'Maison' },
+  { id: 'marteau-noir', nom: 'Marteau' },
+  { id: 'os-noir', nom: 'Os' },
+  { id: 'parapluie-noir', nom: 'Parapluie' },
+  { id: 'plume-noir', nom: 'Plume' },
+  { id: 'poisson-noir', nom: 'Poisson' },
+  { id: 'pomme-noir', nom: 'Pomme' },
+  { id: 'poubelle-noir', nom: 'Poubelle' },
+  { id: 'pyramide-noir', nom: 'Pyramide' },
+  { id: 'robe-noir', nom: 'Robe' },
+  { id: 'soleil-noir', nom: 'Soleil' },
+  { id: 't-shirt-noir', nom: 'T-shirt' },
+  { id: 'table-noir', nom: 'Table' },
+  { id: 'tambour-noir', nom: 'Tambour' },
+  { id: 'train-noir', nom: 'Train' },
+  { id: 'telephone-noir', nom: 'Téléphone' },
+  { id: 'television-noir', nom: 'Télévision' },
+  { id: 'voiture-noir', nom: 'Voiture' },
+  { id: 'velo-noir', nom: 'Vélo' },
+].map((o) => ({ ...o, couleur: COULEUR_RESERVEE }));
+
 // L'ADRESSE D'UN OBJET, ET LE SEUL ENDROIT QUI LA CONNAISSE. Même règle que la
 // banque de visages : le client ne déduit JAMAIS une adresse d'un identifiant,
 // il reçoit l'une et l'autre du serveur.
-const PAR_ID = new Map(BASSIN_OBJETS.map((o) => [o.id, o]));
+//
+// L'INDEX COUVRE LES DEUX BANQUES, et il a fallu un contrôle pour s'en souvenir.
+// Construit sur la seule banque en couleur, il rendait `null` pour toute icône
+// noire : les neuf cases du mode « Classique » se seraient affichées VIDES, sur
+// les trois surfaces à la fois, sans qu'aucune erreur ne soit levée. Un index qui
+// ignore la moitié de ce qu'on lui confie ne se signale jamais lui-même.
+const PAR_ID = new Map([...BASSIN_OBJETS, ...BASSIN_NOIR].map((o) => [o.id, o]));
 export function objetDe(id) {
   return PAR_ID.get(id) || null;
 }

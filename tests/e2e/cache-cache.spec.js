@@ -120,6 +120,59 @@ test.describe('Cache-cache', () => {
       .toContainText('Trop tard pour celle-là', { timeout: 20_000 });
   });
 
+  test('LE MODE CLASSIQUE : neuf images noires, aucune question de couleur', async ({ browser }) => {
+    // CE QUI A ÉTÉ DEMANDÉ (12/09) : « Pour la création de la matrice, des images
+    // uniquement de couleur "noir" devront être utilisées et chacune des images
+    // doit avoir un nom différent », et « on ne peut pas poser de questions liées
+    // aux couleurs ».
+    //
+    // LE TIRAGE EST GARDÉ PAR LES CONTRÔLES UNITAIRES, sur des milliers de
+    // manches. Ce qu'on vérifie ICI est le seul maillon qu'ils ne voient pas : que
+    // le choix fait par l'animateur dans son panneau arrive JUSQU'AUX ÉCRANS.
+    // Entre les deux il y a un bouton, un top de départ, un moteur et trois
+    // surfaces — et le mode n'est qu'un mot qui peut se perdre à chaque étape.
+    await annoncer(browser, ['Classique']);
+    await expect(hote.page.getByTestId('cc-mode-classique')).toBeVisible();
+    await expect(hote.page.getByTestId('cc-mode-couleur')).toBeVisible();
+    // Le mode difficile est proposé par défaut : c'est le jeu tel qu'il existait.
+    await expect(hote.page.getByTestId('cc-mode-couleur')).toHaveAttribute('aria-checked', 'true');
+
+    await hote.page.getByTestId('cc-mode-classique').click();
+    await expect(hote.page.getByTestId('cc-mode-aide')).toContainText('sans couleur');
+    await hote.page.getByTestId('cache-demarrer').click();
+
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
+
+    // AUCUNE QUESTION DE COULEUR sur les cinq. Elles se reconnaissent à leur
+    // écran : une question de couleur propose des boutons de couleur.
+    for (let n = 1; n <= 5; n += 1) {
+      await expect(j.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
+      const enonce = await j.getByTestId('question-text').textContent();
+      expect(enonce, `question ${n} : « ${enonce} » porte sur la couleur`).not.toMatch(/couleur/i);
+      if (await j.getByTestId('cc-couleurs').count()) {
+        const libelles = await j.locator('[data-testid="cc-couleurs"] .opt__label')
+          .evaluateAll((els) => els.map((e) => e.textContent.trim()));
+        // Les seuls choix admis en Classique sont les neuf numéros de cases.
+        expect(libelles, `question ${n} : des choix de couleur`).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+      }
+      await repondre(j, 'Zibeline');
+      if (n < 5) await hote.page.getByTestId('host-reveler').click();
+    }
+
+    // LES NEUF IMAGES SONT NOIRES. On les compte sur la GRILLE FINALE du stream,
+    // seul écran où les neuf cases sont dévoilées en même temps — pendant le jeu,
+    // c'est précisément ce qu'il ne faut pas montrer.
+    for (let n = 1; n <= 6; n += 1) await hote.page.getByTestId('host-reveler').click();
+    await expect(stream.getByTestId('stream-cc-finale')).toBeVisible({ timeout: 20_000 });
+    const sources = await stream.locator('[data-testid="stream-cc-matrice-finale"] img')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('src')));
+    expect(sources.length, 'la grille finale devrait porter neuf images').toBe(9);
+    for (const src of sources) {
+      expect(src, `« ${src} » n'est pas une image noire`).toMatch(/-noir\.webp$/);
+    }
+  });
+
   test('AU DÉVOILEMENT, LE JOUEUR REVOIT SA PROPRE RÉPONSE quand elle était fausse', async ({ browser }) => {
     // CE QUI A ÉTÉ DEMANDÉ (12/09) : « lors du dévoilement des réponses, il faut
     // rajouter la réponse qu'a donnée le joueur lorsqu'il n'a pas la bonne

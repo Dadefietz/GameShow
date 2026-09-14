@@ -30,6 +30,15 @@ import { creerJeu, retirerJeux } from './helpers.js';
 test.setTimeout(90_000);
 
 const JEU = 'Cache modéré';
+// LA BANQUE PORTE SES DEUX TRANCHES : deux cents images en couleur pour le mode
+// « Couleur », quarante noires pour le mode « Classique ». Une seule page de
+// modération — le partage se fait au tirage, selon le mode, et nulle part
+// ailleurs. Le compte est écrit ici une fois : un contrôle qui répète « 200 » à
+// six endroits devient faux à six endroits le jour où la banque grandit, et c'est
+// exactement ce qui est arrivé.
+const EN_COULEUR = 200;
+const NOIRES = 40;
+const BANQUE = EN_COULEUR + NOIRES;
 const ENONCE = 'DE QUELLE TEINTE EST « {objet} » ?';
 
 test.describe('La modération de Cache-cache', () => {
@@ -91,7 +100,14 @@ test.describe('La modération de Cache-cache', () => {
 
     const rangs = base.locator('.cmod__objet');
     await expect(rangs.first()).toBeVisible();
-    expect(await rangs.count(), 'la banque des deux cents objets n\'est pas arrivée').toBe(200);
+    expect(await rangs.count(), "la banque complète n'est pas arrivée").toBe(BANQUE);
+    // ET LES DEUX TRANCHES SONT LÀ, chacune pour son mode.
+    const teintes = await base.locator('.cmod__objet input[aria-label^="Couleur de"]')
+      .evaluateAll((els) => els.map((e) => e.value));
+    expect(teintes.filter((c) => c === 'Noir').length,
+      'les images du mode Classique ne sont pas modérables').toBe(NOIRES);
+    expect(new Set(teintes.filter((c) => c !== 'Noir')).size,
+      'les cinq couleurs du mode difficile').toBe(5);
 
     // « L'image, son ID, son Nom et sa Couleur » — les quatre colonnes demandées.
     const premier = rangs.first();
@@ -107,11 +123,11 @@ test.describe('La modération de Cache-cache', () => {
     await expect(premier.getByLabel(`Couleur de ${idObjet}`)).toHaveJSProperty('tagName', 'INPUT');
     await premier.getByLabel(`Couleur de ${idObjet}`).fill('Vert');
 
-    // « Ajouter de nouvelle ligne » : la 201e. Elle arrive VIDE, et le Studio la
+    // « Ajouter de nouvelle ligne » : une de plus. Elle arrive VIDE, et le Studio la
     // refuse tant qu'elle l'est — une image sans fichier ne se verrait qu'à
     // l'antenne, sur une case restée blanche.
     await base.getByTestId('cache-ajouter-objet').click();
-    await expect(rangs).toHaveCount(201);
+    await expect(rangs).toHaveCount(BANQUE + 1);
     const editeur = page.getByRole('complementary');
     await editeur.getByRole('button', { name: /^Enregistrer/ }).click();
     await expect(editeur.locator('.save-state--invalid')).toBeVisible();
@@ -133,7 +149,7 @@ test.describe('La modération de Cache-cache', () => {
     const relue = page.getByRole('complementary').getByTestId('cache-objets');
     await relue.getByTestId('cache-voir-images').click();
     const relu = relue.locator('.cmod__objet');
-    await expect(relu).toHaveCount(201);
+    await expect(relu).toHaveCount(BANQUE + 1);
     await expect(relu.first().getByLabel(`Nom de ${idObjet}`),
       'le nom corrigé a été perdu au rechargement').toHaveValue('Trombone à coulisse');
     await expect(relu.first().getByLabel(`Couleur de ${idObjet}`)).toHaveValue('Vert');
@@ -156,14 +172,18 @@ test.describe('La modération de Cache-cache', () => {
     await base.getByTestId('cache-voir-images').click();
     const rangs = base.locator('.cmod__objet');
     await expect(rangs.first()).toBeVisible();
-    expect(await rangs.count()).toBe(200);
+    expect(await rangs.count()).toBe(BANQUE);
 
+    // SIX GUITARES, ET NON CINQ : les cinq en couleur, plus la noire du mode
+    // « Classique ». Le filtre ne connaît pas les modes — il montre la banque
+    // telle qu'elle est, et c'est ce qu'on modère.
     await base.getByLabel("Filtrer la base d'images").fill('guitare');
-    await expect(rangs).toHaveCount(5);
+    await expect(rangs).toHaveCount(6);
+    await expect(rangs.last().getByLabel('Couleur de guitare-noir')).toHaveValue('Noir');
     await rangs.nth(2).getByLabel('Nom de guitare-rose').fill('Mandoline');
 
     await base.getByLabel("Filtrer la base d'images").fill('');
-    await expect(rangs).toHaveCount(200);
+    await expect(rangs).toHaveCount(BANQUE);
     // Une seule ligne a bougé, et c'est celle qu'on a touchée.
     const modifiees = base.locator('.cmod__objet input[aria-label^="Nom de"]');
     const valeurs = await modifiees.evaluateAll((els) => els.map((e) => e.value));

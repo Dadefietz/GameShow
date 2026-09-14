@@ -444,7 +444,23 @@ export function StudioApp() {
           if (!String(o.couleur || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de couleur.` });
           if (!String(o.src || '').trim()) problems.push({ qid: null, tag: null, msg: `L'image « ${o.id} » n'a pas de fichier.` });
         }
-        const teintes = [...new Set(objets.map((o) => String(o.couleur || '').trim()).filter(Boolean))];
+        // LA COULEUR RÉSERVÉE EST MISE À PART DANS TOUTES LES VÉRIFICATIONS : elle
+        // ne remplit pas une grille en couleur, et n'a pas à respecter la règle
+        // des cinq à neuf. Le mode « Classique » a la sienne — neuf noms — qui se
+        // vérifie séparément.
+        const RESERVEE = 'Noir';
+        const enCouleur = objets.filter((o) => String(o.couleur || '').trim() !== RESERVEE);
+        const noires = objets.filter((o) => String(o.couleur || '').trim() === RESERVEE);
+        const teintes = [...new Set(enCouleur.map((o) => String(o.couleur || '').trim()).filter(Boolean))];
+        if (noires.length && noires.length < 9) {
+          problems.push({ qid: null, tag: null,
+            msg: `Le mode Classique demande 9 images « ${RESERVEE} » ; la banque en porte ${noires.length}.` });
+        }
+        const nomsNoirs = new Set(noires.map((o) => String(o.nom || '').trim()).filter(Boolean));
+        if (noires.length >= 9 && nomsNoirs.size < 9) {
+          problems.push({ qid: null, tag: null,
+            msg: `Le mode Classique demande 9 noms différents en « ${RESERVEE} » ; la banque en offre ${nomsNoirs.size}.` });
+        }
 
         // COMBIEN DE COULEURS LA GRILLE ADMET. Neuf cases, chaque couleur une ou
         // deux fois : quatre n'en couvrent que huit, dix n'en remplissent que dix.
@@ -460,7 +476,7 @@ export function StudioApp() {
         // l'échec se répète. Il faut donc neuf noms disponibles dans TOUTES les
         // couleurs — un nom présent dans quatre teintes sur cinq ne compte pas.
         const parNom = new Map();
-        for (const o of objets) {
+        for (const o of enCouleur) {
           const nom = String(o.nom || '').trim();
           const c = String(o.couleur || '').trim();
           if (!nom || !c) continue;
@@ -800,7 +816,14 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId, entetesHote, 
   // plus de cent écrans de défilement : la capacité demandée existerait sans être
   // utilisable. Le filtre porte sur l'identifiant, le nom et la couleur.
   const [filtre, setFiltre] = useState('');
-  const palette = [...new Set(objets.map((o) => o.couleur).filter(Boolean))];
+  // LA PALETTE NE COMPTE PAS LA COULEUR RÉSERVÉE. Les quarante images noires
+  // servent le mode « Classique » et lui seul ; les compter comme une sixième
+  // couleur ferait refuser la banque — neuf cases n'admettent que cinq à neuf
+  // couleurs, et la question « laquelle n'est présente qu'une fois ? » exige
+  // exactement cinq.
+  const reservee = catalogue?.couleurReservee || 'Noir';
+  const palette = [...new Set(objets.map((o) => o.couleur).filter((c) => c && c !== reservee))];
+  const nbReservees = objets.filter((o) => o.couleur === reservee).length;
   // L'ÉTAT DU DERNIER DÉPÔT, et de lui seul : un envoi à la fois. Deux fichiers
   // convertis en parallèle sur un téléphone d'animateur, c'est deux canevas de
   // 512 × 512 et un écran figé — pour un gain nul, puisqu'on dépose une image
@@ -940,6 +963,7 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId, entetesHote, 
             n'est présente qu'une seule fois ? ». */}
         <p className="fhint" data-testid="cache-palette">
           Palette : {palette.length ? palette.join(' · ') : 'aucune'} ({palette.length}).
+          {nbReservees ? ` Plus ${nbReservees} image${nbReservees > 1 ? 's' : ''} « ${reservee} », réservée${nbReservees > 1 ? 's' : ''} au mode Classique.` : ''}
           {palette.length === 5
             ? ' Cinq couleurs : la question « présente une seule fois » est posable.'
             : ` Neuf cases, chaque couleur une ou deux fois : il en faut de ${COULEURS_MIN} à ${COULEURS_MAX}.`}

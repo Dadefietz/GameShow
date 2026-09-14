@@ -95,3 +95,70 @@ sur des milliers de tirages, dans les deux sens.
 Converties au traitement du dépôt : 249 ko pour quarante fichiers, 6,4 ko pièce.
 Le fond retiré va de 36 % (ballon) à 83 % (avion) de la surface — cohérent avec
 des silhouettes de tailles différentes.
+
+### M21 — les choix au stream
+Quatre défauts empilés, dont le plus discret : la pastille de droite gardait sa
+taille fixe et mordait sur ses voisines sans jamais sortir de l'écran. La hauteur
+disponible est désormais MESURÉE sur la boîte qui contient exactement les rangées,
+et non plus déduite d'une constante. Détail en commit `8815b3a`.
+
+### M22 — l'accès à la base d'images
+**Vérifié résolu, pas réimplémenté.** Le symptôme venait du défaut des en-têtes
+d'animateur (M20) : `/api/cache/catalogue` répondait 403 en production et l'écran
+affichait « 0 image ». Le bundle déployé a été relu — les deux routes portent
+l'en-tête, et le catalogue sert bien ses objets.
+
+### M23 — la règle des paliers
+L'étiquette et le trait se disputaient la même bande. Chacune a désormais la
+sienne. Ce qu'il a fallu comprendre pour seulement VOIR le défaut : l'échelle
+s'ouvre pour contenir les réponses, et deux joueurs qui répondent n'importe quoi
+l'étirent au point que le défaut ne peut plus se produire.
+
+### M24 — la réponse donnée
+Un piège en chemin : une réponse de choix voyage comme un INDICE. Le serveur la
+traduit, parce que lui seul sait dans quelle liste la lire — et d'autant plus
+depuis que la banque est modérable.
+
+### M25 — le mode « Classique »
+
+| Ce qui change | Ce qui ne change pas |
+| --- | --- |
+| la tranche de banque employée | la grille, le déroulé, le barème |
+| les formes de questions admises | la modération, unique pour les deux modes |
+
+**Le mode se choisit au lancement**, dans le panneau de départ, comme l'allure du
+curseur de « Coupe ta bûche ». Les modes viennent du SERVEUR : un écran qui les
+recopierait finirait par proposer un mode que le tirage ne connaît pas.
+
+**Deux défauts trouvés par les contrôles, tous deux muets :**
+
+1. **`srcDObjet` ne connaissait que la banque en couleur.** Les quarante icônes
+   noires n'avaient donc pas d'adresse : les neuf cases du mode Classique se
+   seraient affichées VIDES sur les trois surfaces à la fois, sans erreur, sans
+   trace. Un index qui ignore la moitié de ce qu'on lui confie ne se signale
+   jamais lui-même.
+2. **Le premier contrôle de la règle négative ne pouvait pas échouer.** Il tirait
+   sur la banque PAR DÉFAUT, qui ne contient aucune icône noire : « Couleur ne
+   voit jamais de noir » y était vrai gratuitement. Découvert en sabotant la règle
+   — le contrôle est resté vert. Réécrit sur la banque COMPLÈTE, celle que
+   l'animateur modère réellement.
+
+---
+
+## 5. Audit de clôture
+
+| № | État | Où cela se vérifie |
+| --- | --- | --- |
+| M21 | fait | `tests/e2e/choix-visibles.spec.js` — quiz, vote, dévoilement |
+| M22 | vérifié | bundle déployé relu ; les deux routes portent l'en-tête |
+| M23 | fait | `tests/e2e/regle-paliers.spec.js` — emboîtement, symétrie, recouvrement |
+| M24 | fait | `tests/e2e/cache-cache.spec.js` — comparé au libellé réellement cliqué |
+| M25a | fait | `MODES.couleur.difficile`, nommé « Couleur » dans le panneau |
+| M25b | fait | 400 manches : que du noir, neuf noms distincts |
+| M25c | fait | liste blanche de quatre formes, 400 manches |
+| M25d | fait | 400 manches sur la banque COMPLÈTE : zéro case noire en mode Couleur |
+
+**Ce qui reste ouvert.** Rien de cette séance. Les deux points hérités du chantier
+v6 demeurent : l'exemple à −3 de « Retour de flamme » contredit sa propre règle, et
+la comparaison des réponses écrites est un peu plus indulgente que la lettre de
+l'énoncé.

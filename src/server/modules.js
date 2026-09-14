@@ -3,7 +3,7 @@ import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
 import {
   CASES, DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE,
-  tirerLaManche, memeNom, FORMES, NUMEROS,
+  tirerLaManche, memeNom, FORMES, NUMEROS, MODES, MODE_PAR_DEFAUT, modeDe,
 } from './cache-cache.js';
 
 // Les modules de lancement. Chaque module est INDÉPENDANT (modularité, USER-NEEDS M4/M5).
@@ -1989,7 +1989,8 @@ export const modules = {
   // les questions s'enchaînent sans lui ne se commente pas.
   cache_cache: {
     meta: {
-      type: 'cache_cache', name: 'Cache-cache', icon: 'grid', color: 'info',
+      type: 'cache_cache', name: 'Cache-cache', modes: Object.values(MODES).map((m) => (
+        { cle: m.cle, nom: m.nom, sous: m.sous, difficile: !!m.difficile })), modeParDefaut: MODE_PAR_DEFAUT, icon: 'grid', color: 'info',
       scored: true, malus: false, vitesse: true,
       // Le dévoilement de la grille PLUS les cinq questions : c'est la manche entière.
       dureeS: (DUREE_GRILLE_MS + QUESTIONS_PAR_PARTIE * DUREE_QUESTION_MS) / 1000, dureeFixe: true,
@@ -2014,14 +2015,21 @@ export const modules = {
       // d'objets appartiennent au MODULE de l'animateur — ils sont rangés dans sa
       // banque, donc durables — et la console les joint au top de départ. Sans
       // eux, on retombe sur ceux du dépôt.
-      const tirage = tirerLaManche(Math.random, q?.contenu || {});
+      // LE MODE VOYAGE AVEC LE TOP DE DÉPART, comme l'allure de « Coupe ta bûche ».
+      // C'est une difficulté que l'animateur décide À L'ANTENNE, pas un réglage de
+      // banque : même jeu, même modération, deux façons de le servir.
+      const tirage = tirerLaManche(Math.random, q?.contenu || {}, 40, q?.mode);
       // Un tirage impossible ne se rattrape pas : mieux vaut un refus net que
       // neuf cases dont deux portent le même nom. Il arrive quand la banque a été
       // modérée au point de ne plus offrir neuf noms en cinq couleurs.
-      if (!tirage) throw new Error('cache-cache : tirage impossible');
+      // LE REFUS NOMME LE MODE. « Tirage impossible » sur une banque sans image
+      // noire envoyait l'animateur chercher du côté des questions ; le mode est la
+      // première chose à vérifier.
+      if (!tirage) throw new Error(`cache-cache : tirage impossible en mode ${modeDe(q?.mode).nom}`);
       return {
         type: 'cache_cache',
         questionId: q.id,
+        mode: tirage.mode,
         text: 'Retiens ce que tu vois.',
         matrice: tirage.matrice,
         ordre: tirage.ordre,
@@ -2062,6 +2070,7 @@ export const modules = {
         type: 'cache_cache',
         questionId: rt.questionId,
         cases: CASES,
+        mode: rt.mode,
         tour: rt.tour,
         tours: rt.tours,
       };

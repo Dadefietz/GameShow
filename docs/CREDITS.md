@@ -94,6 +94,21 @@ des aplats de couleur à douze kilo-octets, l'écart ne se voit pas ; il se verr
 sur des photographies, et c'est pourquoi la banque de portraits, elle, n'est pas
 déposable par cette voie.
 
+**Quarante icônes NOIRES sont venues s'y ajouter** (séance du 12/09) : les mêmes
+quarante objets, en une seule déclinaison sans couleur. Elles servent le mode
+« Classique », et elles seules — le document l'écrit en capitales. Même
+traitement : détourage par les bords, 512 px, WebP 82. Le détourage compte
+davantage encore ici : sur un dessin noir, un blanc enclos percé par erreur — le
+siège d'une chaise, l'écran d'une télévision, les fentes d'une clé à molette — se
+verrait immédiatement. Vérifié sur planche contact avant intégration.
+
+**« Noir » est une couleur RÉSERVÉE, pas une sixième couleur.** La banque est
+unique — deux cent quarante lignes, une seule page de modération — et c'est le
+MODE qui décide de la tranche employée. La compter comme une couleur ordinaire
+aurait donné six couleurs sur neuf cases, donc trois couleurs uniques, et la
+question « quelle couleur n'est présente qu'une seule fois ? » aurait perdu sa
+réponse.
+
 **Où vont ces images.** Seau Supabase `objets`, lecture publique, écriture
 réservée au service role — l'autorisation d'animateur est tenue côté serveur, à
 un seul endroit. Le disque local ne sert qu'au développement, et l'écran le dit

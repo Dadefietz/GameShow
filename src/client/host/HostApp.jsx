@@ -563,19 +563,48 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
 // Ce panneau existe pour une seule raison — le temps qui sépare l'annonce du
 // premier visage appartient à l'animateur, qui présente le jeu à l'antenne. Sans
 // lui, les visages commenceraient à défiler pendant qu'il finit sa phrase.
-function DepartCache({ jeu, onDemarrer, onAnnuler }) {
+// LE MODE SE CHOISIT ICI, À L'ANTENNE — pas au Studio.
+//
+// CE QUI A ÉTÉ DEMANDÉ (12/09) : un mode « Classique », plus facile, à côté du
+// mode « Couleur » qui devient le mode difficile. Deux modules séparés au Studio
+// auraient dédoublé la modération — la même banque, les mêmes énoncés, deux
+// endroits où les tenir à jour. C'est une DIFFICULTÉ, et une difficulté se décide
+// devant le public, comme l'allure du curseur de « Coupe ta bûche ».
+//
+// LES MODES VIENNENT DU SERVEUR (`meta.modes`). L'écran ne les invente pas : un
+// mode ajouté au jeu sans être ajouté ici resterait injouable, et un mode écrit
+// ici que le serveur ignore promettrait une partie qui ne partirait jamais.
+function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
+  const choix = modes?.length ? modes : [{ cle: 'couleur', nom: 'Couleur', sous: 'Neuf objets, cinq couleurs' }];
+  const [mode, setMode] = useState(defaut || choix[0].cle);
+  const courant = choix.find((m) => m.cle === mode) || choix[0];
   return (
     <section className="private lien-saisie" aria-label="Démarrer Cache-cache" data-testid="depart-cache">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
       <p className="lien-saisie__aide">
         Neuf objets se montrent un par un, trois secondes chacun — trente-huit
-        secondes en tout. Cinq questions suivent, dix secondes chacune, et c'est toi
-        qui les enchaînes. Donne le départ quand tu es prêt.
+        secondes en tout. Cinq questions suivent, seize secondes chacune, et c'est
+        toi qui les enchaînes. Donne le départ quand tu es prêt.
       </p>
+      <div className="fgroup">
+        <span className="flabel" id="cc-mode">Mode de jeu</span>
+        <div className="seg" role="radiogroup" aria-labelledby="cc-mode">
+          {choix.map((m) => (
+            <button key={m.cle} type="button" role="radio" aria-checked={mode === m.cle}
+              className={`button ${mode === m.cle ? 'button--primary' : 'button--quiet'}`}
+              data-testid={`cc-mode-${m.cle}`} onClick={() => setMode(m.cle)}>
+              {m.nom}
+            </button>
+          ))}
+        </div>
+        <p className="fhint" data-testid="cc-mode-aide">
+          {courant.sous}{courant.difficile ? ' — le mode difficile.' : '.'}
+        </p>
+      </div>
       <div className="lien-saisie__actions">
         <button className="button button--primary" type="button"
           data-action="host:demarrerCache" data-testid="cache-demarrer"
-          onClick={() => onDemarrer(jeu)}>
+          onClick={() => onDemarrer(jeu, mode)}>
           Démarrer le jeu
         </button>
         {onAnnuler ? (
@@ -2085,7 +2114,8 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
             </>
           ) : null}
           {prepare && prepare.type === 'cache_cache' ? (
-            <DepartCache jeu={prepare} onDemarrer={onDemarrerCache} onAnnuler={onAnnulerLien} />
+            <DepartCache jeu={prepare} onDemarrer={onDemarrerCache} onAnnuler={onAnnulerLien}
+              modes={prepare.modes} defaut={prepare.modeParDefaut} />
           ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
@@ -2584,13 +2614,13 @@ export function HostApp() {
   // LE DÉPART DE « CACHE-CACHE ». Rien à transmettre : la grille, l'ordre de
   // dévoilement et les cinq questions sont TIRÉS PAR LE SERVEUR, qui seul les
   // connaît. L'animateur n'envoie qu'un top.
-  const demarrerCache = useCallback((jeu) => {
+  const demarrerCache = useCallback((jeu, mode) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
     setPrepare(null);
     g.emit('host:startModule', {
       moduleId: jeu.id,
-      question: { id: `cc-${Date.now()}` },
+      question: { id: `cc-${Date.now()}`, mode },
     });
   }, [g]);
 
