@@ -120,6 +120,78 @@ test.describe('Cache-cache', () => {
       .toContainText('Trop tard pour celle-là', { timeout: 20_000 });
   });
 
+  test('LA GRILLE FINALE clôt le jeu au lieu de reposer la question 5', async ({ browser }) => {
+    // CE QUI A ÉTÉ RAPPORTÉ (15/09) : « lors du dévoilement de la grille à la fin
+    // du jeu, la question 5 est toujours écrite, il faudrait qu'il y ait écrit à
+    // la place "Le cache-cache est terminé ! Voici la grille" ».
+    //
+    // POURQUOI LE MASQUAGE DU CHANTIER v6 NE SUFFISAIT PAS : il ne valait que
+    // pendant le dévoilement des réponses. La manche RÉVÉLÉE est un troisième
+    // état, et l'énoncé y revenait intact au-dessus d'une grille qui ne
+    // l'illustre plus.
+    await annoncer(browser);
+    await hote.page.getByTestId('cache-demarrer').click();
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
+    for (let n = 1; n <= 5; n += 1) {
+      await expect(j.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
+      await repondre(j);
+      if (n < 5) await hote.page.getByTestId('host-reveler').click();
+    }
+    const cinquieme = await stream.getByTestId('question-text').textContent();
+
+    for (let n = 1; n <= 6; n += 1) await hote.page.getByTestId('host-reveler').click();
+    await expect(stream.getByTestId('stream-cc-finale')).toBeVisible({ timeout: 20_000 });
+
+    const titre = stream.getByTestId('question-text');
+    await expect(titre).toHaveText('Le cache-cache est terminé ! Voici la grille');
+    expect((await titre.textContent()).trim(),
+      "l'énoncé de la cinquième question est resté au-dessus de la grille")
+      .not.toBe((cinquieme || '').trim());
+  });
+
+  test('LA RELANCE propose de nouveau LES DEUX modes, Classique en premier', async ({ browser }) => {
+    // CE QUI A ÉTÉ RAPPORTÉ : « lorsque l'on a joué à Cache-cache une fois et que
+    // l'on clique sur "Nouvelle partie", il n'y a que le mode "Couleur" de
+    // disponible. » Et : « il faudrait que le mode "Classique" soit le premier
+    // proposé et le mode "Couleur" le second ».
+    //
+    // CE QUE CE CONTRÔLE GARDE, ET QU'AUCUN AUTRE NE VOYAIT : le panneau de départ
+    // était vérifié AU LANCEMENT, jamais À LA RELANCE. Or ce sont deux chemins
+    // différents — le premier reçoit le jeu depuis la bibliothèque, le second le
+    // refabriquait depuis la manche en cours, en perdant ses modes en route.
+    await annoncer(browser);
+    await expect(hote.page.getByTestId('cc-mode-classique')).toBeVisible();
+
+    // L'ORDRE, AU LANCEMENT COMME À LA RELANCE.
+    const ordre = () => hote.page.locator('[data-testid^="cc-mode-"]:not([data-testid$="-aide"])')
+      .evaluateAll((els) => els.map((e) => e.textContent.trim()));
+    expect(await ordre(), 'Classique doit être proposé en premier').toEqual(['Classique', 'Couleur']);
+
+    await hote.page.getByTestId('cache-demarrer').click();
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
+    for (let n = 1; n <= 5; n += 1) {
+      await expect(j.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
+      await repondre(j);
+      if (n < 5) await hote.page.getByTestId('host-reveler').click();
+    }
+    for (let n = 1; n <= 6; n += 1) await hote.page.getByTestId('host-reveler').click();
+
+    // LA RELANCE. Le jeu n'a pas de banque écrite : le bouton dit « Nouvelle partie ».
+    await hote.page.getByRole('button', { name: 'Nouvelle partie' }).click();
+    await expect(hote.page.getByTestId('depart-cache')).toBeVisible({ timeout: 15_000 });
+    await expect(hote.page.getByTestId('cc-mode-classique'),
+      'le mode Classique a disparu de la relance').toBeVisible();
+    await expect(hote.page.getByTestId('cc-mode-couleur')).toBeVisible();
+    expect(await ordre(), "l'ordre des modes change à la relance").toEqual(['Classique', 'Couleur']);
+
+    // ET ELLE PART VRAIMENT, dans le mode choisi.
+    await hote.page.getByTestId('cc-mode-classique').click();
+    await hote.page.getByTestId('cache-demarrer').click();
+    await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
+  });
+
   test('LE MODE CLASSIQUE : neuf images noires, aucune question de couleur', async ({ browser }) => {
     // CE QUI A ÉTÉ DEMANDÉ (12/09) : « Pour la création de la matrice, des images
     // uniquement de couleur "noir" devront être utilisées et chacune des images

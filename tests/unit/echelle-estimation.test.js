@@ -12,7 +12,9 @@
 // constantes de score, et ces contrôles vérifient qu'elles suivent la règle
 // RÉELLEMENT appliquée, années comprises.
 import { describe, it, expect } from 'vitest';
-import { plagesEstimation, modules, histogrammeNumerique, histogrammeBareme } from '../../src/server/modules.js';
+import {
+  plagesEstimation, modules, histogrammeNumerique, histogrammeBareme, palierDe,
+} from '../../src/server/modules.js';
 import { plagesVisibles, bornes, repereCible, position } from '../../src/client/shared/echelle-estimation.js';
 
 describe('les plages annoncées par l\'axe', () => {
@@ -32,8 +34,14 @@ describe('les plages annoncées par l\'axe', () => {
 
   it('passent en ANNÉES quand la question l\'est, sans jamais afficher un pourcentage', () => {
     const p = plagesEstimation(1789, 'annee');
-    expect(p.map((x) => x.libelle)).toEqual(['exact', '± 2 ans', '± 5 ans', '± 10 ans']);
-    expect(p[1]).toMatchObject({ bas: 1787, haut: 1791 });
+    // PALIERS RÉVISÉS LE 15/09 : un, trois, six, dix ans. « Exact » a disparu — le
+    // premier palier n'est plus le millésime pile, et le SINGULIER se lit sur la
+    // première étiquette : « ± 1 an », jamais « ± 1 ans ».
+    expect(p.map((x) => x.libelle)).toEqual(['± 1 an', '± 3 ans', '± 6 ans', '± 10 ans']);
+    expect(p[0]).toMatchObject({ bas: 1788, haut: 1790, points: 1000 });
+    expect(p[1]).toMatchObject({ bas: 1786, haut: 1792, points: 750 });
+    expect(p[2]).toMatchObject({ bas: 1783, haut: 1795, points: 500 });
+    expect(p[3]).toMatchObject({ bas: 1779, haut: 1799, points: 250 });
     // LE CHIFFRE DE LA RÉUNION : 2 % de 1789 valent trente-six ans. Un axe qui
     // afficherait « ± 2 % » sur une année annoncerait une plage vingt fois trop
     // large — et l'auteur lirait à l'antenne une règle qui n'est pas appliquée.
@@ -163,6 +171,86 @@ describe('la mise à l\'échelle du dessin', () => {
     for (const g of b) {
       expect(bornesZones.some((v) => Math.abs(v - g.valeur) < 1e-6),
         `la graduation ${g.valeur} ne tombe sur aucune borne de palier`).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LE GRAPHIQUE RANGE UNE RÉPONSE LÀ OÙ LE BARÈME LA PAIE
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ RAPPORTÉ (15/09) : « si le joueur est à ± 1 pt de la proportion
+// cible, les points sont bien comptabilisés mais le graphique est erroné en
+// indiquant que le joueur est entre ± 3 pt et ± 1 pt. Le joueur a fait 9 % pour
+// une proportion cible de 10 % et il se trouve dans la plage "7 % à 9 %". »
+//
+// LA CAUSE, MESURÉE. Les bandes du graphique se touchent : 7 est à la fois le haut
+// de l'une et le bas de l'autre. Une valeur posée exactement sur une borne peut
+// donc aller dans deux bandes, et le code en choisissait une — la PREMIÈRE de la
+// liste. À droite de la cible, les bandes sont rangées de la cible vers le bord,
+// et la première trouvée est la plus généreuse : c'est juste. À GAUCHE, elles sont
+// rangées du bord vers la cible, et la première trouvée est la plus SÉVÈRE.
+//
+// Le commentaire du code promettait déjà « le palier le PLUS GÉNÉREUX — c'est ce
+// que le barème lui verse ». La règle était écrite et n'était pas tenue d'un côté.
+//
+// CE QUE CE CONTRÔLE GARDE, ET POURQUOI IL VA PLUS LOIN QUE LA DEMANDE : la seule
+// règle qui vaille est que le graphique et le barème disent la MÊME chose. On ne
+// vérifie donc pas des bornes écrites à la main — on compare, valeur par valeur,
+// la bande où la réponse tombe au palier que le barème lui paie. Sur les quatre
+// natures, puisque l'histogramme est le même pour toutes.
+describe('le graphique et le barème s\'accordent sur chaque réponse', () => {
+  const CAS = [
+    { nature: 'proportion', cible: 10, pas: 1, de: 0, a: 20 },
+    { nature: 'proportion', cible: 80, pas: 1, de: 60, a: 100 },
+    { nature: 'annee', cible: 1789, pas: 1, de: 1775, a: 1803 },
+    { nature: 'temps', cible: 5, pas: 0.1, de: 3.5, a: 6.5 },
+    { nature: 'nombre', cible: 100, pas: 1, de: 60, a: 140 },
+  ];
+
+  for (const { nature, cible, pas, de, a } of CAS) {
+    it(`${nature} — cible ${cible}`, () => {
+      const plages = plagesEstimation(cible, nature);
+      const marge = Math.max(0, ...plages.map((p) => p.haut - cible));
+      const desaccords = [];
+      for (let v = de; v <= a + 1e-9; v += pas) {
+        const valeur = Math.round(v * 100) / 100;
+        const histo = histogrammeBareme([valeur], cible, plages, marge);
+        // La réponse exacte est le TRAIT, pas une bande : elle n'a pas de zone.
+        if (valeur === cible) {
+          expect(histo.exact, `${nature} : la réponse exacte devrait être comptée à part`).toBe(1);
+          continue;
+        }
+        const zone = histo.zones.find((z) => z.count > 0);
+        const paye = palierDe(valeur, cible, nature);
+        if (!zone || zone.palier !== paye.nom) {
+          desaccords.push(`${valeur} : payé « ${paye.nom} », rangé « ${zone ? zone.palier : 'nulle part'} »`
+            + (zone ? ` [${zone.bas} ; ${zone.haut}]` : ''));
+        }
+      }
+      expect(desaccords,
+        `${nature}, cible ${cible} — le graphique contredit le barème :\n  ${desaccords.join('\n  ')}`)
+        .toEqual([]);
+    });
+  }
+
+  it("LE CAS EXACT DE LA CAPTURE : 9 % pour une cible de 10 %", () => {
+    // Mille points versés, et le graphique doit le montrer dans la bande ± 1 pt.
+    const plages = plagesEstimation(10, 'proportion');
+    const marge = Math.max(0, ...plages.map((p) => p.haut - 10));
+    const histo = histogrammeBareme([9], 10, plages, marge);
+    const zone = histo.zones.find((z) => z.count > 0);
+    expect(palierDe(9, 10, 'proportion').points).toBe(1000);
+    expect(zone.palier, `rangé dans « ${zone.palier} » [${zone.bas} ; ${zone.haut}]`).toBe('mille');
+    expect([zone.bas, zone.haut]).toEqual([9, 10]);
+
+    // ET LA BANDE VOISINE EST BIEN « 7 À 8 » au sens de l'auteur : elle commence à
+    // 7 et s'arrête à 9 sans le contenir — 7 et 8 y tombent, 9 non.
+    const proche = histo.zones.find((z) => z.palier === 'proche' && z.cote === 'g');
+    expect([proche.bas, proche.haut]).toEqual([7, 9]);
+    for (const v of [7, 8]) {
+      const h = histogrammeBareme([v], 10, plages, marge);
+      expect(h.zones.find((z) => z.count > 0).palier, `${v} %`).toBe('proche');
     }
   });
 });

@@ -144,10 +144,25 @@ try {
   check('R5 getBank ne contient que les questions du jeu', bank.length === 1, `${bank.length} questions`);
   check('R4 question studio présente dans la banque', bank.some((q) => q.id === 'studio-q1'));
 
+  // UN IDENTIFIANT DE QUESTION INVENTÉ NE DOIT NI PASSER, NI BLOQUER.
+  //
+  // Depuis le 15/09, l'animateur peut DÉSIGNER la question à poser — c'est ainsi
+  // que « Question suivante » pioche dans l'onglet ouvert de la file. Il n'envoie
+  // qu'un identifiant : le serveur reste seul maître des énoncés et des bonnes
+  // réponses. Un identifiant qu'il ne connaît pas doit être IGNORÉ, et le tirage
+  // reprendre son cours — ni porte d'entrée pour une question étrangère, ni refus
+  // de départ en plein direct.
   const started1 = waitFor(s1, 'module:started');
   const startedOv = waitFor(ov, 'module:started');
-  host.emit('host:startModule', { moduleId: JEU_ID });
+  // L'IDENTIFIANT INVENTÉ VOYAGE AVEC CE DÉPART-CI, et non dans une manche à lui :
+  // ce jeu n'a qu'une question, et une manche de plus l'aurait consommée — les
+  // huit contrôles suivants attendaient alors une question qui ne viendrait
+  // jamais. Un contrôle qui vide la réserve de ceux qui le suivent ne mesure pas
+  // ce qu'il croit.
+  host.emit('host:startModule', { moduleId: JEU_ID, questionId: 'question-inventee-de-nulle-part' });
   const q1 = await started1;
+  check('un identifiant de question inconnu est ignoré, la manche part quand même',
+    q1.questionId === 'studio-q1', q1.questionId);
   await startedOv;
   check('R4/R5 question Studio jouée en partie', q1.questionId === 'studio-q1', q1.questionId);
   check('R4 le NOM du jeu voyage jusqu\'aux écrans', q1.meta?.name === 'Culture générale', q1.meta?.name);

@@ -227,18 +227,14 @@ export const MARQUE_CONTENU = 'contenu-cache';
 // glisserait dans une manche « Couleur » ne casserait rien, ne lèverait rien, et
 // rendrait simplement la question de couleur absurde — à l'antenne. Elle a son
 // contrôle, sur des milliers de tirages, dans les deux sens.
+// L'ORDRE DE CETTE TABLE EST CELUI DU PANNEAU DE L'ANIMATEUR.
+//
+// « Il faudrait que le mode "Classique" soit le premier proposé et le mode
+// "Couleur" le second proposé, il faut juste intervertir leurs positions. »
+// Classique est donc écrit en premier. La SÉLECTION par défaut, elle, ne change
+// pas — l'auteur a demandé d'intervertir des positions, pas de changer le mode
+// qui part quand on ne touche à rien.
 export const MODES = {
-  couleur: {
-    cle: 'couleur',
-    nom: 'Couleur',
-    sous: 'Neuf objets, cinq couleurs',
-    // Le mode difficile : la couleur est une information de plus à retenir.
-    difficile: true,
-    // Toutes les images SAUF les noires.
-    admet: (o) => o.couleur !== COULEUR_RESERVEE,
-    // Toutes les formes de questions.
-    formes: null,
-  },
   classique: {
     cle: 'classique',
     nom: 'Classique',
@@ -250,6 +246,17 @@ export const MODES = {
     // et c'est bien une liste blanche : une forme ajoutée plus tard ne doit pas
     // se retrouver ici par défaut sans qu'on ait décidé qu'elle y a sa place.
     formes: ['objet_derriere', 'numero_de', 'entre_noms', 'entre_cases'],
+  },
+  couleur: {
+    cle: 'couleur',
+    nom: 'Couleur',
+    sous: 'Neuf objets, cinq couleurs',
+    // Le mode difficile : la couleur est une information de plus à retenir.
+    difficile: true,
+    // Toutes les images SAUF les noires.
+    admet: (o) => o.couleur !== COULEUR_RESERVEE,
+    // Toutes les formes de questions.
+    formes: null,
   },
 };
 export const MODE_PAR_DEFAUT = 'couleur';

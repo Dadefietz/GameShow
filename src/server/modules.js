@@ -180,10 +180,19 @@ const PALIERS_PROPORTION = [
 // rapportait 1000 points — le premier palier était trois fois plus large que le
 // siècle. La tolérance absolue d'une unité ne change rien à cette échelle.
 // Ici les écarts sont ABSOLUS, en années, comme on les compte réellement.
+//
+// RÉVISÉS LE 15/09 : « Exact : 1000 pts doit devenir ± 1 an : 1000 pts ; ± 2 ans :
+// 750 doit devenir ± 3 ans : 750 ; ± 5 ans : 500 doit devenir ± 6 ans : 500 ;
+// ± 10 ans : 250 doit rester ± 10 ans : 250. »
+//
+// LE PREMIER PALIER N'EST PLUS LA RÉPONSE EXACTE. C'est le vrai changement, et il
+// se voit ailleurs que dans cette table : l'étiquette « exact » disparaît des deux
+// histogrammes, remplacée par « ± 1 an ». Deviner une année au millésime près est
+// une chance ; la deviner à un an près est une connaissance.
 const PALIERS_ANNEE = [
-  { nom: 'mille',    ecartMax: 0,  points: 1000 },
-  { nom: 'proche',   ecartMax: 2,  points: 750 },
-  { nom: 'correct',  ecartMax: 5,  points: 500 },
+  { nom: 'mille',    ecartMax: 1,  points: 1000 },
+  { nom: 'proche',   ecartMax: 3,  points: 750 },
+  { nom: 'correct',  ecartMax: 6,  points: 500 },
   { nom: 'loin',     ecartMax: 10, points: 250 },
 ];
 
@@ -226,6 +235,16 @@ function paliersDe(nature) {
 // devinée de la valeur : 1789 peut être un nombre d'habitants.
 // DÉCISION 5.10 — sans nature déclarée, on reste en plages relatives : c'est le
 // comportement d'aujourd'hui, donc aucune migration des questions existantes.
+// LE PALIER QU'UNE RÉPONSE TOUCHE — EXPORTÉ, et c'est le point de la correction.
+//
+// Ce calcul était privé, et l'histogramme rangeait les réponses par ses propres
+// moyens : deux façons de dire la même chose, donc deux façons de se tromper. Il
+// est désormais la seule autorité, et les contrôles comparent le graphique à LUI
+// plutôt qu'à des bornes recopiées à la main.
+export function palierDe(valeur, cible, nature) {
+  return palierEstimation(valeur, cible, nature);
+}
+
 function palierEstimation(valeur, cible, nature) {
   const ecartAbsolu = Math.abs(valeur - cible);
   if (nature === 'annee') {
@@ -367,16 +386,26 @@ export function histogrammeBareme(values, cible, plages, marge) {
   let exact = 0;
   for (const v of values) {
     if (v === cible) { exact += 1; continue; }
-    // À gauche on prend la zone qui contient v ; à droite aussi. Les bornes se
-    // touchent : on attribue la valeur à la zone dont elle ne dépasse pas le haut,
-    // en commençant par la gauche. Une valeur exactement sur une borne appartient
-    // au palier le PLUS GÉNÉREUX — c'est ce que le barème lui verse.
+    // LES BANDES SE TOUCHENT : une valeur posée exactement sur une borne peut aller
+    // dans deux d'entre elles. Elle va dans CELLE QUI EST DU CÔTÉ DE LA CIBLE —
+    // c'est le palier que le barème lui verse, et c'était déjà la règle écrite ici.
+    //
+    // ELLE N'ÉTAIT TENUE QU'À DROITE. Les bandes de droite sont rangées de la
+    // cible vers le bord : la première trouvée est la plus généreuse, et le compte
+    // tombait juste. Celles de gauche sont rangées du bord vers la cible, et la
+    // première trouvée était la plus SÉVÈRE. Rapporté par l'auteur : neuf pour
+    // cent pour une cible de dix, mille points versés, et la barre dessinée dans
+    // la plage « sept à neuf » — celle qui n'en vaut que sept cent cinquante.
+    //
+    // On parcourt donc toujours DE LA CIBLE VERS LE BORD, des deux côtés.
+    //
     // RAMENÉE DANS LE CADRE, jamais perdue : une aberrante écartée de l'échelle
     // reste une estimation, et elle est comptée dans la zone d'extrémité.
     const w = Math.min(max, Math.max(min, v));
     const cote = v < cible ? 'g' : 'd';
     const candidates = zones.filter((x) => x.cote === cote);
-    const z = candidates.find((x) => w >= x.bas && w <= x.haut)
+    const versLaCible = cote === 'g' ? [...candidates].reverse() : candidates;
+    const z = versLaCible.find((x) => w >= x.bas && w <= x.haut)
       || (cote === 'g' ? candidates[0] : candidates[candidates.length - 1]);
     if (z) z.count += 1;
   }
@@ -411,7 +440,10 @@ export function plagesEstimation(cible, nature) {
       // de sens sur une année, « ± 2 ans » n'en a pas sur un nombre d'habitants,
       // et « ± 0,1 s » est la seule qui veuille dire quelque chose sur un chrono.
       libelle: nature === 'annee'
-        ? (p.ecartMax === 0 ? 'exact' : `± ${p.ecartMax} ans`)
+        // LE SINGULIER. « ± 1 ans » se lit comme une faute de frappe à l'antenne,
+        // et le premier palier vaut désormais UN an — ce cas n'existait pas tant
+        // que le premier palier était la réponse exacte.
+        ? (p.ecartMax === 0 ? 'exact' : `± ${p.ecartMax} an${p.ecartMax > 1 ? 's' : ''}`)
         : nature === 'temps'
           ? `± ${String(p.ecartMax).replace('.', ',')} s`
           // Un POINT de pourcentage, pas un pourcentage du pourcentage : sur une
@@ -982,6 +1014,42 @@ function questionReussie(q, valeur, rt) {
 //   - `dureeS`    : la durée réelle, en secondes. `null` = c'est la banque qui la
 //                   fixe (estimation, vote, le lien) ;
 //   - `dureeFixe` : le jeu l'impose, le champ est verrouillé.
+// ---------------------------------------------------------------------------
+// LES CATÉGORIES DU VOTE
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ (15/09) : « il faut que les questions du jeu Vote puissent
+// appartenir à une catégorie. Il doit y avoir la catégorie "Vie" et la catégorie
+// "Dilemme". […] Cela ne change rien aux règles du jeu Vote, c'est le même
+// fonctionnement pour les deux catégories. »
+//
+// UNE CATÉGORIE EST UN CHAMP DE LA QUESTION, PAS UN MODULE. Deux modules « Vote »
+// auraient dédoublé la banque, les durées, la couleur d'accent et la modération —
+// pour un jeu dont l'auteur précise lui-même que les règles ne changent pas. La
+// catégorie sert à RANGER les questions, et l'écran de l'animateur à choisir dans
+// laquelle il pioche.
+//
+// C'EST LE SERVEUR QUI LES NOMME. Un écran qui recopierait « Vie » et « Dilemme »
+// finirait par proposer un onglet que la banque ne connaît pas, ou par manquer
+// celui qu'on ajouterait — la même règle que les modes de « Cache-cache ».
+//
+// L'ORDRE DE CETTE TABLE EST CELUI DES ONGLETS.
+export const CATEGORIES_VOTE = [
+  { cle: 'vie', nom: 'Vie' },
+  { cle: 'dilemme', nom: 'Dilemme' },
+];
+export const CATEGORIE_VOTE_PAR_DEFAUT = 'vie';
+
+// LA CATÉGORIE D'UNE QUESTION, TOUJOURS VALIDE.
+//
+// Les questions écrites avant cette séance n'en portent pas : elles vont en
+// « Vie », la catégorie générique — aucune question déjà écrite ne devient
+// injouable, et aucune ne disparaît d'un onglet sans que personne ne le cherche.
+export function categorieDe(q) {
+  const cle = String(q?.categorie || '').trim().toLowerCase();
+  return CATEGORIES_VOTE.some((c) => c.cle === cle) ? cle : CATEGORIE_VOTE_PAR_DEFAUT;
+}
+
 export const modules = {
   quiz: {
     meta: {
@@ -1857,6 +1925,9 @@ export const modules = {
     meta: {
       type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info',
       scored: true, malus: false, vitesse: false,
+      // Les onglets de la file de l'animateur, et les catégories que le Studio
+      // propose. Déclarées ici pour que les deux surfaces lisent la même liste.
+      categories: CATEGORIES_VOTE, categorieParDefaut: CATEGORIE_VOTE_PAR_DEFAUT,
       // La durée vient de la banque, et elle vaut POUR CHAQUE TOUR : un vote à
       // deux tours dure deux fois ce nombre.
       dureeS: null, dureeFixe: false,

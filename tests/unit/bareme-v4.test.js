@@ -48,18 +48,47 @@ describe('l\'estimation (action 5)', () => {
   const CIBLE = { id: 'e', text: '?', target: 100, durationSec: 20 };
   const ANNEE = { id: 'a', text: '?', target: 1789, nature: 'annee', durationSec: 20 };
 
-  it('sur une ANNÉE, les plages sont en années et non en pourcentage', () => {
+  // LES PALIERS DE L'ANNÉE, RÉVISÉS LE 15/09.
+  //
+  // « Exact : 1000 pts doit devenir ± 1 an : 1000 pts ; ± 2 ans : 750 doit devenir
+  // ± 3 ans : 750 ; ± 5 ans : 500 doit devenir ± 6 ans : 500 ; ± 10 ans : 250 doit
+  // rester ± 10 ans : 250. »
+  //
+  // CE QUE CELA CHANGE VRAIMENT : le premier palier n'est plus la réponse EXACTE.
+  // Une année à un an près vaut désormais mille points, et l'étiquette « exact »
+  // disparaît des deux histogrammes. C'est le genre de changement qu'on croit
+  // tenir dans une table de quatre lignes et qui se lit ailleurs — d'où les bornes
+  // éprouvées une par une, des deux côtés.
+  it('sur une ANNÉE, les paliers vont de un à dix ans', () => {
     const rt = round(modules.estimation, ANNEE);
-    rt.answers.set('exact', { value: 1789, at: rt.startedAt });
+    rt.answers.set('pile', { value: 1789, at: rt.startedAt });
+    rt.answers.set('un-an', { value: 1790, at: rt.startedAt });
     rt.answers.set('deux-ans', { value: 1791, at: rt.startedAt });
-    rt.answers.set('cinq-ans', { value: 1794, at: rt.startedAt });
+    rt.answers.set('trois-ans', { value: 1786, at: rt.startedAt });
+    rt.answers.set('quatre-ans', { value: 1793, at: rt.startedAt });
+    rt.answers.set('six-ans', { value: 1783, at: rt.startedAt });
+    rt.answers.set('sept-ans', { value: 1796, at: rt.startedAt });
     rt.answers.set('dix-ans', { value: 1799, at: rt.startedAt });
+    rt.answers.set('onze-ans', { value: 1778, at: rt.startedAt });
     rt.answers.set('trente-six-ans', { value: 1753, at: rt.startedAt });
     const { results } = modules.estimation.score(rt);
 
-    expect(results.get('deux-ans').palier).toBe('proche');
-    expect(results.get('cinq-ans').palier).toBe('correct');
+    // CHAQUE BORNE, DES DEUX CÔTÉS : dedans, puis juste dehors.
+    expect(results.get('pile').palier).toBe('mille');
+    expect(results.get('un-an').palier, '1 an d\'écart vaut désormais mille').toBe('mille');
+    expect(results.get('deux-ans').palier, '2 ans ne sont plus dans le mille').toBe('proche');
+    expect(results.get('trois-ans').palier).toBe('proche');
+    expect(results.get('quatre-ans').palier, '4 ans sortent de « proche »').toBe('correct');
+    expect(results.get('six-ans').palier).toBe('correct');
+    expect(results.get('sept-ans').palier, '7 ans sortent de « correct »').toBe('loin');
     expect(results.get('dix-ans').palier).toBe('loin');
+    expect(results.get('onze-ans').palier, '11 ans sortent du barème').toBe('hors');
+
+    // LES POINTS, QUI SONT LA DEMANDE : 1000 / 750 / 500 / 250.
+    expect(results.get('un-an').base).toBe(1000);
+    expect(results.get('trois-ans').base).toBe(750);
+    expect(results.get('six-ans').base).toBe(500);
+    expect(results.get('dix-ans').base).toBe(250);
     // LE CHIFFRE DE LA RÉUNION. 1753 est à 36 ans de 1789, soit 2 % — il tombait
     // « dans le mille » et rapportait 1000 points. Il ne rapporte plus rien.
     expect(results.get('trente-six-ans').palier,

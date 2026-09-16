@@ -10,6 +10,7 @@
 // perdues). Le rang final n'est révélé qu'à l'écran de fin.
 import React, { useEffect, useRef, useState } from 'react';
 import { useGame, store } from '../shared/useGame.js';
+import { lettreDeChoix } from '../shared/lettres.js';
 import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
@@ -32,7 +33,6 @@ import { Flamme } from '../shared/Flamme.jsx';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
-const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 // Compte à rebours animé des points gagnés (respecte prefers-reduced-motion).
 function useCountUp(target, duration = 900) {
@@ -144,7 +144,7 @@ function correctAnswerLabel(reveal, current) {
   if (rv.correctIndex != null) {
     const opts = rv.options || current?.options;
     const opt = Array.isArray(opts) ? opts[rv.correctIndex] : null;
-    return opt != null ? String(opt) : `Réponse ${KEYS[rv.correctIndex] || rv.correctIndex + 1}`;
+    return opt != null ? String(opt) : `Réponse ${lettreDeChoix(rv.correctIndex)}`;
   }
   if (rv.type === 'vote' && Array.isArray(rv.tally) && Array.isArray(rv.options) && rv.tally.length) {
     let best = 0;
@@ -878,7 +878,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                         data-testid="answer-option" data-action="play:answer"
                         data-state={myAnswer === i ? 'selected' : 'idle'}
                         disabled={disabled} onClick={() => onAnswer(i)}>
-                        <span className="opt__key" aria-hidden="true">{KEYS[i]}</span>
+                        <span className="opt__key" aria-hidden="true">{lettreDeChoix(i)}</span>
                         <span className="opt__label">{c}</span>
                       </button>
                     ))}
@@ -1152,7 +1152,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                   onClick={() => onAnswer(i)}
                   style={{ animationDelay: `${i * 40}ms` }}
                 >
-                  <span className="opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
+                  <span className="opt__key" aria-hidden="true">{lettreDeChoix(i)}</span>
                   <span className="opt__label">{opt}</span>
                   {chosen ? (
                     <span className="opt__mark" aria-hidden="true">
@@ -1810,7 +1810,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
         {/* Ton choix, quand il diffère de la bonne réponse. */}
         {hasData && correct === false && typeof myAnswer === 'number' && current?.options?.[myAnswer] != null ? (
           <div className="answer-reveal answer-reveal--mine">
-            <span className="answer-reveal__badge" aria-hidden="true">{KEYS[myAnswer] || myAnswer + 1}</span>
+            <span className="answer-reveal__badge" aria-hidden="true">{lettreDeChoix(myAnswer)}</span>
             <div className="answer-reveal__body">
               <p className="answer-reveal__label">{deuxTours ? 'Ton pari' : 'Ton choix'}</p>
               <p className="answer-reveal__value">{current.options[myAnswer]}</p>
@@ -1925,7 +1925,7 @@ function historyAnswer(h) {
   }
   if (h.type === 'quiz') {
     if (Array.isArray(h.options) && rv.correctIndex != null && h.options[rv.correctIndex] != null) return h.options[rv.correctIndex];
-    return rv.correctIndex != null ? `Réponse ${KEYS[rv.correctIndex] || rv.correctIndex + 1}` : null;
+    return rv.correctIndex != null ? `Réponse ${lettreDeChoix(rv.correctIndex)}` : null;
   }
   if (h.type === 'vote' && Array.isArray(rv.tally) && Array.isArray(h.options) && rv.tally.length) {
     let best = 0;

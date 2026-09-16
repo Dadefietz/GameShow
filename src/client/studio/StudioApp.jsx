@@ -117,7 +117,7 @@ function serverToStudioQuestion(type, q) {
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
-  return { ...base, options: q.options || ['', ''], poll: !!q.poll }; // vote
+  return { ...base, options: q.options || ['', ''], poll: !!q.poll, categorie: q.categorie || 'vie' }; // vote
 }
 
 function studioToServerQuestion(type, q, durationSec) {
@@ -125,7 +125,7 @@ function studioToServerQuestion(type, q, durationSec) {
   if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
   if (type === 'true_false') return { ...base, correct: !!q.answer };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
-  return { ...base, options: q.options || [], poll: !!q.poll }; // vote
+  return { ...base, options: q.options || [], poll: !!q.poll, categorie: q.categorie || 'vie' }; // vote
 }
 
 // Le module du serveur a la MÊME forme que celui du Studio, au format des
@@ -1148,7 +1148,7 @@ function EditorPanel({
           <span className="flabel">Questions ({module.questions.length})</span>
           <div className="qlist">
             {module.questions.map((q, i) => (
-              <QuestionRow key={q.id} index={i + 1} module={module} question={q}
+              <QuestionRow key={q.id} index={i + 1} module={module} question={q} typeServeur={typeServeur}
                 editing={editingQuestionId === q.id} invalid={invalidQids.has(q.id)}
                 errors={validationErrors.filter((e) => e.qid === q.id)}
                 onToggle={() => onEditQuestion(q.id)}
@@ -1242,7 +1242,7 @@ function EditorPanel({
 // ---------------------------------------------------------------------------
 // E4 — Ligne de question : repliée · nouvelle · invalide · dépliée
 // ---------------------------------------------------------------------------
-function QuestionRow({ index, module, question, editing, invalid, errors, onToggle, onPatch, onRemove }) {
+function QuestionRow({ index, module, question, editing, invalid, errors, typeServeur, onToggle, onPatch, onRemove }) {
   const isNew = !String(question.prompt || '').trim();
   const state = editing ? `expanded ${module.type}` : invalid ? 'invalid' : isNew ? 'new' : 'collapsed';
   return (
@@ -1263,7 +1263,8 @@ function QuestionRow({ index, module, question, editing, invalid, errors, onTogg
       ) : null}
       {editing ? (
         <div className="qform">
-          <QuestionFields type={module.type} question={question} onPatch={onPatch} errors={errors} />
+          <QuestionFields type={module.type} question={question} onPatch={onPatch} errors={errors}
+            categories={typeServeur?.categories} defautCategorie={typeServeur?.categorieParDefaut} />
         </div>
       ) : null}
     </div>
@@ -1271,7 +1272,7 @@ function QuestionRow({ index, module, question, editing, invalid, errors, onTogg
 }
 
 // Quatre formulaires, un par type de module.
-function QuestionFields({ type, question, onPatch, errors }) {
+function QuestionFields({ type, question, onPatch, errors, categories, defautCategorie }) {
   const err = (needle) => (errors || []).find((e) => e.msg.toLowerCase().includes(needle));
   const prompt = (
     <div className="fgroup">
@@ -1376,6 +1377,24 @@ function QuestionFields({ type, question, onPatch, errors }) {
           plus un sondage : le joueur ne répond plus ce qu'il pense mais ce qu'il
           croit que les autres vont répondre. L'interrupteur garde les deux
           usages — demander sincèrement à la salle, ou en faire un pari. */}
+      {/* LA CATÉGORIE (15/09). Elle ne change RIEN aux règles — l'auteur le
+          précise — elle range. L'écran de l'animateur en fait des onglets, et
+          « Question suivante » pioche dans celui qu'il a ouvert.
+          LES CATÉGORIES VIENNENT DU SERVEUR : les recopier ici ferait proposer un
+          jour une catégorie que la file ne saurait pas ranger. */}
+      {categories?.length ? (
+        <div className="fgroup">
+          <span className="flabel" id={`cat-${question.id}`}>Catégorie</span>
+          <div className="qtiles" role="radiogroup" aria-labelledby={`cat-${question.id}`}>
+            {categories.map((c) => (
+              <button key={c.cle} className="qtile" type="button" role="radio"
+                data-testid={`vote-cat-${c.cle}`}
+                aria-checked={(question.categorie || defautCategorie) === c.cle}
+                onClick={() => onPatch({ categorie: c.cle })}>{c.nom}</button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="fgroup">
         <span className="flabel">Ce vote</span>
         <div className="qtiles" role="radiogroup" aria-label="Nature du vote">

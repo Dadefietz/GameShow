@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules } from './modules.js';
+import { MODULE_TYPES, modules, categorieDe } from './modules.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
@@ -334,6 +334,11 @@ function typesPourLeStudio() {
       dureeS: meta.dureeS ?? null,
       dureeFixe: meta.dureeFixe === true,
       direct: meta.direct === true,
+      // LES CATÉGORIES DE QUESTIONS, quand le jeu en a. Le Studio les propose et
+      // ne les invente pas : une catégorie écrite dans l'écran que le serveur
+      // ignorerait rangerait des questions dans un onglet qui n'existe pas.
+      categories: meta.categories ?? null,
+      categorieParDefaut: meta.categorieParDefaut ?? null,
     };
   }
   return sortie;
@@ -442,7 +447,11 @@ function fileVisible(room, moduleId, pool) {
   const connues = new Map(pool.map((q) => [q.id, q]));
   return fileDe(room, moduleId, pool)
     .filter((id) => connues.has(id) && !room.session.used.has(id))
-    .map((id) => ({ id, text: connues.get(id).text }));
+    // LA CATÉGORIE VOYAGE AVEC LA LIGNE. L'écran de l'animateur range la file en
+    // onglets ; il ne peut pas deviner la catégorie d'une question dont il ne
+    // reçoit que l'énoncé. Elle est normalisée ici — une question écrite avant
+    // les catégories en reçoit une, plutôt que de tomber dans aucun onglet.
+    .map((id) => ({ id, text: connues.get(id).text, categorie: categorieDe(connues.get(id)) }));
 }
 
 
@@ -643,7 +652,7 @@ io.on('connection', (socket) => {
     engine.annoncerModule(io, r, module_, { ecart: choisi });
   });
 
-  socket.on('host:startModule', async ({ moduleId, moduleType, question } = {}) => {
+  socket.on('host:startModule', async ({ moduleId, moduleType, question, questionId } = {}) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     // DEUX FORMES ACCEPTÉES. La nouvelle désigne un jeu nommé par son identifiant.
     // L'ancienne, par type, est conservée pour qu'un écran animateur resté ouvert
@@ -663,7 +672,21 @@ io.on('connection', (socket) => {
         question.contenu = contenuDeLaBanque(module_.questions);
       }
       const pool = await poolFor(r.ownerId, module_);
-      let q = question;
+
+      // L'ANIMATEUR PEUT DÉSIGNER SA QUESTION, SANS L'ÉCRIRE.
+      //
+      // CE QUI A ÉTÉ DEMANDÉ (15/09) : « la "Question suivante" doit être la
+      // question 1 de l'onglet sur lequel est l'animateur ». Jusqu'ici il
+      // demandait « la suivante » et le serveur choisissait ; avec des onglets,
+      // c'est l'onglet ouvert qui décide.
+      //
+      // IL N'ENVOIE QU'UN IDENTIFIANT, jamais un contenu. Le serveur reste seul
+      // maître des énoncés, des options et des bonnes réponses — un écran qui
+      // pourrait POSER une question de son cru ferait du canal de l'animateur une
+      // porte d'entrée. Un identifiant inconnu de la réserve est ignoré, et le
+      // tirage reprend son cours normal plutôt que de refuser le départ.
+      const designee = questionId ? pool.find((x) => String(x.id) === String(questionId)) : null;
+      let q = question || designee;
       if (q) {
         // Une question IMPOSÉE compte comme posée : sans ça elle pouvait
         // ressortir plus tard dans la même soirée.
@@ -743,6 +766,8 @@ io.on('connection', (socket) => {
       // pas — l'animateur cliquerait « Démarrer » et rien ne partirait.
       modes: modules[m.type]?.meta?.modes ?? null,
       modeParDefaut: modules[m.type]?.meta?.modeParDefaut ?? null,
+      // Les catégories de questions, pour les onglets de la file de l'animateur.
+      categories: modules[m.type]?.meta?.categories ?? null,
     })));
   });
   // RÉVÉLATION ANTICIPÉE — qui, sur une manche à deux tours, OUVRE LE SECOND au

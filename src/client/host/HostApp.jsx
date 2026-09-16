@@ -10,6 +10,7 @@
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
+import { lettreDeChoix } from '../shared/lettres.js';
 import { formatteurDe, secondes as secondesFr } from '../shared/temps.js';
 import { pourcent } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
@@ -28,7 +29,6 @@ import { NOM_DU_JEU } from '../shared/marque.js';
 import './host.css';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
-const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 // Repli quand la bibliothèque n'est pas encore arrivée : les quatre types, sous
 // leur nom générique. L'animateur lance normalement ses JEUX NOMMÉS — c'est la
@@ -575,9 +575,14 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
 // mode ajouté au jeu sans être ajouté ici resterait injouable, et un mode écrit
 // ici que le serveur ignore promettrait une partie qui ne partirait jamais.
 function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
-  const choix = modes?.length ? modes : [{ cle: 'couleur', nom: 'Couleur', sous: 'Neuf objets, cinq couleurs' }];
-  const [mode, setMode] = useState(defaut || choix[0].cle);
-  const courant = choix.find((m) => m.cle === mode) || choix[0];
+  // AUCUNE LISTE DE SECOURS INVENTÉE ICI, ET C'EST DÉLIBÉRÉ. Elle en portait une,
+  // à un seul mode, et c'est elle qui a rendu le défaut invisible : quand les
+  // modes n'arrivaient pas, l'écran n'affichait pas une erreur — il affichait un
+  // choix plausible et faux. Sans elle, l'absence se VOIT, et le jeu part dans son
+  // mode par défaut comme avant que les modes n'existent.
+  const choix = modes?.length ? modes : [];
+  const [mode, setMode] = useState(defaut || '');
+  const courant = choix.find((m) => m.cle === mode) || choix[0] || null;
   return (
     <section className="private lien-saisie" aria-label="Démarrer Cache-cache" data-testid="depart-cache">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
@@ -586,6 +591,7 @@ function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
         secondes en tout. Cinq questions suivent, seize secondes chacune, et c'est
         toi qui les enchaînes. Donne le départ quand tu es prêt.
       </p>
+      {choix.length ? (
       <div className="fgroup">
         <span className="flabel" id="cc-mode">Mode de jeu</span>
         <div className="seg" role="radiogroup" aria-labelledby="cc-mode">
@@ -598,13 +604,14 @@ function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
           ))}
         </div>
         <p className="fhint" data-testid="cc-mode-aide">
-          {courant.sous}{courant.difficile ? ' — le mode difficile.' : '.'}
+          {courant ? `${courant.sous}${courant.difficile ? ' — le mode difficile.' : '.'}` : ''}
         </p>
       </div>
+      ) : null}
       <div className="lien-saisie__actions">
         <button className="button button--primary" type="button"
           data-action="host:demarrerCache" data-testid="cache-demarrer"
-          onClick={() => onDemarrer(jeu, mode)}>
+          onClick={() => onDemarrer(jeu, mode || defaut || undefined)}>
           Démarrer le jeu
         </button>
         {onAnnuler ? (
@@ -995,18 +1002,39 @@ function PlusProches({ g, roundId, revealed }) {
   );
 }
 
-function FileAttente({ g, moduleId, nomJeu, enCours }) {
+// LES ONGLETS DE LA FILE.
+//
+// CE QUI A ÉTÉ DEMANDÉ (15/09) : « ce bloc doit posséder un onglet avec la liste
+// des questions de catégorie "Vie" et un onglet avec la liste des questions de
+// catégorie "Dilemme". La "Question suivante" doit être la question 1 de l'onglet
+// sur lequel est l'animateur. »
+//
+// L'ONGLET OUVERT REMONTE AU PARENT (`onCategorie`), parce que ce n'est pas la
+// file qui lance la manche : c'est le bouton « Question suivante », deux étages
+// plus haut. Sans cette remontée, l'animateur choisirait un onglet et le serveur
+// piocherait ailleurs — un écran qui ment sans rien casser.
+function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) {
   const [file, setFile] = useState([]);
+  const [onglet, setOnglet] = useState(null);
   const [pris, setPris] = useState(null);       // index d'origine de la ligne tenue
   const [cible, setCible] = useState(null);     // index où elle atterrira
   const [decalage, setDecalage] = useState(0);  // px dont elle suit le doigt
   const depart = useRef(null);                  // { y, pas, ordre } à la prise
   const liste = useRef(null);                   // la fenêtre défilante de la file
+  const vueCourante = useRef([]);               // la file telle qu'elle est AFFICHÉE
 
   const rafraichir = useCallback(() => {
     if (!moduleId) return;
     g.emit('host:getQueue', { moduleId }, (r) => setFile((r && r.queue) || []));
   }, [g, moduleId]);
+
+  // L'ONGLET PAR DÉFAUT EST LE PREMIER DE LA TABLE DU SERVEUR, et il se réarme
+  // quand on change de jeu : garder « Dilemme » ouvert en passant sur un quiz
+  // laisserait un onglet sans objet.
+  useEffect(() => {
+    setOnglet(categories?.length ? categories[0].cle : null);
+  }, [categories, moduleId]);
+  useEffect(() => { if (onCategorie) onCategorie(onglet); }, [onglet, onCategorie]);
 
   useEffect(() => { rafraichir(); }, [rafraichir]);
   useEffect(() => {
@@ -1025,12 +1053,28 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
       (r) => { if (r && r.moduleId === moduleId) setFile(r.queue || []); });
   };
 
-  const deplacer = (de, vers) => {
-    if (vers < 0 || vers >= file.length) return;
+  // UN ONGLET EST UNE VUE, PAS UNE FILE. Le serveur ne connaît qu'un ordre, celui
+  // du jeu entier ; déplacer une question dans l'onglet « Dilemme » ne doit pas
+  // faire glisser les questions « Vie » qui l'entourent. On réinjecte donc la
+  // liste réordonnée DANS SES PROPRES PLACES : les autres ne bougent pas d'un rang.
+  //
+  // Sans cela, le même geste aurait réordonné la file complète par ses indices
+  // d'onglet — la troisième ligne de « Dilemme » prise pour la troisième du jeu.
+  // Rien n'aurait planté : une autre question aurait changé de place, ailleurs.
+  const reinjecter = (visuelle, vue) => {
+    const places = [];
+    vue.forEach((q) => { const i = file.indexOf(q); if (i >= 0) places.push(i); });
     const suivante = file.slice();
-    const [x] = suivante.splice(de, 1);
-    suivante.splice(vers, 0, x);
-    envoyerOrdre(suivante);
+    places.forEach((pos, k) => { suivante[pos] = visuelle[k]; });
+    return suivante;
+  };
+
+  const deplacerDans = (vue) => (de, vers) => {
+    if (vers < 0 || vers >= vue.length) return;
+    const visuelle = vue.slice();
+    const [x] = visuelle.splice(de, 1);
+    visuelle.splice(vers, 0, x);
+    envoyerOrdre(reinjecter(visuelle, vue));
   };
 
   const retirer = (id) => {
@@ -1058,7 +1102,7 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
     // deux lignes. Une constante approchée redevient fausse au premier changement
     // de typo ou d'espacement ; celle d'avant l'était déjà.
     const pas = ligne ? ligne.offsetHeight + (cs ? parseFloat(cs.rowGap) || 0 : 0) : 0;
-    depart.current = { y: e.clientY, pas, ordre: file };
+    depart.current = { y: e.clientY, pas, ordre: vueCourante.current };
     setPris(i);
     setCible(i);
     setDecalage(0);
@@ -1091,7 +1135,10 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
     setDecalage(dy);                       // la ligne suit le doigt (décision 4.1)
     if (pas > 0) {
       const saut = Math.round(dy / pas);
-      const vers = Math.max(0, Math.min(file.length - 1, pris + saut));
+      // LA BORNE EST CELLE DE LA VUE, pas de la file entière : dans un onglet de
+      // trois questions, un geste ne doit pas viser un huitième rang qui n'y est
+      // pas affiché.
+      const vers = Math.max(0, Math.min((depart.current.ordre?.length || 1) - 1, pris + saut));
       if (vers !== cible) setCible(vers);
     }
     autoDefiler(e.clientY);
@@ -1109,10 +1156,11 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
     // quatre messages sur cinq disparaissent, et avec eux toute course entre le
     // réordonnancement et la prise de tête de file par le serveur.
     if (pris != null && cible != null && cible !== pris) {
-      const suivante = file.slice();
-      const [x] = suivante.splice(pris, 1);
-      suivante.splice(cible, 0, x);
-      envoyerOrdre(suivante);
+      const vue = depart.current?.ordre || file;
+      const visuelle = vue.slice();
+      const [x] = visuelle.splice(pris, 1);
+      visuelle.splice(cible, 0, x);
+      envoyerOrdre(reinjecter(visuelle, vue));
     }
     reinitialiser();
   };
@@ -1142,12 +1190,33 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
 
   if (!moduleId) return null;
 
+  // LA FILE VISIBLE EST CELLE DE L'ONGLET. Le glisser, le retrait et le
+  // réordonnancement continuent de porter sur la file ENTIÈRE côté serveur —
+  // un onglet est une vue, pas une file séparée.
+  const visible = onglet ? file.filter((q) => (q.categorie || 'vie') === onglet) : file;
+  vueCourante.current = visible;
+  const deplacer = deplacerDans(visible);
+
   return (
     <section className="private" aria-label="File des questions" data-testid="file-attente">
       <p className="private__title">
         <I.eye s={16} /> À venir dans {nomJeu || 'ce jeu'}
-        <span className="private__count">{file.length}</span>
+        <span className="private__count">{visible.length}</span>
       </p>
+      {categories?.length ? (
+        <div className="seg" role="tablist" aria-label="Catégories de questions" data-testid="file-onglets">
+          {categories.map((c) => {
+            const n = file.filter((q) => (q.categorie || 'vie') === c.cle).length;
+            return (
+              <button key={c.cle} type="button" role="tab" aria-selected={onglet === c.cle}
+                className={`button ${onglet === c.cle ? 'button--primary' : 'button--quiet'}`}
+                data-testid={`file-onglet-${c.cle}`} onClick={() => setOnglet(c.cle)}>
+                {c.nom}<span className="private__count">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       {/* LA QUESTION EN COURS, HORS DE LA FILE (décision 3.4 — décision 13 de
           l'action 6 du chantier v1, jamais réalisée). Sans elle, rien ne
           distinguait ce qui venait d'être posé de ce qui vient : c'est la moitié
@@ -1163,17 +1232,18 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
           il n'y a rien de plus à construire. Et comme une question posée ne
           revient jamais dans un salon, voir la file fondre est le seul moyen de
           ne pas se retrouver à sec en plein direct. */}
-      {file.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="lb__empty" data-testid="file-vide">
-          Plus aucune question fraîche dans ce jeu. Lance-en un autre, ou ajoute des
-          questions au Studio.
+          {file.length
+            ? "Plus aucune question fraîche dans cette catégorie. Passe à l'autre onglet, ou ajoute des questions au Studio."
+            : 'Plus aucune question fraîche dans ce jeu. Lance-en un autre, ou ajoute des questions au Studio.'}
         </p>
       ) : (
         /* `onPointerCancel` ANNULE au lieu de valider : un geste interrompu par
            le système n'est pas un geste terminé. */
         <ol className="file" ref={liste} onPointerMove={glisser} onPointerUp={lacher}
           onPointerCancel={reinitialiser}>
-          {file.map((q, i) => (
+          {visible.map((q, i) => (
             <li className={`file__row${pris === i ? ' file__row--pris' : ''}`} key={q.id} data-testid="file-row"
               style={deplacementDe(i) ? { transform: deplacementDe(i) } : undefined}>
               <button className="file__grip" type="button" aria-label={`Déplacer ${q.text}`}
@@ -1183,7 +1253,7 @@ function FileAttente({ g, moduleId, nomJeu, enCours }) {
               <span className="file__actions">
                 <button className="file__btn" type="button" disabled={i === 0}
                   aria-label={`Monter ${q.text}`} onClick={() => deplacer(i, i - 1)}>↑</button>
-                <button className="file__btn" type="button" disabled={i === file.length - 1}
+                <button className="file__btn" type="button" disabled={i === visible.length - 1}
                   aria-label={`Descendre ${q.text}`} onClick={() => deplacer(i, i + 1)}>↓</button>
                 <button className="file__btn file__btn--danger" type="button"
                   aria-label={`Retirer ${q.text}`} onClick={() => retirer(q.id)}>×</button>
@@ -1939,14 +2009,14 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
       <>
         <div className="dist">
           {options.map((opt, i) => (
-            <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={counts[i] || 0}
+            <DistLigne key={i} lettre={lettreDeChoix(i)} label={opt} count={counts[i] || 0}
               total={Math.max(1, counts.reduce((a, b) => a + b, 0))} showKey={showKey} />
           ))}
         </div>
         <div className="dist dist--precedent" data-testid="host-tour-precedent">
           <p className="private__hint">La réponse du cercle — tour 1, toi seul la connais</p>
           {options.map((opt, i) => (
-            <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={precedent.counts[i] || 0}
+            <DistLigne key={i} lettre={lettreDeChoix(i)} label={opt} count={precedent.counts[i] || 0}
               total={Math.max(1, precedent.total)} showKey={showKey}
               correct={gagnantesP.includes(i)} />
           ))}
@@ -1959,7 +2029,7 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
     <div className="dist">
       {options.map((opt, i) => {
         return (
-          <DistLigne key={i} lettre={KEYS[i] || i + 1} label={opt} count={counts[i] || 0}
+          <DistLigne key={i} lettre={lettreDeChoix(i)} label={opt} count={counts[i] || 0}
             total={total} showKey={showKey} correct={i === correctIndex} />
         );
       })}
@@ -1982,7 +2052,7 @@ const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'cou
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -2110,7 +2180,8 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
                   découvrait la question EN MÊME TEMPS que le cercle, et ne
                   pouvait réordonner que pour la suivante. Le jingle lui laisse
                   désormais le temps de mettre en tête celle qu'il veut ouvrir. */}
-              <FileAttente g={g} moduleId={prepare.id} nomJeu={prepare.name} />
+              <FileAttente g={g} moduleId={prepare.id} nomJeu={prepare.name}
+                categories={prepare.categories} onCategorie={onCategorieFile} />
             </>
           ) : null}
           {prepare && prepare.type === 'cache_cache' ? (
@@ -2213,7 +2284,9 @@ function LiveScreen({ g, code, overlayToken, prepare, onDemarrerSimple, onDiffus
               qui n'en aura jamais. */}
           {current?.meta?.direct ? null : (
             <FileAttente g={g} moduleId={current && current.moduleId} nomJeu={current && current.meta?.name}
-              enCours={current && current.text} />
+              enCours={current && current.text}
+              categories={(jeux || []).find((m) => m.id === current?.moduleId)?.categories}
+              onCategorie={onCategorieFile} />
           )}
         </div>
 
@@ -2442,6 +2515,13 @@ export function HostApp() {
   const [denied, setDenied] = useState(null);       // email refusé, ou true
 
   const g = useGame(hostToken);
+  // L'ONGLET OUVERT DANS LA FILE. Il ne sert qu'à une chose, mais elle compte :
+  // « la "Question suivante" doit être la question 1 de l'onglet sur lequel est
+  // l'animateur ». Il vit ici parce que c'est ici qu'on lance la manche.
+  const [categorieFile, setCategorieFile] = useState(null);
+  // LA BIBLIOTHÈQUE, ICI AUSSI. `jeuEnCours` y reprend l'entrée du jeu qui tourne
+  // plutôt que de la refabriquer champ par champ — voir sa note plus bas.
+  const jeux = useBibliotheque(g);
 
   const establishRoom = useCallback(async (accessToken, ownerId) => {
     const res = await createRoom(accessToken);
@@ -2554,12 +2634,34 @@ export function HostApp() {
 
   // LE DÉPART D'UN JEU ORDINAIRE : le serveur tire la question dans la réserve du
   // jeu, comme avant. Seul le MOMENT change de main.
-  const demarrerSimple = useCallback((jeu) => {
+  // LA QUESTION QUE L'ONGLET DÉSIGNE — la première de sa liste, ou rien.
+  //
+  // « RIEN » N'EST PAS UN ÉCHEC : un jeu sans catégories n'a pas d'onglet, et le
+  // serveur reprend son tirage habituel. C'est ce qui permet à cette correction de
+  // ne rien changer aux cinq autres jeux, dont « Question suivante » est le bouton
+  // le plus utilisé de l'écran.
+  const premiereDeLOnglet = useCallback(() => new Promise((resoudre) => {
+    const id = g.current?.moduleId || prepare?.id;
+    if (!id || !categorieFile) return resoudre(null);
+    let rendu = false;
+    const finir = (v) => { if (!rendu) { rendu = true; resoudre(v); } };
+    // UN DÉLAI DE GRÂCE : si la file ne répond pas, on lance quand même. Un bouton
+    // de direct qui reste muet parce qu'un message s'est perdu est pire qu'un
+    // bouton qui tire dans l'autre onglet.
+    setTimeout(() => finir(null), 1200);
+    g.emit('host:getQueue', { moduleId: id }, (r) => {
+      const q = ((r && r.queue) || []).find((x) => (x.categorie || 'vie') === categorieFile);
+      finir(q ? q.id : null);
+    });
+  }), [g, prepare, categorieFile]);
+
+  const demarrerSimple = useCallback(async (jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
     setPrepare(null);
-    g.emit('host:startModule', { moduleId: jeu?.id, moduleType: jeu?.type });
-  }, [g]);
+    const questionId = await premiereDeLOnglet();
+    g.emit('host:startModule', { moduleId: jeu?.id, moduleType: jeu?.type, questionId: questionId || undefined });
+  }, [g, premiereDeLOnglet]);
 
   // La diffusion des deux mots : c'est ELLE qui démarre réellement la manche.
   const diffuserLien = useCallback((jeu, mot1, mot2) => {
@@ -2720,9 +2822,22 @@ export function HostApp() {
   const code = (room && room.code) || session.code;
   const playerCount = room && room.playerCount != null ? room.playerCount : 0;
   const players = (room && room.players) || g.leaderboard || [];
-  // Le jeu en cours, pour que « question suivante » reste dans CE jeu.
+  // LE JEU EN COURS, REPRIS DANS LA BIBLIOTHÈQUE ET NON RECONSTRUIT.
+  //
+  // CE QUI A ÉTÉ RAPPORTÉ : « lorsque l'on a joué à Cache-cache une fois et que
+  // l'on clique sur "Nouvelle partie", il n'y a que le mode "Couleur" de
+  // disponible ». La cause n'était pas dans les modes : cet objet était refabriqué
+  // à partir de la MANCHE en cours, avec trois champs choisis à la main. Tout le
+  // reste de ce que le serveur dit du jeu — ses modes, la durée de son cadran —
+  // disparaissait au passage, et le panneau de départ retombait sur sa liste de
+  // secours, qui ne connaissait qu'un mode.
+  //
+  // Un objet recopié champ par champ perd tout ce qu'on ajoutera demain, en
+  // silence. On prend donc l'entrée de la bibliothèque, entière ; le repli ne sert
+  // que le temps qu'elle arrive.
   const jeuEnCours = g.current
-    ? { id: g.current.moduleId, type: g.current.type, name: g.current.meta?.name }
+    ? ((jeux || []).find((m) => m.id === g.current.moduleId)
+      || { id: g.current.moduleId, type: g.current.type, name: g.current.meta?.name })
     : { type: 'quiz' };
 
   // --- Partie terminée OU classement demandé ---
@@ -2788,6 +2903,8 @@ export function HostApp() {
             if (JEUX_A_PREPARER.includes(jeuEnCours?.type)) { setPrepare(jeuEnCours); return; }
             demarrerSimple(jeuEnCours);
           }}
+          categorieFile={categorieFile}
+          onCategorieFile={setCategorieFile}
           onChangeModule={(t) => startModule(t)}
           connLost={connLost}
           hostError={hostError}

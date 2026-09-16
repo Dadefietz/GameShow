@@ -12,6 +12,7 @@
 // Le token vient de la query (?token=...). Aucun bouton, aucune interaction.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
+import { lettreDeChoix } from '../shared/lettres.js';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
@@ -35,7 +36,6 @@ import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
 const fmt = (n) => (typeof n === 'number' && Number.isFinite(n) ? nf.format(n) : '—');
-const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 // Marque animée du système : flamme qui respire, braise qui scintille. Le dessin
 // vient de la géométrie unique (chantier v2, décision 5.1) — il était recopié ici
@@ -440,7 +440,7 @@ function OptionBreakdown({ stats, correctIndex, leadingIndexes = [], liste }) {
             style={{ '--om-to': `${pct}%`, animationDelay: `${i * 40}ms` }}>
             <span className="st-opt__fill" style={{ width: `${pct}%` }} aria-hidden="true" />
             <span className="st-opt__key" aria-hidden="true">
-              {isCorrect ? <CheckIcon /> : KEYS[i] || i + 1}
+              {isCorrect ? <CheckIcon /> : lettreDeChoix(i)}
             </span>
             <span className="st-opt__label">{opt}</span>
             <span className="st-opt__count">{count} · {pct}%</span>
@@ -625,6 +625,8 @@ function QuestionStage({ g }) {
   // finies. C'est le seul moment du projet où l'écran de jeu ne montre plus la
   // question en cours — il n'y en a plus.
   const enDevoilement = current.type === 'cache_cache' && !revealed && devoilements.length > 0;
+  // LA GRILLE FINALE : la manche est révélée et la scène montre les neuf objets.
+  const grilleFinale = revealed && stats?.kind === 'cache';
 
   return (
     <div className="stream__stage" data-testid="stream-question" data-state={revealedState}
@@ -706,6 +708,16 @@ function QuestionStage({ g }) {
           <span className="st-lienmots__chainons" aria-hidden="true"><Chainons taille={64} /></span>
           <span className="st-lienmots__mot">{current.mots[1]}</span>
         </div>
+      ) : grilleFinale ? (
+        /* LA GRILLE FINALE CLÔT LE JEU, elle ne pose plus de question.
+           « Lors du dévoilement de la grille à la fin du jeu, la question 5 est
+           toujours écrite. » Le masquage posé au chantier v6 ne valait que pour le
+           dévoilement des réponses — la manche RÉVÉLÉE est un autre état, et
+           l'énoncé y revenait intact au-dessus d'une grille qui ne l'illustre
+           plus. Le public lisait une question à laquelle on venait de répondre. */
+        <p className="st-question st-question--revealed" data-testid="question-text">
+          Le cache-cache est terminé ! Voici la grille
+        </p>
       ) : enDevoilement ? (
         /* PENDANT LE DÉVOILEMENT, L'ÉNONCÉ DE LA DERNIÈRE QUESTION DISPARAÎT.
            « Il faut que sur l'écran il n'y ait que la question dont on est en
@@ -856,7 +868,7 @@ function QuestionStage({ g }) {
                     style={mesuresDesChoix(options.length, HAUTEUR_DES_CHOIX - 60)}>
                     {options.map((opt, i) => (
                       <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
-                        <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
+                        <span className="st-opt__key" aria-hidden="true">{lettreDeChoix(i)}</span>
                         <span className="st-opt__label">{opt}</span>
                         <span className="st-opt__mark" aria-hidden="true" />
                       </div>
@@ -877,7 +889,7 @@ function QuestionStage({ g }) {
             ref={refChoix} style={mesuresDesChoix(options.length, placeChoix)}>
             {options.map((opt, i) => (
               <div className="st-opt" key={i} data-state="idle" style={{ animationDelay: `${i * 40}ms` }}>
-                <span className="st-opt__key" aria-hidden="true">{KEYS[i] || i + 1}</span>
+                <span className="st-opt__key" aria-hidden="true">{lettreDeChoix(i)}</span>
                 <span className="st-opt__label">{opt}</span>
                 <span className="st-opt__mark" aria-hidden="true" />
               </div>
