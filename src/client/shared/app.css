@@ -185,4 +185,69 @@ html, body { background-color: var(--c-canvas); }
       opacity: 0;
     }
   }
+
+  /* ==========================================================================
+     LA TOILE DE « CUEILLETTE » — PARTAGÉE PAR LES TROIS SURFACES
+     ==========================================================================
+
+     « Le Dessin cible est affiché pendant 10 secondes, il doit prendre le
+     maximum de place sur l'écran. Une fois que le Dessin cible disparaît, une
+     zone de dessin d'EXACTEMENT LA MÊME TAILLE apparaît. »
+
+     « EXACTEMENT LA MÊME TAILLE » N'EST PAS UNE FIGURE DE STYLE : le joueur a
+     mémorisé une image dans un cadre, et il la rejoue dans un autre. Si le second
+     cadre était plus étroit, son geste ne tomberait plus au même endroit et le
+     serveur, qui compare des positions, le lui compterait comme une erreur de
+     dessin. La taille n'est donc pas recopiée deux fois : les deux cadres SONT la
+     même règle, et la phase ne change que ce qu'il y a dedans.
+
+     ELLE EST ICI, ET NON DANS play.css, parce que le même dessin paraît sur
+     QUATRE écrans : la toile du joueur, son bilan, la console de l'animateur et
+     la grande toile du stream. Écrite par surface, elle aurait divergé — c'est
+     exactement ce que raconte `SerieGraphique`, né de deux graphiques jumeaux.
+
+     LE CARRÉ VIENT DES DESSINS EUX-MÊMES — la banque est en 512×512 — et de la
+     grille de comparaison du serveur, carrée elle aussi. Un cadre non carré
+     étirerait le dessin du joueur par rapport à la cible. */
+  .toile__bloc { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); width: 100%; }
+  .toile {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--r-m);
+    background: var(--c-plaque);
+    box-shadow: var(--sh-1);
+    overflow: hidden;
+    /* SANS CECI, LE PREMIER MOUVEMENT DU DOIGT FAIT DÉFILER LA PAGE au lieu de
+       tracer. C'est la ligne qui rend le jeu jouable au doigt. */
+    touch-action: none;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
+    /* L'ÉPAISSEUR DU TRAIT, RÉGLABLE PAR SURFACE. Le même dessin paraît sur une
+       vignette de 140 px chez l'animateur et sur 620 px à l'antenne : une seule
+       valeur donnerait un pâté sur l'une ou un fil sur l'autre. Elle est posée
+       sur la toile et non sur le tracé, pour qu'une surface n'ait qu'une ligne à
+       écrire. */
+    --toile-trait: 5px;
+  }
+  .toile--figee { cursor: default; }
+  .toile__fond, .toile__encre { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .toile__fond { object-fit: contain; pointer-events: none; }
+  .toile__trait {
+    fill: none;
+    stroke: var(--c-ink-on-plaque);
+    stroke-width: var(--toile-trait);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* L'ÉPAISSEUR EST EN PIXELS D'ÉCRAN, PAS EN UNITÉS DE LA VUE. Le même dessin
+       s'affiche au format téléphone, en vignette sur la console, et en grand sur
+       la toile du stream : une épaisseur en unités de vue donnerait un trait de
+       cheveu dans la vignette et une barre de dix pixels à l'antenne. */
+    vector-effect: non-scaling-stroke;
+  }
+  /* LE TRACÉ DU JOUEUR PAR-DESSUS LA CIBLE — « le dessin du joueur doit être
+     coloré en vert clair (ne reprendre que les traits réalisés par le joueur, pas
+     de fond) ». Les traits seuls : un tracé n'a pas de fond à retirer. */
+  .toile__trait--sien { stroke: var(--c-trace-joueur); }
 }

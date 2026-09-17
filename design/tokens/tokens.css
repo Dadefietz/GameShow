@@ -236,6 +236,11 @@
      le noir. Il leur faut donc un support, comme un carton posé sur la table.
      Elle est chaude, pas blanche : un blanc pur trouerait la scène du stream. */
   --c-plaque:        oklch(0.945 0.012 84);   /* support d'image à trait noir  */
+  /* L'ENCRE QUI ÉCRIT SUR LA PLAQUE. C'est le seul fond clair du système, donc
+     le seul endroit où l'encre doit être SOMBRE — toutes les autres vont dans
+     l'autre sens. « Cueillette » y trace au doigt ; un jeton évite que chaque
+     surface réinvente son noir. 14,8:1 sur --c-plaque.                      */
+  --c-ink-on-plaque: oklch(0.220 0.020 60);
 
   /* --- 2. ENCRE — crème de lampe tempête ---------------------------------
      Contrastes mesurés sur --c-canvas.                                   */
@@ -283,6 +288,16 @@
   /* Pendant vert du voile de feu, pour les mêmes pastilles posées sur un
      dégradé de mousse (option de vote choisie). --c-ink-on-leaf à 22 %.      */
   --c-veil-on-leaf:  oklch(0.180 0.030 150 / 0.22);
+  /* LE TRACÉ DU JOUEUR PAR-DESSUS LA CIBLE, dans « Cueillette ».
+     L'énoncé dit « coloré en vert clair ». Le vert clair du système,
+     --c-pine, a été ESSAYÉ et MESURÉ : 1,57:1 sur --c-plaque — un fantôme
+     pâle sur le carton, alors que c'est justement son propre dessin que le
+     joueur vient chercher. --c-moss ne monte qu'à 2,53:1.
+     Celui-ci est le vert le plus clair qui passe la barre des 3:1 exigée d'un
+     élément graphique porteur de sens : 3,15:1 sur la plaque, et 5,68:1 sur le
+     trait noir de la cible — car les deux tracés doivent aussi se distinguer
+     L'UN DE L'AUTRE, ce qui est tout l'objet de la superposition.          */
+  --c-trace-joueur:  oklch(0.600 0.150 150);
 
   /* --- 6. SÉMANTIQUE ----------------------------------------------------- */
   --c-good:          var(--c-pine);

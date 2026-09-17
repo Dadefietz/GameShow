@@ -81,7 +81,7 @@ export const CLASSEMENT_MAX = 500;
 function toRoom(io, room) {
   return io.to(room.code);
 }
-function toStaff(io, room) {
+export function toStaff(io, room) {
   return io.to(room.code + ':staff');
 }
 
@@ -791,6 +791,12 @@ export function reveal(io, room) {
       bons: r ? r.bons ?? null : null,
       rates: r ? r.rates ?? null : null,
       brut: r ? r.brut ?? null : null,
+      // « CUEILLETTE » : la ressemblance de son dessin. L'écran s'en sert pour
+      // deux choses — l'annoncer, et décider s'il superpose le tracé à la cible.
+      // Un dessin parti trop tard n'a pas de ressemblance ; le téléphone, lui, l'a
+      // encore en mémoire, et l'afficherait sans ce repère au-dessus de la phrase
+      // « ton dessin n'est pas arrivé à temps ».
+      pourcent: r ? r.pourcent ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -853,6 +859,32 @@ export function reveal(io, room) {
     });
   }
 
+  // LES DESSINS DE « CUEILLETTE », AVEC LES NOMS — CANAL ANIMATEUR SEUL.
+  //
+  // « L'animateur a de son côté un accès total à tous les dessins des joueurs » —
+  // DE SON CÔTÉ. Le stream ne les reçoit qu'un par un, sur son geste, et SANS le
+  // nom (décision 2.5 du chantier v9) : le document demande de partager LE DESSIN,
+  // et les pseudonymes n'ont jamais quitté ce canal dans ce projet.
+  //
+  // LES DESSINS RESTENT SUR LA MANCHE, et c'est ce qui permet au partage de ne
+  // voyager qu'en INDEX. Si l'animateur renvoyait les tracés au serveur pour
+  // qu'il les rediffuse, sa console deviendrait une source de contenu pour
+  // l'antenne — une porte que rien d'autre n'ouvre ici.
+  if (prives && Array.isArray(prives.dessins) && prives.dessins.length) {
+    // Le meilleur d'abord : c'est celui que l'animateur commente en premier.
+    rt.dessins = [...prives.dessins].sort((a, b) => b.pourcent - a.pourcent);
+    io.to(room.code + ':host').emit('host:dessins', {
+      roundId: rt.roundId,
+      cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
+      dessins: rt.dessins
+        .map((d, idx) => {
+          const p = room.players.get(d.pid);
+          return p ? { idx, pseudo: p.pseudo, pourcent: d.pourcent, points: d.points, traits: d.traits } : null;
+        })
+        .filter(Boolean),
+    });
+  }
+
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
     io.to(room.code + ':host').emit('host:closest', {
       roundId: rt.roundId,
@@ -879,7 +911,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, bons: null, rates: null, brut: null, correct: null, troppTot: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, bons: null, rates: null, brut: null, pourcent: null, correct: null, troppTot: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -895,6 +927,23 @@ export function reveal(io, room) {
       bons: d.bons ?? null,
       rates: d.rates ?? null,
       brut: d.brut ?? null,
+      // LA RESSEMBLANCE DE SON DESSIN — « Cueillette ».
+      //
+      // UN CHAMP DE MODULE TRAVERSE DEUX RECOPIES AVANT D'ATTEINDRE UN ÉCRAN :
+      // `results` → `perPlayer` → `you`. Chacune est une liste écrite à la main,
+      // et il suffit d'en oublier une pour que la donnée disparaisse en silence.
+      // C'est arrivé aux deux, coup sur coup : le serveur notait le dessin à
+      // 18 %, l'animateur le recevait, et le téléphone du joueur affichait « ton
+      // dessin n'est pas arrivé à temps » au-dessus d'une cible sans son tracé.
+      // Le contrôle d'intégration « LE RELEVÉ PERSONNEL PORTE LA RESSEMBLANCE »
+      // suit désormais le champ sur tout le trajet, et non à une seule étape.
+      //
+      // POURQUOI ON NE DIFFUSE PAS `...d` POUR AUTANT : ce que le module range
+      // dans son résultat lui appartient, et peut contenir demain un repère de
+      // travail qui n'a rien à faire sur un téléphone. La liste est une frontière
+      // choisie ; elle coûte une ligne par champ, et c'est le prix de savoir
+      // exactement ce qui sort.
+      pourcent: d.pourcent ?? null,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,

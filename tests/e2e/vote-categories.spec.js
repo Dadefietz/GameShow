@@ -50,17 +50,23 @@ test.describe('Les catégories du vote', () => {
     await retirerJeux(JEU, 'Vote sans catégorie');
   });
 
-  async function ouvrir(browser, nom) {
+  async function ouvrir(browser, nom, { demarrer = true } = {}) {
     hote = await openHost(browser);
     joueurs.push(await joinAsPlayer(browser, hote.code, 'Votant'));
     await expect(hote.page.getByTestId('player-count')).toHaveText('1');
     await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
-    await lancerJeu(hote.page, nom);
+    await lancerJeu(hote.page, nom, { demarrer });
   }
 
   test('la file se range en deux onglets, et l\'ancienne question tombe dans « Vie »', async ({ browser }) => {
     await creerJeu({ name: JEU, type: 'vote', questions: QUESTIONS });
-    await ouvrir(browser, JEU);
+    // ON NE DONNE PAS LE TOP : ce contrôle regarde LA FILE, et le top en retire la
+    // tête — tirée au sort. Une fois sur cinq, la tête était « ANCIENNE », qui
+    // passait « en cours » et quittait la liste : le contrôle criait à la
+    // disparition d'une question que le produit avait bel et bien rangée. Voir la
+    // note de `lancerJeu`. Le panneau de la file est visible dès la préparation,
+    // ce qui suffit à ce qu'on vérifie ici.
+    await ouvrir(browser, JEU, { demarrer: false });
 
     const onglets = hote.page.getByTestId('file-onglets');
     await expect(onglets).toBeVisible({ timeout: 15_000 });

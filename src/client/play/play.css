@@ -493,6 +493,43 @@
   .ccdev__donnee { display: grid; gap: var(--sp-1); margin: 0; }
   .ccdev__donnee strong { font: 500 var(--fs-400) / 1.2 var(--f-display); color: var(--c-ink-2); }
 
+  /* ==========================================================================
+     « CUEILLETTE » — CE QUE LE TÉLÉPHONE AJOUTE À LA TOILE
+     ==========================================================================
+     La toile elle-même vit dans shared/app.css : elle sert aussi à la console et
+     à l'antenne, et le même composant écrit trois fois finirait par diverger —
+     c'est l'histoire de `SerieGraphique` dans ce dépôt. Ici ne restent que la
+     place qu'elle prend sur un écran de poche et ce qui l'entoure. */
+  .q-zone--cueillette { margin-top: 0; flex: 1; justify-content: center; }
+  /* LA LARGEUR EST BORNÉE PAR LA HAUTEUR DISPONIBLE, pas seulement par la
+     largeur : sur un téléphone en 16/9, un carré à 100 % de la largeur pousserait
+     le bouton d'envoi hors de l'écran — et le bouton est la seule chose à
+     toucher. */
+  .q-zone--cueillette .toile { width: min(100%, 56vh); }
+  .toile__outils { display: flex; gap: var(--sp-2); width: 100%; }
+  .toile__btn {
+    flex: 1;
+    min-height: var(--hit);
+    border: 0;
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+    color: var(--c-ink-2);
+    font: 500 var(--fs-300) / 1 var(--f-ui);
+    cursor: pointer;
+  }
+  .toile__btn[disabled] { color: var(--c-ink-4); cursor: default; }
+  /* L'aide sous la cible : elle dit que l'image va partir, ce qui change la
+     façon de la regarder. */
+  .q-aide { margin: 0; font: 400 var(--fs-300) / 1.4 var(--f-ui); color: var(--c-ink-3); text-align: center; }
+
+  /* LE BILAN DU JOUEUR — sa cueillette posée sur le modèle. */
+  .cuei-bilan { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); margin: var(--sp-5) 0; }
+  .cuei-bilan .toile { width: min(100%, 34vh); }
+  .cuei-bilan__nom { display: grid; gap: var(--sp-1); margin: 0; justify-items: center; }
+  .cuei-bilan__nom strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
+  .cuei-bilan__verdict { margin: 0; font: 500 var(--fs-400) / 1.35 var(--f-ui); color: var(--c-ink-2); }
+
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {
     min-height: var(--hit-lg);

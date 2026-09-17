@@ -1,0 +1,123 @@
+// LA BANQUE DE DESSINS DE « CUEILLETTE ».
+//
+// ============================================================================
+// D'OÙ VIENNENT CES IMAGES
+// ============================================================================
+//
+// CINQUANTE DESSINS AU TRAIT FOURNIS PAR L'AUTEUR : dix arbres, vingt fleurs,
+// vingt fruits. Les droits et la licence relèvent de lui ; ce dépôt les sert, il
+// ne les revendique pas. Voir docs/CREDITS.md.
+//
+// LE NOM EST DÉCLARÉ ICI, pas lu dans le nom de fichier. C'est la règle du projet
+// depuis la banque de « Cache-cache » : un jeu qui lirait ses données dans un nom
+// de fichier se casserait au premier renommage, sans que personne sache pourquoi.
+// Les fichiers d'origine portaient des intitulés anglais et un identifiant de
+// trente-deux caractères ; ils sont rangés sous « d001 » à « d050 ».
+//
+// LA FAMILLE N'EST PAS DEMANDÉE PAR L'ÉNONCÉ. Elle est là parce que l'animateur
+// doit « avoir la possibilité de choisir quel sera le dessin cible » : cinquante
+// vignettes en vrac ne se choisissent pas en direct, trois groupes de dix à vingt
+// se parcourent d'un coup d'œil.
+//
+// ============================================================================
+// TRAITEMENT
+// ============================================================================
+//
+// Recadrage sur l'ENCRE, centrage sur un CARRÉ avec six pour cent de marge,
+// 512 px, détourage du fond par les bords, WebP qualité 82 méthode 6 — le réglage
+// du dépôt, celui des portraits et des objets.
+//
+// POURQUOI UN CARRÉ, alors que les originaux sont en portrait. Les rapports de
+// leurs encres vont de 0,25 — un bouleau tout en hauteur — à 1,68 pour une tranche
+// de pastèque. Une zone de dessin qui changerait de forme à chaque manche
+// désorienterait les joueurs et rendrait invérifiable la règle « une zone de
+// dessin d'exactement la même taille que l'image du dessin cible ». Le carré donne
+// une seule forme, la même partout, mesurable au pixel.
+//
+// POURQUOI RECADRER. Les originaux portent de larges marges blanches : l'encre
+// n'occupait que 31 % à 79 % de l'image. Affichés tels quels, les dessins auraient
+// paru minuscules au centre de l'écran, et les joueurs auraient dessiné petit dans
+// une grande zone — ce que le calcul de ressemblance aurait puni sur les
+// proportions, pour une raison qui ne les regarde pas.
+//
+// LE DÉTOURAGE PART DES BORDS et non de « tout le blanc » : le creux d'un avocat,
+// la chair d'une noix de coco et le cœur d'une figue sont blancs eux aussi. Un
+// détourage naïf les aurait percés, et le dessin serait apparu troué sur la plaque
+// claire de sa case. Vérifié sur planche contact avant intégration.
+
+export const FAMILLES = [
+  { cle: 'arbres', nom: 'Arbres' },
+  { cle: 'fleurs', nom: 'Fleurs' },
+  { cle: 'fruits', nom: 'Fruits' },
+];
+
+export const BASSIN_DESSINS = [
+  { id: 'd001', nom: 'Chêne', famille: 'arbres' },
+  { id: 'd002', nom: 'Sapin', famille: 'arbres' },
+  { id: 'd003', nom: 'Palmier', famille: 'arbres' },
+  { id: 'd004', nom: 'Saule pleureur', famille: 'arbres' },
+  { id: 'd005', nom: 'Cerisier', famille: 'arbres' },
+  { id: 'd006', nom: 'Baobab', famille: 'arbres' },
+  { id: 'd007', nom: 'Bouleau', famille: 'arbres' },
+  { id: 'd008', nom: 'Érable', famille: 'arbres' },
+  { id: 'd009', nom: 'Acacia', famille: 'arbres' },
+  { id: 'd010', nom: 'Cyprès', famille: 'arbres' },
+  { id: 'd011', nom: 'Rose', famille: 'fleurs' },
+  { id: 'd012', nom: 'Tulipe', famille: 'fleurs' },
+  { id: 'd013', nom: 'Tournesol', famille: 'fleurs' },
+  { id: 'd014', nom: 'Marguerite', famille: 'fleurs' },
+  { id: 'd015', nom: 'Coquelicot', famille: 'fleurs' },
+  { id: 'd016', nom: 'Lys', famille: 'fleurs' },
+  { id: 'd017', nom: 'Iris', famille: 'fleurs' },
+  { id: 'd018', nom: 'Jonquille', famille: 'fleurs' },
+  { id: 'd019', nom: 'Orchidée', famille: 'fleurs' },
+  { id: 'd020', nom: 'Hibiscus', famille: 'fleurs' },
+  { id: 'd021', nom: 'Lotus', famille: 'fleurs' },
+  { id: 'd022', nom: 'Pivoine', famille: 'fleurs' },
+  { id: 'd023', nom: 'Œillet', famille: 'fleurs' },
+  { id: 'd024', nom: 'Pensée', famille: 'fleurs' },
+  { id: 'd025', nom: 'Lavande', famille: 'fleurs' },
+  { id: 'd026', nom: 'Chrysanthème', famille: 'fleurs' },
+  { id: 'd027', nom: 'Fleur de cerisier', famille: 'fleurs' },
+  { id: 'd028', nom: 'Jacinthe', famille: 'fleurs' },
+  { id: 'd029', nom: 'Bouton de lotus', famille: 'fleurs' },
+  { id: 'd030', nom: 'Campanule', famille: 'fleurs' },
+  { id: 'd031', nom: 'Pomme', famille: 'fruits' },
+  { id: 'd032', nom: 'Poire', famille: 'fruits' },
+  { id: 'd033', nom: 'Banane', famille: 'fruits' },
+  { id: 'd034', nom: 'Orange', famille: 'fruits' },
+  { id: 'd035', nom: 'Citron', famille: 'fruits' },
+  { id: 'd036', nom: 'Fraise', famille: 'fruits' },
+  { id: 'd037', nom: 'Pastèque', famille: 'fruits' },
+  { id: 'd038', nom: 'Raisin', famille: 'fruits' },
+  { id: 'd039', nom: 'Ananas', famille: 'fruits' },
+  { id: 'd040', nom: 'Cerises', famille: 'fruits' },
+  { id: 'd041', nom: 'Pêche', famille: 'fruits' },
+  { id: 'd042', nom: 'Noix de coco', famille: 'fruits' },
+  { id: 'd043', nom: 'Kiwi', famille: 'fruits' },
+  { id: 'd044', nom: 'Mangue', famille: 'fruits' },
+  { id: 'd045', nom: 'Avocat', famille: 'fruits' },
+  { id: 'd046', nom: 'Figue', famille: 'fruits' },
+  { id: 'd047', nom: 'Framboises', famille: 'fruits' },
+  { id: 'd048', nom: 'Myrtilles', famille: 'fruits' },
+  { id: 'd049', nom: 'Grenade', famille: 'fruits' },
+  { id: 'd050', nom: 'Melon', famille: 'fruits' },
+];
+
+// L'ADRESSE D'UN DESSIN, ET LE SEUL ENDROIT QUI LA CONNAISSE. Même règle que les
+// visages et les objets : le client ne déduit JAMAIS une adresse d'un identifiant,
+// il reçoit l'une et l'autre du serveur.
+const PAR_ID = new Map(BASSIN_DESSINS.map((d) => [d.id, d]));
+
+export function dessinDe(id) {
+  return PAR_ID.get(id) || null;
+}
+
+export function srcDeDessin(id) {
+  return PAR_ID.has(id) ? `/dessins/${id}.webp` : null;
+}
+
+// Le catalogue tel que les écrans le reçoivent : chaque dessin avec son adresse.
+export function catalogueDesDessins() {
+  return BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) }));
+}

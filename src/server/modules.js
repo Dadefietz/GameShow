@@ -1,6 +1,12 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
 import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
+import { BASSIN_DESSINS, dessinDe, srcDeDessin, FAMILLES } from './dessins.js';
+import { GRILLES_DESSINS } from './dessins-grilles.js';
+import {
+  ressemblanceContreGrilles, pointsDe as pointsDuDessin, nettoyerDessin,
+  compterPoints, POINTS_MAXIMUM as POINTS_CUEILLETTE, SEUIL_POINTS as SEUIL_CUEILLETTE,
+} from './cueillette.js';
 import {
   CASES, DUREE_GRILLE_MS, DUREE_QUESTION_MS, QUESTIONS_PAR_PARTIE,
   tirerLaManche, memeNom, FORMES, NUMEROS, MODES, MODE_PAR_DEFAUT, modeDe,
@@ -942,6 +948,10 @@ function optionsDeTete(tally) {
 // « un bonus de rapidité allant de 0 point à 100 points, le chrono partant de
 // 10sec jusqu'à 0, de 10sec à 9sec = 100pts, et de 2sec à 0 = 0pt ».
 // Cinq questions : 5 × (200 + 100) = 1500, « Maximum 1500pts ». Le compte tombe.
+// « CUEILLETTE » — dix secondes pour regarder, trente pour dessiner.
+export const DUREE_CIBLE_MS = 10_000;
+export const DUREE_DESSIN_MS = 30_000;
+
 const POINTS_CACHE = 200;
 // Le plateau suit la fenêtre : une seconde en tête comme avant (16 → 15), et le
 // même plancher de deux secondes en queue. « De 10sec à 9sec = 100pts » devient
@@ -2251,6 +2261,153 @@ export const modules = {
         detail,
         reveal: { type: 'cache_cache', text: rt.text, matrice: rt.matrice, stats },
         prives: { classement },
+      };
+    },
+  },
+
+  // =========================================================================
+  // « CUEILLETTE » — LE JOUEUR NE RÉPOND PAS, IL PRODUIT
+  // =========================================================================
+  //
+  // CE QUI A ÉTÉ DEMANDÉ (16/09) : « un dessin va apparaître 10 secondes à l'écran
+  // puis disparaître, les joueurs auront alors 30 secondes pour dessiner le dessin
+  // qu'ils viennent de voir le plus exactement possible. Les gagnants sont ceux qui
+  // auront produit un dessin le plus ressemblant au dessin cible. »
+  //
+  // CE QUI REND CE JEU DIFFÉRENT DE TOUS LES AUTRES DU PROJET. Partout ailleurs, la
+  // réponse d'un joueur est une valeur — un indice, un nombre, un mot — et le
+  // barème la compare à une bonne réponse. Ici la réponse est un DESSIN, il n'y a
+  // pas de bonne réponse, et la note est une estimation. Tout le calcul vit dans
+  // `cueillette.js`, à côté de ses contrôles ; ce module ne fait que dérouler la
+  // manche et verser les points.
+  //
+  // DEUX TEMPS DANS UNE SEULE MANCHE, comme la grille puis les questions de
+  // « Cache-cache » : le tour 1 montre la cible dix secondes et n'accepte rien, le
+  // tour 2 ouvre la fenêtre de dessin pour trente. Le moteur sait déjà enchaîner
+  // des tours de durées différentes ; inventer ici un second mécanisme aurait fait
+  // deux façons de compter le temps dans le même serveur.
+  cueillette: {
+    meta: {
+      type: 'cueillette', name: 'Cueillette', icon: 'pencil', color: 'forest',
+      scored: true, malus: false, vitesse: false,
+      // Dix secondes de cible, puis trente de dessin.
+      dureeS: (DUREE_CIBLE_MS + DUREE_DESSIN_MS) / 1000, dureeFixe: true,
+      // Pas de banque écrite : la cible se choisit à l'antenne, dans la banque de
+      // dessins du dépôt.
+      direct: true,
+      dureeCibleMs: DUREE_CIBLE_MS,
+      dureeDessinMs: DUREE_DESSIN_MS,
+      points: POINTS_CUEILLETTE,
+      seuil: SEUIL_CUEILLETTE,
+    },
+
+    // LA BANQUE DE DESSINS EST HORS DE `meta`, ET CE N'EST PAS UN DÉTAIL DE
+    // RANGEMENT. `meta` part À TOUT LE MONDE avec chaque manche — le moteur le
+    // diffuse tel quel dans `module:started`, joueurs et stream compris. Les
+    // cinquante dessins et leurs adresses y auraient voyagé deux fois par manche
+    // vers chaque téléphone du salon, pour un écran qui n'en a aucun usage.
+    //
+    // Ils ne servent qu'à UN endroit : le panneau où l'animateur choisit sa cible.
+    // Ils partent donc par `host:modules`, sur son canal, et nulle part ailleurs.
+    // Déclarés par le SERVEUR dans les deux cas : un écran qui recopierait la
+    // banque finirait par proposer un dessin que le jeu ne saurait pas servir.
+    banque: {
+      dessins: BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) })),
+      familles: FAMILLES,
+    },
+
+    buildRound(q) {
+      // LA CIBLE EST CELLE QUE L'ANIMATEUR A CHOISIE, et à défaut une au hasard :
+      // un top de départ mal formé ne doit pas éteindre le jeu en direct.
+      const choisi = dessinDe(q?.dessinId);
+      const cible = choisi || BASSIN_DESSINS[Math.floor(Math.random() * BASSIN_DESSINS.length)];
+      return {
+        type: 'cueillette',
+        questionId: q.id,
+        text: 'Regarde bien…',
+        cible: { id: cible.id, nom: cible.nom, famille: cible.famille, src: srcDeDessin(cible.id) },
+        // Le tour 1 montre, le tour 2 fait dessiner.
+        tours: 2,
+        tour: 1,
+        durationMs: DUREE_CIBLE_MS,
+      };
+    },
+
+    // LA DURÉE CHANGE D'UN TOUR À L'AUTRE — la seule chose que le moteur ne
+    // pouvait pas deviner.
+    dureeDuTour(rt) {
+      return rt.tour <= 1 ? DUREE_CIBLE_MS : DUREE_DESSIN_MS;
+    },
+
+    publicQuestion(rt) {
+      const base = {
+        type: 'cueillette',
+        questionId: rt.questionId,
+        tour: rt.tour,
+        tours: rt.tours,
+        dureeCibleMs: DUREE_CIBLE_MS,
+        dureeDessinMs: DUREE_DESSIN_MS,
+      };
+      // PENDANT LE TOUR 1, LA CIBLE EST VISIBLE — c'est tout l'objet du tour.
+      if (rt.tour <= 1) {
+        return {
+          ...base, phase: 'cible', text: 'Regarde bien…',
+          cible: { src: rt.cible.src, nom: rt.cible.nom },
+        };
+      }
+      // PENDANT LE TOUR 2, ELLE DISPARAÎT — ET SON ADRESSE AUSSI. La laisser dans
+      // la charge utile mettrait l'image à un clic dans l'inspecteur du navigateur,
+      // et le jeu consiste exactement à ne plus l'avoir sous les yeux.
+      return { ...base, phase: 'dessin', text: 'À toi de dessiner !', saisie: true };
+    },
+
+    // UNE RÉPONSE EST UN DESSIN, et le serveur ne fait confiance à rien de ce qu'il
+    // reçoit : bornes, élagage, rejet de ce qui ne se lit pas (voir `nettoyerDessin`).
+    validateAnswer(rt, value) {
+      if (rt.tour <= 1) return null;          // on ne dessine pas pendant la cible
+      const propre = nettoyerDessin(value);
+      return compterPoints(propre) ? propre : null;
+    },
+
+    score(rt) {
+      const results = new Map();
+      const dessins = [];
+      // LES VINGT TRANCHES DE CINQ POUR CENT que l'écran demande, préparées ici :
+      // « le graphique va de 0 % à 100 % et les résultats sont répartis par tranche
+      // de 5 %, il doit donc y avoir 20 tranches ».
+      const tranches = Array.from({ length: 20 }, (_, i) => (
+        { bas: i * 5, haut: (i + 1) * 5, count: 0 }
+      ));
+
+      for (const [pid, a] of rt.answers) {
+        // LA CIBLE EST UNE IMAGE : on la compare par ses grilles précalculées.
+        const [position, forme] = GRILLES_DESSINS[rt.cible.id] || [];
+        const { pourcent } = position
+          ? ressemblanceContreGrilles(position, forme, a.value)
+          : { pourcent: 0 };
+        const base = pointsDuDessin(pourcent);
+        results.set(pid, { base, speed: 0, correct: base > 0, pourcent });
+        tranches[Math.min(19, Math.floor(pourcent / 5))].count += 1;
+        dessins.push({ pid, pourcent, points: base, traits: a.value });
+      }
+
+      const notes = [...results.values()].map((r) => r.pourcent);
+      const stats = {
+        kind: 'cueillette',
+        total: results.size,
+        tranches,
+        meilleur: notes.length ? Math.max(...notes) : 0,
+        moyenne: notes.length ? Math.round(notes.reduce((x, y) => x + y, 0) / notes.length) : 0,
+      };
+
+      return {
+        results,
+        reveal: { type: 'cueillette', text: rt.cible.nom, cible: rt.cible, stats },
+        // LES DESSINS ET LES NOMS NE PARTENT QU'À L'ANIMATEUR. « L'animateur a de
+        // son côté un accès total à tous les dessins des joueurs » — de SON côté.
+        // Les pseudonymes n'ont jamais quitté son canal dans ce projet, et ce n'est
+        // pas un jeu de dessin qui va les y faire entrer.
+        prives: { dessins },
       };
     },
   },

@@ -25,7 +25,10 @@ import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
+import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
+import { Toile } from '../shared/Toile.jsx';
+import { HistogrammeCueillette } from '../shared/HistogrammeCueillette.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
@@ -624,6 +627,24 @@ function QuestionStage({ g }) {
   // LE TEMPS DES RÉPONSES : la manche n'est pas révélée, mais les questions sont
   // finies. C'est le seul moment du projet où l'écran de jeu ne montre plus la
   // question en cours — il n'y en a plus.
+  // LE DESSIN PARTAGÉ PAR L'ANIMATEUR — « le dessin partagé s'affiche en grand à
+  // la place de la phrase et du graphique ». Il arrive sur le canal du staff,
+  // SANS le nom de son auteur (décision 2.5) : le document demande de partager le
+  // dessin, et les pseudonymes ne quittent pas la console.
+  //
+  // IL EST OUBLIÉ À CHAQUE NOUVELLE MANCHE. Sans cela, un dessin partagé en fin de
+  // manche resterait plein écran par-dessus la manche suivante — et personne sur
+  // le plateau ne comprendrait pourquoi l'antenne montre une fleur.
+  const [partage, setPartage] = useState(null);
+  const roundIdCourant = current.roundId;
+  useEffect(() => {
+    const onPartage = (d) => setPartage(d && d.dessin ? d : null);
+    g.on('cueillette:partage', onPartage);
+    return () => g.off('cueillette:partage', onPartage);
+  }, [g]);
+  useEffect(() => { setPartage(null); }, [roundIdCourant]);
+  const dessinPartage = partage && partage.roundId === roundIdCourant ? partage : null;
+
   const enDevoilement = current.type === 'cache_cache' && !revealed && devoilements.length > 0;
   // LA GRILLE FINALE : la manche est révélée et la scène montre les neuf objets.
   const grilleFinale = revealed && stats?.kind === 'cache';
@@ -718,6 +739,30 @@ function QuestionStage({ g }) {
         <p className="st-question st-question--revealed" data-testid="question-text">
           Le cache-cache est terminé ! Voici la grille
         </p>
+      ) : current.type === 'cueillette' ? (
+        /* « CUEILLETTE », L'ÉNONCÉ À L'ANTENNE.
+           Trois temps, et aucun ne porte la phrase du téléphone. « Regarde
+           bien… » et « À toi de dessiner ! » s'adressent au JOUEUR ; le public,
+           lui, regarde le cercle jouer. Le document donne la phrase du second
+           temps mot pour mot : « Nos joueurs sont en train de cueillir, que
+           vont-ils nous ramener ? »
+
+           PENDANT LA CIBLE, L'ANTENNE SE TAIT : « le Dessin cible est affiché
+           pendant 10 secondes, il doit prendre le MAXIMUM de place sur l'écran »,
+           et un titre lui prendrait deux cents pixels de haut.
+
+           À LA RÉVÉLATION AUSSI — et c'est un défaut VU À L'ÉCRAN avant d'être
+           corrigé. Sans cette branche, la manche révélée retombait sur l'énoncé
+           générique et réaffichait « À toi de dessiner ! », que le bandeau vert
+           « C'était Tournesol » recouvrait à moitié : deux phrases superposées,
+           dont une périmée, sur la toile du stream. C'est le même défaut, au mot
+           près, que la question 5 restée à l'écran sous la grille finale de
+           « Cache-cache ». Le nom de la cible est déjà dit par le bandeau. */
+        revealed ? null : current.phase === 'cible' ? null : (
+          <p className="st-question" data-testid="question-text">
+            Nos joueurs sont en train de cueillir… que vont-ils nous ramener ?
+          </p>
+        )
       ) : enDevoilement ? (
         /* PENDANT LE DÉVOILEMENT, L'ÉNONCÉ DE LA DERNIÈRE QUESTION DISPARAÎT.
            « Il faut que sur l'écran il n'y ait que la question dont on est en
@@ -795,6 +840,23 @@ function QuestionStage({ g }) {
             data-blanc={blancDefile || undefined}>
             {visageId && !blancDefile ? <Symbole id={visageId} taille={380} /> : null}
           </div>
+        ) : current.type === 'cueillette' ? (
+          /* LA CIBLE, À L'ANTENNE, AU MAXIMUM. « Le Dessin cible est affiché
+             pendant 10 secondes, il doit prendre le maximum de place sur
+             l'écran » — c'est la seule chose qui compte pendant ces dix secondes,
+             et le public la mémorise avec le cercle.
+
+             PENDANT LES TRENTE SECONDES DE DESSIN, L'ÉCRAN NE MONTRE PLUS RIEN.
+             Remettre la cible ici la donnerait au public — et sur un stream
+             regardé à deux écrans, elle reviendrait aux joueurs. C'est la même
+             règle que le temps cible du « Juste temps », qui n'apparaît qu'à la
+             révélation. Il ne reste que la phrase, déjà posée au-dessus. */
+          current.phase === 'cible' ? (
+            <div className="st-cueil" data-testid="stream-cueillette-cible">
+              <Toile testid="stream-cueillette-toile" etiquette="Le dessin à retenir"
+                disabled fond={current.cible?.src} />
+            </div>
+          ) : null
         ) : current.type === 'visages' ? (
           /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
              c'est le jeu tout entier. Le compteur de réponses et le chrono vivent
@@ -922,6 +984,45 @@ function QuestionStage({ g }) {
             <SerieStream stats={stats} />
           ) : stats?.kind === 'retour' ? (
             <SerieRetourStream stats={stats} />
+          ) : stats?.kind === 'cueillette' ? (
+            /* « CUEILLETTE » À LA RÉVÉLATION. Le même graphique que l'animateur —
+               vingt tranches de cinq pour cent — et la cible enfin nommée.
+
+               LE DESSIN PARTAGÉ PREND TOUTE LA PLACE. « Quand l'animateur clique
+               sur "Partager !", le dessin s'affiche en grand à la place de la
+               phrase et du graphique. » Il ne se superpose pas : il REMPLACE.
+               La phrase de plateau vit plus bas, dans sa fente — elle est donc
+               masquée ici avec le reste, sans quoi elle réapparaîtrait sous un
+               dessin qu'elle ne commente pas. */
+            dessinPartage ? (
+              <div className="st-cueil st-cueil--partage" data-testid="stream-cueillette-partage">
+                <Toile testid="stream-cueillette-grand" etiquette="Le dessin d'un joueur"
+                  disabled valeur={dessinPartage.dessin.traits} />
+                <p className="st-cueil__note">
+                  <span className="st-cueil__pc">{dessinPartage.dessin.pourcent} %</span>
+                  <span className="st-cueil__label">de ressemblance</span>
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="st-answer" data-testid="reveal-value">
+                  <span className="st-answer__label">C'était</span>
+                  <span className="st-answer__value">{reveal.text}</span>
+                </div>
+                <HistogrammeCueillette tranches={stats.tranches} bloc="st-cuhist"
+                  testid="stream-cueillette-histo" />
+                <div className="st-facts st-facts--deux">
+                  <div className="st-fact">
+                    <span className="st-fact__label">Le meilleur</span>
+                    <span className="st-fact__value st-fact__value--good">{stats.meilleur} %</span>
+                  </div>
+                  <div className="st-fact">
+                    <span className="st-fact__label">Moyenne</span>
+                    <span className="st-fact__value">{stats.moyenne} %</span>
+                  </div>
+                </div>
+              </>
+            )
           ) : stats?.kind === 'lien' ? (
             <LienResultats stats={stats} />
           ) : stats?.kind === 'numeric' ? (
@@ -1006,9 +1107,15 @@ function QuestionStage({ g }) {
                   bouge.
               Le plateau se tait la plupart du temps (c'est une fonctionnalité) :
               cette fente est donc vide bien plus souvent que pleine. */}
-          <div className="st-voix-fente" data-testid="voix-plateau-fente">
-            {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
-          </div>
+          {/* « Le dessin s'affiche en grand À LA PLACE DE LA PHRASE et du
+              graphique. » La fente disparaît entièrement, sa hauteur comprise :
+              tenue vide, elle repousserait le dessin de quatre-vingts pixels vers
+              le haut d'une toile calée au pixel. */}
+          {dessinPartage ? null : (
+            <div className="st-voix-fente" data-testid="voix-plateau-fente">
+              {voix ? <p className="st-voix" data-testid="voix-plateau">{voix}</p> : null}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1044,6 +1151,7 @@ const ANNONCES_STREAM = {
   },
   juste_temps: { emblem: <ChronoBuzzer taille={170} />, regle: "Un chrono s'efface sans s'arrêter. Le cercle doit le stopper au bon moment." },
   cache_cache: { emblem: <EmblemeCache taille={190} />, regle: 'Neuf objets, montrés une fois chacun. Cinq questions ensuite.' },
+  cueillette: { emblem: <EmblemeCueillette taille={180} />, regle: 'Un dessin dix secondes, puis trente pour le refaire de mémoire.' },
 };
 
 function AnnonceStage({ nom, type, annonce }) {

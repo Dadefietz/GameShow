@@ -515,6 +515,121 @@
   .vsgraf__col--bonne .visage { box-shadow: 0 0 0 var(--bw-strong) var(--c-pine); }
   .vsgraf__buzz { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink); }
   .vsgraf__buzz--vide { color: var(--c-ink-4); }
+  /* ==========================================================================
+     « CUEILLETTE » — LA CONSOLE
+     ==========================================================================
+
+     TROIS BLOCS, TROIS MOMENTS : le choix de la cible AVANT le départ, la
+     répartition des ressemblances À la révélation, et les dessins du cercle avec
+     leurs noms — le seul écran du produit où ils paraissent à côté d'un dessin.
+
+     LE CHOIX DE LA CIBLE. Cinquante vignettes ne se parcourent pas en direct : la
+     grille n'en montre qu'une famille à la fois, et elle DÉFILE plutôt que de
+     pousser le bouton de départ hors de l'écran — c'est le bouton que l'animateur
+     cherche, pas la vingtième fleur. */
+  .cuchoix {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: var(--sp-2);
+    max-height: 280px;
+    overflow-y: auto;
+    padding: var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-canvas-2);
+    box-shadow: var(--sh-inset);
+  }
+  .cuchoix__case {
+    display: grid;
+    gap: var(--sp-1);
+    justify-items: center;
+    padding: var(--sp-2);
+    border: 0;
+    border-radius: var(--r-s);
+    /* LA PLAQUE CLAIRE, ICI AUSSI : les dessins sont des traits noirs détourés.
+       Posés sur le fond de nuit, ils disparaîtraient — c'est la même raison qui
+       a fait naître ce jeton pour « Cache-cache ». */
+    background: var(--c-plaque);
+    box-shadow: var(--sh-1);
+  }
+  .cuchoix__case img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+  .cuchoix__nom {
+    font: 500 var(--fs-100) / 1.1 var(--f-ui);
+    color: var(--c-ink-on-plaque);
+    text-align: center;
+  }
+  /* LA CIBLE RETENUE SE VOIT SANS LIRE : un contour de braise, pas seulement une
+     phrase sous la grille. L'animateur change d'onglet de famille en direct. */
+  .cuchoix__case--prise { box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-ember); }
+
+  /* LA RÉPARTITION — vingt tranches de cinq pour cent, la même qu'à l'antenne. */
+  .cuhist { display: grid; gap: var(--sp-2); }
+  .cuhist__barres {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    align-items: end;
+    gap: 2px;
+    height: 120px;
+  }
+  .cuhist__col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; height: 100%; }
+  .cuhist__n { font: 600 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-2); min-height: 1em; }
+  .cuhist__barre {
+    width: 100%;
+    /* LA PART EST UNE FRACTION DE LA HAUTEUR DE PISTE, calculée au rendu. Le
+       plancher de deux pixels sert au cas d'une tranche à un seul joueur quand
+       une autre en compte trente : sans lui, sa barre serait invisible et le
+       graphique mentirait par omission. */
+    height: max(2px, calc(var(--part, 0) * 100%));
+    border-radius: 2px;
+    background: var(--g-pine);
+  }
+  /* UNE TRANCHE VIDE RESTE VISIBLE, en creux — « un espace vide correspond à une
+     tranche dans laquelle aucun joueur n'a répondu ». C'est une information. */
+  .cuhist__barre--vide { height: 2px; background: var(--c-line); }
+  .cuhist__axe { display: flex; justify-content: space-between; }
+  .cuhist__grad { font: 500 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-4); }
+  .cuhist__legende { margin: 0; font: 400 var(--fs-200) / 1.35 var(--f-ui); color: var(--c-ink-3); }
+  .cuhist__legende strong { color: var(--c-ink-2); }
+
+  /* LA CIBLE ET LES DESSINS. La cible d'abord, seule et plus grande : c'est la
+     référence à laquelle l'animateur compare tout le reste. */
+  .cudess__cible { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+  .cudess__cible .toile { width: 148px; flex: none; }
+  /* LES VIGNETTES SONT PETITES : un trait de cinq pixels y refermerait les
+     boucles d'un dessin. Mesuré à l'écran sur les dessins du bassin. */
+  .cudess .toile, .cudess__cible .toile { --toile-trait: 3px; }
+  .cudess__cible-nom { display: grid; gap: var(--sp-1); margin: 0; }
+  .cudess__cible-nom strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
+  .cudess {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--sp-3);
+  }
+  .cudess__fiche {
+    display: grid;
+    gap: var(--sp-2);
+    justify-items: center;
+    padding: var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+  }
+  /* LE DESSIN ACTUELLEMENT À L'ANTENNE. Sans ce repère, l'animateur qui remonte
+     sa liste ne saurait plus lequel des vingt il est en train de montrer. */
+  .cudess__fiche--antenne { box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-ember); }
+  .cudess__nom {
+    margin: 0;
+    max-width: 100%;
+    font: 500 var(--fs-300) / 1.2 var(--f-ui);
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cudess__note { display: flex; align-items: baseline; gap: var(--sp-2); margin: 0; }
+  .cudess__note strong { font: 600 var(--fs-500) / 1 var(--f-mono); color: var(--c-pine); }
+  .cudess__pts { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .cudess__fiche .button { width: 100%; }
+
   /* À la révélation, le panneau perd sa hachure : il est devenu public. */
   .private--public { box-shadow: var(--sh-edge); }
   .private--public::before { display: none; }

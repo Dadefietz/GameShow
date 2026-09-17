@@ -15,6 +15,8 @@ import { formatteurDe, secondes as secondesFr } from '../shared/temps.js';
 import { pourcent } from '../shared/proportion.js';
 import { SerieGraphique } from '../shared/SerieGraphique.jsx';
 import { GrilleCache } from '../shared/GrilleCache.jsx';
+import { Toile } from '../shared/Toile.jsx';
+import { HistogrammeCueillette } from '../shared/HistogrammeCueillette.jsx';
 import { Symbole } from '../shared/Symbole.jsx';
 import QRCode from 'qrcode';
 import { useGame, store } from '../shared/useGame.js';
@@ -622,6 +624,75 @@ function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
   );
 }
 
+// « CUEILLETTE » — LE CHOIX DE LA CIBLE.
+//
+// « L'animateur doit avoir la possibilité de choisir quel sera le dessin cible. »
+// Cinquante vignettes en vrac ne se choisissent pas en direct : elles sont
+// groupées par famille, une famille à la fois, et la cible retenue reste visible
+// au-dessus de la grille — sinon l'animateur perd de vue ce qu'il a choisi dès
+// qu'il change d'onglet.
+//
+// AUCUNE LISTE DE SECOURS ÉCRITE ICI. « Cache-cache » en portait une, et c'est
+// elle qui a rendu son défaut invisible : quand les modes n'arrivaient pas,
+// l'écran affichait un choix plausible et faux. Sans elle, l'absence SE VOIT, et
+// le jeu part sur un dessin tiré au sort comme le serveur sait le faire.
+function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
+  const banque = jeu.dessins || [];
+  const familles = jeu.familles || [];
+  const [famille, setFamille] = useState(familles[0]?.cle || '');
+  const [choisi, setChoisi] = useState(null);
+  const cible = banque.find((d) => d.id === choisi) || null;
+  const visibles = famille ? banque.filter((d) => d.famille === famille) : banque;
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Cueillette" data-testid="depart-cueillette">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Le dessin paraît dix secondes, puis disparaît : le cercle a trente secondes
+        pour le refaire de mémoire, au doigt. Choisis la cible — à défaut, elle sera
+        tirée au sort.
+      </p>
+      {banque.length ? (
+        <div className="fgroup">
+          <span className="flabel" id="cu-famille">Le dessin à reproduire</span>
+          <div className="seg" role="radiogroup" aria-labelledby="cu-famille">
+            {familles.map((f) => (
+              <button key={f.cle} type="button" role="radio" aria-checked={famille === f.cle}
+                className={`button ${famille === f.cle ? 'button--primary' : 'button--quiet'}`}
+                data-testid={`cu-famille-${f.cle}`} onClick={() => setFamille(f.cle)}>
+                {f.nom}
+              </button>
+            ))}
+          </div>
+          <p className="fhint" data-testid="cu-cible">
+            {cible ? `Cible : ${cible.nom}` : 'Aucune cible choisie — le serveur en tirera une.'}
+          </p>
+          <div className="cuchoix" role="listbox" aria-label="Les dessins de cette famille">
+            {visibles.map((d) => (
+              <button key={d.id} type="button" role="option" aria-selected={choisi === d.id}
+                title={d.nom} data-testid="cu-dessin"
+                className={`cuchoix__case${choisi === d.id ? ' cuchoix__case--prise' : ''}`}
+                onClick={() => setChoisi(choisi === d.id ? null : d.id)}>
+                <img src={d.src} alt="" draggable="false" />
+                <span className="cuchoix__nom">{d.nom}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="lien-saisie__actions">
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerCueillette" data-testid="cueillette-demarrer"
+          onClick={() => onDemarrer(jeu, choisi || undefined)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
   return (
     <section className="private lien-saisie" aria-label="Démarrer Les visages" data-testid="depart-visages">
@@ -819,6 +890,79 @@ function ClassementManche({ g, roundId, revealed }) {
             <span className="clsm__rang">{i + 1}</span>
             <span className="clsm__nom" title={l.pseudo}>{l.pseudo}</span>
             {colonnes.map(([titre, lire]) => <span className="clsm__col" key={titre}>{lire(l)}</span>)}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// « CUEILLETTE » — LA CIBLE, TOUS LES DESSINS, ET LE PARTAGE.
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/09) : « l'animateur a de son côté un accès total à
+// tous les dessins des joueurs avec le nom du joueur qui a fait le dessin », et
+// « un bouton "Partager !" doit permettre de partager le dessin d'un joueur en
+// grand sur le stream ».
+//
+// LES NOMS S'ARRÊTENT ICI. Le partage n'envoie qu'un INDEX au serveur, qui
+// rediffuse le tracé SANS le pseudonyme (décision 2.5 du chantier v9) : le
+// document demande de partager le dessin, et les pseudonymes n'ont jamais quitté
+// ce canal dans ce projet.
+//
+// UN SEUL DESSIN À L'ANTENNE À LA FOIS, et le bouton du dessin partagé devient
+// « Reprendre ». Sans ce retour en arrière, l'écran de stream resterait bloqué
+// sur un dessin jusqu'à la manche suivante — et l'animateur n'aurait aucun moyen
+// de revenir au graphique qu'il est en train de commenter.
+function DessinsCueillette({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  const [partage, setPartage] = useState(null);
+  useEffect(() => {
+    const onDessins = (d) => { setDonnee(d && Array.isArray(d.dessins) ? d : null); setPartage(null); };
+    g.on('host:dessins', onDessins);
+    return () => g.off('host:dessins', onDessins);
+  }, [g]);
+  // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
+  // manche antérieure ferait partager à l'antenne le dessin d'une manche close.
+  if (!revealed || !donnee || donnee.roundId !== roundId) return null;
+  if (!donnee.dessins.length) return null;
+
+  const basculer = (idx) => {
+    const suivant = partage === idx ? null : idx;
+    setPartage(suivant);
+    g.emit('host:partagerDessin', { idx: suivant });
+  };
+
+  return (
+    <section className="private" aria-label="Les dessins du cercle" data-testid="cueillette-dessins">
+      <p className="private__title">
+        <I.eye s={16} /> Les dessins — toi seul
+        <span className="private__count">{fmt(donnee.dessins.length)}</span>
+      </p>
+      {donnee.cible ? (
+        <div className="cudess__cible">
+          <Toile testid="cueillette-cible-hote" etiquette={`La cible : ${donnee.cible.nom}`}
+            disabled fond={donnee.cible.src} />
+          <p className="cudess__cible-nom">
+            <span className="h-label">La cible</span>
+            <strong>{donnee.cible.nom}</strong>
+          </p>
+        </div>
+      ) : null}
+      <div className="cudess">
+        {donnee.dessins.map((d) => (
+          <div className={`cudess__fiche${partage === d.idx ? ' cudess__fiche--antenne' : ''}`} key={d.idx}>
+            <Toile testid="cueillette-dessin" etiquette={`Le dessin de ${d.pseudo}`}
+              disabled valeur={d.traits} />
+            <p className="cudess__nom" title={d.pseudo}>{d.pseudo}</p>
+            <p className="cudess__note">
+              <strong>{d.pourcent} %</strong>
+              <span className="cudess__pts">{fmt(d.points)} pts</span>
+            </p>
+            <button className={`button ${partage === d.idx ? 'button--quiet' : 'button--primary'}`}
+              type="button" data-action="host:partagerDessin" data-testid="cueillette-partager"
+              onClick={() => basculer(d.idx)}>
+              {partage === d.idx ? 'Reprendre' : 'Partager !'}
+            </button>
           </div>
         ))}
       </div>
@@ -2048,11 +2192,11 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
 // sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
 // verrait la manche repartir avec les mots de la précédente.
-const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache'];
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette'];
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   const room = g.room || {};
   const current = g.current;
@@ -2079,6 +2223,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
   // AVANT la révélation, cinq réponses se dévoilent une par une, au rythme de
   // l'animateur. `devoilements` compte celles qui sont déjà tombées.
   const estCache = current?.type === 'cache_cache';
+  const estCueillette = current?.type === 'cueillette';
   const devoilees = g.devoilements.length;
   // On est « aux réponses » dès que la dernière question est close.
   const cacheAuxReponses = estCache && !revealed
@@ -2188,6 +2333,9 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
             <DepartCache jeu={prepare} onDemarrer={onDemarrerCache} onAnnuler={onAnnulerLien}
               modes={prepare.modes} defaut={prepare.modeParDefaut} />
           ) : null}
+          {prepare && prepare.type === 'cueillette' ? (
+            <DepartCueillette jeu={prepare} onDemarrer={onDemarrerCueillette} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
               onMode={onModeRetour} onFamille={onFamilleRetour}
@@ -2220,7 +2368,13 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
               montre le décompte de la DERNIÈRE question posée, pendant que
               l'animateur commente la PREMIÈRE réponse : deux questions
               différentes sur le même écran. */}
-          {cacheAuxReponses ? null : (
+          {/* PAS DE « RÉPARTITION » POUR « CUEILLETTE ». Ce panneau range les
+              réponses par option ou par valeur ; un dessin n'est ni l'un ni
+              l'autre, et le bloc s'affichait VIDE sous son titre — une boîte
+              creuse au milieu de la console, en direct. Ce que ce jeu a de
+              comparable est son graphique de ressemblance, qui vient juste
+              au-dessous et qui, lui, dit quelque chose. */}
+          {cacheAuxReponses || estCueillette ? null : (
           <section className={`private${revealed ? ' private--public' : ''}`} data-testid="stats-panel"
             data-bind="module.distribution" aria-label="Répartition des réponses">
             <p className="private__title">
@@ -2242,6 +2396,20 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
           {estCache ? <CacheReponses g={g} roundId={current && current.roundId} /> : null}
+          {/* LA RÉPARTITION DE « CUEILLETTE » — publique, et la même qu'à l'antenne.
+              « Le graphique va de 0 % à 100 % et les résultats sont répartis par
+              tranche de 5 %. » Elle vient de `reveal.stats` : une fois la manche
+              révélée, la dispersion n'a plus rien de secret. */}
+          {revealed && reveal?.stats?.kind === 'cueillette' ? (
+            <section className="private private--public" aria-label="La ressemblance des dessins">
+              <p className="private__title">
+                <I.eye s={16} /> La ressemblance — public
+                <span className="private__count">meilleur {reveal.stats.meilleur} %</span>
+              </p>
+              <HistogrammeCueillette tranches={reveal.stats.tranches} />
+            </section>
+          ) : null}
+          <DessinsCueillette g={g} roundId={current && current.roundId} revealed={revealed} />
           <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA SÉRIE DE VISAGES, À LA RÉVÉLATION. Elle vient de `reveal.stats` et
@@ -2726,6 +2894,21 @@ export function HostApp() {
     });
   }, [g]);
 
+  // LE DÉPART DE « CUEILLETTE ». L'animateur transmet une seule chose : le dessin
+  // qu'il a choisi — « l'animateur doit avoir la possibilité de choisir quel sera
+  // le dessin cible ». Il n'envoie qu'un IDENTIFIANT : la banque vit côté serveur,
+  // et un écran qui pourrait imposer une image ferait de sa console une source de
+  // contenu pour l'antenne. Sans choix, le serveur tire au sort.
+  const demarrerCueillette = useCallback((jeu, dessinId) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `cu-${Date.now()}`, dessinId },
+    });
+  }, [g]);
+
   const demarrerVisages = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
@@ -2881,6 +3064,7 @@ export function HostApp() {
           onDemarrerRetour={demarrerRetour}
           onDemarrerVisages={demarrerVisages}
           onDemarrerCache={demarrerCache}
+          onDemarrerCueillette={demarrerCueillette}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

@@ -768,6 +768,12 @@ io.on('connection', (socket) => {
       modeParDefaut: modules[m.type]?.meta?.modeParDefaut ?? null,
       // Les catégories de questions, pour les onglets de la file de l'animateur.
       categories: modules[m.type]?.meta?.categories ?? null,
+      // LA BANQUE DE DESSINS DE « CUEILLETTE », pour que l'animateur CHOISISSE sa
+      // cible avant de donner le top. Même raison que les modes : un écran qui
+      // recopierait la banque finirait par proposer un dessin que le jeu ne sait
+      // pas servir, et le départ ne partirait pas.
+      dessins: modules[m.type]?.banque?.dessins ?? null,
+      familles: modules[m.type]?.banque?.familles ?? null,
     })));
   });
   // RÉVÉLATION ANTICIPÉE — qui, sur une manche à deux tours, OUVRE LE SECOND au
@@ -775,6 +781,33 @@ io.on('connection', (socket) => {
   // bonne réponse au milieu du premier tour, le second n'aurait plus rien à
   // deviner : c'est `finDeFenetre` qui tranche, à un seul endroit.
   socket.on('host:reveal', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.finDeFenetre(io, r); });
+
+  // « PARTAGER ! » — UN DESSIN PASSE À L'ANTENNE.
+  //
+  // « Un bouton "Partager !" doit permettre de partager le dessin d'un joueur en
+  // grand sur le stream. » L'animateur n'envoie qu'un INDEX : les tracés vivent
+  // sur la manche, côté serveur, depuis la révélation. Renvoyer les tracés
+  // eux-mêmes aurait fait de sa console une source de contenu pour l'antenne.
+  //
+  // LE NOM NE PART PAS (décision 2.5). Le document demande de partager le dessin ;
+  // les pseudonymes n'ont jamais quitté le canal de l'animateur dans ce projet, et
+  // ce n'est pas un jeu de dessin qui va les y faire entrer.
+  //
+  // `idx` à null REPREND le dessin : sans retour en arrière, l'écran de stream
+  // resterait bloqué sur un dessin jusqu'à la manche suivante.
+  socket.on('host:partagerDessin', ({ idx } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    const rt = r.currentModule;
+    if (!rt || rt.type !== 'cueillette' || !Array.isArray(rt.dessins)) return;
+    if (idx == null) return engine.toStaff(io, r).emit('cueillette:partage', { roundId: rt.roundId, dessin: null });
+    const d = rt.dessins[Number(idx)];
+    if (!d) return;
+    engine.toStaff(io, r).emit('cueillette:partage', {
+      roundId: rt.roundId,
+      dessin: { pourcent: d.pourcent, points: d.points, traits: d.traits },
+      cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
+    });
+  });
   // La commande host:adjustScore a été supprimée avec le panneau « Bonus / Malus »
   // de l'écran animateur (action 8) : correction manuelle sans règle ni trace.
   socket.on('host:nextModule', () => {

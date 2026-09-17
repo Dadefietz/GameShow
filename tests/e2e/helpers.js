@@ -121,7 +121,15 @@ export async function retirerJeux(...noms) {
 //
 // SANS ELLE, TRENTE CONTRÔLES ATTENDAIENT QUINZE SECONDES un écran de jeu resté
 // sur son jingle — un rouge massif qui ne désignait pas la faute.
-export async function lancerJeu(page, nom) {
+// `demarrer: false` S'ARRÊTE AU PANNEAU DE PRÉPARATION, et ce n'est pas un
+// raffinement : DONNER LE TOP CONSOMME UNE QUESTION. La file est tirée au sort —
+// `session.shuffle` — et « Question suivante » en retire la tête, qui devient « en
+// cours » et quitte la liste. Un contrôle qui inspecte la file APRÈS le départ
+// regarde donc une file amputée d'une question qu'il ne peut pas prédire : il
+// passe quatre fois sur cinq, et échoue la cinquième sur un tirage. Vu : « une
+// question sans catégorie déclarée a disparu de la file », rouge une fois sur une
+// campagne entière, vert en isolation.
+export async function lancerJeu(page, nom, { demarrer = true } = {}) {
   const entree = nom
     ? page.getByRole('menuitem', { name: `Lancer ${nom}` })
     : page.getByRole('menuitem');
@@ -130,6 +138,7 @@ export async function lancerJeu(page, nom) {
   // jeu depuis le contrôle, c'est l'écran qui le dit.
   await page.locator('[data-testid^="saisie-"], [data-testid^="depart-"]').first()
     .waitFor({ state: 'visible', timeout: 15_000 });
+  if (!demarrer) return;
   const bouton = page.getByTestId('simple-demarrer');
   if (await bouton.isVisible()) await bouton.click();
 }

@@ -256,6 +256,85 @@ try {
   const revealEarly = await waitFor(s1, 'module:reveal');
   check('révélation anticipée animateur OK', typeof revealEarly.correct === 'boolean');
 
+  // ---- « CUEILLETTE » : LA MANCHE ENTIÈRE, DE LA CIBLE AU PARTAGE ----
+  //
+  // POURQUOI ICI ET PAS EN TEST UNITAIRE. Tout ce qui suit est une affaire de
+  // CHEMINS : ce que le serveur met dans une charge utile, sur quel canal, et ce
+  // qu'il n'y met pas. Un test unitaire du module ne verrait rien de cela — il
+  // vérifie que `score()` calcule bien, ce qu'un autre fichier fait déjà.
+  //
+  // DEUX DÉFAUTS RÉELS SONT NÉS DE CES CHEMINS, et ces contrôles sont écrits
+  // contre eux :
+  //   1. `pourcent` sortait du module et n'était PAS recopié dans le relevé
+  //      personnel. L'animateur voyait « 18 % », le joueur lisait « ton dessin
+  //      n'est pas arrivé à temps » au-dessus d'une cible sans son tracé ;
+  //   2. la cible doit DISPARAÎTRE au second tour — y compris son adresse, sans
+  //      quoi le dessin reste à un clic dans l'inspecteur du navigateur, et le
+  //      jeu consiste exactement à ne plus l'avoir sous les yeux.
+  const JEU_CUEIL = 'mod-cueillette';
+  const putCueil = await fetch(`${BASE}/api/modules`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      modules: [{ id: JEU_CUEIL, type: 'cueillette', name: 'Cueillette', duration: 40, color: 'forest', questions: [] }],
+    }),
+  });
+  check('CUEILLETTE bibliothèque acceptée', putCueil.ok);
+
+  const dessins = new Promise((r) => host.once('host:dessins', r));
+  const partage = new Promise((r) => ov.once('cueillette:partage', r));
+  const cible = waitFor(s1, 'module:started', 12000);
+  host.emit('host:startModule', { moduleId: JEU_CUEIL, question: { id: 'cu-int', dessinId: 'd001' } });
+  const tour1 = await cible;
+  check('CUEILLETTE tour 1 montre la cible', tour1.phase === 'cible' && !!tour1.cible?.src, JSON.stringify(tour1.cible));
+  check('CUEILLETTE la cible dure dix secondes', tour1.durationMs === 10000, String(tour1.durationMs));
+
+  const tour2 = await waitFor(s1, 'module:started', 15000);
+  check('CUEILLETTE tour 2 ouvre le dessin', tour2.phase === 'dessin' && tour2.saisie === true);
+  check("CUEILLETTE LA CIBLE A DISPARU, ADRESSE COMPRISE", tour2.cible === undefined, JSON.stringify(tour2.cible));
+
+  // Deux dessins : un carré franc, et trois traits jetés dans un coin.
+  const carre = [[[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8], [0.2, 0.2]]];
+  const coin = [[[0.05, 0.05], [0.12, 0.09]], [[0.06, 0.1], [0.11, 0.06]]];
+  // LE RELEVÉ PERSONNEL S'ÉCOUTE AVANT D'ÊTRE PROVOQUÉ. Le serveur émet
+  // `module:reveal` puis `play:you` dans le même souffle : attendre le premier
+  // pour n'écouter le second qu'ensuite, c'est arriver après son passage. Ce
+  // contrôle a échoué une fois pour cette seule raison, en accusant le serveur.
+  const youCueil = waitForMatching(s1, 'play:you', (y) => y.roundId === tour2.roundId, 60000)
+    .catch(() => null);
+  s1.emit('play:answer', { value: carre });
+  s2.emit('play:answer', { value: coin });
+  const revCueil = await waitForMatching(s1, 'module:reveal', (r) => r.type === 'cueillette', 60000);
+  const relevé = await youCueil;
+
+  check('CUEILLETTE la révélation nomme la cible', revCueil.text === 'Chêne', String(revCueil.text));
+  check('CUEILLETTE vingt tranches de cinq pour cent',
+    Array.isArray(revCueil.stats?.tranches) && revCueil.stats.tranches.length === 20
+    && revCueil.stats.tranches[19].haut === 100,
+    String(revCueil.stats?.tranches?.length));
+  check('CUEILLETTE les tranches comptent les deux dessins',
+    revCueil.stats.tranches.reduce((a, t) => a + t.count, 0) === 2);
+  check('CUEILLETTE LE RELEVÉ PERSONNEL PORTE LA RESSEMBLANCE',
+    relevé && typeof relevé.pourcent === 'number', JSON.stringify(relevé && { p: relevé.pourcent, b: relevé.base }));
+
+  const d = await dessins;
+  check('CUEILLETTE les dessins partent à l’animateur, avec les noms',
+    Array.isArray(d.dessins) && d.dessins.length === 2 && d.dessins.every((x) => typeof x.pseudo === 'string'),
+    JSON.stringify(d.dessins?.map((x) => `${x.pseudo} ${x.pourcent}%`)));
+  check('CUEILLETTE le meilleur dessin est présenté en premier',
+    d.dessins[0].pourcent >= d.dessins[1].pourcent,
+    `${d.dessins[0].pourcent} puis ${d.dessins[1].pourcent}`);
+
+  host.emit('host:partagerDessin', { idx: 0 });
+  const p = await partage;
+  check('CUEILLETTE le partage atteint le stream', !!p.dessin && Array.isArray(p.dessin.traits));
+  check('CUEILLETTE LE PARTAGE NE PORTE AUCUN NOM',
+    !JSON.stringify(p).includes('Alice') && !JSON.stringify(p).includes('Bob'), JSON.stringify(p).slice(0, 160));
+
+  const repris = new Promise((r) => ov.once('cueillette:partage', r));
+  host.emit('host:partagerDessin', { idx: null });
+  check('CUEILLETTE le partage se reprend', (await repris).dessin === null);
+
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');
   // On attend LE relevé final, reconnaissable à son drapeau — pas le prochain

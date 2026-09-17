@@ -319,6 +319,55 @@ export const MOMENTS = {
   // ON NE PUNIT PAS L'ERREUR DE MÉMOIRE, jamais. Ne pas se rappeler n'est pas une
   // faute : c'est le jeu. Les phrases du bas disent ce qui s'est passé, elles ne
   // jugent pas celui à qui c'est arrivé.
+  // « CUEILLETTE » A SA PROPRE FAMILLE, et elle la mérite : c'est le seul jeu du
+  // projet où le joueur PRODUIT au lieu de répondre. Aucune famille existante ne
+  // sait dire « ton dessin ressemblait » — les paliers de l'estimation parlent
+  // d'une cible chiffrée, ceux de « Cache-cache » de cases retrouvées.
+  //
+  // LES PHRASES NE JUGENT PAS LE TALENT. L'énoncé est explicite : « classer les
+  // joueurs de manière amusante », « pas une évaluation artistique parfaite ». Un
+  // joueur qui dessine mal en trente secondes au doigt ne doit pas lire qu'il
+  // dessine mal — il doit lire qu'il a cueilli quelque chose, ou rien.
+  'cueillette.parfait': {
+    surface: 'play',
+    quand: 'un dessin très ressemblant — le haut du barème',
+    phrases: [
+      'On reconnaît tout de suite. Beau travail de main.',
+      'La ressemblance est frappante. Tu as l’œil.',
+      'C’est presque le même dessin. Presque.',
+      'Cueilli à la perfection. Rien à jeter.',
+    ],
+  },
+  'cueillette.bien': {
+    surface: 'play',
+    quand: 'un dessin nettement reconnaissable, sans le haut du barème',
+    phrases: [
+      'On voit très bien ce que c’était. Joli.',
+      'Ton trait a gardé l’essentiel.',
+      'La forme y est. Les détails se sont enfuis.',
+      'Reconnaissable du premier coup d’œil.',
+    ],
+  },
+  'cueillette.passable': {
+    surface: 'play',
+    quand: 'un dessin qui marque des points sans être évident',
+    phrases: [
+      'On devine. C’est déjà quelque chose.',
+      'Il y a de l’idée. Il manque un peu de temps.',
+      'Ça y ressemble, de loin. Ça compte quand même.',
+      'Le geste était bon, la main a hésité.',
+    ],
+  },
+  'cueillette.rien': {
+    surface: 'play',
+    quand: 'un dessin sous le seuil, ou pas de dessin du tout',
+    phrases: [
+      'Le panier est vide cette fois. Ton total est intact.',
+      'Trente secondes, c’est court. Ça arrive à tout le monde.',
+      'On ne saura jamais ce que c’était. Et c’est très bien.',
+      'Rien de cueilli. La prochaine sera la bonne.',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',
@@ -754,6 +803,55 @@ export const MOMENTS = {
       'Ouch ! Le feu se sent bien seul sur celle-là.',
     ],
   },
+  // CUEILLETTE. « Une phrase de situation (celles de l'Estimation). »
+  //
+  // CE QUE « CELLES DE L'ESTIMATION » VEUT DIRE ICI. Les phrases de l'Estimation
+  // parlent de nombres — « une estimation au millimètre », « le but du jeu c'est
+  // d'être le plus proche de la réponse ». Recopiées telles quelles sur un jeu de
+  // dessin, elles commenteraient un jeu qui n'est pas à l'écran. Ce qui se reprend,
+  // c'est LEUR FORME : quatre situations, les deux extrêmes du groupe et les deux
+  // extrêmes de l'individu, et le silence entre les deux. C'est exactement ce que
+  // « Le juste temps » et « Coupe ta bûche » ont fait des phrases de l'Estimation.
+  'stream.cueil-chef-oeuvre': {
+    surface: 'overlay',
+    quand: 'cueillette : le meilleur dessin atteint 90 % de ressemblance ou plus',
+    phrases: [
+      'Il y a un artiste dans le cercle !',
+      'Quelqu’un a la main sûre, et ça se voit.',
+      'Un dessin comme celui-là, on le garde au chaud.',
+      'Le modèle a trouvé son copiste.',
+    ],
+  },
+  'stream.cueil-personne': {
+    surface: 'overlay',
+    quand: 'cueillette : même le meilleur dessin reste sous 45 % de ressemblance',
+    phrases: [
+      'Le cercle a ramené autre chose que ce qu’on lui demandait.',
+      'Dix secondes, c’était peut-être un peu court.',
+      'Personne n’a retrouvé le modèle. Il faudra y retourner.',
+      'On va dire que c’était une interprétation libre.',
+    ],
+  },
+  'stream.cueil-groupe-juste': {
+    surface: 'overlay',
+    quand: 'cueillette : la ressemblance moyenne du cercle atteint 70 % ou plus',
+    phrases: [
+      'Le cercle a l’œil, et la main qui suit.',
+      'Une belle cueillette, dans l’ensemble.',
+      'Tout le monde a rapporté quelque chose de ressemblant.',
+      'Le cercle a bien regardé avant de dessiner.',
+    ],
+  },
+  'stream.cueil-groupe-loin': {
+    surface: 'overlay',
+    quand: 'cueillette : la ressemblance moyenne du cercle reste sous 35 %',
+    phrases: [
+      'Le cercle est revenu de la cueillette les mains vides.',
+      'Le modèle s’est perdu en chemin.',
+      'On a demandé un dessin, on a reçu des idées.',
+      'Il va falloir regarder un peu mieux la prochaine fois.',
+    ],
+  },
   // RETOUR DE FLAMME. Deux extrêmes seulement, comme partout : la série qui passe
   // sans que personne ne voie rien, et le cercle qui la démonte. Entre les deux,
   // une manche ordinaire — et le plateau se tait.
@@ -843,6 +941,14 @@ export const SEUILS = {
   // RETOUR DE FLAMME : même lecture, même seuil que les visages. Les deux jeux se
   // regardent pareil — une série qui défile, un cercle qui repère ou non.
   retourFoule: 0.5,
+  // CUEILLETTE. Les bornes viennent du BARÈME, pas du goût : 40 % est le seuil
+  // qui fait marquer, 95 % le plafond. Le plateau ne s'émeut donc ni d'un dessin
+  // qui vient juste de marquer, ni au-dessous du seuil de points — il parle des
+  // deux extrêmes, comme partout ailleurs.
+  cueilChefDoeuvre: 90,
+  cueilPersonne: 45,
+  cueilGroupeJuste: 70,
+  cueilGroupeLoin: 35,
 };
 
 // Ordre de PRIORITÉ : si plusieurs conditions se déclenchent, une seule parle.
@@ -862,6 +968,11 @@ export const PRIORITE_PLATEAU = [
   'stream.piege',
   'stream.estim-exact-unique',
   'stream.estim-personne-proche',
+  // MÊME ORDRE QU'À L'ESTIMATION, et pour la même raison : l'exploit d'une seule
+  // personne et l'échec de tout le monde sont les deux choses qu'un plateau
+  // relève ; la moyenne du groupe ne passe qu'après, tout en bas.
+  'stream.cueil-chef-oeuvre',
+  'stream.cueil-personne',
   'stream.vote-egalite',
   // Le cercle qui se trompe sur lui-même passe avant celui qui se devine :
   // l'échec collectif est plus remarquable, comme partout ailleurs.
@@ -877,6 +988,8 @@ export const PRIORITE_PLATEAU = [
   'stream.vote-consensus',
   'stream.estim-groupe-juste',
   'stream.estim-groupe-loin',
+  'stream.cueil-groupe-juste',
+  'stream.cueil-groupe-loin',
   'stream.option-morte',
 ];
 
@@ -1048,6 +1161,16 @@ export function momentDePlateau(type, stats, reveal) {
     // Le compte vient de l'histogramme, qui isole déjà la réponse exacte parce
     // qu'elle est de largeur nulle et se dessine en trait (chantier de l'axe).
     if (stats.histogramme?.exact === 1) candidats.add('stream.estim-exact-unique');
+  }
+
+  // CUEILLETTE. Le meilleur dessin et la moyenne du cercle — les deux nombres que
+  // le serveur publie déjà avec les vingt tranches. Rien n'est recalculé ici : le
+  // plateau commente le même graphique que le public a sous les yeux.
+  if (stats.kind === 'cueillette') {
+    if (stats.meilleur >= SEUILS.cueilChefDoeuvre) candidats.add('stream.cueil-chef-oeuvre');
+    if (stats.meilleur < SEUILS.cueilPersonne) candidats.add('stream.cueil-personne');
+    if (stats.moyenne >= SEUILS.cueilGroupeJuste) candidats.add('stream.cueil-groupe-juste');
+    if (stats.moyenne < SEUILS.cueilGroupeLoin) candidats.add('stream.cueil-groupe-loin');
   }
 
   return PRIORITE_PLATEAU.find((id) => candidats.has(id)) || null;

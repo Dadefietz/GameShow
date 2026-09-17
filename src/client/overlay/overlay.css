@@ -421,6 +421,109 @@
     box-shadow: var(--sh-2), var(--sh-edge);
   }
 
+  /* ==========================================================================
+     « CUEILLETTE » — L'ANTENNE
+     ==========================================================================
+
+     TROIS ÉTATS, ET UN SEUL BLOC : la cible pendant dix secondes, le graphique à
+     la révélation, et le dessin partagé qui prend la place des deux.
+
+     « LE DESSIN CIBLE DOIT PRENDRE LE MAXIMUM DE PLACE SUR L'ÉCRAN. » La toile
+     est donc bornée par la HAUTEUR disponible et non par la largeur : sur une
+     scène de 1920 × 1080, un carré à 100 % de la largeur dépasserait le bas de
+     l'écran de huit cents pixels, et le public ne verrait que le haut du dessin.
+     `height: 100%` sur un carré donne la plus grande figure qui tienne. */
+  .st-cueil {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-5);
+  }
+  /* PAS DE POURCENTAGE DE HAUTEUR ICI — MESURÉ À ZÉRO À L'ÉCRAN AVANT D'ÊTRE
+     CORRIGÉ. La première écriture posait `height: 100%` sur un carré centré dans
+     une grille : la hauteur de la case dépendait de son contenu, le contenu de la
+     hauteur de la case, et le navigateur tranchait par zéro. La cible existait
+     dans le document, son image était chargée — 512 px de large — et elle
+     mesurait 0 × 0 pendant les dix secondes où elle est TOUT le jeu.
+     Ici la toile est un élément flexible d'une colonne à hauteur définie : sa
+     hauteur vient du partage, sa largeur du rapport 1:1. Aucune boucle. */
+  /* LA TOILE EST EMBALLÉE DANS `.toile__bloc` — c'est le composant qui le pose,
+     pour tenir ses outils sous elle chez le joueur. La chaîne flexible doit donc
+     traverser DEUX niveaux : sans cette règle, l'emballage retombait sur une
+     hauteur automatique, c'est-à-dire celle de son contenu, c'est-à-dire zéro —
+     le même cercle que ci-dessus, un étage plus haut, et la cible mesurait encore
+     0 × 0. Vu à l'écran deux fois de suite. */
+  .st-cueil > .toile__bloc {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+  }
+  .st-cueil .toile {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: auto;
+    max-width: 100%;
+    /* À CETTE TAILLE, CINQ PIXELS SONT UN FIL. Le trait suit la scène. */
+    --toile-trait: 10px;
+  }
+  /* LE DESSIN PARTAGÉ, EN GRAND — « à la place de la phrase et du graphique ».
+     Sa note de ressemblance l'accompagne : c'est ce que l'animateur commente, et
+     sans elle le public verrait un dessin sans savoir ce qu'il vaut. LE NOM DE
+     SON AUTEUR N'Y EST PAS (décision 2.5) : les pseudonymes ne quittent pas la
+     console de l'animateur, et ce jeu-ci ne fait pas exception. */
+
+  .st-cueil__note { display: flex; align-items: baseline; gap: var(--gap-st); margin: 0; }
+  .st-cueil__pc {
+    font: 600 var(--fs-st-500) / 1 var(--f-mono);
+    letter-spacing: var(--tr-tight);
+    color: var(--c-pine);
+  }
+  .st-cueil__label {
+    font: 500 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+
+  /* LA RÉPARTITION — les vingt tranches de cinq pour cent, à l'échelle de la
+     scène. Mêmes données et même composant que la console de l'animateur ;
+     seules les tailles changent. */
+  .st-cuhist { display: grid; gap: var(--sp-4); }
+  .st-cuhist__barres {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    align-items: end;
+    gap: var(--sp-2);
+    height: 300px;
+  }
+  .st-cuhist__col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: var(--sp-2); height: 100%; }
+  .st-cuhist__n { font: 600 var(--fs-st-200) / 1 var(--f-mono); color: var(--c-ink-2); min-height: 1em; }
+  .st-cuhist__barre {
+    width: 100%;
+    /* Voir la note jumelle dans host.css : le plancher rend visible la tranche
+       à un seul joueur quand une autre en compte trente. */
+    height: max(4px, calc(var(--part, 0) * 100%));
+    border-radius: var(--r-xs);
+    background: var(--g-pine);
+    box-shadow: var(--sh-pine);
+  }
+  .st-cuhist__barre--vide { height: 4px; background: var(--c-line); box-shadow: none; }
+  .st-cuhist__axe { display: flex; justify-content: space-between; }
+  .st-cuhist__grad {
+    font: 500 var(--fs-st-100) / 1 var(--f-mono);
+    letter-spacing: var(--tr-label);
+    color: var(--c-ink-4);
+  }
+  .st-cuhist__legende { margin: 0; font: 500 var(--fs-st-100) / 1.3 var(--f-ui); color: var(--c-ink-3); }
+  .st-cuhist__legende strong { color: var(--c-ink-2); }
+  /* DEUX FAITS, PAS TROIS. La grille des faits est faite pour l'estimation, qui
+     en publie trois ; « Cueillette » n'en a que deux, et la troisième colonne
+     laissait un trou d'un tiers de largeur à droite. */
+  .st-facts--deux { grid-template-columns: repeat(2, 1fr); }
+
   /* LA SÉRIE À LA RÉVÉLATION. Trente colonnes sur une toile de 1920 : elles
      tiennent sur deux rangs. Le visage doublé est plus gros à ses deux places,
      et la seconde — celle qui rapportait — porte le vert. */

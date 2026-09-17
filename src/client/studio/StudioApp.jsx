@@ -41,6 +41,10 @@ const MODULE_TYPES = {
   // EN DIRECT lui aussi : sa grille de neuf objets et ses cinq questions sont
   // tirées par le serveur au lancement. Rien à préparer ici.
   cache_cache: { label: 'Cache-cache', subtitle: 'Neuf objets, vus une fois', icon: 'grid', color: 'info', direct: true },
+  // EN DIRECT lui aussi : son dessin cible se choisit à l'antenne, dans la banque
+  // du dépôt. Il n'y a pas de question à écrire — le joueur ne répond pas, il
+  // dessine.
+  cueillette: { label: 'Cueillette', subtitle: 'Reproduire un dessin de mémoire', icon: 'pencil', color: 'forest', direct: true },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];

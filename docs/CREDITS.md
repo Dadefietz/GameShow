@@ -123,6 +123,47 @@ que d'éteindre le jeu. Ce que le Studio NE fait pas, c'est envoyer un fichier :
 n'existe pas de route pour cela, et l'écran le dit plutôt que de le laisser
 découvrir. Une image ajoutée doit déjà être servie depuis `src/public/objets/`.
 
+## Les dessins du jeu « Cueillette »
+
+**Cinquante dessins au trait fournis par l'auteur**, en deux archives : dix
+arbres, vingt fleurs, vingt fruits. Les droits et la licence relèvent de lui ; ce
+dépôt les sert, il ne les revendique pas. Si une attribution est due à leur
+source, elle se pose ici.
+
+Les fichiers d'origine portaient des intitulés anglais suivis d'un identifiant de
+trente-deux caractères. Ils sont rangés sous `d001` à `d050` dans
+`src/public/dessins/`, et **leur nom français est DÉCLARÉ dans
+`src/server/dessins.js`**, jamais lu dans le nom de fichier — la règle du dépôt
+depuis la banque d'objets de « Cache-cache » : un jeu qui lit ses données dans un
+nom de fichier se casse au premier renommage, sans que personne sache pourquoi.
+
+**Traitement appliqué** : recadrage sur l'encre, centrage sur un carré avec six
+pour cent de marge, 512 px, détourage du fond par les bords, puis WebP qualité 82
+méthode 6 — le réglage du dépôt, celui des portraits et des objets. Total : 573 Ko
+pour les cinquante.
+
+- **Pourquoi un carré**, alors que les originaux sont en portrait : les rapports
+  de leurs encres vont de 0,25 — un bouleau tout en hauteur — à 1,68 pour une
+  tranche de pastèque. Une zone de dessin qui changerait de forme à chaque manche
+  désorienterait les joueurs et rendrait invérifiable la règle « une zone de
+  dessin d'exactement la même taille que l'image du dessin cible ».
+- **Pourquoi recadrer** : l'encre n'occupait que 31 % à 79 % de l'image d'origine.
+  Affichés tels quels, les dessins auraient paru minuscules au centre de l'écran,
+  et les joueurs auraient dessiné petit dans une grande zone — ce que le calcul de
+  ressemblance aurait puni sur les proportions, pour une raison qui ne les regarde
+  pas.
+- **Pourquoi le détourage part des BORDS** et non de « tout le blanc » : le creux
+  d'un avocat, la chair d'une noix de coco et le cœur d'une figue sont blancs eux
+  aussi. Un détourage naïf les aurait percés, et le dessin serait apparu troué sur
+  la plaque claire de sa case. Vérifié sur planche contact avant intégration.
+
+**Ce que le dépôt embarque en plus des images** : `src/server/dessins-grilles.js`,
+68 Ko de grilles 64 × 64 précalculées à la conversion — deux par dessin. Elles
+existent parce que le serveur doit COMPARER la cible au tracé d'un joueur sans
+décoder d'image à l'antenne ; elles se régénèrent depuis les WebP et ne sont pas
+une source. Une grille vide noterait tout le monde à zéro en silence : un contrôle
+les parcourt toutes les cinquante et vérifie qu'elles portent de l'encre.
+
 ## Polices
 
 - **Mulish**, **Barlow Semi Condensed**, **IBM Plex Mono** — licence SIL Open

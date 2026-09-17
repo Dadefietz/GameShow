@@ -109,6 +109,11 @@ describe('convention de la voix — contrôle bloquant', () => {
       // et donc un résultat qui se compte en cases retrouvées — ce qu'aucune
       // famille existante ne sait dire.
       cache_cache: ['cache.parfait', 'cache.beaucoup', 'cache.quelques', 'cache.rien'],
+      // « CUEILLETTE » aussi : c'est le seul jeu où le joueur PRODUIT au lieu de
+      // répondre, et aucune famille existante ne sait dire « ton dessin
+      // ressemblait ». Les paliers de l'estimation parlent d'une cible chiffrée,
+      // ceux de « Cache-cache » de cases retrouvées.
+      cueillette: ['cueillette.parfait', 'cueillette.bien', 'cueillette.passable', 'cueillette.rien'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

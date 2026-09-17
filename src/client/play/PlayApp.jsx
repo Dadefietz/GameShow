@@ -20,6 +20,8 @@ import { ChronoBuzzer } from '../shared/ChronoBuzzer.jsx';
 import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
+import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
+import { Toile } from '../shared/Toile.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
@@ -391,6 +393,10 @@ const ANNONCES = {
     emblem: <EmblemeCache taille={104} />,
     regle: 'Neuf objets, montrés une fois chacun. Cinq questions ensuite.',
   },
+  cueillette: {
+    emblem: <EmblemeCueillette taille={100} />,
+    regle: 'Un dessin dix secondes, puis trente pour le refaire de mémoire.',
+  },
 };
 
 function AnnonceScreen({ nom, type, annonce }) {
@@ -597,12 +603,15 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
   const [estimate, setEstimate] = useState('');
   // « Le lien » : le mot saisi au clavier, remis à zéro à chaque manche.
   const [mot, setMot] = useState('');
+  // LE DESSIN EN COURS. Il vit ici et non dans la toile : le bouton d'envoi est
+  // ailleurs sur l'écran, et c'est lui qui décide du moment où le dessin part.
+  const [dessin, setDessin] = useState([]);
   // ET À CHAQUE TOUR, pas seulement à chaque manche. « Cache-cache » pose cinq
   // questions dans la même manche, et trois d'entre elles se répondent au clavier :
   // sans cette remise à zéro, la réponse de la question précédente attendrait déjà
   // dans le champ de la suivante — prête à partir d'une touche, sur un jeu où le
   // joueur a dix secondes et regarde ailleurs.
-  useEffect(() => { setMot(''); }, [current?.roundId, current?.tour]);
+  useEffect(() => { setMot(''); setDessin([]); }, [current?.roundId, current?.tour]);
   const isVote = type === 'vote';
   // LES DEUX TOURS DU VOTE. Le premier demande ce que le joueur pense, le second
   // ce qu'il croit que le cercle a répondu. Un sondage n'a qu'un tour et se tait.
@@ -802,8 +811,41 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}`} data-bind="module.options" data-testid="answer-zone">
-          {type === 'true_false' ? (
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}`} data-bind="module.options" data-testid="answer-zone">
+          {/* « CUEILLETTE » — DEUX TEMPS, DEUX CARRÉS DE MÊME TAILLE.
+              « Le Dessin cible est affiché pendant 10 secondes, il doit prendre le
+              maximum de place sur l'écran. Une fois que le Dessin cible disparaît,
+              une zone de dessin d'EXACTEMENT LA MÊME TAILLE apparaît. »
+              Les deux emploient la même boîte `.toile` : leur taille n'est pas
+              recopiée deux fois, elle est la même par construction. */}
+          {type === 'cueillette' ? (
+            current.phase === 'cible' ? (
+              <div className="toile__bloc">
+                <div className="toile toile--cible" data-testid="cueillette-cible" role="img"
+                  aria-label="Le dessin à retenir">
+                  <img className="toile__fond" src={current.cible?.src} alt="" draggable="false" />
+                </div>
+                <p className="q-aide">Regarde bien — il va disparaître.</p>
+              </div>
+            ) : (
+              <div className="toile__bloc">
+                <Toile testid="cueillette-toile" etiquette="Dessine ce que tu as vu"
+                  valeur={dessin} disabled={answered || disabled}
+                  onChange={setDessin} />
+                {/* L'ENVOI EST UN GESTE À PART, et il le reste. Envoyer à chaque
+                    trait ferait partir un dessin inachevé au premier doigt levé ;
+                    n'envoyer qu'à la fin du chrono perdrait ceux qui ont terminé
+                    tôt. Le joueur décide, et peut continuer tant qu'il n'a pas
+                    décidé. */}
+                <button className="p-btn p-btn--primary" type="button"
+                  data-testid="answer-submit" data-action="play:answer"
+                  disabled={disabled || !dessin.length}
+                  onClick={() => onAnswer(dessin)}>
+                  {answered ? 'Dessin envoyé' : 'Envoyer mon dessin'}
+                </button>
+              </div>
+            )
+          ) : type === 'true_false' ? (
             [['Vrai', true], ['Faux', false]].map(([label, val]) => {
               const chosen = myAnswer === val;
               return (
@@ -1297,6 +1339,11 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isBuche = (rv.type || current?.type) === 'coupe_buche';
   const isRetour = (rv.type || current?.type) === 'retour_flamme';
   const isCache = (rv.type || current?.type) === 'cache_cache';
+  const isCueillette = (rv.type || current?.type) === 'cueillette';
+  // SON PROPRE DESSIN — celui qu'il a envoyé, tel quel. Il n'a pas besoin de
+  // revenir du serveur : le téléphone l'a encore, et `myAnswer` est remis à zéro
+  // à chaque fenêtre de réponse, donc il ne peut pas s'agir d'une manche passée.
+  const monDessin = isCueillette && Array.isArray(myAnswer) ? myAnswer : [];
   const pointsRetour = current?.meta?.points ?? null;
   // LES DEUX JEUX QUI SE GAGNENT PAR PALIERS DE PROXIMITÉ. Tout ce qui suit —
   // la voix, le verdict, la comparaison chiffrée, la ligne d'exactitude — leur
@@ -1315,6 +1362,10 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // que les bonus voyagent à part pour être MONTRÉS au joueur.
   const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0)
     + (r?.bonusGroupe || 0) + (r?.speed || 0);
+  // LE SERVEUR A-T-IL NOTÉ UN DESSIN DE CE JOUEUR ? Voir la note du bloc de
+  // « Cueillette », plus bas : c'est ce qui distingue un dessin envoyé d'un
+  // dessin que le téléphone a gardé pour lui.
+  const aUnDessinNote = isCueillette && monResultat?.pourcent != null;
   const hasData = !!monResultat;
   const absent = answered === false;
   // DEUX ABSENCES, ET NON UNE.
@@ -1410,6 +1461,17 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // dirait la même chose au sans-faute et à celui qui n'a rien reconnu : ce
     // sont deux manches sans rapport. Et le bas de l'échelle ne punit pas — ne
     // pas se rappeler n'est pas une faute, c'est le jeu.
+    // « CUEILLETTE ». Quatre issues, et le bas de l'échelle NE PUNIT PAS : dessiner
+    // au doigt en trente secondes est difficile, et l'énoncé demande un classement
+    // « amusant », pas une note de dessin. Les seuils suivent le barème du serveur
+    // — le seuil de points, puis deux repères au-dessus — plutôt que des nombres
+    // choisis ici, qui finiraient par contredire les points affichés juste à côté.
+    if (isCueillette) {
+      const p = monResultat.pourcent ?? 0;
+      if (p >= 80) return 'cueillette.parfait';
+      if (p >= 60) return 'cueillette.bien';
+      return monResultat.base > 0 ? 'cueillette.passable' : 'cueillette.rien';
+    }
     if (isCache) {
       const bons = monResultat.bons || 0;
       if (bons >= 5) return 'cache.parfait';
@@ -1584,6 +1646,49 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                   const o = rv.stats.matrice.find((x) => x.place === place);
                   return o ? <img className="ccg__objet" src={o.src} alt={`${o.nom} ${o.couleur}`} /> : null;
                 }} />
+            ) : null}
+
+            {/* « UNE PARTIE DE L'ÉCRAN DOIT ÉGALEMENT ÊTRE LE DESSIN CIBLE AVEC LE
+                DESSIN DU JOUEUR SUPERPOSÉ, le dessin du joueur doit être coloré en
+                vert clair (ne reprendre que les traits réalisés par le joueur, pas
+                de fond). »
+
+                LES TRAITS SEULS, SANS FOND — et c'est gratuit ici. Un dessin qui
+                voyagerait en image aurait fallu détourer son fond blanc, avec le
+                piège du blanc enclos rencontré deux fois dans ce projet. Un tracé
+                n'a pas de fond : sa couleur est un attribut, rien à retirer. */}
+            {isCueillette && rv.cible ? (
+              <div className="cuei-bilan">
+                <p className="cuei-bilan__nom">
+                  <span className="p-label">C'était</span>
+                  <strong data-testid="cueillette-nom">{rv.cible.nom}</strong>
+                </p>
+                {/* LE DESSIN SUPERPOSÉ EST CELUI QUE LE SERVEUR A RETENU, PAS CELUI
+                    QUE L'ÉCRAN A GARDÉ — et la nuance s'est vue à l'écran.
+
+                    `myAnswer` est posé dès le clic, avant toute réponse du serveur.
+                    Un envoi parti à la dernière seconde, arrivé après la fermeture
+                    de la fenêtre, laisse donc le téléphone en possession d'un
+                    dessin que la manche ne compte pas. L'écran affichait alors le
+                    tracé en vert PAR-DESSUS la cible et écrivait dessous « Pas de
+                    dessin envoyé » : deux affirmations contraires, dont le joueur
+                    ne peut tirer aucune conclusion.
+
+                    `pourcent` ne vaut quelque chose que si le serveur a noté un
+                    dessin. C'est donc lui qui décide de montrer le tracé. */}
+                {aUnDessinNote ? (
+                  <Toile testid="cueillette-superpose" etiquette="Ton dessin sur le modèle"
+                    disabled fond={rv.cible.src} superpose={monDessin} />
+                ) : (
+                  <Toile testid="cueillette-superpose" etiquette="Le dessin à reproduire"
+                    disabled fond={rv.cible.src} />
+                )}
+                <p className="cuei-bilan__verdict" data-testid="cueillette-ressemblance">
+                  {aUnDessinNote
+                    ? `${monResultat.pourcent} % de ressemblance`
+                    : "Ton dessin n'est pas arrivé à temps."}
+                </p>
+              </div>
             ) : null}
 
             {!isSondage ? (
