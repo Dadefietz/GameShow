@@ -25,8 +25,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { momentDePlateau, reinitialiserVoix } from '../../src/client/shared/voix.js';
 import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
+import { copisteDe, gribouillis as gribouillage } from '../outils/copiste.js';
 import { BASSIN_DESSINS } from '../../src/server/dessins.js';
 import {
+  formeDepuisBits, MARGE_NORMALISATION,
   ressemblance, ressemblanceContreGrilles, grilleDepuisBits, pointsDe, nettoyerDessin, rasteriser, flouter, boiteDe, presenter,
   compterPoints, COTE, TRAITS_MAX, POINTS_PAR_TRAIT_MAX, POINTS_MAX,
   SEUIL_POINTS, PLAFOND_POURCENT, POINTS_PLANCHER, POINTS_MAXIMUM,
@@ -110,19 +112,38 @@ describe('la ressemblance entre deux dessins', () => {
     ['un dessin franchement décalé', () => decale(0.08), 'un gribouillis', () => gribouillis],
     ['le dessin exact', () => CIBLE, 'la moitié du dessin', () => moitie],
     ['la moitié du dessin', () => moitie, 'un quart du dessin', () => quart],
-    ['un quart du dessin', () => quart, 'un gribouillis', () => gribouillis],
     ['un dessin juste mais trop petit', () => petit, 'un gribouillis', () => gribouillis],
+    // « UN QUART DU DESSIN passe avant un gribouillis » A ÉTÉ RETIRÉ D'ICI, et ce
+    // retrait est un aveu utile. Le quart, ici, est UN SEUL SEGMENT DROIT. Mis à
+    // côté d'un gribouillage qui couvre la zone de la cible, lequel ressemble le
+    // plus à un carré ? Personne ne tranche d'un coup d'œil — et c'est exactement
+    // le genre de comparaison que le préambule ci-dessus interdit de figer. Elle
+    // n'a tenu que tant que les proportions et la densité distribuaient des points
+    // à tout le monde ; le jour où elles ont cessé, elle est tombée, et j'ai failli
+    // retoucher le barème pour sauver une affirmation qui n'était pas défendable.
+    // Ce qui compte de ces deux dessins est ailleurs, et vérifié juste en dessous :
+    // NI L'UN NI L'AUTRE NE RAPPORTE LE MOINDRE POINT.
   ])('%s passe avant %s', (nomA, a, nomB, b) => {
     const va = NOTE(a());
     const vb = NOTE(b());
     expect(va, `« ${nomA} » ${va} % ne bat pas « ${nomB} » ${vb} %`).toBeGreaterThan(vb);
   });
 
-  it('un gribouillis ne rapporte AUCUN point', () => {
+  it('un gribouillis ne rapporte AUCUN point — ni rien de ce qui lui ressemble', () => {
     // Noircir la page au hasard recouvre la cible PAR ACCIDENT — c'est la façon la
     // plus simple de tricher, et elle doit rester sans profit.
+    //
+    // CE CONTRÔLE A ÉTÉ VU FAUX. Il passait pendant que, sur de vrais dessins de la
+    // banque, un gribouillis rapportait 140 points sur un chêne et 380 sur un
+    // tournesol — parce que les figures de synthèse d'ici sont plus petites et plus
+    // simples que les dessins du jeu. Un contrôle vert sur un carré ne dit rien
+    // d'une fleur. C'est `tests/outils/planche-cueillette.mjs` qui l'a montré, et
+    // c'est pour cela que cet outil existe.
     expect(pointsDe(NOTE(gribouillis))).toBe(0);
     expect(pointsDe(NOTE(surcharge))).toBe(0);
+    // Un quart de dessin ne rapporte rien non plus : sous le seuil, on ne marque
+    // pas. C'est la règle de l'énoncé, pas un accident du calcul.
+    expect(pointsDe(NOTE(quart))).toBe(0);
   });
 
   it("LE FLOU FAIT SON TRAVAIL — sur la mesure de POSITION, qui est la sienne", () => {
@@ -164,10 +185,28 @@ describe('la ressemblance entre deux dessins', () => {
     expect(ressemblance(CIBLE, rond).detail.forme,
       'un cercle à la place d\'un carré devrait perdre sur la forme').toBeLessThan(0.6);
 
-    // PROPORTIONS : le même carré, deux fois plus petit, au même centre.
-    const r = ressemblance(CIBLE, petit);
-    expect(r.detail.proportions, 'un carré deux fois plus petit devrait perdre sur les proportions')
-      .toBeLessThan(0.75);
+    // PROPORTIONS : LE RAPPORT DE LA FIGURE, ET NON SA TAILLE.
+    //
+    // CE CONTRÔLE DISAIT L'INVERSE, et il avait tort. Il exigeait qu'un carré deux
+    // fois plus petit PERDE sur les proportions — c'est-à-dire qu'il soit puni une
+    // troisième fois pour sa taille, après le recouvrement et après la densité. Vu
+    // sur la planche : une pomme juste, tracée petite, valait ZÉRO point, derrière
+    // un gribouillis. Un carré plus petit reste un carré ; ses proportions sont
+    // intactes, et c'est sa POSITION qui a changé.
+    const memeRapport = ressemblance(CIBLE, petit);
+    expect(memeRapport.detail.proportions,
+      'un carré plus petit reste un carré : ses proportions sont intactes')
+      .toBeGreaterThan(0.95);
+    expect(memeRapport.detail.recouvrement,
+      'et c\'est la POSITION qui doit le punir, une seule fois')
+      .toBeLessThan(0.5);
+
+    // CE QUI PERD VRAIMENT SUR LES PROPORTIONS : une figure au mauvais rapport. Un
+    // bouleau dessiné dans un carré, une pastèque dessinée en hauteur.
+    const aplati = [[[0.1, 0.45], [0.9, 0.45], [0.9, 0.55], [0.1, 0.55], [0.1, 0.45]]];
+    expect(ressemblance(CIBLE, aplati).detail.proportions,
+      'un rectangle plat à la place d\'un carré devrait perdre sur les proportions')
+      .toBeLessThan(0.5);
 
     // ÉLÉMENTS MANQUANTS : la moitié du tracé.
     expect(ressemblance(CIBLE, moitie).detail.densite,
@@ -357,50 +396,17 @@ describe('le barème de Cueillette', () => {
 // à l'envers, toute la banque aurait sous-noté tous les joueurs, et rien ne
 // l'aurait signalé — il n'y a pas de bonne réponse à quoi comparer.
 describe('la cible en image et le dessin en traits se mesurent dans la MÊME unité', () => {
-  // UN COPISTE QUI TRACE DES TRAITS, ET NON DES POINTS — et c'est indispensable.
-  //
-  // Une première version semait un point isolé par case d'encre. Elle ne gardait
-  // RIEN : deux nuages de points se rastérisent de la même façon des deux côtés, si
-  // bien que le biais entre une cible en image et un dessin en traits n'apparaissait
-  // pas. Vérifié en sabotant l'épaississement de la cible : le contrôle est resté
-  // vert. C'est en TRAÇANT que le joueur produit plus d'encre qu'un pointillé, et
-  // c'est donc en traçant qu'il faut l'éprouver.
-  //
-  // Les traits suivent les SUITES CONTIGUËS d'encre sur une rangée — de courts
-  // segments le long du dessin, jamais une barre d'un bord à l'autre de la figure.
-  const copisteDe = (bits, { bruit = 0, garde = 1, decalage = 0, graine = 7 } = {}) => {
-    const g = grilleDepuisBits(bits);
-    let n = graine;
-    const alea = () => { n = (n * 1664525 + 1013904223) % 4294967296; return n / 4294967296; };
-    const pt = (x, y) => [
-      (x / (COTE - 1)) + decalage + (alea() - 0.5) * 2 * bruit,
-      (y / (COTE - 1)) + decalage + (alea() - 0.5) * 2 * bruit,
-    ];
-    const traits = [];
-    for (let y = 0; y < COTE; y += 1) {
-      let debut = null;
-      for (let x = 0; x <= COTE; x += 1) {
-        const encre = x < COTE && g[y * COTE + x] >= 0.9;
-        if (encre && debut === null) debut = x;
-        if (!encre && debut !== null) {
-          if (alea() <= garde) {
-            const trait = [];
-            for (let k = debut; k < x; k += 1) trait.push(pt(k, y));
-            traits.push(trait);
-          }
-          debut = null;
-        }
-      }
-    }
-    return traits;
-  };
+  // LE COPISTE VIT DANS `tests/outils/copiste.js`, et il n'est pas seul à s'en
+  // servir : la planche visuelle de « Cueillette » éprouve le MÊME barème sur les
+  // MÊMES écarts, pour les donner à REGARDER. Écrit deux fois, il aurait divergé,
+  // et les deux outils auraient continué de passer chacun sur son propre copiste.
 
   it('UNE COPIE FIDÈLE marque haut — sinon tout le monde est sous-noté', () => {
     // C'est LE contrôle du biais. Si la cible et le joueur ne sont pas rastérisés
     // de la même façon, ce nombre s'effondre pour une raison qui n'a rien à voir
     // avec le dessin, et le jeu paraît injuste à tout le monde à la fois.
-    const [position, forme] = GRILLES_DESSINS.d012;
-    const r = ressemblanceContreGrilles(position, forme, copisteDe(position));
+    const position = GRILLES_DESSINS.d012;
+    const r = ressemblanceContreGrilles(position, copisteDe(position));
     expect(r.detail.densite,
       `la copie fidèle porte ${r.detail.densite.toFixed(2)} de la densité de la cible`)
       .toBeGreaterThan(0.85);
@@ -410,8 +416,8 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
   });
 
   it('et le classement tient sur un VRAI dessin de la banque', () => {
-    const [position, forme] = GRILLES_DESSINS.d012;
-    const note = (o) => ressemblanceContreGrilles(position, forme, copisteDe(position, o)).pourcent;
+    const position = GRILLES_DESSINS.d012;
+    const note = (o) => ressemblanceContreGrilles(position, copisteDe(position, o)).pourcent;
     const fidele = note({});
     const tremble = note({ bruit: 0.015 });
     const tiers = note({ garde: 0.33 });
@@ -419,25 +425,83 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     expect(tremble, `tremblé ${tremble} % contre un tiers ${tiers} %`).toBeGreaterThan(tiers);
 
     // UN AUTRE DESSIN DE LA BANQUE ne doit pas payer comme une tulipe.
-    const pomme = ressemblanceContreGrilles(position, forme, copisteDe(GRILLES_DESSINS.d031[0])).pourcent;
+    const pomme = ressemblanceContreGrilles(position, copisteDe(GRILLES_DESSINS.d031)).pourcent;
     expect(pomme, `une pomme dessinée pour une tulipe obtient ${pomme} %`).toBeLessThan(fidele - 30);
     expect(pointsDe(pomme), 'et elle ne devrait rien rapporter').toBe(0);
   });
 
-  it('les cinquante dessins ont leurs deux grilles, et elles portent de l\'encre', () => {
+  it('les cinquante dessins ont leur grille, et LA FORME QUI S\'EN DÉRIVE porte de l\'encre', () => {
     // UNE GRILLE VIDE NOTERAIT TOUT LE MONDE À ZÉRO, en silence : il n'y a pas de
     // bonne réponse pour s'en apercevoir.
+    //
+    // LA FORME EST DÉRIVÉE, PLUS STOCKÉE, et c'est aussi elle qu'on éprouve ici.
+    // Une dérivation qui rendrait une grille vide — une boîte dégénérée, une
+    // échelle à zéro — serait le même désastre muet, à ceci près qu'elle
+    // frapperait TOUS les dessins d'un coup.
     expect(Object.keys(GRILLES_DESSINS)).toHaveLength(BASSIN_DESSINS.length);
     for (const d of BASSIN_DESSINS) {
-      const paire = GRILLES_DESSINS[d.id];
-      expect(paire, `« ${d.nom} » (${d.id}) n'a pas de grille`).toBeTruthy();
-      for (const [i, bits] of paire.entries()) {
-        const g = grilleDepuisBits(bits);
+      const bits = GRILLES_DESSINS[d.id];
+      expect(bits, `« ${d.nom} » (${d.id}) n'a pas de grille`).toBeTruthy();
+      for (const [quoi, g] of [['de position', grilleDepuisBits(bits)], ['de forme', formeDepuisBits(bits)]]) {
         let encre = 0;
         for (let k = 0; k < g.length; k += 1) encre += g[k];
-        expect(encre, `« ${d.nom} », grille ${i === 0 ? 'de position' : 'de forme'}, est vide`)
-          .toBeGreaterThan(20);
+        expect(encre, `« ${d.nom} », grille ${quoi}, est vide`).toBeGreaterThan(20);
       }
+    }
+  });
+
+  it('SUR LES CINQUANTE DESSINS : la copie fidèle paie le maximum, le gribouillis jamais rien', () => {
+    // LE CONTRÔLE QUE LA PLANCHE A RENDU NÉCESSAIRE.
+    //
+    // Tous les contrôles voisins travaillent sur un carré, un cercle, un rectangle —
+    // des figures de synthèse, petites et simples. Ils étaient VERTS pendant que,
+    // sur les vrais dessins de la banque, un gribouillis rapportait 140 points sur
+    // un chêne et 380 sur un tournesol, et qu'une rose obtenait 760 points contre
+    // un tournesol. Un carré ne dit rien d'une fleur.
+    //
+    // Celui-ci balaie LES CINQUANTE dessins, et ne garde que les deux propriétés
+    // qui ne souffrent aucune exception :
+    //   — une copie fidèle paie le maximum, sur n'importe quel dessin. Si elle ne
+    //     le fait pas, la cible et le joueur ne sont plus mesurés dans la même
+    //     unité, et toute la banque sous-note tout le monde en silence ;
+    //   — noircir la page au hasard ne paie JAMAIS. C'est la façon la plus simple
+    //     de tricher, et elle doit rester sans profit sur les cinquante.
+    const grib = gribouillage();
+    for (const d of BASSIN_DESSINS) {
+      const pos = GRILLES_DESSINS[d.id];
+      const fidele = ressemblanceContreGrilles(pos, copisteDe(pos)).pourcent;
+      expect(pointsDe(fidele), `une copie fidèle de « ${d.nom} » n'obtient que ${fidele} %`)
+        .toBe(POINTS_MAXIMUM);
+      const sale = ressemblanceContreGrilles(pos, grib).pourcent;
+      expect(pointsDe(sale), `un gribouillis rapporte ${pointsDe(sale)} points sur « ${d.nom} » (${sale} %)`)
+        .toBe(0);
+    }
+  });
+
+  it('LA FORME DÉRIVÉE REMPLIT SA BOÎTE, sans jamais toucher le bord', () => {
+    // LES DEUX MOITIÉS DE LA MARGE, et chacune garde un défaut vu à l'écran.
+    //
+    // TROP PETITE — zéro —, la figure touche les quatre bords et `poser` rogne
+    // l'épaisseur du trait : deux tracés du même carré, l'un en quatre gestes et
+    // l'autre en cent points, n'étaient plus rognés pareil, et la note dépendait
+    // de la cadence du téléphone. C'est le tout premier défaut de ce jeu, revenu
+    // par une autre porte.
+    //
+    // TROP GRANDE, la normalisation cesse de faire son travail : si la figure
+    // n'occupe plus sa boîte, comparer deux formes « ramenées à la même boîte »
+    // ne compare plus rien.
+    for (const d of BASSIN_DESSINS) {
+      const b = boiteDe(formeDepuisBits(GRILLES_DESSINS[d.id]));
+      const marge = COTE * MARGE_NORMALISATION;
+      expect(b, `« ${d.nom} » n'a pas de boîte après normalisation`).toBeTruthy();
+      // ELLE REMPLIT : le plus grand côté occupe la boîte utile, marge déduite.
+      expect(Math.max(b.l, b.h), `« ${d.nom} » ne remplit pas sa boîte`)
+        .toBeGreaterThan(COTE - 4 * marge);
+      // ELLE NE TOUCHE PAS : aucun bord de la figure ne s'appuie sur la grille.
+      expect(b.x, `« ${d.nom} » touche le bord gauche`).toBeGreaterThan(0);
+      expect(b.y, `« ${d.nom} » touche le bord haut`).toBeGreaterThan(0);
+      expect(b.x + b.l, `« ${d.nom} » touche le bord droit`).toBeLessThan(COTE);
+      expect(b.y + b.h, `« ${d.nom} » touche le bord bas`).toBeLessThan(COTE);
     }
   });
 });

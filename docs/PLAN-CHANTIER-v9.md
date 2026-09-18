@@ -329,3 +329,110 @@ ce qu'il avait rangé correctement.
 **La correction.** `lancerJeu` accepte de s'arrêter au panneau de préparation, où
 la file est déjà visible. Le contrôle regarde la file entière, sans en retirer
 quoi que ce soit. Cinq exécutions consécutives, vertes.
+
+---
+
+## 5. Audit de clôture — 18/09
+
+Vingt demandes numérotées (C1–C20) et sept décisions (§2.1–2.7), confrontées une à
+une à la réalisation. **Un seul écart**, et c'était une promesse que ce plan se
+faisait à lui-même contre son propre risque principal :
+
+> « des dessins de synthèse dont on SAIT l'ordre attendu, **et une planche visuelle
+> avant de livrer** »
+
+Les dessins de synthèse existaient. La planche, non. Elle est désormais
+`tests/outils/planche-cueillette.mjs`, et son résultat justifie à lui seul le
+chantier de clôture.
+
+### 5.1 — Ce que la planche a trouvé, et que 363 contrôles verts laissaient passer
+
+Sur de VRAIS dessins de la banque, le barème était injuste de trois façons :
+
+| Ce qu'on voyait | Mesuré |
+| --- | --- |
+| Un GRIBOUILLIS au hasard rapportait des points | 140 pts sur le chêne, 380 sur le tournesol |
+| Une ROSE dessinée pour un TOURNESOL payait presque plein tarif | 73 %, soit 760 pts — plus qu'un tournesol à moitié dessiné |
+| Un dessin JUSTE mais tracé petit s'effondrait | 35 % sur la pomme, c'est-à-dire ZÉRO point, derrière le gribouillis |
+
+**La cause, mesurée et non devinée.** Les quatre mesures s'ADDITIONNAIENT. Or les
+proportions et la densité donnaient 0,89 et 0,66 au gribouillis, 0,95 et 0,81 à la
+rose : elles offraient **quarante pour cent de la note** à quiconque pose à peu près
+la bonne quantité d'encre dans à peu près la bonne boîte — ce qu'un gribouillis fait
+par construction. Pendant ce temps le dessin juste mais petit était puni **trois
+fois pour le même écart** : par le recouvrement, par la densité (moins d'encre) et
+par les proportions (boîte plus petite).
+
+**Pourquoi aucun contrôle ne le voyait.** Ils travaillent tous sur un carré, un
+cercle, un rectangle — des figures petites et simples. Un carré ne dit rien d'une
+fleur. C'est la limite que cet outil existe pour couvrir, et elle était écrite dans
+le plan avant d'être rencontrée.
+
+### 5.2 — Ce qui a changé dans le calcul
+
+1. **Deux mesures paient, deux mesures retiennent.** Le recouvrement (55 %) et la
+   forme (45 %) — celles qui regardent la FIGURE — composent la note. Les
+   proportions et la densité deviennent des gardes MULTIPLICATIVES, bornées à 0,55 :
+   elles ne peuvent que réduire une note gagnée par ressemblance. *Tenir compte
+   n'est pas payer.* Un gribouillis n'a rien gagné, il n'a donc rien à retenir.
+2. **« Les proportions » = le rapport de la figure, non sa taille.** Un carré plus
+   petit reste un carré ; c'est sa POSITION qui a changé, et le recouvrement la
+   punit déjà. Ce qui perd sur les proportions, c'est un bouleau dessiné dans un
+   carré.
+3. **« La densité » = l'encre rapportée à l'ÉTENDUE de la figure.** Un dessin est
+   fait de lignes : son encre croît comme une longueur, pas comme une surface. Deux
+   rédactions intermédiaires ont été mesurées fausses — l'encre brute (punissait la
+   taille deux fois), puis l'encre des dessins normalisés (la main HÉSITANTE passait
+   devant la copie fidèle, par artefact de normalisation).
+4. **La normalisation gagne une marge de deux cases et demie.** Sans elle la figure
+   touchait les quatre bords, `poser` rognait l'épaisseur du trait, et la part
+   rognée dépendait de l'échantillonnage : quatre pour cent d'écart sur la forme
+   entre deux tracés du MÊME carré. C'était le tout premier défaut du jeu — la note
+   qui dépend de la cadence du téléphone — revenu par une autre porte.
+5. **La grille de FORME n'est plus stockée, elle est DÉRIVÉE.** C'est le défaut le
+   plus grave qu'ait causé le point 4 : la seconde grille de chaque dessin était une
+   photographie de ce que `normaliser` faisait le jour de la conversion. En changeant
+   la fonction, la cible serait restée sur l'ancienne règle et le joueur passé à la
+   nouvelle — les deux figures dans deux unités différentes, toute la banque notée de
+   travers, et **rien n'aurait pu le signaler : une donnée ne se compare pas à une
+   fonction.** Le fichier des grilles est passé de 68 à 36 ko.
+
+### 5.3 — Les bornes, après correction, sur les cinquante dessins
+
+| | Avant | Après |
+| --- | --- | --- |
+| La plus mauvaise copie fidèle des 50 | — | **96 %** → 1200 pts |
+| Le gribouillis le mieux noté des 50 | 380 pts | **37 %** → **0 pt** |
+| Le pire des 2450 intrus | 760 pts | 900 pts (voir 5.4) |
+
+### 5.4 — Une limite assumée, et mesurée
+
+Un **coquelicot dessiné pour une rose** paie presque plein tarif. À 64 × 64 cases,
+adoucies par le flou qui pardonne la main tremblante, ce sont le même dessin.
+
+Un terme de DÉTAIL, mesuré sans le flou, a été essayé pour les séparer — **et
+abandonné sur mesure** : le pire intrus y obtient 0,666 quand une main humaine
+ordinaire obtient 0,651 et une main lourde 0,579. Il aurait puni l'honnête plus que
+le tricheur. L'information n'est pas dans la grille ; l'y chercher plus finement
+reviendrait à punir d'abord ceux qui tremblent.
+
+L'énoncé l'admet d'avance : « ce score ne représentera pas une vérité absolue […]
+pas de produire une évaluation artistique parfaite ». C'est consigné ici pour que
+personne ne rouvre le sujet à l'aveugle.
+
+### 5.5 — Et deux de mes propres contrôles étaient faux
+
+- « un quart du dessin passe avant un gribouillis » — le quart y est UN SEGMENT
+  DROIT. Personne ne tranche d'un coup d'œil entre un trait et un gribouillage. La
+  ligne n'a tenu que tant que les proportions et la densité distribuaient des points
+  à tout le monde ; j'ai failli retoucher le barème pour sauver une affirmation
+  indéfendable. Elle est retirée, et ce qui compte — **ni l'un ni l'autre ne paie** —
+  est vérifié à côté.
+- « un carré deux fois plus petit devrait perdre sur les proportions » — il exigeait
+  la troisième punition. Le contrôle disait l'inverse de ce qu'il fallait.
+
+La planche elle-même a dû être corrigée deux fois : son ordre attendu sur-affirmait
+(vingt « désordres » dont la plupart n'en étaient pas), et son candidat « à moitié
+fait » enlevait des traits au hasard partout — un dessin complet en pointillé, pas
+une moitié. Un outil de jugement qui ment sur ses propres figures est pire qu'aucun
+outil.

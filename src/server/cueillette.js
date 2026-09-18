@@ -68,6 +68,12 @@ export const PAS_RASTER = 0.5;
 // « à peu près au même endroit », qui est la question qu'un spectateur se pose.
 export const FLOU = 3;
 
+// LA MARGE DE LA NORMALISATION, partagée par les deux chemins — les traits du
+// joueur et la grille de la cible. Deux valeurs auraient remis les deux figures
+// dans deux unités différentes, ce qui est le défaut que la dérivation de la forme
+// vient précisément de supprimer.
+export const MARGE_NORMALISATION = 0.04;
+
 // LES TROIS MESURES ET LEUR POIDS. L'énoncé en cite cinq ; elles se ramènent à
 // trois, et le tableau dit laquelle couvre quoi.
 // LES QUATRE MESURES ET LEUR POIDS — une par ligne de l'énoncé.
@@ -84,16 +90,49 @@ export const FLOU = 3;
 // et la place n'y jouent plus, et il ne reste que le dessin. Les proportions, qui
 // sont précisément ce qu'on vient de retirer, ont leur propre mesure — c'est ce
 // que l'énoncé demande en les citant à part.
+// ============================================================================
+// DEUX MESURES PAIENT, DEUX MESURES RETIENNENT — ET CE PARTAGE VIENT D'UNE PLANCHE
+// ============================================================================
+//
+// LA PREMIÈRE RÉDACTION ADDITIONNAIT LES QUATRE, chacune avec son poids. Elle
+// passait tous les contrôles : le classement des figures de synthèse était le bon,
+// à chaque fois. Elle était pourtant injuste, et il a fallu la REGARDER sur de
+// vrais dessins pour le voir (`tests/outils/planche-cueillette.mjs`) :
+//
+//   — un GRIBOUILLIS au hasard rapportait 140 points sur un chêne, 380 sur un
+//     tournesol ;
+//   — une ROSE bien tracée obtenait 73 % contre un TOURNESOL, soit 760 points —
+//     plus qu'un tournesol à moitié dessiné ;
+//   — un dessin JUSTE mais tracé petit tombait à 35 % sur la pomme, c'est-à-dire
+//     ZÉRO point, derrière le gribouillis.
+//
+// LA CAUSE, MESURÉE. Les proportions et la densité donnaient 0,89 et 0,66 au
+// gribouillis, 0,95 et 0,81 à la rose. Additionnées, elles offraient QUARANTE POUR
+// CENT DE LA NOTE à quiconque pose à peu près la bonne quantité d'encre dans à peu
+// près la bonne boîte — ce qu'un gribouillis fait par construction. Pendant ce
+// temps, le dessin juste mais petit était puni TROIS FOIS pour le même écart :
+// par le recouvrement, par la densité (moins d'encre) et par les proportions
+// (boîte plus petite).
+//
+// CE QUE L'ÉNONCÉ DEMANDE, RELU. « Le score tient compte de : la position des
+// traits, la forme générale, les proportions, les éléments manquants ou ajoutés,
+// la densité. » TENIR COMPTE N'EST PAS PAYER. Les deux mesures qui regardent la
+// FIGURE paient ; les deux qui regardent son enveloppe retiennent — elles ne
+// peuvent que réduire une note déjà gagnée par ressemblance. Un gribouillis n'a
+// rien gagné, il n'a donc rien à retenir : il tombe.
 export const POIDS = {
-  // « la position des traits »
-  recouvrement: 0.35,
-  // « la forme générale »
-  forme: 0.25,
-  // « les proportions »
-  proportions: 0.15,
-  // « les éléments manquants ou ajoutés », « la densité du dessin »
-  densite: 0.25,
+  // « la position des traits » — le tracé du joueur, là où il l'a posé.
+  recouvrement: 0.55,
+  // « la forme générale » — les deux dessins ramenés à la même boîte.
+  forme: 0.45,
 };
+
+// LES GARDES NE DESCENDENT PAS SOUS CE PLANCHER. Une garde qui pourrait tomber à
+// zéro annulerait une ressemblance réelle sur un seul écart d'enveloppe : un
+// dessin juste, tracé d'un trait plus fin, ne doit pas être ramené à rien. Elles
+// retiennent, elles ne condamnent pas.
+export const GARDE_MIN = 0.55;
+const tempere = (accord) => GARDE_MIN + (1 - GARDE_MIN) * Math.min(1, Math.max(0, accord));
 
 // ---------------------------------------------------------------------------
 // LA FORME D'UN DESSIN, ET SA VALIDATION
@@ -183,9 +222,20 @@ export function normaliser(dessin) {
   const h = y1 - y0;
   // On garde le RAPPORT de la figure : l'étirer pour remplir le carré ferait d'un
   // trait vertical et d'un trait horizontal la même forme.
-  const echelle = Math.max(l, h) > 0 ? 1 / Math.max(l, h) : 1;
-  const dx = (1 - l * echelle) / 2;
-  const dy = (1 - h * echelle) / 2;
+  // UNE MARGE, ET ELLE N'EST PAS DÉCORATIVE. Ramenée EXACTEMENT au carré unité, la
+  // figure touche les quatre bords — et `poser` coupe ce qui déborde de la grille.
+  // Le trait a une épaisseur : au bord, la moitié en est rognée, et la part rognée
+  // dépend de la position des échantillons AU DIXIÈME DE CASE PRÈS. Deux tracés du
+  // même carré, l'un en quatre gestes et l'autre en cent points, n'étaient plus
+  // rognés pareil : quatre pour cent d'écart sur la forme, pour la même figure.
+  // C'est le défaut de la cadence du téléphone, revenu par une autre porte.
+  //
+  // Avec deux cases et demie de marge — l'épaisseur du trait tient largement — la
+  // figure ne touche plus rien, et le rognage cesse d'exister.
+  const utile = 1 - 2 * MARGE_NORMALISATION;
+  const echelle = Math.max(l, h) > 0 ? utile / Math.max(l, h) : 1;
+  const dx = MARGE_NORMALISATION + (utile - l * echelle) / 2;
+  const dy = MARGE_NORMALISATION + (utile - h * echelle) / 2;
   return dessin.map((t) => t.map(([x, y]) => [
     (x - x0) * echelle + dx,
     (y - y0) * echelle + dy,
@@ -317,23 +367,60 @@ function recouvrement(cible, joueur) {
   return couvert + utile > 0 ? (2 * couvert * utile) / (couvert + utile) : 0;
 }
 
-function accordDeBoites(bc, bj) {
-  if (!bc || !bj) return 0;
-  const rapport = (u, v) => (Math.max(u, v) > 0 ? Math.min(u, v) / Math.max(u, v) : 1);
-  const taille = (rapport(bc.l, bj.l) + rapport(bc.h, bj.h)) / 2;
-  // L'écart des centres, rapporté à la diagonale de la grille : deux dessins de
-  // même taille posés aux deux coins n'ont rien en commun.
-  const ecart = Math.hypot(bc.cx - bj.cx, bc.cy - bj.cy) / (COTE * Math.SQRT2);
-  return Math.max(0, taille * (1 - ecart * 2));
+// « LES PROPORTIONS » — LE RAPPORT DE LA FIGURE, ET NON SA TAILLE.
+//
+// LA PREMIÈRE VERSION COMPARAIT LES BOÎTES ENTIÈRES : largeur, hauteur, et l'écart
+// des centres. Elle punissait donc une troisième fois ce que le recouvrement
+// punissait déjà — un dessin juste mais tracé petit, ou posé de côté, y perdait
+// encore. Vu sur la planche : la pomme juste et petite tombait à 35 %, c'est-à-dire
+// zéro point, derrière un gribouillis.
+//
+// LA TAILLE ET LA PLACE SONT L'AFFAIRE DU RECOUVREMENT — « la position des
+// traits ». Ce qui reste, et que l'énoncé cite à part, c'est la FORME DE
+// L'ENVELOPPE : un bouleau est trois fois plus haut que large, une tranche de
+// pastèque plus large que haute. Dessiner un bouleau dans un carré est une faute
+// de proportion ; le dessiner petit n'en est pas une.
+function accordDeProportions(bc, bj) {
+  if (!bc || !bj || bc.h <= 0 || bj.h <= 0) return 0;
+  const fc = bc.l / bc.h;
+  const fj = bj.l / bj.h;
+  if (fc <= 0 || fj <= 0) return 0;
+  return Math.min(fc, fj) / Math.max(fc, fj);
 }
 
-function accordDeDensite(ec, ej) {
-  if (ec <= 0 && ej <= 0) return 1;
-  if (ec <= 0 || ej <= 0) return 0;
-  // Un rapport, jamais une différence : deux fois trop d'encre et deux fois trop
-  // peu doivent être punis pareil. C'est ce qui porte « les éléments manquants ou
-  // ajoutés » — une moitié de dessin, comme un gribouillage par-dessus.
-  return Math.min(ec, ej) / Math.max(ec, ej);
+// « LA DENSITÉ DU DESSIN » — L'ENCRE RAPPORTÉE À L'ÉTENDUE DE LA FIGURE.
+//
+// TROIS RÉDACTIONS, DEUX MESURÉES FAUSSES SUR LA PLANCHE. Elles valent d'être
+// écrites, parce que l'erreur est la même à chaque fois : confondre « combien
+// d'encre » avec « à quel point c'est dense ».
+//
+//  1. L'ENCRE BRUTE. Un dessin juste tracé à soixante pour cent de la taille n'en
+//     porte plus que quarante-cinq : il était puni une seconde fois pour sa
+//     taille, que le recouvrement punit déjà. La pomme juste et petite valait
+//     ZÉRO point.
+//  2. L'ENCRE DES DESSINS RAMENÉS À LA MÊME BOÎTE. La normalisation étire chaque
+//     figure jusqu'aux bords de sa propre boîte : la copie fidèle n'y retrouvait
+//     plus la densité de la cible (0,79), tandis qu'une main HÉSITANTE tombait par
+//     hasard à 0,99 — et passait DEVANT la copie fidèle. Un artefact de mesure
+//     pris pour une ressemblance.
+//  3. Celle-ci. UN DESSIN EST FAIT DE LIGNES : son encre croît comme une LONGUEUR,
+//     pas comme une surface. Rapportée à l'étendue de la figure — sa largeur plus
+//     sa hauteur, qui croît de la même façon — elle ne dépend plus de la taille à
+//     laquelle on a dessiné, et ne dit plus que ce que l'énoncé nomme : un dessin
+//     CHARGÉ contre un dessin CLAIRSEMÉ.
+//     La rapporter à la SURFACE aurait réintroduit la taille par l'autre bout :
+//     l'aire croît comme le carré, l'encre comme le côté, et le même dessin tracé
+//     petit serait ressorti une fois et demie plus dense que l'original.
+//
+// Un rapport, jamais une différence : deux fois trop d'encre et deux fois trop peu
+// doivent être punis pareil.
+function accordDeDensite(gc, gj) {
+  const etendue = (b) => (b ? b.l + b.h : 0);
+  const dc = etendue(boiteDe(gc)) > 0 ? encre(gc) / etendue(boiteDe(gc)) : 0;
+  const dj = etendue(boiteDe(gj)) > 0 ? encre(gj) / etendue(boiteDe(gj)) : 0;
+  if (dc <= 0 && dj <= 0) return 1;
+  if (dc <= 0 || dj <= 0) return 0;
+  return Math.min(dc, dj) / Math.max(dc, dj);
 }
 
 // ---------------------------------------------------------------------------
@@ -400,18 +487,62 @@ export function grilleDepuisBits(b64) {
   return g;
 }
 
-// LA RESSEMBLANCE D'UN DESSIN AVEC UNE CIBLE DONNÉE PAR SES GRILLES.
+// LA CIBLE RAMENÉE À SA PROPRE BOÎTE — DÉRIVÉE, ET NON STOCKÉE.
+//
+// LE DÉFAUT QUE CE CALCUL SUPPRIME, ET IL ÉTAIT DE LA PIRE ESPÈCE. Chaque dessin
+// portait DEUX grilles engendrées à la conversion : celle de sa position, et celle
+// de sa forme. La seconde était une photographie de ce que `normaliser` faisait CE
+// JOUR-LÀ. Le jour où `normaliser` a changé — une marge ajoutée pour cesser de
+// rogner les traits au bord —, le dessin du joueur est passé par la nouvelle règle
+// et la cible est restée sur l'ancienne. Les deux figures n'étaient plus mesurées
+// dans la même unité, toute la banque aurait noté de travers, et RIEN ne l'aurait
+// signalé : les deux grilles sont des données, pas du code, et aucun contrôle ne
+// compare une donnée à une fonction.
+//
+// C'est exactement le défaut que l'épaississement de la cible avait déjà corrigé
+// une fois, revenu par la porte d'à côté. On ne stocke donc plus la forme : on la
+// DÉRIVE de la position, ici, avec les mêmes formules que `normaliser` applique aux
+// traits du joueur. Une seule définition de « ramené à sa boîte », et elle vit dans
+// le code.
+export function formeDepuisBits(b64) {
+  const octets = Buffer.from(b64, 'base64');
+  const points = [];
+  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+  for (let i = 0; i < COTE * COTE; i += 1) {
+    if (!(octets[i >> 3] & (1 << (i & 7)))) continue;
+    const x = i % COTE;
+    const y = Math.floor(i / COTE);
+    points.push([x, y]);
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const g = new Float32Array(COTE * COTE);
+  if (!points.length) return g;
+  // LES MÊMES FORMULES QUE `normaliser`, en cases de grille plutôt qu'en fractions
+  // de boîte. Le rapport de la figure est gardé, la marge aussi.
+  const l = x1 - x0;
+  const h = y1 - y0;
+  const utile = (COTE - 1) * (1 - 2 * MARGE_NORMALISATION);
+  const bord = (COTE - 1) * MARGE_NORMALISATION;
+  const echelle = Math.max(l, h) > 0 ? utile / Math.max(l, h) : 1;
+  const dx = bord + (utile - l * echelle) / 2;
+  const dy = bord + (utile - h * echelle) / 2;
+  for (const [x, y] of points) poser(g, (x - x0) * echelle + dx, (y - y0) * echelle + dy, 1);
+  return g;
+}
+
+// LA RESSEMBLANCE D'UN DESSIN AVEC UNE CIBLE DONNÉE PAR SA GRILLE.
 //
 // C'est le chemin qu'emprunte le jeu : la cible ne peut pas être fournie en traits,
 // personne ne l'a dessinée à la main. `ressemblance` ci-dessous, qui compare deux
 // jeux de traits, sert aux contrôles — où l'on veut décrire les deux figures.
-export function ressemblanceContreGrilles(bitsPosition, bitsForme, joueur) {
+export function ressemblanceContreGrilles(bitsPosition, joueur) {
   const dj = nettoyerDessin(joueur);
   if (!compterPoints(dj)) {
     return { pourcent: 0, brut: 0, detail: { recouvrement: 0, forme: 0, proportions: 0, densite: 0 } };
   }
   const gc = flouter(grilleDepuisBits(bitsPosition));
-  const nc = flouter(grilleDepuisBits(bitsForme));
+  const nc = flouter(formeDepuisBits(bitsPosition));
   const gj = flouter(rasteriser(dj));
   const nj = flouter(rasteriser(normaliser(dj)));
   return composer(gc, nc, gj, nj);
@@ -424,14 +555,16 @@ function composer(gc, nc, gj, nj) {
   const detail = {
     recouvrement: recouvrement(gc, gj),
     forme: recouvrement(nc, nj),
-    proportions: accordDeBoites(boiteDe(gc), boiteDe(gj)),
-    densite: accordDeDensite(encre(gc), encre(gj)),
+    proportions: accordDeProportions(boiteDe(gc), boiteDe(gj)),
+    densite: accordDeDensite(gc, gj),
   };
-  const brut = detail.recouvrement * POIDS.recouvrement
-    + detail.forme * POIDS.forme
-    + detail.proportions * POIDS.proportions
-    + detail.densite * POIDS.densite;
-  return { pourcent: presenter(brut), brut, detail };
+  // CE QUI SE GAGNE : la ressemblance, et elle seule.
+  const merite = detail.recouvrement * POIDS.recouvrement + detail.forme * POIDS.forme;
+  // CE QUI SE RETIENT : l'enveloppe. Multiplicatif, jamais additif — voir la note
+  // de POIDS. Un gribouillis n'a rien gagné, il n'a donc rien à retenir.
+  const garde = tempere(detail.proportions) * tempere(detail.densite);
+  const brut = merite * garde;
+  return { pourcent: presenter(brut), brut, detail, merite, garde };
 }
 
 export function ressemblance(cible, joueur) {

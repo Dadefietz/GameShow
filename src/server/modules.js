@@ -2381,9 +2381,9 @@ export const modules = {
 
       for (const [pid, a] of rt.answers) {
         // LA CIBLE EST UNE IMAGE : on la compare par ses grilles précalculées.
-        const [position, forme] = GRILLES_DESSINS[rt.cible.id] || [];
+        const position = GRILLES_DESSINS[rt.cible.id];
         const { pourcent } = position
-          ? ressemblanceContreGrilles(position, forme, a.value)
+          ? ressemblanceContreGrilles(position, a.value)
           : { pourcent: 0 };
         const base = pointsDuDessin(pourcent);
         results.set(pid, { base, speed: 0, correct: base > 0, pourcent });
