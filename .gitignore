@@ -17,9 +17,11 @@ audit/**/*.png
 .DS_Store
 
 # Tests
-tests/.data
-tests/.data-integration
-tests/.data-unit
+# UN SEUL MOTIF POUR TOUS LES DOSSIERS DE DONNÉES D'ESSAI. Ils étaient énumérés un
+# par un, et un dossier nommé au fil d'un déboguage — `tests/.data-tel` — est entré
+# dans un commit parce qu'il ne figurait pas dans la liste. Une énumération oublie ;
+# un motif, non.
+tests/.data*
 tests/results/
 playwright-report/
 test-results/
@@ -29,5 +31,3 @@ test-results/
 PHOTO-*.jpg
 design-board-standalone.html
 
-# Données du balayage des redites (outil ponctuel, hors suite)
-tests/.data-balayage
