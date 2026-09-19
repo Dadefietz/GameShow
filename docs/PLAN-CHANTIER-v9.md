@@ -436,3 +436,73 @@ La planche elle-même a dû être corrigée deux fois : son ordre attendu sur-af
 fait » enlevait des traits au hasard partout — un dessin complet en pointillé, pas
 une moitié. Un outil de jugement qui ment sur ses propres figures est pire qu'aucun
 outil.
+
+---
+
+## 6. Le jeu était introuvable en production — 19/09
+
+> « Impossible de lancer la cueillette dans le menu du host. »
+
+Le jeu était écrit, contrôlé sur trois suites, déployé — et absent du menu de la
+seule personne qui s'en sert.
+
+### 6.1 — La cause
+
+La bibliothèque d'un animateur monte de semence en semence : un jeu ajouté au
+projet apparaît chez ceux qui étaient déjà installés. Cette montée **fonctionnait
+sur le disque**, et un contrôle le vérifiait.
+
+En production, la bibliothèque ne vient pas du disque : **elle vient de la base**.
+Et ce chemin-là posait la semence à la valeur COURANTE avant d'appeler la montée :
+
+```js
+const etat = { seeded: true, semence: SEMENCE, modules: enBase };
+const monte = monterLaSemence(etat);   // commence par : if (depuis >= SEMENCE) return false
+```
+
+La montée n'a donc **jamais rien fait** sur ce chemin. Le commentaire juste
+au-dessus de l'appel promettait pourtant le contraire, mot pour mot : « la semence
+s'applique aussi à ce qui vient de la base […] sinon Cache-cache resterait
+invisible ». Une règle annoncée et non tenue — le défaut que `design-tokens.test.js`
+avait déjà coûté à ce dépôt.
+
+**Ce n'était pas « Cueillette ».** C'était tout jeu à venir, indéfiniment, en
+silence.
+
+### 6.2 — Pourquoi aucun contrôle ne l'a vu
+
+Le contrôle de la montée suit **le chemin du disque**. Celui qui tourne devant le
+public est l'autre. Un contrôle qui n'emprunte qu'un des deux chemins ne dit rien
+du second.
+
+### 6.3 — La correction : la semence se DÉDUIT du contenu
+
+La table `modules` ne porte pas de numéro de semence, et le disque ne peut pas le
+porter à sa place — l'hébergement l'efface à chaque déploiement. La semence est
+donc déduite, par une règle qui ne se trompe que dans un sens :
+
+> Si la bibliothèque contient un jeu apporté à la semence *v*, le compte est passé
+> par *v* — donc tout ce qui a été apporté avant lui a été proposé, et ce qui en
+> manque a été **supprimé exprès**. On n'y retouche pas.
+
+La semence déduite est la plus haute dont un apport est encore présent.
+
+**Ce que cette règle coûte, et il faut le dire** : supprimer le jeu *le plus
+récent* le fait revenir au redémarrage suivant — lui seul, et seulement tant
+qu'aucun jeu plus récent n'est arrivé. Le défaut inverse est sans commune mesure :
+l'un s'efface d'un clic, l'autre annule le travail.
+
+**Elle se répare toute seule** : la montée réenregistre la bibliothèque en base,
+qui contient dès lors le jeu neuf ; la déduction suivante rend la semence courante,
+et plus rien n'est ajouté.
+
+### 6.4 — Ce qui est désormais gardé
+
+Le raisonnement a été **extrait** de la fonction d'entrées-sorties (`etatDepuisLaBase`)
+précisément parce que ce qui était faux n'était ni la lecture ni l'écriture, mais
+lui — et qu'il ne se contrôlait pas sans une base sous la main. Quatre contrôles
+suivent maintenant le chemin de la base, avec la même exigence que ceux du disque :
+aucun type du serveur hors de portée, le jeu le plus récent qui arrive, rien qui
+ressuscite, et la montée qui ne se rejoue pas. Vus rouges sur le défaut exact de
+production — « *« cueillette » n'apparaît pas alors que la base porte tout ce qui le
+précède* ».

@@ -251,3 +251,74 @@ describe('la semence monte sans rien ressusciter', () => {
     expect(store.getModules(cle).length, 'la montée a rejoué et doublé des jeux').toBe(premier);
   });
 });
+
+// ============================================================================
+// LA MÊME MONTÉE, MAIS POUR UNE BIBLIOTHÈQUE VENUE DE LA BASE
+// ============================================================================
+//
+// POURQUOI CE BLOC EXISTE, ET CE QUE SON ABSENCE A COÛTÉ.
+//
+// Le bloc précédent vérifie la montée SUR LE DISQUE, et il était vert. En
+// production la bibliothèque ne vient pas du disque : elle vient de la base. Ce
+// chemin-là posait la semence À LA VALEUR COURANTE avant d'appeler la montée, qui
+// commence par « si l'on y est déjà, ne rien faire » — elle ne faisait donc jamais
+// rien. Résultat rapporté par l'animateur : « impossible de lancer la cueillette
+// dans le menu du host ». Le jeu était écrit, contrôlé, déployé, et absent.
+//
+// Et ce n'était pas « Cueillette » : c'était TOUT JEU À VENIR, indéfiniment, en
+// silence. Un contrôle qui ne suit qu'un seul des deux chemins ne dit rien du
+// second — et c'est le second qui tourne devant le public.
+describe('la semence monte AUSSI sur une bibliothèque venue de la base', () => {
+  const enBase = (types) => types.map((t) => ({
+    id: `m-${t}`, type: t, name: modules[t].meta.name, duration: 20,
+    color: modules[t].meta.color, questions: [],
+  }));
+
+  it('AUCUN TYPE DU SERVEUR n\'est hors de portée d\'un compte dont la bibliothèque est en base', () => {
+    // Même exigence que sur le disque, et pour la même raison : on part des types
+    // qui existaient VRAIMENT à la première semence — un fait historique — et l'on
+    // exige la bibliothèque complète.
+    const { etat, monte } = store.etatDepuisLaBase(enBase(store.TYPES_A_LA_PREMIERE_SEMENCE));
+    expect(monte, 'la montée ne s\'est pas déclenchée sur le chemin de la base').toBe(true);
+    for (const type of MODULE_TYPES) {
+      expect(etat.modules.some((j) => j.type === type),
+        `le jeu « ${type} » reste introuvable pour un compte dont la bibliothèque est en base`).toBe(true);
+    }
+    for (const t of MODULE_TYPES) {
+      expect(etat.modules.filter((j) => j.type === t).length, `${t} a été posé deux fois`).toBe(1);
+    }
+  });
+
+  it('LE JEU LE PLUS RÉCENT ARRIVE, quand la base s\'arrête à celui d\'avant', () => {
+    // La situation exacte de l'animateur : sa bibliothèque contient tout jusqu'au
+    // jeu précédent, et le dernier manque.
+    const apports = store.APPORTS_DEPUIS_LA_PREMIERE;
+    const dernier = apports[apports.length - 1];
+    const sansLeDernier = [...store.TYPES_A_LA_PREMIERE_SEMENCE, ...apports.filter((t) => t !== dernier)];
+    const { etat } = store.etatDepuisLaBase(enBase(sansLeDernier));
+    expect(etat.modules.some((j) => j.type === dernier),
+      `« ${dernier} » n'apparaît pas alors que la base porte tout ce qui le précède`).toBe(true);
+  });
+
+  it('NE RESSUSCITE PAS un jeu supprimé, quand un jeu plus récent est là', () => {
+    // C'est ce que la semence DÉDUITE permet d'affirmer : puisque le compte porte
+    // le jeu le plus récent, il est passé par toutes les semences antérieures —
+    // donc ce qui manque avant lui a été supprimé exprès.
+    const tous = [...store.TYPES_A_LA_PREMIERE_SEMENCE, ...store.APPORTS_DEPUIS_LA_PREMIERE];
+    const supprime = store.APPORTS_DEPUIS_LA_PREMIERE[0];
+    const { etat, monte } = store.etatDepuisLaBase(enBase(tous.filter((t) => t !== supprime)));
+    expect(monte, 'la montée a cru avoir quelque chose à faire').toBe(false);
+    expect(etat.modules.some((j) => j.type === supprime),
+      `« ${supprime} », supprimé par l'animateur, est revenu tout seul`).toBe(false);
+  });
+
+  it('SE RÉPARE TOUTE SEULE : la montée ne se rejoue pas au démarrage suivant', () => {
+    // La montée réenregistre la bibliothèque en base ; la déduction suivante rend
+    // donc la semence courante. Sans cela, le jeu neuf serait réajouté à chaque
+    // redémarrage et l'animateur en aurait deux, puis trois.
+    const { etat } = store.etatDepuisLaBase(enBase(store.TYPES_A_LA_PREMIERE_SEMENCE));
+    const { etat: second, monte } = store.etatDepuisLaBase(etat.modules);
+    expect(monte, 'la montée a rejoué sur une bibliothèque déjà complète').toBe(false);
+    expect(second.modules.length).toBe(etat.modules.length);
+  });
+});

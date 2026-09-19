@@ -158,6 +158,71 @@ const APPORTS = {
   6: ['cueillette'],
 };
 
+// LA SEMENCE D'UNE BIBLIOTHÈQUE QUI VIENT DE LA BASE — DÉDUITE DE SON CONTENU.
+//
+// ============================================================================
+// LE DÉFAUT QUE CETTE FONCTION RÉPARE, ET IL A ÉTÉ VU EN PRODUCTION
+// ============================================================================
+//
+// « Impossible de lancer la cueillette dans le menu du host. » Le jeu était écrit,
+// contrôlé, déployé — et absent du menu de la seule personne qui s'en sert.
+//
+// La montée de semence fonctionnait parfaitement SUR LE DISQUE, et un contrôle le
+// vérifiait. Mais en production la bibliothèque vient de la BASE, et ce chemin-là
+// posait `semence: SEMENCE` AVANT d'appeler la montée : celle-ci commence par
+// `if (depuis >= SEMENCE) return false`, et ne faisait donc jamais rien. Le
+// commentaire au-dessus de l'appel promettait le contraire, mot pour mot — « la
+// semence s'applique aussi à ce qui vient de la base ». Une règle annoncée et non
+// tenue, exactement ce que ce dépôt a déjà payé ailleurs.
+//
+// Conséquence : AUCUN jeu nouveau n'était plus jamais apparu chez un animateur
+// dont la bibliothèque vit en base. Pas seulement « Cueillette » — tous les
+// suivants, indéfiniment, en silence.
+//
+// ============================================================================
+// POURQUOI DÉDUIRE, PLUTÔT QUE STOCKER
+// ============================================================================
+//
+// La table `modules` ne porte pas de numéro de semence, et le disque ne peut pas
+// le porter à sa place : sur l'hébergement, il est effacé à chaque déploiement.
+// On déduit donc la semence DU CONTENU, par une règle qui ne se trompe que dans
+// un sens :
+//
+//   SI la bibliothèque contient un jeu apporté à la semence v, ALORS le compte est
+//   passé par la semence v — donc tout ce qui a été apporté AVANT lui a été
+//   proposé, et ce qui en manque a été SUPPRIMÉ EXPRÈS. On n'y retouche pas.
+//
+// La semence déduite est donc la PLUS HAUTE dont un apport est encore là.
+//
+// CE QUE CETTE RÈGLE COÛTE, ET IL FAUT LE DIRE : supprimer le jeu le PLUS RÉCENT
+// le fait revenir au redémarrage suivant — lui seul, et seulement tant qu'aucun
+// jeu plus récent n'est arrivé. C'est le prix d'une base qui ne retient pas le
+// numéro. Le défaut inverse — un jeu neuf introuvable pour toujours — est sans
+// commune mesure : l'un s'efface d'un clic, l'autre annule le travail.
+//
+// ELLE SE RÉPARE TOUTE SEULE : la montée réenregistre la bibliothèque en base, qui
+// contient dès lors le jeu neuf ; la déduction suivante rend la semence courante,
+// et plus rien n'est ajouté.
+export function semenceDeduite(modulesDuCompte) {
+  const types = new Set((modulesDuCompte || []).map((m) => m && m.type));
+  let atteinte = 1;
+  for (const [v, apports] of Object.entries(APPORTS)) {
+    if (apports.some((t) => types.has(t))) atteinte = Math.max(atteinte, Number(v));
+  }
+  return atteinte;
+}
+
+// L'ÉTAT QUE PRODUIT UNE BIBLIOTHÈQUE VENUE DE LA BASE — la part qui se contrôle.
+//
+// Elle est séparée de `rafraichirDepuisLaBase` pour une raison précise : ce qui
+// était faux n'était ni la lecture ni l'écriture, c'était CE RAISONNEMENT, et il
+// ne se contrôlait pas sans une base sous la main. Il est désormais pur.
+export function etatDepuisLaBase(modulesEnBase) {
+  const etat = { seeded: true, semence: semenceDeduite(modulesEnBase), modules: modulesEnBase };
+  const monte = monterLaSemence(etat);
+  return { etat, monte };
+}
+
 // Les jeux livrés d'office, construits depuis les questions d'exemple.
 // Ce sont des modules ORDINAIRES : rien ne les distingue de ceux que l'animateur
 // crée, et il peut les vider, les renommer ou les supprimer.
@@ -320,11 +385,11 @@ export async function rafraichirDepuisLaBase(ownerId) {
   const enBase = await lireEnBase(ownerId);
   if (!enBase || !enBase.length) return getModules(ownerId);
   const cle = String(ownerId || 'dev-host');
-  const etat = { seeded: true, semence: SEMENCE, modules: enBase };
-  // LA SEMENCE S'APPLIQUE AUSSI À CE QUI VIENT DE LA BASE : un jeu ajouté au
-  // projet depuis le dernier enregistrement doit apparaître, sinon « Cache-cache »
-  // resterait invisible pour un compte dont la bibliothèque est en base.
-  const monte = monterLaSemence(etat);
+  // LA SEMENCE S'APPLIQUE AUSSI À CE QUI VIENT DE LA BASE — et elle est DÉDUITE du
+  // contenu, faute d'être stockée. Voir `semenceDeduite` : la poser à la valeur
+  // courante, comme on le faisait ici, revenait à déclarer la bibliothèque déjà à
+  // jour et à ne jamais rien ajouter. « Cueillette » en est resté introuvable.
+  const { etat, monte } = etatDepuisLaBase(enBase);
   cache.set(cle, etat);
   ecrire(cle, etat);
   if (monte) await sauverEnBase(ownerId, etat.modules).catch(() => {});
