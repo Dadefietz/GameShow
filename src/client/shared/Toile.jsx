@@ -26,7 +26,17 @@
 // mouvements et le trait se poursuit, borné à la boîte.
 //
 // `touch-action: none` sur l'élément est INDISPENSABLE sur téléphone : sans lui, le
-// premier mouvement du doigt fait défiler la page au lieu de tracer.
+// premier mouvement du doigt fait défiler la page au lieu de tracer. IL A UNE
+// CONTREPARTIE : le doigt ne peut plus faire défiler la page depuis la toile. Tout
+// ce dont le joueur a besoin doit donc TENIR DANS L'ÉCRAN — voir la note de
+// `.q-zone--cueillette` dans play.css, où le bouton d'envoi s'était retrouvé
+// quatre-vingt-neuf pixels sous le pli, hors d'atteinte.
+//
+// `pointerleave` NE TERMINE PAS LE TRAIT, et c'est la raison même de la capture :
+// un doigt qui sort de la toile continue d'être suivi, son trait borné au cadre.
+// Le brancher sur la fin revenait à défaire la capture qu'on venait de prendre —
+// le trait s'arrêtait net au bord, et le joueur croyait que l'écran avait lâché.
+// `pointerup` et `pointercancel` suffisent : la capture garantit qu'ils arrivent.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // LE PAS MINIMAL ENTRE DEUX POINTS GARDÉS, en fraction de la boîte.
@@ -60,22 +70,52 @@ export function Toile({
     ];
   }, []);
 
+  // ============================================================================
+  // RIEN DU TRAIT EN COURS N'EST LU DANS UNE FONCTION DE MISE À JOUR
+  // ============================================================================
+  //
+  // CE QUI A ÉTÉ RAPPORTÉ : « le dessin au téléphone ne fonctionne pas, la zone de
+  // dessin disparaît ». Elle ne disparaissait pas : L'ÉCRAN ENTIER TOMBAIT.
+  //
+  //     TypeError: d.current is not iterable
+  //
+  // `suivre` écrivait `setTraits((t) => [...t.slice(0, -1), [...enCours.current]])`.
+  // La fonction passée à `setTraits` N'EST PAS EXÉCUTÉE TOUT DE SUITE : React la
+  // met en file et l'appelle au rendu suivant. Entre les deux, le doigt se lève —
+  // `finir` remet `enCours.current` à `null` — et la fonction en file déréférence
+  // ce `null`. Le rendu jette, React démonte l'arbre, et le joueur se retrouve
+  // devant une page noire au milieu de ses trente secondes.
+  //
+  // POURQUOI CELA NE S'EST PAS VU À LA SOURIS. Un glissé de souris produit des
+  // événements espacés et bien ordonnés ; un doigt qui trace vite en produit des
+  // rafales que React regroupe, et c'est le regroupement qui ouvre la fenêtre. Le
+  // contrôle de bout en bout dessinait à la souris : il ne pouvait pas le voir.
+  //
+  // LA RÈGLE, DÉSORMAIS : on capture la valeur AVANT, et la fonction de mise à
+  // jour ne lit plus que ses propres arguments. Elle ne peut plus rien apprendre
+  // du monde entre le moment où on l'écrit et celui où elle s'exécute.
   const commencer = (e) => {
     if (disabled) return;
     e.preventDefault();
     boite.current.setPointerCapture?.(e.pointerId);
-    enCours.current = [position(e)];
-    setTraits((t) => [...t, enCours.current]);
+    const debut = [position(e)];
+    enCours.current = debut;
+    // UNE COPIE DANS L'ÉTAT, JAMAIS LE TABLEAU VIVANT. `enCours.current` est
+    // muté à chaque point ; le poser tel quel dans l'état de React reviendrait à
+    // modifier l'état en place, ce qui rend le rendu imprévisible.
+    setTraits((t) => [...t, [...debut]]);
   };
 
   const suivre = (e) => {
-    if (disabled || !enCours.current) return;
+    const trait = enCours.current;
+    if (disabled || !trait) return;
     e.preventDefault();
     const p = position(e);
-    const dernier = enCours.current[enCours.current.length - 1];
+    const dernier = trait[trait.length - 1];
     if (Math.hypot(p[0] - dernier[0], p[1] - dernier[1]) < PAS_MINIMAL) return;
-    enCours.current.push(p);
-    setTraits((t) => [...t.slice(0, -1), [...enCours.current]]);
+    trait.push(p);
+    const fige = [...trait];
+    setTraits((t) => [...t.slice(0, -1), fige]);
   };
 
   const finir = () => {
@@ -101,7 +141,7 @@ export function Toile({
       <div ref={boite} className={`toile${disabled ? ' toile--figee' : ''}`}
         data-testid={testid} role="img" aria-label={etiquette}
         onPointerDown={commencer} onPointerMove={suivre}
-        onPointerUp={finir} onPointerCancel={finir} onPointerLeave={finir}>
+        onPointerUp={finir} onPointerCancel={finir}>
         {/* LE FOND — la cible, quand on la montre sous le dessin du joueur. */}
         {fond ? <img className="toile__fond" src={fond} alt="" draggable="false" /> : null}
         <svg className="toile__encre" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">

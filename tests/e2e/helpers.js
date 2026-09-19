@@ -22,8 +22,11 @@ export async function openHost(browser) {
 
 // Parcours joueur : rejoint un salon depuis la page d'accueil (code en 5 cases).
 // Sélecteurs stables uniquement — le texte de l'interface peut changer.
-export async function joinAsPlayer(browser, code, pseudo) {
-  const ctx = await browser.newContext();
+export async function joinAsPlayer(browser, code, pseudo, options = {}) {
+  // `options` sert aux contrôles de téléphone : une fenêtre courte et le TACTILE.
+  // Sans `hasTouch`, le navigateur n'émet que des événements de souris — et c'est
+  // ainsi qu'un plantage propre au doigt a traversé toute une campagne verte.
+  const ctx = await browser.newContext(options);
   const page = await ctx.newPage();
   await page.goto('/');
   const boxes = page.getByTestId('join-code').getByRole('textbox');

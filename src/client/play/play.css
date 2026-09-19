@@ -500,12 +500,61 @@
      à l'antenne, et le même composant écrit trois fois finirait par diverger —
      c'est l'histoire de `SerieGraphique` dans ce dépôt. Ici ne restent que la
      place qu'elle prend sur un écran de poche et ce qui l'entoure. */
-  .q-zone--cueillette { margin-top: 0; flex: 1; justify-content: center; }
-  /* LA LARGEUR EST BORNÉE PAR LA HAUTEUR DISPONIBLE, pas seulement par la
-     largeur : sur un téléphone en 16/9, un carré à 100 % de la largeur pousserait
-     le bouton d'envoi hors de l'écran — et le bouton est la seule chose à
-     toucher. */
-  .q-zone--cueillette .toile { width: min(100%, 56vh); }
+  /* ==========================================================================
+     LA TOILE PREND LA PLACE QUI RESTE — ET RIEN DE PLUS
+     ==========================================================================
+
+     CE QUI A ÉTÉ RAPPORTÉ : « le dessin au téléphone ne fonctionne pas, la zone de
+     dessin disparaît ». Elle ne disparaissait pas : ELLE PASSAIT SOUS LE PLI.
+
+     MESURÉ sur un écran de 375 × 553 — un téléphone courant, barre d'adresse
+     comprise : la toile commençait à 252 et finissait à 562, neuf pixels en
+     dessous du bord. Les outils tombaient à 574, et le bouton « Envoyer mon
+     dessin » à 642 — QUATRE-VINGT-NEUF PIXELS SOUS L'ÉCRAN. Et comme la toile
+     porte `touch-action: none` — indispensable pour tracer au doigt — glisser
+     dessus DESSINE au lieu de faire défiler : le seul geste qui aurait permis
+     d'atteindre le bouton était précisément celui que le jeu confisque. Le joueur
+     voyait une zone coupée, aucun outil, aucun bouton.
+
+     LA CAUSE : la taille de la toile était devinée en fraction de la hauteur
+     d'écran — 56vh — au lieu d'être DÉDUITE de la place réellement libre. Sur un
+     écran haut le compte tombait juste ; sur un écran court, le bandeau, le
+     chrono et l'énoncé prenaient déjà 228 pixels, et 56vh de plus ne rentrait
+     pas. Un nombre choisi au jugé rend juste sur l'écran où on l'a choisi.
+
+     LA RÈGLE MAINTENANT : la colonne distribue, la toile prend le reste. Aucune
+     fraction d'écran, aucune constante de bandeau — donc rien à réajuster quand
+     un bandeau change de hauteur.
+
+     ET LES DEUX CADRES RESTENT IDENTIQUES, ce que l'énoncé exige (« une zone de
+     dessin d'exactement la même taille que l'image du Dessin cible »). C'est
+     acquis par CONSTRUCTION et non par un nombre recopié : sous la toile, chaque
+     temps porte une rangée de la même hauteur — les outils d'un côté, la phrase
+     d'aide de l'autre — puis une fente de la même hauteur — le bouton d'envoi
+     d'un côté, rien de l'autre. Ce qui reste pour la toile est donc le même. */
+  .q-zone--cueillette { margin-top: 0; flex: 1; min-height: 0; justify-content: center; }
+  /* LA CHAÎNE FLEXIBLE TRAVERSE LES DEUX NIVEAUX. Le composant emballe sa toile
+     dans `.toile__bloc` pour tenir ses outils dessous ; sans cette règle,
+     l'emballage retomberait sur la hauteur de son contenu, et la toile n'aurait
+     aucune hauteur à prendre. C'est le défaut déjà rencontré à l'antenne, où la
+     cible mesurait 0 × 0. */
+  .q-zone--cueillette > .toile__bloc { flex: 1 1 auto; min-height: 0; }
+  .q-zone--cueillette .toile {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* La largeur suit la hauteur par le rapport 1:1, et se borne à la colonne :
+       sur un écran large et court, c'est la largeur qui commande, et le rapport
+       ramène la hauteur. */
+    width: auto;
+    max-width: 100%;
+  }
+  /* LA RANGÉE SOUS LA TOILE, tenue à la même hauteur dans les deux temps. */
+  .q-zone--cueillette .q-aide,
+  .q-zone--cueillette .toile__outils { min-height: var(--hit); flex: none; }
+  .q-zone--cueillette .q-aide { display: grid; place-items: center; }
+  /* LA FENTE SOUS LA RANGÉE, tenue elle aussi : le bouton d'un côté, rien de
+     l'autre, la même place. */
+  .cuei-sous { min-height: var(--hit); flex: none; display: grid; width: 100%; }
   .toile__outils { display: flex; gap: var(--sp-2); width: 100%; }
   .toile__btn {
     flex: 1;

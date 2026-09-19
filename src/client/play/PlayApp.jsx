@@ -698,7 +698,8 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
 
   return (
     <main className="screen" data-state={state}
-      aria-labelledby={type === 'lien' ? 'lien-mots' : 'q-text'}>
+      aria-labelledby={type === 'lien' ? 'lien-mots' : type === 'cueillette' ? undefined : 'q-text'}
+      aria-label={type === 'cueillette' ? 'Cueillette' : undefined}>
       <div className="screen__main">
         <div className="q-hud">
           <span className={`p-cap${disabled ? ' p-cap--sunk' : ' p-cap--accent'}`} data-bind="module.meta.name">
@@ -777,7 +778,20 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
           <p className="q-text cbj__consigne" id="q-text" data-testid="cb-consigne">
             Coupe cette bûche à <strong>{pourcent(current.cible)}</strong>
           </p>
-        ) : type === 'lien' ? null : type === 'cache_cache' && current.phase === 'grille' ? (
+        ) : type === 'lien' ? null : type === 'cueillette' ? (
+          /* PAS D'ÉNONCÉ POUR « CUEILLETTE », ET C'EST DE LA PLACE RENDUE AU JEU.
+             « Le Dessin cible doit prendre le MAXIMUM de place sur l'écran », et
+             la zone de dessin fait exactement sa taille : tout ce qui est écrit
+             au-dessus est pris sur elle. Mesuré sur un écran de 375 × 553 — un
+             téléphone courant, barre d'adresse comprise — le titre et sa marge
+             coûtaient 55 pixels, soit près de deux fois moins de toile.
+             Et il ne disait rien : « Regarde bien… » est déjà sous l'image, « À
+             toi de dessiner ! » est déjà écrit sur le bouton d'envoi, entre deux
+             outils de dessin. C'est le même choix que « Le lien », qui n'a pas
+             d'énoncé non plus, et que « Coupe ta bûche », dont la consigne EST
+             l'énoncé. */
+          null
+        ) : type === 'cache_cache' && current.phase === 'grille' ? (
           /* PENDANT LE DÉVOILEMENT, pas d'énoncé : il n'y a rien à répondre, et
              tout ce qui n'est pas la grille détourne l'œil de ce qu'il faut
              retenir. Une seule ligne, au-dessus, pour dire ce qu'on attend. */
@@ -819,16 +833,24 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
               Les deux emploient la même boîte `.toile` : leur taille n'est pas
               recopiée deux fois, elle est la même par construction. */}
           {type === 'cueillette' ? (
+            /* DEUX TEMPS, ET LE MÊME ÉCHAFAUDAGE — voir la note de `.q-zone--cueillette`
+               dans play.css. Sous la toile, chaque temps porte UNE rangée puis UNE
+               fente, de hauteurs identiques : c'est ce qui donne aux deux cadres
+               exactement la même taille, comme l'énoncé l'exige, quelle que soit la
+               hauteur de l'écran. */
             current.phase === 'cible' ? (
-              <div className="toile__bloc">
-                <div className="toile toile--cible" data-testid="cueillette-cible" role="img"
-                  aria-label="Le dessin à retenir">
-                  <img className="toile__fond" src={current.cible?.src} alt="" draggable="false" />
+              <>
+                <div className="toile__bloc">
+                  <div className="toile toile--cible" data-testid="cueillette-cible" role="img"
+                    aria-label="Le dessin à retenir">
+                    <img className="toile__fond" src={current.cible?.src} alt="" draggable="false" />
+                  </div>
+                  <p className="q-aide">Regarde bien — il va disparaître.</p>
                 </div>
-                <p className="q-aide">Regarde bien — il va disparaître.</p>
-              </div>
+                <div className="cuei-sous" aria-hidden="true" />
+              </>
             ) : (
-              <div className="toile__bloc">
+              <>
                 <Toile testid="cueillette-toile" etiquette="Dessine ce que tu as vu"
                   valeur={dessin} disabled={answered || disabled}
                   onChange={setDessin} />
@@ -837,13 +859,15 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
                     n'envoyer qu'à la fin du chrono perdrait ceux qui ont terminé
                     tôt. Le joueur décide, et peut continuer tant qu'il n'a pas
                     décidé. */}
+                <div className="cuei-sous">
                 <button className="p-btn p-btn--primary" type="button"
                   data-testid="answer-submit" data-action="play:answer"
                   disabled={disabled || !dessin.length}
                   onClick={() => onAnswer(dessin)}>
                   {answered ? 'Dessin envoyé' : 'Envoyer mon dessin'}
                 </button>
-              </div>
+                </div>
+              </>
             )
           ) : type === 'true_false' ? (
             [['Vrai', true], ['Faux', false]].map(([label, val]) => {

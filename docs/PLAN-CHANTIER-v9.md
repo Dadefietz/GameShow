@@ -506,3 +506,81 @@ aucun type du serveur hors de portée, le jeu le plus récent qui arrive, rien q
 ressuscite, et la montée qui ne se rejoue pas. Vus rouges sur le défaut exact de
 production — « *« cueillette » n'apparaît pas alors que la base porte tout ce qui le
 précède* ».
+
+---
+
+## 7. Le dessin au téléphone — 19/09
+
+> « Le dessin au téléphone ne fonctionne pas. La zone de dessin disparaît. »
+
+**Deux défauts**, tous deux propres au téléphone, tous deux passés sous une
+campagne de 178 contrôles verts.
+
+### 7.1 — L'écran entier tombait
+
+```
+TypeError: d.current is not iterable
+```
+
+`suivre` écrivait `setTraits((t) => [...t.slice(0, -1), [...enCours.current]])`.
+**La fonction passée à `setTraits` n'est pas exécutée tout de suite** : React la met
+en file et l'appelle au rendu suivant. Entre les deux, le doigt se lève, `finir`
+remet `enCours.current` à `null`, et la fonction en file déréférence ce `null`. Le
+rendu jette, **React démonte l'arbre**, et le joueur se retrouve devant une page
+noire au milieu de ses trente secondes. Ce n'est pas la zone qui disparaissait :
+c'était tout.
+
+**Pourquoi la souris ne le voyait pas.** Un glissé de souris produit des événements
+espacés et bien ordonnés ; un doigt qui trace vite en produit des rafales que React
+regroupe, et c'est le regroupement qui ouvre la fenêtre. Le contrôle de bout en
+bout dessinait à la souris — il ne pouvait pas le voir.
+
+**La règle maintenant** : on capture la valeur AVANT, et la fonction de mise à jour
+ne lit plus que ses propres arguments. Elle ne peut plus rien apprendre du monde
+entre le moment où on l'écrit et celui où elle s'exécute. Au passage, l'état ne
+reçoit plus le tableau VIVANT du trait en cours, qui était muté sous lui.
+
+**Et `pointerleave` ne termine plus le trait** : c'était défaire la capture qu'on
+venait de prendre. Un doigt qui sort du cadre continue d'être suivi, son tracé
+borné au cadre — ce que le commentaire du fichier promettait déjà.
+
+### 7.2 — Tout ne tenait pas dans l'écran
+
+Mesuré sur **375 × 553** — un téléphone courant, barre d'adresse comprise :
+
+| | Position | |
+| --- | --- | --- |
+| Toile | 252 → **562** | dépasse le bas (553) |
+| Outils | **574** | hors écran |
+| « Envoyer mon dessin » | **642** | **89 px sous le pli** |
+
+Et la toile porte `touch-action: none` — indispensable pour tracer au doigt : **le
+seul geste qui aurait permis d'atteindre le bouton est celui que le jeu
+confisque.**
+
+**La cause** : la taille de la toile était devinée en fraction de la hauteur
+d'écran — `56vh` — au lieu d'être déduite de la place réellement libre. Sur un
+écran haut le compte tombait juste ; sur un écran court, bandeau, chrono et énoncé
+prenaient déjà 228 px. *Un nombre choisi au jugé rend juste sur l'écran où on l'a
+choisi.*
+
+**La correction** : la colonne distribue, la toile prend le reste. Aucune fraction
+d'écran, aucune constante de bandeau. Et les deux cadres restent identiques **par
+construction** — sous la toile, chaque temps porte une rangée de même hauteur puis
+une fente de même hauteur —, et non par un nombre recopié.
+
+**L'énoncé y gagne aussi** : « le Dessin cible doit prendre le MAXIMUM de place ».
+L'énoncé écrit au-dessus coûtait 55 px et ne disait rien — « Regarde bien… » est
+déjà sous l'image, « À toi de dessiner ! » est déjà sur le bouton. Retiré, comme
+pour « Le lien » et « Coupe ta bûche ». Sur 375 × 553 la toile passe de **141 à
+196 px** ; sur 375 × 700, elle fait **288 px**.
+
+### 7.3 — Ce qui est désormais gardé
+
+Un contrôle de bout en bout **sur un contexte tactile** (`hasTouch`) et une fenêtre
+de téléphone court. Il vérifie que la cible, la zone, les outils et le bouton
+tiennent tous dans l'écran, que la page ne déborde pas, qu'un tracé au doigt qui
+**sort du cadre** ne fait pas tomber la page, et que le trait continue après la
+sortie. Vu rouge deux fois, sur chacun des deux défauts : « la page a planté
+pendant le tracé : d.current is not iterable », puis « cueillette-cible finit sous
+le pli — l'écran fait 553 px ».

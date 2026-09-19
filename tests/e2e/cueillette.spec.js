@@ -160,6 +160,106 @@ test.describe('Cueillette', () => {
     await expect(j.getByTestId('answer-submit')).toHaveText('Dessin envoyé');
   });
 
+  // ==========================================================================
+  // LE TÉLÉPHONE — CE QU'AUCUN DES CONTRÔLES CI-DESSUS NE POUVAIT VOIR
+  // ==========================================================================
+  //
+  // Ils dessinent À LA SOURIS, dans une fenêtre d'ordinateur. Deux défauts sont
+  // passés sous eux, tous deux rapportés par l'animateur en une phrase : « le
+  // dessin au téléphone ne fonctionne pas, la zone de dessin disparaît ».
+  //
+  //   1. TOUT NE TENAIT PAS DANS L'ÉCRAN. Mesuré sur 375 × 553 — un téléphone
+  //      courant, barre d'adresse comprise : la toile finissait neuf pixels sous
+  //      le bord, les outils à 574, et le bouton d'envoi à 642, QUATRE-VINGT-NEUF
+  //      PIXELS SOUS LE PLI. Et comme la toile porte `touch-action: none` pour
+  //      qu'on puisse y tracer, glisser dessus DESSINE au lieu de faire défiler :
+  //      le seul geste qui aurait permis d'atteindre le bouton est celui que le
+  //      jeu confisque.
+  //
+  //   2. L'ÉCRAN ENTIER TOMBAIT — « TypeError: d.current is not iterable ». Le
+  //      trait en cours était lu DANS la fonction de mise à jour de React, qui
+  //      s'exécute plus tard : le doigt se levait entre-temps, la référence était
+  //      déjà nulle, le rendu jetait, React démontait tout. Page noire au milieu
+  //      des trente secondes.
+  //
+  // POURQUOI LA SOURIS NE LE VOYAIT PAS : un glissé de souris produit des
+  // événements espacés et bien ordonnés ; un doigt qui trace vite en produit des
+  // rafales que React regroupe, et c'est le regroupement qui ouvre la fenêtre.
+  const TELEPHONE = { viewport: { width: 375, height: 553 }, hasTouch: true, isMobile: true };
+
+  // UN DOIGT, ET IL SORT DU CADRE. La sortie est le geste qui déclenchait le
+  // plantage, et c'est aussi celui que la capture de pointeur doit absorber : le
+  // trait continue, borné au cadre.
+  const doigt = (page) => page.evaluate(() => {
+    const t = document.querySelector('.toile');
+    const r = t.getBoundingClientRect();
+    const ev = (type, fx, fy) => t.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: 'touch',
+      isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+      clientX: r.left + r.width * fx, clientY: r.top + r.height * fy,
+    }));
+    ev('pointerdown', 0.25, 0.25);
+    let [px, py] = [0.25, 0.25];
+    for (const [fx, fy] of [[0.75, 0.25], [0.75, 0.75], [0.25, 0.75], [0.25, 0.25]]) {
+      for (let k = 1; k <= 10; k += 1) ev('pointermove', px + (fx - px) * k / 10, py + (fy - py) * k / 10);
+      [px, py] = [fx, fy];
+    }
+    t.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true, pointerId: 1, pointerType: 'touch' }));
+    for (let k = 1; k <= 6; k += 1) ev('pointermove', 0.25 - k * 0.06, 0.25);
+    ev('pointerup', 0.05, 0.25);
+  });
+
+  test('AU TÉLÉPHONE : tout tient dans l\'écran, et le doigt ne fait pas tomber la page', async ({ browser }) => {
+    hote = await openHost(browser);
+    joueurs.push(await joinAsPlayer(browser, hote.code, 'Pouce', TELEPHONE));
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await lancerJeu(hote.page, JEU);
+    await hote.page.getByTestId('cueillette-demarrer').click();
+
+    const j = joueurs[0].page;
+    const dedans = async (quoi) => {
+      const b = await j.getByTestId(quoi).boundingBox();
+      const h = j.viewportSize().height;
+      expect(b, `« ${quoi} » n'est pas à l'écran`).toBeTruthy();
+      expect(Math.round(b.y + b.height),
+        `« ${quoi} » finit sous le pli — l'écran fait ${h} px`).toBeLessThanOrEqual(h);
+      return b;
+    };
+
+    // LA CIBLE, ENTIÈRE, DANS L'ÉCRAN.
+    await expect(j.getByTestId('cueillette-cible')).toBeVisible({ timeout: 20_000 });
+    const cible = await dedans('cueillette-cible');
+
+    // PUIS LA ZONE DE DESSIN, DE LA MÊME TAILLE, ET TOUT CE QUI VA AVEC.
+    await expect(j.getByTestId('cueillette-toile')).toBeVisible({ timeout: 20_000 });
+    const toile = await dedans('cueillette-toile');
+    expect(Math.abs(toile.width - cible.width),
+      'la zone de dessin n\'a pas la taille de la cible sur un écran court')
+      .toBeLessThanOrEqual(2);
+    await dedans('toile-annuler');
+    await dedans('answer-submit');
+
+    // ET RIEN NE DÉBORDE : la page ne défile pas, puisque le doigt ne le peut pas.
+    const debord = await j.evaluate(() => document.scrollingElement.scrollHeight - window.innerHeight);
+    expect(debord, 'la page déborde, et le doigt ne peut pas la faire défiler').toBeLessThanOrEqual(1);
+
+    // LE DOIGT TRACE, ET L'ÉCRAN SURVIT.
+    const plantages = [];
+    j.on('pageerror', (e) => plantages.push(String(e.message)));
+    await doigt(j);
+    await j.waitForTimeout(400);
+    expect(plantages, `la page a planté pendant le tracé : ${plantages.join(' | ')}`).toEqual([]);
+    await expect(j.getByTestId('cueillette-toile'), 'la zone de dessin a disparu').toBeVisible();
+    await expect(j.locator('[data-testid="cueillette-toile"] polyline')).toHaveCount(1);
+    await expect(j.getByTestId('answer-submit')).toBeEnabled();
+
+    // LE TRAIT A CONTINUÉ APRÈS LA SORTIE DU CADRE — c'est le rôle de la capture,
+    // et le brancher sur `pointerleave` revenait à la défaire.
+    const points = await j.locator('[data-testid="cueillette-toile"] polyline')
+      .evaluate((p) => p.getAttribute('points').split(' ').length);
+    expect(points, 'le trait s\'est arrêté au bord du cadre').toBeGreaterThan(41);
+  });
+
   test("LE BILAN NE SE CONTREDIT PAS : le tracé n'est montré que s'il a compté", async ({ browser }) => {
     await annoncer(browser);
     await hote.page.getByTestId('cu-famille-arbres').click();
