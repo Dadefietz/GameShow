@@ -450,32 +450,109 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     }
   });
 
-  it('SUR LES CINQUANTE DESSINS : la copie fidèle paie le maximum, le gribouillis jamais rien', () => {
+  it('SUR LES CINQUANTE DESSINS : une copie fidèle paie la tranche haute', () => {
     // LE CONTRÔLE QUE LA PLANCHE A RENDU NÉCESSAIRE.
     //
     // Tous les contrôles voisins travaillent sur un carré, un cercle, un rectangle —
     // des figures de synthèse, petites et simples. Ils étaient VERTS pendant que,
     // sur les vrais dessins de la banque, un gribouillis rapportait 140 points sur
-    // un chêne et 380 sur un tournesol, et qu'une rose obtenait 760 points contre
-    // un tournesol. Un carré ne dit rien d'une fleur.
+    // un chêne et 380 sur un tournesol. Un carré ne dit rien d'une fleur.
     //
-    // Celui-ci balaie LES CINQUANTE dessins, et ne garde que les deux propriétés
-    // qui ne souffrent aucune exception :
-    //   — une copie fidèle paie le maximum, sur n'importe quel dessin. Si elle ne
-    //     le fait pas, la cible et le joueur ne sont plus mesurés dans la même
-    //     unité, et toute la banque sous-note tout le monde en silence ;
-    //   — noircir la page au hasard ne paie JAMAIS. C'est la façon la plus simple
-    //     de tricher, et elle doit rester sans profit sur les cinquante.
-    const grib = gribouillage();
+    // CE QU'IL GARDE, EXACTEMENT : que la cible et le joueur soient mesurés dans la
+    // MÊME UNITÉ. Quand ils ne l'étaient pas, une copie fidèle obtenait 56 % et
+    // TOUTE la banque sous-notait tout le monde en silence — il n'y a pas de bonne
+    // réponse pour s'en apercevoir.
+    //
+    // IL EXIGEAIT LE MAXIMUM EXACT, ET C'ÉTAIT TROP FIN. La copie fidèle n'est pas
+    // un joueur : c'est le copiste qui retrace la grille de la cible, et sa note
+    // dépend au point près d'un artefact de normalisation. Le jour où la forme a
+    // pris le pas sur la position, la plus mauvaise des cinquante est passée de
+    // 1200 à 1160 points — un écart qui ne dit rien du biais qu'on surveille, et
+    // qui aurait fait échouer un réglage sain. La barre est donc posée là où elle
+    // détecte ce qu'elle prétend détecter : la TRANCHE HAUTE du barème. Le défaut
+    // d'origine, à 56 %, en reste à des lieues.
     for (const d of BASSIN_DESSINS) {
       const pos = GRILLES_DESSINS[d.id];
       const fidele = ressemblanceContreGrilles(pos, copisteDe(pos)).pourcent;
-      expect(pointsDe(fidele), `une copie fidèle de « ${d.nom} » n'obtient que ${fidele} %`)
-        .toBe(POINTS_MAXIMUM);
-      const sale = ressemblanceContreGrilles(pos, grib).pourcent;
-      expect(pointsDe(sale), `un gribouillis rapporte ${pointsDe(sale)} points sur « ${d.nom} » (${sale} %)`)
-        .toBe(0);
+      expect(fidele, `une copie fidèle de « ${d.nom} » n'obtient que ${fidele} %`)
+        .toBeGreaterThanOrEqual(90);
+      expect(pointsDe(fidele), `une copie fidèle de « ${d.nom} » ne rapporte que ${pointsDe(fidele)} points`)
+        .toBeGreaterThanOrEqual(POINTS_MAXIMUM - 100);
     }
+  });
+
+  it('UN GRIBOUILLIS NE PAIE QUASI JAMAIS — éprouvé sur six mille tirages', () => {
+    // CE CONTRÔLE A REMPLACÉ UNE AFFIRMATION FAUSSE, ET C'EST LA LEÇON.
+    //
+    // Sa première version éprouvait UN gribouillis — une graine, une densité — sur
+    // les cinquante dessins, n'en trouvait aucun payant, et j'en ai conclu dans un
+    // message de commit que « le gribouillis le mieux noté vaut 37 %, soit zéro
+    // point ». C'était vrai de CE gribouillis-là. Balayé sur quarante graines et
+    // trois densités de gribouillage, le pire en valait 56 % — QUATRE CENT VINGT
+    // POINTS — et 4,28 % d'entre eux rapportaient quelque chose. Un échantillon de
+    // un ne mesure pas une population, et il m'avait permis d'écrire une garantie
+    // que le produit ne tenait pas.
+    //
+    // CE QUI SE GARDE MAINTENANT est une BORNE SUR LA POPULATION, pas un absolu
+    // qu'on ne peut pas tenir : à 64 cases floutées, un gribouillage dense finira
+    // toujours par tomber juste sur un saule pleureur, qui est lui-même une masse
+    // de traits fins. On exige que ce soit RARE et PEU PAYANT.
+    //
+    // HUIT GRAINES ICI, QUARANTE DANS L'OUTIL. Le balayage complet — six mille
+    // tirages — demande dix secondes, quand la suite entière en demande une. Une
+    // suite qu'on hésite à lancer ne protège plus rien. Le recensement large vit
+    // donc dans `tests/outils/planche-cueillette.mjs`, qu'on lance à la main ;
+    // ici reste un échantillon assez gros pour voir une régression du barème —
+    // huit gribouillages contre les cinquante dessins, mille deux cents mesures.
+    let payants = 0; let total = 0; let pire = 0; let quoi = '';
+    for (let graine = 1; graine <= 8; graine += 1) {
+      for (const traits of [6, 14]) {
+        const g = gribouillage({ graine, traits });
+        for (const d of BASSIN_DESSINS) {
+          const p = ressemblanceContreGrilles(GRILLES_DESSINS[d.id], g).pourcent;
+          total += 1;
+          if (pointsDe(p) > 0) payants += 1;
+          if (p > pire) { pire = p; quoi = `graine ${graine}, ${traits} traits, contre « ${d.nom} »`; }
+        }
+      }
+    }
+    const part = (100 * payants) / total;
+    expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(3.5);
+    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(55);
+    expect(pointsDe(pire), 'et il ne doit pas approcher la moitié du maximum')
+      .toBeLessThan(POINTS_MAXIMUM / 2);
+  });
+
+  it('LA FORME PASSE DEVANT LA POSITION : un dessin juste mais petit n\'est plus confondu avec un gribouillis', () => {
+    // LE CŒUR DE LA DEMANDE DU 21/09, ET CE QUI LA JUSTIFIAIT.
+    //
+    // Un dessin juste tracé à 62 % de la taille et un gribouillis au hasard ont le
+    // MÊME recouvrement — 0,48 tous les deux. Tant que la position pesait le plus,
+    // le barème ne les distinguait pas : le dessin appliqué tombait à 32 % sur
+    // certaines cibles, c'est-à-dire ZÉRO point, derrière le gribouillage.
+    const notes = (f) => BASSIN_DESSINS.map((d) => f(GRILLES_DESSINS[d.id]));
+    const petit = notes((p) => ressemblanceContreGrilles(p, copisteDe(p, { echelle: 0.62 })).pourcent);
+    const decale = notes((p) => ressemblanceContreGrilles(p, copisteDe(p, { decalage: 0.12 })).pourcent);
+    const pire = (v) => Math.min(...v);
+
+    // IL MARQUE, SUR LES CINQUANTE, SANS EXCEPTION. C'est la promesse faite.
+    expect(pointsDe(pire(petit)),
+      `le dessin juste mais petit tombe à ${pire(petit)} % sur au moins une cible`)
+      .toBeGreaterThan(0);
+
+    // ET IL RESTE DEVANT LE GRIBOUILLAGE, cible par cible — la comparaison qui
+    // n'avait aucun sens avant, puisque les deux tombaient à zéro ensemble.
+    const grib = gribouillage();
+    for (const [i, d] of BASSIN_DESSINS.entries()) {
+      const sale = ressemblanceContreGrilles(GRILLES_DESSINS[d.id], grib).pourcent;
+      expect(petit[i], `sur « ${d.nom} », le dessin juste et petit (${petit[i]} %) ne bat pas un gribouillis (${sale} %)`)
+        .toBeGreaterThan(sale);
+    }
+
+    // LE DESSIN DÉCALÉ REMONTE AUSSI, sans qu'on exige qu'il marque partout : à
+    // douze pour cent de décalage sur une figure fine, il ne recouvre plus rien, et
+    // l'énoncé cite « la position des traits » en premier. Il n'est plus au tapis.
+    expect(pire(decale), `le dessin décalé tombe à ${pire(decale)} %`).toBeGreaterThan(30);
   });
 
   it('LA FORME DÉRIVÉE REMPLIT SA BOÎTE, sans jamais toucher le bord', () => {

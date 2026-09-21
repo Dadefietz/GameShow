@@ -584,3 +584,103 @@ tiennent tous dans l'écran, que la page ne déborde pas, qu'un tracé au doigt 
 sortie. Vu rouge deux fois, sur chacun des deux défauts : « la page a planté
 pendant le tracé : d.current is not iterable », puis « cueillette-cible finit sous
 le pli — l'écran fait 553 px ».
+
+---
+
+## 8. Le barème rendu indulgent — 21/09
+
+> « Il faut rendre beaucoup plus indulgent le calcul de la proportion dans le jeu
+> Cueillette ? En se basant bien plus sur la forme générale et les proportions. »
+
+Trois points arbitrés avant d'agir : il s'agit bien du **pourcentage de
+ressemblance** (et non du critère interne `proportions`) ; l'indulgence porte **à
+la fois** sur le score général et sur le cas du dessin juste mais mal placé ou
+trop petit ; et le surcoût sur les intrus est **accepté**.
+
+### 8.1 — Ce que la mesure a dit, et qui commandait la correction
+
+Un dessin **juste tracé à 62 %** de la taille et un **gribouillis au hasard** ont
+EXACTEMENT le même recouvrement : **0,48 tous les deux**. La position des traits ne
+les distingue pas. Ce qui les sépare :
+
+| | recouvrement | forme | proportions | densité |
+| --- | --- | --- | --- | --- |
+| copie fidèle | 1,00 | 0,98 | 1,00 | 1,00 |
+| main humaine | 0,92 | 0,85 | 0,97 | 0,93 |
+| **main lourde** | 0,82 | 0,76 | 0,94 | **0,74** |
+| **dessin juste, petit** | **0,48** | **0,98** | 0,96 | **0,70** |
+| **gribouillis** | **0,48** | **0,46** | **0,70** | **0,80** |
+
+Deux enseignements, tous deux contre-intuitifs :
+
+1. **La forme et les proportions discriminent ; la position, non.** Peser sur la
+   position revenait à confondre le joueur appliqué qui dessine petit avec celui
+   qui noircit la page. C'est exactement ce que l'auteur avait senti.
+2. **La densité est perverse.** Elle punit la main qui tremble — un trait hésitant
+   est plus long, donc plus encré à étendue égale — et le dessin tracé petit, dont
+   les traits sont relativement plus épais sur 64 cases. Et elle **épargne le
+   gribouillis**, mieux noté qu'eux deux. Elle mesure une régularité de geste, pas
+   une ressemblance.
+
+### 8.2 — Le réglage
+
+| | avant | après |
+| --- | --- | --- |
+| `POIDS.recouvrement` / `POIDS.forme` | 0,55 / 0,45 | **0,28 / 0,72** |
+| `GARDE_MIN` | 0,55 (unique) | **{ proportions : 0,20 ; densité : 0,85 }** |
+| `BRUT_PLANCHER` | 0,24 | **0,28** |
+
+Le plancher **contrebalance** : assouplir la densité relève tout le monde,
+gribouillis compris. Les deux planchers de garde remplacent un plancher unique
+parce que **les deux gardes ne se valent pas** — celle qui discrimine mord, celle
+qui ne discrimine pas s'efface. La densité reste au calcul : l'énoncé la cite, et
+elle seule voit le dessin surchargé.
+
+### 8.3 — Le résultat, sur les cinquante dessins
+
+| cas | avant (méd, pire) | après (méd, pire) |
+| --- | --- | --- |
+| copie fidèle | 99 %, 96 → 1200 pts | 99 %, 93 → 1160 pts |
+| main légère | 83 % | **86 %** |
+| main humaine | 81 % | 79 % |
+| main lourde | 59 %, 50 | 60 %, 48 |
+| **juste mais petit** | 49 %, **32 → 0 pt** | **71 %, 56 → 340 pts** |
+| **juste mais de travers** | 43 %, **28 → 0 pt** | **54 %, 40 → 100 pts** |
+| gribouillis, part payante | 4,28 % | **2,78 %** |
+| pire des 2450 intrus | 900 pts | 880 pts |
+
+**Un dessin complet et juste ne tombe plus à zéro** parce qu'il a été tracé petit
+ou posé de côté. Et le tricheur paie MOINS qu'avant, alors que l'indulgence a
+augmenté : le réglage ne relâche pas, il redirige.
+
+Prix assumé, consigné dans le code : la plus mauvaise copie fidèle passe de 1200 à
+1160 points.
+
+### 8.4 — Une garantie que j'avais écrite et qui était fausse
+
+Le commit du 18/09 affirmait : « le gribouillis le mieux noté vaut 37 %, soit ZÉRO
+point ». C'était vrai **d'un seul gribouillis** — une graine, une densité. Balayé
+sur quarante graines et trois densités, soit **six mille tirages**, le pire en
+valait **56 %, quatre cent vingt points**, et **4,28 %** d'entre eux rapportaient
+quelque chose.
+
+Un échantillon de un ne mesure pas une population, et il m'avait permis d'écrire
+une garantie que le produit ne tenait pas. Le contrôle porte désormais sur une
+**borne de population** — la part payante et le pire cas — et non sur un absolu
+impossible à tenir : à 64 cases floutées, un gribouillage dense finira toujours par
+tomber juste sur un saule pleureur, qui est lui-même une masse de traits fins.
+
+Le balayage complet vit dans l'outil (dix secondes) ; la suite en garde un
+échantillon de mille deux cents mesures (deux secondes). Une suite qu'on hésite à
+lancer ne protège plus rien.
+
+### 8.5 — Deux autres corrections d'honnêteté
+
+- Le contrôle « la copie fidèle paie LE MAXIMUM » exigeait le maximum EXACT. La
+  copie fidèle n'est pas un joueur : c'est le copiste qui retrace la grille, et sa
+  note dépend au point près d'un artefact de normalisation. La barre est posée là
+  où elle détecte ce qu'elle prétend détecter — la tranche haute du barème. Le
+  défaut d'origine, à 56 %, en reste à des lieues.
+- La planche citait « un coquelicot dessiné pour une rose » en dur, alors que la
+  mesure désigne désormais « Marguerite pour Tournesol ». L'exemple est dérivé de
+  la mesure : un texte figé à côté d'un chiffre vivant finit par mentir.

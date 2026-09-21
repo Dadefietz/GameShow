@@ -76,6 +76,7 @@ function candidats(id) {
     ['La copie fidèle', copisteDe(position)],
     ['La main qui tremble', copisteDe(position, { bruit: 0.012 })],
     ['La main hésitante', copisteDe(position, { bruit: 0.03 })],
+    ['La main lourde', copisteDe(position, { bruit: 0.05 })],
     ['Juste, mais tracé petit', copisteDe(position, { echelle: 0.62 })],
     ['Juste, mais posé de travers', copisteDe(position, { decalage: 0.12 })],
     ['Arrêté à mi-chemin', copisteDe(position, { haut: 0.5 })],
@@ -143,33 +144,57 @@ for (const id of CIBLES) {
 // juger ; ce bloc donne les BORNES, et ce sont elles qui disent si le jeu est
 // jouable : la plus mauvaise copie fidèle de la banque, le mieux noté des
 // gribouillis, et le pire des deux mille quatre cent cinquante intrus possibles.
-const grib = gribouillis();
-let fidMin = { p: 101 }; let gribMax = { p: -1 }; let intrusMax = { p: -1 };
+let fidMin = { p: 101 }; let intrusMax = { p: -1 };
 for (const d of BASSIN_DESSINS) {
   const pos = GRILLES_DESSINS[d.id];
   const f = ressemblanceContreGrilles(pos, copisteDe(pos)).pourcent;
   if (f < fidMin.p) fidMin = { p: f, quoi: d.nom };
-  const g = ressemblanceContreGrilles(pos, grib).pourcent;
-  if (g > gribMax.p) gribMax = { p: g, quoi: d.nom };
   for (const a of BASSIN_DESSINS) {
     if (a.id === d.id) continue;
     const v = ressemblanceContreGrilles(pos, copisteDe(GRILLES_DESSINS[a.id])).pourcent;
     if (v > intrusMax.p) intrusMax = { p: v, quoi: `${a.nom} dessiné pour ${d.nom}` };
   }
 }
+
+// LE GRIBOUILLIS SE RECENSE SUR UNE POPULATION, PAS SUR UN TIRAGE — et c'est une
+// leçon payée. La première version de ce bloc éprouvait UN gribouillage, n'en
+// trouvait aucun payant, et j'en ai conclu par écrit que « le gribouillis le mieux
+// noté vaut 37 %, soit zéro point ». C'était vrai de celui-là. Sur quarante
+// graines et trois densités, le pire en valait 56 % — quatre cent vingt points.
+// Un échantillon de un ne mesure pas une population.
+//
+// Les six mille mesures prennent une dizaine de secondes : c'est pourquoi elles
+// vivent ici, dans un outil lancé à la main, et non dans la suite, qui doit rester
+// assez rapide pour qu'on la lance sans y penser.
+let gribMax = { p: -1 }; let gribPayants = 0; let gribTotal = 0;
+for (let graine = 1; graine <= 40; graine += 1) {
+  for (const nTraits of [6, 9, 14]) {
+    const g = gribouillis({ graine, traits: nTraits });
+    for (const d of BASSIN_DESSINS) {
+      const p = ressemblanceContreGrilles(GRILLES_DESSINS[d.id], g).pourcent;
+      gribTotal += 1;
+      if (pointsDe(p) > 0) gribPayants += 1;
+      if (p > gribMax.p) gribMax = { p, quoi: `graine ${graine}, ${nTraits} traits, contre ${d.nom}` };
+    }
+  }
+}
 const bornes = `<section><h2>Les bornes, sur les cinquante dessins</h2>
   <table class="bornes">
     <tr><td>La plus mauvaise copie fidèle</td><td><b>${fidMin.p} %</b> · ${pointsDe(fidMin.p)} pts</td><td>${fidMin.quoi}</td></tr>
-    <tr><td>Le gribouillis le mieux noté</td><td><b>${gribMax.p} %</b> · ${pointsDe(gribMax.p)} pts</td><td>${gribMax.quoi}</td></tr>
+    <tr><td>Le gribouillis le mieux noté (6000 tirages)</td><td><b>${gribMax.p} %</b> · ${pointsDe(gribMax.p)} pts</td><td>${gribMax.quoi}</td></tr>
+    <tr><td>Part des gribouillis qui rapportent</td><td><b>${(100 * gribPayants / gribTotal).toFixed(2)} %</b></td><td>sur ${gribTotal} mesures</td></tr>
     <tr><td>Le pire des 2450 intrus</td><td><b>${intrusMax.p} %</b> · ${pointsDe(intrusMax.p)} pts</td><td>${intrusMax.quoi}</td></tr>
   </table>
-  <p class="note">LE DERNIER EST UNE LIMITE ASSUMÉE, ET MESURÉE. Un coquelicot dessiné
-  pour une rose paie presque plein tarif : à 64 × 64 cases, adoucies par le flou qui
-  pardonne la main tremblante, ce sont le même dessin. Un terme de DÉTAIL, mesuré
-  sans le flou, a été essayé pour les séparer — et abandonné sur mesure : le pire
-  intrus y obtient 0,666 quand une main humaine ordinaire obtient 0,651 et une main
-  lourde 0,579. Il aurait puni l'honnête plus que le tricheur. L'énoncé l'admet
-  d'avance : « ce score ne représentera pas une vérité absolue ».</p>
+  <p class="note">LE DERNIER EST UNE LIMITE ASSUMÉE, ET MESURÉE — et l'exemple cité
+  est CELUI QUE LA MESURE DÉSIGNE, non un souvenir : <strong>${intrusMax.quoi}</strong>
+  paie presque plein tarif. À 64 × 64 cases, adoucies par le flou qui pardonne la
+  main tremblante, deux fleurs de la même famille sont le même dessin. Un terme de
+  DÉTAIL, mesuré sans le flou, a été essayé pour les séparer — et abandonné sur
+  mesure : le pire intrus y obtient 0,666 quand une main humaine ordinaire obtient
+  0,651 et une main lourde 0,579. Il aurait puni l'honnête plus que le tricheur.
+  L'énoncé l'admet d'avance : « ce score ne représentera pas une vérité absolue ».
+  La demande du 21/09 — se baser bien plus sur la forme générale — RENFORCE cette
+  limite, et elle a été acceptée en connaissance de cause.</p>
 </section>`;
 
 const html = `<!doctype html><meta charset="utf-8"><title>Planche — le barème de Cueillette</title>

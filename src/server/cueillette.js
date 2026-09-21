@@ -120,19 +120,81 @@ export const MARGE_NORMALISATION = 0.04;
 // FIGURE paient ; les deux qui regardent son enveloppe retiennent — elles ne
 // peuvent que réduire une note déjà gagnée par ressemblance. Un gribouillis n'a
 // rien gagné, il n'a donc rien à retenir : il tombe.
+// ============================================================================
+// LA FORME PASSE DEVANT LA POSITION — DEMANDÉ, PUIS MESURÉ
+// ============================================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ (21/09) : « rendre beaucoup plus indulgent le calcul de la
+// proportion […] en se basant bien plus sur la forme générale et les
+// proportions ». Deux griefs, confirmés : le score général, et le cas du dessin
+// JUSTE mais mal placé ou trop petit, qui tombait à zéro.
+//
+// CE QUE LA MESURE A MONTRÉ, sur les cinquante dessins. Un dessin juste tracé à
+// 62 % de la taille et un gribouillis au hasard ont EXACTEMENT le même
+// recouvrement — 0,48 tous les deux. La position des traits ne les distingue pas.
+// Ce qui les sépare, c'est la forme (0,98 contre 0,46) et les proportions (0,96
+// contre 0,70). Peser sur la position revenait donc à confondre le joueur
+// appliqué qui dessine petit avec celui qui noircit la page.
+//
+// La forme prend donc largement le pas. Le recouvrement garde un peu plus du
+// quart : sans lui, « la position des traits » — que l'énoncé cite en premier — ne
+// serait plus mesurée du tout, et un dessin juste posé dans un coin vaudrait un
+// dessin juste posé au bon endroit.
+//
+// CE QUE CES DEUX NOMBRES VALENT, MESURÉ SUR LES CINQUANTE DESSINS (note médiane,
+// puis la pire des cinquante) :
+//
+//                        AVANT (0,55 / 0,45)     APRÈS (0,28 / 0,72)
+//   copie fidèle            99 %  (pire 96)        99 %  (pire 93)
+//   main légère             83 %                   86 %
+//   main humaine            81 %                   79 %
+//   main lourde             59 %  (pire 50)        60 %  (pire 48)
+//   JUSTE MAIS PETIT        49 %  (pire 32 → 0)    71 %  (pire 56)
+//   JUSTE MAIS DE TRAVERS   43 %  (pire 28 → 0)    54 %  (pire 40)
+//
+// Les deux lignes en capitales sont celles qui ont motivé le changement : un
+// dessin complet et juste ne tombe plus à zéro parce qu'il a été tracé petit ou
+// posé de côté.
 export const POIDS = {
   // « la position des traits » — le tracé du joueur, là où il l'a posé.
-  recouvrement: 0.55,
+  recouvrement: 0.28,
   // « la forme générale » — les deux dessins ramenés à la même boîte.
-  forme: 0.45,
+  forme: 0.72,
 };
 
-// LES GARDES NE DESCENDENT PAS SOUS CE PLANCHER. Une garde qui pourrait tomber à
-// zéro annulerait une ressemblance réelle sur un seul écart d'enveloppe : un
-// dessin juste, tracé d'un trait plus fin, ne doit pas être ramené à rien. Elles
-// retiennent, elles ne condamnent pas.
-export const GARDE_MIN = 0.55;
-const tempere = (accord) => GARDE_MIN + (1 - GARDE_MIN) * Math.min(1, Math.max(0, accord));
+// ============================================================================
+// DEUX PLANCHERS, ET NON UN SEUL — PARCE QUE LES DEUX GARDES NE SE VALENT PAS
+// ============================================================================
+//
+// Une garde qui pourrait tomber à zéro annulerait une ressemblance réelle sur un
+// seul écart d'enveloppe : un dessin juste, tracé d'un trait plus fin, ne doit pas
+// être ramené à rien. Elles retiennent, elles ne condamnent pas.
+//
+// MAIS ELLES NE DISCRIMINENT PAS PAREIL, et un plancher commun le cachait.
+// Moyennes mesurées sur les cinquante dessins :
+//
+//                     proportions   densité
+//   copie fidèle          1,00       1,00
+//   main humaine          0,97       0,93
+//   MAIN LOURDE           0,94       0,74
+//   dessin juste, petit   0,96       0,70
+//   GRIBOUILLIS           0,70       0,80
+//
+// LA DENSITÉ EST PERVERSE : elle punit la main qui tremble — un trait hésitant est
+// plus long, donc plus encré à étendue égale — et le dessin tracé petit, dont les
+// traits sont relativement plus épais sur une grille de 64 cases. Et elle ÉPARGNE
+// le gribouillis, mieux noté qu'eux deux. Elle mesure une régularité de geste, pas
+// une ressemblance.
+//
+// LES PROPORTIONS, elles, séparent nettement : 0,70 pour le gribouillis contre
+// 0,94 à 1,00 pour tout dessin honnête. C'est le terme qui mérite de mordre — et
+// c'est précisément celui que l'énoncé demande de peser davantage.
+//
+// D'où deux planchers : la densité ne peut plus coûter que quinze pour cent, les
+// proportions jusqu'à quatre-vingts. On n'a PAS retiré la densité du calcul —
+// l'énoncé la cite, et elle reste seule à voir le dessin surchargé.
+export const GARDE_MIN = { proportions: 0.20, densite: 0.85 };
+const tempere = (accord, plancher) => plancher + (1 - plancher) * Math.min(1, Math.max(0, accord));
 
 // ---------------------------------------------------------------------------
 // LA FORME D'UN DESSIN, ET SA VALIDATION
@@ -451,7 +513,18 @@ function accordDeDensite(gc, gj) {
 // contre une vraie banque d'images. Une seule partie réelle suffira à les ajuster,
 // et il n'y a que ces deux nombres à toucher — c'est pour cela qu'ils sont ici,
 // nommés, et non répartis dans le calcul.
-export const BRUT_PLANCHER = 0.24;
+// LE PLANCHER A ÉTÉ RELEVÉ DE 0,24 À 0,28 EN MÊME TEMPS QUE LES GARDES, ET C'EST
+// LE CONTREPOIDS. Assouplir la densité relève TOUT LE MONDE, gribouillis compris :
+// mesuré sur six mille tirages — quarante graines, trois densités de gribouillage,
+// cinquante cibles —, la part de gribouillis qui RAPPORTENT des points passait de
+// 4,28 % à 4,40 %. Le plancher la ramène à 2,73 %, et le mieux noté de 56 % à
+// 52 %. L'indulgence demandée profite ainsi au joueur appliqué sans profiter à
+// celui qui noircit la page.
+//
+// CE QU'IL COÛTE, ET IL FAUT LE DIRE : la courbe rabote aussi le haut. La plus
+// mauvaise copie fidèle des cinquante passe de 1200 à 1160 points. C'est le prix
+// assumé d'un gribouillis moins payant.
+export const BRUT_PLANCHER = 0.28;
 export const BRUT_PLAFOND = 1.0;
 
 export function presenter(brut) {
@@ -562,7 +635,8 @@ function composer(gc, nc, gj, nj) {
   const merite = detail.recouvrement * POIDS.recouvrement + detail.forme * POIDS.forme;
   // CE QUI SE RETIENT : l'enveloppe. Multiplicatif, jamais additif — voir la note
   // de POIDS. Un gribouillis n'a rien gagné, il n'a donc rien à retenir.
-  const garde = tempere(detail.proportions) * tempere(detail.densite);
+  const garde = tempere(detail.proportions, GARDE_MIN.proportions)
+    * tempere(detail.densite, GARDE_MIN.densite);
   const brut = merite * garde;
   return { pourcent: presenter(brut), brut, detail, merite, garde };
 }
