@@ -481,7 +481,7 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     }
   });
 
-  it('UN GRIBOUILLIS NE PAIE QUASI JAMAIS — éprouvé sur six mille tirages', () => {
+  it('UN GRIBOUILLIS NE PAIE QUE RAREMENT — éprouvé sur huit cents tirages', () => {
     // CE CONTRÔLE A REMPLACÉ UNE AFFIRMATION FAUSSE, ET C'EST LA LEÇON.
     //
     // Sa première version éprouvait UN gribouillis — une graine, une densité — sur
@@ -502,8 +502,14 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     // tirages — demande dix secondes, quand la suite entière en demande une. Une
     // suite qu'on hésite à lancer ne protège plus rien. Le recensement large vit
     // donc dans `tests/outils/planche-cueillette.mjs`, qu'on lance à la main ;
-    // ici reste un échantillon assez gros pour voir une régression du barème —
-    // huit gribouillages contre les cinquante dessins, mille deux cents mesures.
+    // ici reste un échantillon assez gros pour voir une régression du barème :
+    // huit graines × deux densités × cinquante dessins, soit HUIT CENTS mesures.
+    //
+    // L'INTITULÉ DE CE CONTRÔLE ANNONÇAIT SIX MILLE, et son commentaire mille deux
+    // cents. Ni l'un ni l'autre : la boucle en fait huit cents depuis qu'elle a été
+    // réduite pour le temps d'exécution, et les deux chiffres sont restés. Un
+    // nombre écrit à côté d'une boucle finit par mentir — c'est le même défaut que
+    // l'exemple figé de la planche, corrigé le 21/09.
     let payants = 0; let total = 0; let pire = 0; let quoi = '';
     for (let graine = 1; graine <= 8; graine += 1) {
       for (const traits of [6, 14]) {
@@ -516,11 +522,67 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
         }
       }
     }
+    // LES BORNES ONT ÉTÉ DESSERRÉES LE 23/09, ET C'EST UN PRIX, PAS UN OUBLI.
+    //
+    // La demande d'être « franchement deux fois plus généreux » a relevé toute la
+    // courbe. Le plancher retient la masse des gribouillages — leur part payante
+    // reste du même ordre qu'avant —, mais il ne peut rien contre le tirage
+    // heureux, qui tombe dans la même bande de score que le dessin honnête le plus
+    // faible. Aucune mesure ne les sépare à cette résolution.
+    //
+    //                          avant le 23/09   après
+    //   part qui rapporte          2,45 %        3,25 %
+    //   le mieux noté              52 % / 340    70 % / 700
+    //
+    // Les bornes ci-dessous encadrent la NOUVELLE réalité mesurée, avec la marge
+    // qu'il faut pour voir une dérive sans crier au loup. Elles ne prétendent plus
+    // qu'un gribouillage ne paie jamais : c'était déjà faux, et ça l'est davantage.
     const part = (100 * payants) / total;
-    expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(3.5);
-    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(55);
-    expect(pointsDe(pire), 'et il ne doit pas approcher la moitié du maximum')
-      .toBeLessThan(POINTS_MAXIMUM / 2);
+    expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(4.5);
+    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(75);
+    expect(pointsDe(pire), 'et il ne doit pas approcher le maximum')
+      .toBeLessThan(POINTS_MAXIMUM * 0.75);
+  });
+
+  it('LE JEU EST INDULGENT : un dessin reconnaissable mais imparfait est franchement payé', () => {
+    // CE CONTRÔLE MANQUAIT, ET SON ABSENCE S'EST VUE.
+    //
+    // Après avoir relevé toute la courbe le 23/09 — « franchement deux fois plus
+    // généreux » —, j'ai remis l'ANCIEN réglage pour éprouver mes contrôles : ils
+    // sont tous restés VERTS. Rien ne gardait l'indulgence elle-même. Le travail
+    // pouvait être défait par mégarde sans qu'une seule ligne rougisse.
+    //
+    // CE QU'IL FIXE : un plancher de points pour trois manières ordinaires de rater
+    // un dessin sans démériter — la main qui tremble beaucoup, le dessin complet
+    // mais posé de côté, le dessin complet mais tracé d'une main qui saute. Ce sont
+    // les trois cas que l'auteur a désignés comme « trop compliqués ».
+    //
+    // Les valeurs sont les mesures du jour, moins une marge : elles disent « au
+    // moins autant », jamais « exactement ». Un réglage plus généreux encore les
+    // laisse vertes ; un retour en arrière les fait tomber.
+    const medianePoints = (o) => {
+      const v = BASSIN_DESSINS
+        .map((d) => pointsDe(ressemblanceContreGrilles(GRILLES_DESSINS[d.id], copisteDe(GRILLES_DESSINS[d.id], o)).pourcent))
+        .sort((a, b) => a - b);
+      return v[Math.floor(v.length / 2)];
+    };
+    const lourde = medianePoints({ bruit: 0.05 });
+    const travers = medianePoints({ decalage: 0.12 });
+    const pointille = medianePoints({ garde: 0.5 });
+    const petit = medianePoints({ echelle: 0.62 });
+
+    expect(lourde, `une main lourde n'obtient que ${lourde} points`).toBeGreaterThanOrEqual(850);
+    expect(travers, `un dessin complet posé de côté n'obtient que ${travers} points`).toBeGreaterThanOrEqual(650);
+    expect(pointille, `un dessin complet mais sauté n'obtient que ${pointille} points`).toBeGreaterThanOrEqual(800);
+    expect(petit, `un dessin juste mais petit n'obtient que ${petit} points`).toBeGreaterThanOrEqual(1000);
+
+    // ET LA HIÉRARCHIE TIENT MALGRÉ L'INDULGENCE : une copie fidèle reste devant
+    // une main tremblante, qui reste devant une main lourde. Être généreux n'est
+    // pas mettre tout le monde à égalité — le jeu doit encore classer.
+    const fidele = medianePoints({});
+    const tremble = medianePoints({ bruit: 0.015 });
+    expect(fidele).toBeGreaterThanOrEqual(tremble);
+    expect(tremble).toBeGreaterThan(lourde);
   });
 
   it('LA FORME PASSE DEVANT LA POSITION : un dessin juste mais petit n\'est plus confondu avec un gribouillis', () => {

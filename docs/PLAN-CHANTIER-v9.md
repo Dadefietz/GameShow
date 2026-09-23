@@ -684,3 +684,91 @@ lancer ne protège plus rien.
 - La planche citait « un coquelicot dessiné pour une rose » en dur, alors que la
   mesure désigne désormais « Marguerite pour Tournesol ». L'exemple est dérivé de
   la mesure : un texte figé à côté d'un chiffre vivant finit par mentir.
+
+---
+
+## 9. Deux fois plus généreux — 23/09
+
+> « Le jeu est encore trop compliqué. Il faudrait vraiment que l'analyse de
+> reconnaissance soit franchement deux fois plus généreuse. »
+
+### 9.1 — Je cherchais au mauvais endroit
+
+Les deux réglages précédents travaillaient les **poids**. C'était l'erreur : les
+poids décident QUI est devant qui, pas **à quelle hauteur** tout le monde se
+situe. La hauteur, c'est la courbe de présentation — restée une droite depuis le
+premier jour.
+
+### 9.2 — La mesure qui a tout décidé
+
+La séparation entre honnêtes et tricheurs existe **en score brut**, et elle est
+nette :
+
+| | p05 | médiane | p95 |
+| --- | --- | --- | --- |
+| gribouillis | 0,194 | 0,337 | **0,526** |
+| juste, de travers (le pire honnête) | **0,584** | 0,666 | 0,711 |
+| main lourde | 0,656 | 0,710 | 0,761 |
+| copie fidèle | 0,963 | 0,991 | 0,999 |
+
+Le pire dessin honnête part à **0,58** quand 95 % des gribouillages plafonnent à
+**0,53**. En pourcentage affiché, la droite écrasait cette séparation et les deux
+se retrouvaient côte à côte. **Le travail n'était pas de mieux mesurer : c'était
+d'arrêter de gâcher une mesure déjà bonne.**
+
+### 9.3 — Le réglage, et pourquoi cette forme de courbe
+
+`BRUT_PLANCHER` 0,28 → **0,46** (juste au-dessus du plafond des gribouillages) et
+une courbe concave `COURBE = 2,7`.
+
+**Une puissance `t^γ` a été essayée et écartée sur mesure.** Sa pente est INFINIE
+en zéro : dès qu'un dessin dépasse le plancher d'un cheveu il saute à 40 %, et
+**cinq des vingt tranches du graphique deviennent mathématiquement inatteignables**
+— alors que l'énoncé dit qu'une tranche vide signifie « personne ici ». Elle se
+serait mise à signifier « impossible ». `1 − (1 − t)^k` a la même concavité avec
+une pente finie : les vingt tranches restent atteignables, ce qu'un contrôle
+vérifie.
+
+### 9.4 — Le résultat
+
+| cas (médiane sur 50) | avant | après | points |
+| --- | --- | --- | --- |
+| copie fidèle | 99 % · 1200 | 100 % · 1200 | ×1,0 |
+| main légère | 86 % · 1020 | 100 % · 1200 | ×1,2 |
+| main humaine | 79 % · 880 | 100 % · 1200 | ×1,4 |
+| **main lourde** | 60 % · 500 | **82 % · 940** | **×1,9** |
+| **juste mais petit** | 71 % · 720 | **91 % · 1140** | ×1,6 |
+| **juste, de travers** | 54 % · 380 | **72 % · 760** | **×2,0** |
+| **dessin pointillé** | 59 % · 480 | **80 % · 900** | **×1,9** |
+
+Deux fois plus généreux là où le joueur souffrait, et le maximum atteint plus tôt
+là où il ne pouvait plus doubler.
+
+### 9.5 — Ce que ça coûte, dit sans détour
+
+1. **Le gribouillis chanceux paie davantage** : la part qui rapporte passe de
+   2,45 % à 3,68 %, et le mieux noté de 340 à 700 points. Le plancher retient la
+   masse ; il ne peut rien contre le tirage heureux, qui tombe dans la même bande
+   que le dessin honnête le plus faible.
+2. **L'intrus atteint le maximum.** Une marguerite dessinée pour un tournesol
+   valait 900 points ; elle en vaut **1200**. La limite était connue et acceptée le
+   21/09 — l'indulgence la pousse à son terme.
+3. **Le haut du classement se tasse.** Copie fidèle, main tremblante et main
+   hésitante obtiennent toutes 1200 : le jeu ne sépare plus les excellents dessins.
+   La cause n'est pas la courbe mais le **plafond du barème** — « 95 % et plus →
+   1200 », règle de l'énoncé — désormais atteint par un bon dessin ordinaire.
+   Deux molettes si l'on veut y revenir : relever `PLAFOND_POURCENT`, ou baisser
+   `COURBE`.
+
+### 9.6 — Deux contrôles qui ne gardaient pas ce qu'ils annonçaient
+
+- **L'indulgence n'était gardée par rien.** Après le réglage, j'ai remis l'ancienne
+  droite pour éprouver la suite : **elle est restée entièrement verte**. Le travail
+  pouvait être défait par mégarde sans qu'une ligne rougisse. Un contrôle fixe
+  désormais un plancher de points pour les trois manières ordinaires de rater un
+  dessin sans démériter, et vérifie que la hiérarchie tient malgré la générosité.
+- **L'intitulé du contrôle du gribouillis mentait.** Il annonçait « six mille
+  tirages », son commentaire « mille deux cents » ; la boucle en fait **huit
+  cents** depuis qu'elle a été réduite pour le temps d'exécution. Les deux chiffres
+  étaient restés. Même défaut que l'exemple figé de la planche, corrigé le 21/09 :
+  un nombre écrit à côté d'une boucle finit par mentir.

@@ -513,23 +513,78 @@ function accordDeDensite(gc, gj) {
 // contre une vraie banque d'images. Une seule partie réelle suffira à les ajuster,
 // et il n'y a que ces deux nombres à toucher — c'est pour cela qu'ils sont ici,
 // nommés, et non répartis dans le calcul.
-// LE PLANCHER A ÉTÉ RELEVÉ DE 0,24 À 0,28 EN MÊME TEMPS QUE LES GARDES, ET C'EST
-// LE CONTREPOIDS. Assouplir la densité relève TOUT LE MONDE, gribouillis compris :
-// mesuré sur six mille tirages — quarante graines, trois densités de gribouillage,
-// cinquante cibles —, la part de gribouillis qui RAPPORTENT des points passait de
-// 4,28 % à 4,40 %. Le plancher la ramène à 2,73 %, et le mieux noté de 56 % à
-// 52 %. L'indulgence demandée profite ainsi au joueur appliqué sans profiter à
-// celui qui noircit la page.
+// ============================================================================
+// DEUX FOIS PLUS GÉNÉREUX — LE PLANCHER ET LA COURBE, ENSEMBLE
+// ============================================================================
 //
-// CE QU'IL COÛTE, ET IL FAUT LE DIRE : la courbe rabote aussi le haut. La plus
-// mauvaise copie fidèle des cinquante passe de 1200 à 1160 points. C'est le prix
-// assumé d'un gribouillis moins payant.
-export const BRUT_PLANCHER = 0.28;
+// CE QUI A ÉTÉ DEMANDÉ (23/09) : « le jeu est encore trop compliqué, il faudrait
+// vraiment que l'analyse de reconnaissance soit franchement DEUX FOIS plus
+// généreuse. »
+//
+// OÙ CHERCHER, ET OÙ J'AVAIS CHERCHÉ À TORT. Les deux réglages précédents
+// travaillaient les POIDS. C'était le mauvais endroit : les poids décident QUI est
+// devant qui, pas à quelle hauteur tout le monde se situe. La hauteur, c'est cette
+// courbe — restée une droite depuis le premier jour.
+//
+// LA MESURE QUI A TOUT DÉCIDÉ : la séparation existe en BRUT, et elle est nette.
+//
+//                        p05     médiane   p95
+//   gribouillis         0,194     0,337    0,526
+//   JUSTE, DE TRAVERS   0,584     0,666    0,711
+//   main lourde         0,656     0,710    0,761
+//   copie fidèle        0,963     0,991    0,999
+//
+// Le pire dessin honnête part à 0,58 quand quatre-vingt-quinze pour cent des
+// gribouillages plafonnent à 0,53. En pourcentage affiché, la droite écrasait
+// cette séparation et les deux se retrouvaient côte à côte. Le travail n'était pas
+// de mieux mesurer : c'était d'ARRÊTER DE GÂCHER une mesure déjà bonne.
+//
+// DEUX NOMBRES QUI TRAVAILLENT ENSEMBLE :
+//   — LE PLANCHER, posé juste au-dessus du plafond des gribouillages ;
+//   — LA COURBE, concave, qui remonte tout ce qui le dépasse.
+//
+// POURQUOI CETTE FORME-LÀ, ET PAS UNE PUISSANCE. `t^γ` avec un exposant petit a
+// une pente INFINIE en zéro : dès qu'un dessin dépasse le plancher d'un cheveu, il
+// saute à quarante pour cent, et CINQ DES VINGT TRANCHES du graphique deviennent
+// mathématiquement inatteignables. L'énoncé demande vingt tranches et dit qu'une
+// tranche vide signifie « personne ici » — elle se mettrait à signifier
+// « impossible ». Mesuré, puis écarté. `1 − (1 − t)^k` a la même concavité avec une
+// pente FINIE en zéro : les vingt tranches restent atteignables.
+//
+// CE QUE ÇA DONNE, sur les cinquante dessins (note médiane, puis points) :
+//
+//                     AVANT           APRÈS          points
+//   copie fidèle      99 %  1200      100 % 1200      ×1,0
+//   main légère       86 %  1020      100 % 1200      ×1,2
+//   main humaine      79 %   880      100 % 1200      ×1,4
+//   MAIN LOURDE       60 %   500       82 %  940      ×1,9
+//   JUSTE MAIS PETIT  71 %   720       91 % 1140      ×1,6
+//   JUSTE, DE TRAVERS 54 %   380       72 %  760      ×2,0
+//   dessin pointillé  59 %   480       80 %  900      ×1,9
+//
+// Deux fois plus généreux là où le joueur souffrait, et le maximum atteint plus
+// tôt là où il ne pouvait plus doubler.
+//
+// CE QUE ÇA COÛTE, ET IL FAUT LE DIRE. Sur deux mille tirages de gribouillage, la
+// part qui RAPPORTE des points passe de 2,45 % à 3,25 % — et le rare gribouillis
+// chanceux paie 700 points au lieu de 340. Le plancher retient la masse ; il ne
+// peut rien contre le tirage heureux, qui tombe dans la même bande que le dessin
+// honnête le plus faible. C'est le prix de l'indulgence demandée, et il a été
+// choisi en le mesurant.
+//
+// CE SONT LES DEUX SEULS NOMBRES À TOURNER si le jeu paraît encore trop dur ou
+// trop facile. Monter le plancher écarte les tricheurs et durcit le jeu ; monter
+// la courbe relève tout le monde.
+export const BRUT_PLANCHER = 0.46;
 export const BRUT_PLAFOND = 1.0;
 
+export const COURBE = 2.7;
+
 export function presenter(brut) {
-  const t = (brut - BRUT_PLANCHER) / (BRUT_PLAFOND - BRUT_PLANCHER);
-  return Math.round(Math.min(1, Math.max(0, t)) * 100);
+  const t = Math.min(1, Math.max(0, (brut - BRUT_PLANCHER) / (BRUT_PLAFOND - BRUT_PLANCHER)));
+  // Concave, strictement croissante, et de pente finie aux deux bouts : elle
+  // relève sans jamais changer le CLASSEMENT ni rendre une tranche inatteignable.
+  return Math.round((1 - (1 - t) ** COURBE) * 100);
 }
 
 // ---------------------------------------------------------------------------
