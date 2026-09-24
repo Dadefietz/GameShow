@@ -772,3 +772,82 @@ là où il ne pouvait plus doubler.
   cents** depuis qu'elle a été réduite pour le temps d'exécution. Les deux chiffres
   étaient restés. Même défaut que l'exemple figé de la planche, corrigé le 21/09 :
   un nombre écrit à côté d'une boucle finit par mentir.
+
+---
+
+## 10. Le pourcentage, pas les points — 24/09
+
+> « Je n'arrive pas à aller au-dessus de 62 %, je trouve le barème trop dur. »
+> « On s'en fout des points, c'est le pourcentage de ressemblance qu'on aimerait
+> rendre plus facile à atteindre. Mets le poids de la forme à 0,8. »
+
+### 10.1 — L'aveu : mon joueur modèle dessinait mieux qu'un humain
+
+62 % affichés correspondaient à un score **brut de 0,62**. Or le pire cas honnête
+de l'étalonnage — un dessin complet, correct, posé 12 % de travers — a un brut
+médian de **0,666**. **Il est meilleur que la meilleure tentative de l'auteur.**
+
+Le copiste des contrôles retrace la grille de la cible **elle-même**, avec du
+tremblement : il ne dessine jamais *une autre fleur reconnaissable*, il dessine *la
+même fleur, secouée*. Sa topologie est parfaite par construction. Un humain qui
+redessine de mémoire en trente secondes produit une forme franchement différente —
+c'est exactement l'écart que le modèle ne sait pas fabriquer.
+
+**J'ai annoncé trois fois « c'est plus généreux » pendant que l'auteur plafonnait
+à 62 %**, parce que mes « médiane à 100 % » décrivaient un copiste.
+
+### 10.2 — Deux changements, mesurés séparément
+
+| | brut 0,62 | de travers | trop petit |
+| --- | --- | --- | --- |
+| état du 23/09 | **61 %** | 73 % | 92 % |
+| poids forme 0,80 seul | 61 % | **78 %** | **95 %** |
+| poids 0,80 **+ courbe** | **72 %** | **82 %** | 92 % |
+
+C'est **la courbe** qui déplace le plafond de l'auteur ; **le poids** qui aide les
+dessins mal placés. Les deux sont retenus.
+
+### 10.3 — Pourquoi un logarithme, et pas une puissance
+
+En cherchant « deux fois plus généreux » on arrivait à `1 − (1 − t)^4`. Un contrôle
+a rougi : **« le dessin exact 100 % ne bat pas un dessin tremblé 100 % »**. Sur la
+bande réelle, **quatre niveaux de brut sur neuf s'écrasaient sur le même 1200** :
+le jeu ne savait plus désigner un gagnant. Une manche où les trois premiers sont à
+égalité n'a aucun intérêt à l'antenne.
+
+`log(1 + c·t) / log(1 + c)` monte aussi vite en bas et **garde de la pente en
+haut** : **neuf niveaux distincts sur neuf**.
+
+Réglage : `BRUT_PLANCHER` 0,46 → **0,54**, `COURBE` **500** (coefficient de
+logarithme — plus l'exposant d'avant). Le plancher relevé compense ce que la courbe
+donne : la part des gribouillages qui rapportent passe de 3,25 % à **3,35 %**.
+
+### 10.4 — Ce que le jeu rend aujourd'hui (médiane sur 50, puis la pire)
+
+| | note |
+| --- | --- |
+| copie fidèle | 100 % (pire 98) |
+| main légère | 96 % (pire 94) |
+| main humaine | 93 % (pire 90) |
+| main lourde | 84 % (pire 72) |
+| juste mais petit | 92 % (pire 85) |
+| juste mais de travers | 82 % (pire 68) |
+
+### 10.5 — Deux contrôles qui accusaient à tort, et un qui manquait
+
+- **« 17 tranches sur 20 »** — faux. Les vingt étaient atteignables ; les trois
+  premières le sont sur une bande de brut large d'un centième, que le pas
+  d'échantillonnage enjambait. *Un contrôle dont la conclusion dépend de son pas ne
+  mesure pas le code, il se mesure lui-même.* Pas affiné cent fois.
+- **L'indulgence n'était toujours pas gardée.** Après le réglage du 23/09, remettre
+  l'ancienne courbe laissait toute la suite verte — une seconde fois. Le contrôle
+  ajouté alors s'appuyait sur le copiste, généreux dans les deux cas.
+- **Le contrôle qui manquait** ne passe plus par le copiste : il éprouve la courbe
+  **là où le joueur se trouve réellement**, en brut, et fixe ce que la manche doit
+  afficher — 0,62 de brut ≥ 70 %. Vu rouge sur le retour en arrière.
+
+### 10.6 — Ce qui manque encore
+
+**De vrais dessins.** Une seule manche jouée suffirait : l'animateur reçoit déjà
+tous les tracés avec leur note. Tant qu'on n'a qu'**un** point de mesure humain, ce
+réglage est une interpolation autour de lui, pas une distribution.

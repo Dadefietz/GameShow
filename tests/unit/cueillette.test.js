@@ -328,9 +328,46 @@ describe('la courbe de présentation', () => {
     // LE BALAYAGE COUVRE TOUTE LA PLAGE BRUTE, de zéro à un. Une première version
     // s'arrêtait aux anciennes bornes de la courbe : elle ne parcourait plus que la
     // moitié de l'échelle et accusait le code d'un défaut qui était le sien.
+    //
+    // ET SON PAS ÉTAIT TROP GROS — deuxième fois que ce contrôle accuse à tort.
+    // Le 24/09, avec une courbe raide juste au-dessus du plancher, il a annoncé
+    // « seulement 17 tranches sur 20 ». Les vingt étaient bel et bien atteignables :
+    // les trois premières le sont sur une bande de brut large d'un CENTIÈME, que
+    // le pas de 0,002 enjambait. Un contrôle dont la conclusion dépend de son pas
+    // d'échantillonnage ne mesure pas le code, il se mesure lui-même. Le pas est
+    // désormais cent fois plus fin — il reste instantané, la fonction est pure.
     const atteintes = new Set();
-    for (let b = 0; b <= 1.0001; b += 0.002) atteintes.add(Math.min(19, Math.floor(presenter(b) / 5)));
+    for (let b = 0; b <= 1.0001; b += 0.00002) atteintes.add(Math.min(19, Math.floor(presenter(b) / 5)));
     expect(atteintes.size, `seulement ${atteintes.size} tranches sur 20 sont atteignables`).toBe(20);
+  });
+
+  it('LE SEUL POINT DE MESURE HUMAIN : un dessin à 0,62 de brut affiche au moins 70 %', () => {
+    // L'ANCRE DE TOUT LE RÉGLAGE, ET LE SEUL CHIFFRE QUI VIENNE D'UN VRAI JOUEUR.
+    //
+    // « Je n'arrive pas à aller au-dessus de 62 %, je trouve le barème trop dur »
+    // (24/09). Ces 62 % affichés correspondaient à un score brut de 0,62 — et le
+    // pire cas honnête de l'étalonnage synthétique, un dessin complet posé douze
+    // pour cent de travers, a un brut médian de 0,666. LE MODÈLE DESSINAIT MIEUX
+    // QUE L'AUTEUR. Toutes les mesures faites sur le copiste surestimaient donc ce
+    // que voit un humain, et trois réglages « plus généreux » se sont succédé
+    // pendant qu'il plafonnait.
+    //
+    // CE CONTRÔLE NE PASSE PAS PAR LE COPISTE. Il éprouve la courbe là où le joueur
+    // se trouve réellement, en brut, et fixe ce que la manche doit lui afficher.
+    // C'est ce qui manquait : après le réglage du 23/09, remettre l'ancienne courbe
+    // laissait TOUTE la suite verte.
+    expect(presenter(0.62), `un dessin à 0,62 de brut n'affiche que ${presenter(0.62)} %`)
+      .toBeGreaterThanOrEqual(70);
+    // Et la bande juste en dessous ne doit plus être un désert : un dessin un peu
+    // plus faible reste visiblement noté.
+    expect(presenter(0.60), `à 0,60 de brut, seulement ${presenter(0.60)} %`)
+      .toBeGreaterThanOrEqual(62);
+
+    // CE QUE CE CONTRÔLE N'EST PAS. Il ne dit pas que 0,62 MÉRITE 70 % : personne
+    // ne peut l'affirmer sans voir le dessin. Il dit que le barème a été calé sur
+    // ce point-là, et qu'on ne le déplacera pas par inadvertance. Une vraie
+    // distribution demanderait les tracés d'une manche jouée — l'animateur les
+    // reçoit déjà tous, avec leur note.
   });
 
   it('borne à zéro et à cent', () => {
@@ -530,18 +567,27 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     // heureux, qui tombe dans la même bande de score que le dessin honnête le plus
     // faible. Aucune mesure ne les sépare à cette résolution.
     //
-    //                          avant le 23/09   après
-    //   part qui rapporte          2,45 %        3,25 %
-    //   le mieux noté              52 % / 340    70 % / 700
+    //                       avant 23/09   23/09     24/09 courbe   24/09 gardes
+    //   part qui rapporte     2,45 %      3,25 %      3,40 %         4,95 %
+    //   le mieux noté         52 %        70 %        78 %           80 %
+    //
+    // Le relèvement de la courbe (24/09) n'a presque rien coûté : le plancher,
+    // porté de 0,46 à 0,54, compense ce que la courbe donne. C'est le DESSERRAGE
+    // DE LA GARDE DES PROPORTIONS, demandé ensuite — plancher 0,20 → 0,50 —, qui
+    // paie le plus cher : le gribouillis a un accord de proportions de 0,70, et un
+    // plancher plus haut lui rend une part de ce qu'il perdait. Cinq pour cent des
+    // gribouillages rapportent désormais quelque chose, contre deux et demi à
+    // l'origine. Arbitrage assumé de l'auteur, en échange de pires cas honnêtes
+    // nettement remontés.
     //
     // Les bornes ci-dessous encadrent la NOUVELLE réalité mesurée, avec la marge
     // qu'il faut pour voir une dérive sans crier au loup. Elles ne prétendent plus
     // qu'un gribouillage ne paie jamais : c'était déjà faux, et ça l'est davantage.
     const part = (100 * payants) / total;
-    expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(4.5);
-    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(75);
+    expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(6);
+    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(82);
     expect(pointsDe(pire), 'et il ne doit pas approcher le maximum')
-      .toBeLessThan(POINTS_MAXIMUM * 0.75);
+      .toBeLessThan(POINTS_MAXIMUM * 0.85);
   });
 
   it('LE JEU EST INDULGENT : un dessin reconnaissable mais imparfait est franchement payé', () => {

@@ -136,30 +136,33 @@ export const MARGE_NORMALISATION = 0.04;
 // contre 0,70). Peser sur la position revenait donc à confondre le joueur
 // appliqué qui dessine petit avec celui qui noircit la page.
 //
-// La forme prend donc largement le pas. Le recouvrement garde un peu plus du
-// quart : sans lui, « la position des traits » — que l'énoncé cite en premier — ne
-// serait plus mesurée du tout, et un dessin juste posé dans un coin vaudrait un
-// dessin juste posé au bon endroit.
+// La forme prend donc largement le pas. Le recouvrement garde un cinquième — poids
+// demandé par l'auteur le 24/09 : « mets le poids de la forme à 0,8 ». On ne
+// descend pas plus bas : sans lui, « la position des traits », que l'énoncé cite en
+// premier, ne serait plus mesurée du tout, et un dessin juste posé dans un coin
+// vaudrait un dessin juste posé au bon endroit.
 //
-// CE QUE CES DEUX NOMBRES VALENT, MESURÉ SUR LES CINQUANTE DESSINS (note médiane,
-// puis la pire des cinquante) :
+// CE QUE LE JEU REND AUJOURD'HUI, MESURÉ SUR LES CINQUANTE DESSINS — note médiane,
+// puis la pire des cinquante. Ces chiffres valent pour l'ENSEMBLE du réglage en
+// vigueur — poids, gardes ET courbe : les isoler les uns des autres n'aurait aucun
+// sens, c'est leur composition que le joueur voit.
 //
-//                        AVANT (0,55 / 0,45)     APRÈS (0,28 / 0,72)
-//   copie fidèle            99 %  (pire 96)        99 %  (pire 93)
-//   main légère             83 %                   86 %
-//   main humaine            81 %                   79 %
-//   main lourde             59 %  (pire 50)        60 %  (pire 48)
-//   JUSTE MAIS PETIT        49 %  (pire 32 → 0)    71 %  (pire 56)
-//   JUSTE MAIS DE TRAVERS   43 %  (pire 28 → 0)    54 %  (pire 40)
+//   copie fidèle          100 %   (pire  98)
+//   main légère            96 %   (pire  95)
+//   main humaine           94 %   (pire  91)
+//   main lourde            85 %   (pire  78)
+//   juste mais petit       93 %   (pire  89)
+//   juste mais de travers  84 %   (pire  74)
 //
-// Les deux lignes en capitales sont celles qui ont motivé le changement : un
-// dessin complet et juste ne tombe plus à zéro parce qu'il a été tracé petit ou
-// posé de côté.
+// LES DEUX DERNIÈRES LIGNES sont celles qui ont motivé le déplacement des poids :
+// au départ, avec la position dominante (0,55 / 0,45), elles tombaient à 49 % et
+// 43 % de médiane, et jusqu'à ZÉRO sur les pires cibles. Un dessin complet et
+// juste ne s'effondre plus parce qu'il a été tracé petit ou posé de côté.
 export const POIDS = {
   // « la position des traits » — le tracé du joueur, là où il l'a posé.
-  recouvrement: 0.28,
+  recouvrement: 0.20,
   // « la forme générale » — les deux dessins ramenés à la même boîte.
-  forme: 0.72,
+  forme: 0.80,
 };
 
 // ============================================================================
@@ -190,10 +193,22 @@ export const POIDS = {
 // 0,94 à 1,00 pour tout dessin honnête. C'est le terme qui mérite de mordre — et
 // c'est précisément celui que l'énoncé demande de peser davantage.
 //
-// D'où deux planchers : la densité ne peut plus coûter que quinze pour cent, les
-// proportions jusqu'à quatre-vingts. On n'a PAS retiré la densité du calcul —
+// D'où deux planchers : la densité ne peut coûter que quinze pour cent, les
+// proportions jusqu'à la moitié. On n'a PAS retiré la densité du calcul —
 // l'énoncé la cite, et elle reste seule à voir le dessin surchargé.
-export const GARDE_MIN = { proportions: 0.20, densite: 0.85 };
+//
+// LE PLANCHER DES PROPORTIONS EST PASSÉ DE 0,20 À 0,50 LE 24/09, à la demande de
+// l'auteur. Ce qu'il change, mesuré : les médianes ne bougent que d'un point ou
+// deux, mais les PIRES CAS honnêtes remontent nettement — la main lourde de 72 à
+// 78 %, le dessin juste mais petit de 85 à 89 %, le dessin de travers de 68 à
+// 74 %. C'est là que l'ancien plancher mordait : sur les cibles au rapport
+// inhabituel, un bouleau tout en hauteur ou une tranche de pastèque, où un dessin
+// honnête se trompe facilement de proportion sans cesser d'être reconnaissable.
+//
+// PRIX MESURÉ : la part des gribouillages qui rapportent passe de 3,40 % à 4,95 %.
+// Le gribouillis a un accord de proportions de 0,70 — le plancher relevé lui rend
+// donc aussi une part de ce qu'il perdait.
+export const GARDE_MIN = { proportions: 0.50, densite: 0.85 };
 const tempere = (accord, plancher) => plancher + (1 - plancher) * Math.min(1, Math.max(0, accord));
 
 // ---------------------------------------------------------------------------
@@ -575,16 +590,76 @@ function accordDeDensite(gc, gj) {
 // CE SONT LES DEUX SEULS NOMBRES À TOURNER si le jeu paraît encore trop dur ou
 // trop facile. Monter le plancher écarte les tricheurs et durcit le jeu ; monter
 // la courbe relève tout le monde.
-export const BRUT_PLANCHER = 0.46;
+//
+// ============================================================================
+// RECALIBRÉ LE 24/09 SUR UN JOUEUR RÉEL — ET C'EST UN AVEU SUR TOUT CE QUI PRÉCÈDE
+// ============================================================================
+//
+// « Je n'arrive pas à aller au-dessus de 62 %, je trouve le barème trop dur. »
+//
+// 62 % affichés correspondaient à un score BRUT de 0,62. Or le pire cas honnête de
+// mon étalonnage — un dessin complet et correct, posé douze pour cent de travers —
+// a un brut médian de 0,666. IL EST MEILLEUR QUE LA MEILLEURE TENTATIVE DE
+// L'AUTEUR.
+//
+// Tout l'étalonnage reposait donc sur un joueur modèle QUI DESSINE MIEUX QU'UN
+// HUMAIN. Le copiste des contrôles retrace la grille de la cible elle-même avec du
+// tremblement : il ne dessine jamais UNE AUTRE FLEUR RECONNAISSABLE, il dessine LA
+// MÊME FLEUR, SECOUÉE. Sa topologie est parfaite par construction. Un humain qui
+// redessine de mémoire en trente secondes produit une forme franchement
+// différente — et c'est justement l'écart que mon modèle ne sait pas fabriquer.
+//
+// J'ai pu annoncer trois fois « c'est plus généreux » pendant que l'auteur
+// plafonnait à 62 %, parce que mes « médiane à cent pour cent » décrivaient un
+// copiste et non un joueur.
+//
+// LE RÉGLAGE EST DONC ANCRÉ SUR SON CHIFFRE, et plus sur mes figures : un dessin à
+// 0,62 de brut — ce qu'il considère comme une bonne tentative — passe de 520 à
+// 740 points. Et le bas de bande cesse de valoir zéro : 0,55 de brut rapporte 100
+// points au lieu de rien.
+//
+// PRIX MESURÉ, et il est faible : la part des gribouillages qui rapportent passe de
+// 3,25 % à 3,35 %. Le plancher relevé compense exactement ce que la courbe donne.
+//
+// CE QUI MANQUE ENCORE, ET IL FAUT LE DIRE : de VRAIS dessins. Une seule manche
+// jouée suffirait — l'animateur reçoit déjà tous les tracés avec leur note. Tant
+// qu'on n'a qu'UN point de mesure humain, ce réglage est une interpolation autour
+// de lui, pas une distribution.
+export const BRUT_PLANCHER = 0.54;
 export const BRUT_PLAFOND = 1.0;
 
-export const COURBE = 2.7;
+// LE COEFFICIENT DE LA COURBE — attention, il n'a PAS le sens qu'il avait. Ce fut
+// un exposant (2,7) tant que la courbe valait `1 − (1 − t)^k` ; c'est désormais le
+// coefficient d'un logarithme, et il se compte en centaines. Plus il est grand,
+// plus la montée est vive juste au-dessus du plancher.
+export const COURBE = 500;
 
+// ============================================================================
+// POURQUOI UN LOGARITHME, ET PLUS `1 − (1 − t)^k`
+// ============================================================================
+//
+// LA FORME PRÉCÉDENTE SATURAIT. En cherchant à satisfaire « deux fois plus
+// généreux », on arrivait à un exposant de 4 — et là, un contrôle a rougi :
+// « le dessin exact 100 % ne bat pas un dessin tremblé 100 % ». Les deux
+// saturaient. Mesuré sur la bande réelle des joueurs, quatre niveaux de brut sur
+// neuf s'écrasaient sur le même 1200 : LE JEU NE SAVAIT PLUS DÉSIGNER UN GAGNANT.
+// Une manche où les trois meilleurs sont à égalité n'a plus d'intérêt à l'antenne.
+//
+// Le logarithme monte aussi vite en bas de bande, et garde de la pente en haut.
+// Mesuré sur les mêmes neuf points de brut, du dessin médiocre au quasi parfait :
+//
+//   brut       0,55  0,60  0,62  0,66  0,70  0,75  0,80  0,85  0,90
+//   AVANT (%)    39    56    61    71    80    87    93    97    99
+//   APRÈS (%)    40    67    72    78    83    87    91    94    96
+//   AVANT (pts)   0   420   520   720   900  1040  1160  1200  1200
+//   APRÈS (pts) 100   640   740   860   960  1040  1120  1180  1200
+//
+// NEUF NIVEAUX DE POINTS DISTINCTS SUR NEUF, contre huit avant et SIX avec la
+// puissance 4 : chaque écart de dessin se traduit encore par un écart de score,
+// jusqu'en haut. C'est ce qui permet à une manche de désigner un gagnant.
 export function presenter(brut) {
   const t = Math.min(1, Math.max(0, (brut - BRUT_PLANCHER) / (BRUT_PLAFOND - BRUT_PLANCHER)));
-  // Concave, strictement croissante, et de pente finie aux deux bouts : elle
-  // relève sans jamais changer le CLASSEMENT ni rendre une tranche inatteignable.
-  return Math.round((1 - (1 - t) ** COURBE) * 100);
+  return Math.round((Math.log1p(COURBE * t) / Math.log1p(COURBE)) * 100);
 }
 
 // ---------------------------------------------------------------------------
