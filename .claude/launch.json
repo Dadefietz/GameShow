@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:client"],
       "port": 5173
+    },
+    {
+      "name": "gameshow-repro",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "PORT=8795 DATA_DIR=tests/.data-repro node src/server/index.js"],
+      "port": 8795
     }
   ]
 }

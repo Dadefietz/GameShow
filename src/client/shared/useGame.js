@@ -23,7 +23,8 @@ export function useGame(token) {
   // L'ANNONCE d'un jeu qui n'a pas encore démarré — « Le lien » se joue en deux
   // temps : le cercle voit le nom du jeu pendant que l'animateur saisit ses mots.
   const [annonce, setAnnonce] = useState(null);
-  const [roomClosed, setRoomClosed] = useState(false);
+  // UN VERDICT APPARTIENT AU JETON QUI L'A REÇU — voir `fatalDe` plus bas.
+  const [fermeDe, setFermeDe] = useState(null);   // le jeton dont le salon a été fermé
   // LES JEUX DE DÉFILÉ — « Les visages », « Retour de flamme » : l'image à
   // l'écran, poussée une par une par le serveur.
   //
@@ -45,12 +46,26 @@ export function useGame(token) {
   const [tourClos, setTourClos] = useState(false);
   const [distribution, setDistribution] = useState(null); // répartition des réponses (animateur)
   const [history, setHistory] = useState([]);             // récap des manches (fin de partie)
-  const [fatal, setFatal] = useState(null);               // salon mort / token invalide (irrécupérable)
+  // SALON MORT / JETON INVALIDE — et, surtout, POUR QUEL JETON.
+  //
+  // Le verdict était un simple drapeau, posé sur `connect_error` et jamais levé :
+  // quand la surface purgeait sa session, le jeton passait à `null`, l'effet
+  // ci-dessous s'arrêtait à `if (!token) return` et le drapeau restait posé. Au
+  // jeton SUIVANT — « Ouvrir un nouveau salon », une reconnexion, un joueur qui
+  // rejoint une autre partie — la surface lisait encore « salon mort » et
+  // jetait le salon TOUT NEUF que le serveur venait de créer. L'animateur voyait
+  // « Salon expiré » en boucle, quoi qu'il fasse, jusqu'à recharger la page.
+  //
+  // Remettre le drapeau à zéro ne suffisait pas : la remise se fait dans un
+  // effet, et l'effet de la surface qui LIT le drapeau tourne dans le même
+  // rendu, avec l'ancienne valeur. On retient donc le jeton condamné, et le
+  // verdict ne vaut que pour lui — comparé au rendu, sans ordre d'effets à
+  // respecter.
+  const [fatalDe, setFatalDe] = useState(null);           // { token, msg }
   const [serverError, setServerError] = useState(null);   // erreur signalée par le serveur (host:error)
 
   useEffect(() => {
     if (!token) return;
-    setFatal(null);
     const s = connectSocket(token);
     socketRef.current = s;
     s.on('connect', () => setConnected(true));
@@ -61,7 +76,7 @@ export function useGame(token) {
     s.on('connect_error', (err) => {
       const msg = err && err.message;
       if (msg === 'room-not-found' || msg === 'unauthorized') {
-        setFatal(msg);
+        setFatalDe({ token, msg });
         s.close();
       }
     });
@@ -152,7 +167,7 @@ export function useGame(token) {
       setPodium(null); setLeaderboard([]); setHistory([]);
       setReveal(null); setTick(null); setYou(null); setAnswered(false);
     });
-    s.on('room:closed', () => setRoomClosed(true));
+    s.on('room:closed', () => setFermeDe(token));
     return () => s.close();
   }, [token]);
 
@@ -169,6 +184,9 @@ export function useGame(token) {
   const off = useCallback((event, handler) => {
     socketRef.current?.off(event, handler);
   }, []);
+
+  const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
+  const roomClosed = !!token && fermeDe === token;
 
   return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, objetCache, devoilements, monCompte, tourClos, emit, on, off };
 }
