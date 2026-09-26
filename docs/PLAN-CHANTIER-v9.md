@@ -851,3 +851,74 @@ donne : la part des gribouillages qui rapportent passe de 3,25 % à **3,35 %**.
 **De vrais dessins.** Une seule manche jouée suffirait : l'animateur reçoit déjà
 tous les tracés avec leur note. Tant qu'on n'a qu'**un** point de mesure humain, ce
 réglage est une interpolation autour de lui, pas une distribution.
+
+## 11. Treize retours d'une séance — 26/09
+
+Treize demandes, arrivées en cours de travail, toutes traitées. Trois défauts
+supplémentaires ont été trouvés en chemin, dont un grave (11.3).
+
+### 11.1 — « Salon expiré » en boucle (poussé à part, `2a2b36d`)
+
+Le verdict « salon mort » de `useGame` n'était jamais levé : au jeton suivant, la
+console jetait le salon neuf. Même maladie deux fois côté joueur (salon expiré,
+salon fermé). Le verdict retient désormais le jeton qu'il concerne.
+
+### 11.2 — « Cueillette » : un sapin fidèle à 0 %
+
+Capture de l'auteur : un sapin contourné trait pour trait, « 0 % — raté ». Trois
+défauts empilés, chacun mesuré, chacun vu rouge par un contrôle :
+
+| défaut | effet sur le sapin |
+|---|---|
+| un trait coupé à 500 points (le contour en fait 730) | un tiers du dessin disparaît |
+| la cible comparée en BANDE de 3 à 5 cases, le joueur trace UNE ligne | densité 0,59, recouvrement 0,62 |
+| la forme normalisée sur la boîte englobante | un tronc court décale toute la figure |
+| la courbe logarithmique : falaise au plancher | 0,54 → 0 %, 0,55 → 40 % |
+
+Corrections : trait borné à 5 000 points ; cible réduite à son **trait médian**
+(amincissement de Zhang-Suen) puis épaissie comme le trait du joueur ; forme
+mesurée par les **moments** (centre de gravité, étalement) ; courbe remplacée par
+une **table de paliers** reliés par des droites, pente bornée à 5 points de
+pourcentage par centième de brut.
+
+Le sapin passe de brut 0,396 (0 %) à **0,651 (78 %)**. Il est désormais un
+contrôle (`tests/outils/sapin-auteur.js`) : le premier dessin humain du dépôt.
+
+Mesures de la nouvelle échelle (brut, p05 / médiane / p95) : gribouillis
+0,237 / 0,400 / 0,562 ; main lourde 0,696 / 0,749 / 0,795 ; copie fidèle
+0,989 / 0,992 / 0,996. Prix : 5,63 % des gribouillages paient, le mieux noté
+atteint 83 % — toujours contre des fruits ronds et chargés (figue, framboises).
+
+### 11.3 — La file de questions : un glisser qui revenait à sa place
+
+« Je dois m'y prendre trois fois. » Deux défauts :
+- le défilement automatique ne tournait qu'au MOUVEMENT du pointeur, et le rang
+  visé ignorait le défilement parcouru ;
+- **le plus grave** : le lâcher cherchait les lignes par identité d'objet. Le
+  serveur renvoie la file pendant un glisser (trois fois en deux secondes) : plus
+  aucune ligne ne correspondait, et l'ordre partait inchangé.
+
+Contrôle de bout en bout avec une vraie souris, vu rouge sur les deux défauts.
+
+### 11.4 — Un bogue dormant du serveur
+
+Désigner une question au tout premier lancement d'un jeu écrivait une file VIDE
+pour ce jeu. La console y échappait parce qu'elle lit la file avant de désigner.
+
+### 11.5 — Le reste, en bref
+
+- Studio : l'édition est une **page** (avec adresse `?jeu=`, retour navigateur).
+- Vote : trois catégories — Vie, Dilemme, Sondage ; la catégorie décide seule des
+  points ; trois sections au Studio. Un ancien « sondage sans points » devient un
+  Sondage.
+- « Cueillette » : banque d'images gérable au Studio ; la **grille** de
+  comparaison est calculée par le navigateur avec le filtre de Lanczos du script
+  d'origine — 0 case différente sur 204 800 contre les cinquante originales.
+- « Cueillette » : un toucher pose un point ; le dessin non envoyé est compté à
+  la fin du chrono (brouillon à chaque doigt levé, repris par le serveur) ; le
+  partage montre le **nom** du joueur (décision 2.5 levée par l'auteur) et un
+  second partage remplace le premier.
+- Console : la colonne « Séance » a disparu, l'ordre des questions est toujours
+  tiré au sort ; les boutons de départ d'un jeu sont dans le pied de page.
+- « Cache-cache » : le classement de l'animateur passe aussi à l'antenne, cinq
+  premières lignes, colonne par colonne.

@@ -260,45 +260,83 @@ test.describe('Cueillette', () => {
     expect(points, 'le trait s\'est arrêté au bord du cadre').toBeGreaterThan(41);
   });
 
-  test("LE BILAN NE SE CONTREDIT PAS : le tracé n'est montré que s'il a compté", async ({ browser }) => {
-    await annoncer(browser);
+  test("LE BILAN NE SE CONTREDIT PAS, LE DESSIN NON ENVOYÉ COMPTE, ET LE PARTAGE SE REMPLACE", async ({ browser }) => {
+    // DEUX JOUEURS, DEUX CONDUITES (26/09) :
+    //   — « Crayon » dessine et ENVOIE ;
+    //   — « Gomme » dessine, pose un POINT d'un simple toucher, et n'envoie PAS.
+    //     « Quand le timer arrive à zéro, il faut que tu envoies automatiquement
+    //     ce que les gens ont dessiné. » Son dessin doit être noté comme l'autre.
+    await annoncer(browser, ['Crayon', 'Gomme']);
     await hote.page.getByTestId('cu-famille-arbres').click();
     await hote.page.getByTestId('cu-dessin').first().click();
     await hote.page.getByTestId('cueillette-demarrer').click();
 
-    const j = joueurs[0].page;
-    await expect(j.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
-    await tracer(j, 'carre');
-    await j.getByTestId('answer-submit').click();
+    const [crayon, gomme] = joueurs.map((x) => x.page);
+    await expect(crayon.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await expect(gomme.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await tracer(crayon, 'carre');
+    await crayon.getByTestId('answer-submit').click();
+
+    await tracer(gomme, 'croix');
+    // UN POINT : un toucher, sans glisser. Il EXISTAIT dans les données mais ne
+    // se dessinait pas — une ligne d'un seul point n'a pas de longueur.
+    const b = await gomme.getByTestId('cueillette-toile').boundingBox();
+    await gomme.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.15);
+    await expect(gomme.locator('[data-testid="cueillette-toile"] polyline')).toHaveCount(3);
+    const point = gomme.locator('[data-testid="cueillette-toile"] polyline').nth(2);
+    const largeurPoint = (await point.boundingBox())?.width || 0;
+    expect(largeurPoint, 'le point posé d’un toucher ne se voit pas').toBeGreaterThan(2);
 
     // La manche se ferme d'elle-même au bout des trente secondes.
-    await expect(j.getByTestId('cueillette-superpose')).toBeVisible({ timeout: 45_000 });
-    await expect(j.getByTestId('cueillette-nom')).not.toBeEmpty();
+    await expect(crayon.getByTestId('cueillette-superpose')).toBeVisible({ timeout: 45_000 });
+    await expect(crayon.getByTestId('cueillette-nom')).not.toBeEmpty();
 
     // LE DESSIN A COMPTÉ : la phrase annonce une ressemblance, et le tracé du
     // joueur est bien SUPERPOSÉ à la cible. Les deux vont ensemble ou ne vont pas.
-    await expect(j.getByTestId('cueillette-ressemblance')).toContainText('ressemblance');
-    await expect(j.locator('[data-testid="cueillette-superpose"] .toile__trait--sien'))
-      .toHaveCount(1);
+    await expect(crayon.getByTestId('cueillette-ressemblance')).toContainText('ressemblance');
+    await expect(crayon.locator('[data-testid="cueillette-superpose"] .toile__trait--sien')).toHaveCount(1);
 
-    // L'ANIMATEUR, LUI, A LE NOM — et personne d'autre. C'est la frontière du
-    // projet : les pseudonymes ne quittent pas sa console.
-    await expect(hote.page.getByTestId('cueillette-dessins')).toBeVisible({ timeout: 20_000 });
+    // ET CELUI DE GOMME AUSSI, sans qu'il ait appuyé sur « Envoyer » : noté, et
+    // montré — ses deux traits et son point.
+    await expect(gomme.getByTestId('cueillette-superpose')).toBeVisible({ timeout: 20_000 });
+    await expect(gomme.getByTestId('cueillette-ressemblance'),
+      'le dessin non envoyé a été perdu à la fin du chrono').toContainText('ressemblance');
+    await expect(gomme.locator('[data-testid="cueillette-superpose"] .toile__trait--sien')).toHaveCount(3);
+
+    // L'ANIMATEUR A LES DEUX DESSINS, avec les noms.
+    const fiches = hote.page.locator('.cudess__fiche');
+    await expect(fiches).toHaveCount(2, { timeout: 20_000 });
     await expect(hote.page.getByTestId('cueillette-dessins')).toContainText('Crayon');
+    await expect(hote.page.getByTestId('cueillette-dessins')).toContainText('Gomme');
+    // Avant tout partage, aucun nom à l'antenne.
     await expect(stream.locator('body')).not.toContainText('Crayon');
+    await expect(stream.locator('body')).not.toContainText('Gomme');
 
-    // « PARTAGER ! » — le dessin passe à l'antenne, en grand, sans son auteur.
-    await hote.page.getByTestId('cueillette-partager').first().click();
+    // « PARTAGER ! » — le dessin passe à l'antenne, en grand, AVEC le nom de son
+    // auteur et SANS sa note (26/09).
+    const nom0 = (await fiches.nth(0).locator('.cudess__nom').textContent()).trim();
+    const nom1 = (await fiches.nth(1).locator('.cudess__nom').textContent()).trim();
+    await fiches.nth(0).getByTestId('cueillette-partager').click();
     const grand = stream.getByTestId('stream-cueillette-grand');
     await expect(grand).toBeVisible({ timeout: 10_000 });
-    const boite = await grand.boundingBox();
-    expect(boite.width, 'le dessin partagé n’est pas « en grand »').toBeGreaterThan(540);
-    await expect(stream.locator('body')).not.toContainText('Crayon');
+    expect((await grand.boundingBox()).width, 'le dessin partagé n’est pas « en grand »').toBeGreaterThan(540);
+    const bloc = stream.getByTestId('stream-cueillette-partage');
+    await expect(stream.getByTestId('stream-cueillette-auteur')).toContainText(nom0);
+    await expect(bloc, 'la note est encore à l’antenne').not.toContainText('%');
     // Il REMPLACE le graphique, il ne s'y ajoute pas.
     await expect(stream.getByTestId('stream-cueillette-histo')).toHaveCount(0);
+    const traits0 = await grand.locator('polyline').count();
+
+    // UN SECOND PARTAGE REMPLACE LE PREMIER — le défaut du 26/09 : le stream
+    // gardait l'ancien dessin, et le bouton semblait ne rien faire.
+    await fiches.nth(1).getByTestId('cueillette-partager').click();
+    await expect(stream.getByTestId('stream-cueillette-auteur')).toContainText(nom1);
+    await expect(bloc).not.toContainText(nom0);
+    await expect.poll(() => grand.locator('polyline').count(),
+      'le tracé à l’antenne est resté celui du premier dessin').not.toBe(traits0);
 
     // Et l'animateur peut le reprendre.
-    await hote.page.getByTestId('cueillette-partager').first().click();
+    await fiches.nth(1).getByTestId('cueillette-partager').click();
     await expect(stream.getByTestId('stream-cueillette-grand')).toHaveCount(0);
     await expect(stream.getByTestId('stream-cueillette-histo')).toBeVisible();
   });

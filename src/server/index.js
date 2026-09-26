@@ -17,6 +17,8 @@ import {
 } from './cache-cache.js';
 import { BASSIN_OBJETS, BASSIN_NOIR, COULEURS, COULEUR_RESERVEE, srcDObjet } from './objets.js';
 import { srcDeVisage } from './visages.js';
+import { BASSIN_DESSINS, FAMILLES, MARQUE_CUEILLETTE, srcDeDessin, banqueDeCueillette } from './dessins.js';
+import { GRILLES_DESSINS } from './dessins-grilles.js';
 import { getServiceClient } from './supabase.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
@@ -171,13 +173,28 @@ const contenuCacheSchema = z.object({
     src: z.string().min(1).optional(),
   })).optional(),
 }).passthrough();
+// LA BANQUE DE « CUEILLETTE », MODÉRÉE AU STUDIO — même principe que celle de
+// « Cache-cache » : une entrée marquée dans le champ des questions. La grille
+// d'un dessin est facultative ICI : un dessin du dépôt garde la sienne. Sa
+// validité se juge à la lecture (`banqueDeCueillette`), qui écarte une ligne
+// sans grille utilisable plutôt que de refuser tout l'enregistrement.
+const contenuCueilletteSchema = z.object({
+  kind: z.literal(MARQUE_CUEILLETTE),
+  dessins: z.array(z.object({
+    id: z.string().min(1).max(80),
+    nom: z.string().min(1).max(80),
+    famille: z.string().max(40).optional(),
+    src: z.string().max(600).optional(),
+    grille: z.string().max(800).optional(),
+  })).max(400),
+}).passthrough();
 const moduleSchema = z.object({
   id: z.string().min(1),
   type: z.enum(MODULE_TYPES),
   name: z.string().min(1),
   duration: z.number().positive().optional(),
   color: z.string().optional(),
-  questions: z.array(z.union([contenuCacheSchema, questionSchema])),
+  questions: z.array(z.union([contenuCacheSchema, contenuCueilletteSchema, questionSchema])),
 }).passthrough();
 const modulesSchema = z.array(moduleSchema);
 
@@ -320,6 +337,19 @@ app.get('/api/cache/catalogue', async (req, reply) => {
   };
 });
 
+// LE CATALOGUE DE « CUEILLETTE » — les cinquante dessins du dépôt et leurs
+// familles, pour que le Studio parte de la banque que le jeu joue réellement.
+// Sans les grilles : un dessin du dépôt garde la sienne côté serveur, le Studio
+// n'a pas à la transporter.
+app.get('/api/cueillette/catalogue', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return {
+    dessins: BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) })),
+    familles: FAMILLES,
+  };
+});
+
 // LES DURÉES RÉELLES, DÉCLARÉES PAR LES MODULES.
 //
 // Le Studio affichait la durée écrite dans la BANQUE — un nombre réglable que la
@@ -388,9 +418,7 @@ async function poolFor(ownerId, module_) {
 //      pouvait donc ressortir plus tard. Défaut dormant, réveillé le jour où une
 //      sélection manuelle existe — c'est-à-dire aujourd'hui.
 function construireFile(room, moduleId, pool) {
-  const sel = room.session.selected[moduleId];
-  let candidates = Array.isArray(sel) && sel.length ? pool.filter((q) => sel.includes(q.id)) : pool;
-  if (!candidates.length) candidates = pool;
+  const candidates = pool;
 
   // « Jamais deux fois la même question dans un même salon » : les questions déjà
   // posées ne reviennent pas dans la file. La banque épuisée est donc un vrai
@@ -399,12 +427,12 @@ function construireFile(room, moduleId, pool) {
   // longtemps avant d'être à sec.
   const fraiches = candidates.filter((q) => !room.session.used.has(q.id));
 
+  // L'ORDRE EST TOUJOURS TIRÉ AU SORT (26/09) — « il faut que toutes les
+  // questions soient tout le temps aléatoires ». Il n'y a plus d'interrupteur.
   const ids = fraiches.map((q) => q.id);
-  if (room.session.shuffle) {
-    for (let i = ids.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [ids[i], ids[j]] = [ids[j], ids[i]];
-    }
+  for (let i = ids.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
   }
   // La question qui vient d'être posée ne peut pas ouvrir la file suivante.
   if (ids.length > 1 && ids[0] === room.session.lastQuestionId) {
@@ -671,6 +699,12 @@ io.on('connection', (socket) => {
       if (module_.type === 'cache_cache' && question) {
         question.contenu = contenuDeLaBanque(module_.questions);
       }
+      // « CUEILLETTE » EMPORTE SA BANQUE MODÉRÉE — grilles comprises. Elle est
+      // ÉCRITE ICI, jamais reprise de ce que l'écran a envoyé : une banque venue
+      // du réseau ferait de la console une source d'images pour l'antenne.
+      if (module_.type === 'cueillette' && question) {
+        question.banque = banqueDeCueillette(module_.questions, GRILLES_DESSINS);
+      }
       const pool = await poolFor(r.ownerId, module_);
 
       // L'ANIMATEUR PEUT DÉSIGNER SA QUESTION, SANS L'ÉCRIRE.
@@ -691,7 +725,16 @@ io.on('connection', (socket) => {
         // Une question IMPOSÉE compte comme posée : sans ça elle pouvait
         // ressortir plus tard dans la même soirée.
         marquerPosee(r, q.id);
-        r.session.queues[module_.id] = (r.session.queues[module_.id] || []).filter((id) => id !== q.id);
+        // SEULEMENT SI LA FILE EXISTE DÉJÀ. Écrire `[]` pour un jeu dont la file
+        // n'a jamais été construite la déclarait VIDE : une question désignée au
+        // tout premier lancement d'un jeu épuisait ce jeu pour la soirée, et
+        // « Question suivante » répondait qu'il n'y avait plus rien. La console
+        // y échappait parce qu'elle lit la file avant de désigner ; un écran qui
+        // ne le ferait pas n'y échappait pas. Une file construite plus tard
+        // écarte d'elle-même les questions déjà posées.
+        if (Array.isArray(r.session.queues[module_.id])) {
+          r.session.queues[module_.id] = r.session.queues[module_.id].filter((id) => id !== q.id);
+        }
       } else {
         q = prendreProchaine(r, module_.id, pool);
       }
@@ -772,8 +815,10 @@ io.on('connection', (socket) => {
       // cible avant de donner le top. Même raison que les modes : un écran qui
       // recopierait la banque finirait par proposer un dessin que le jeu ne sait
       // pas servir, et le départ ne partirait pas.
-      dessins: modules[m.type]?.banque?.dessins ?? null,
-      familles: modules[m.type]?.banque?.familles ?? null,
+      // CELLE DU MODULE, depuis que la banque se modère au Studio (26/09).
+      ...(modules[m.type]?.banqueDe
+        ? modules[m.type].banqueDe(m.questions)
+        : { dessins: null, familles: null }),
     })));
   });
   // RÉVÉLATION ANTICIPÉE — qui, sur une manche à deux tours, OUVRE LE SECOND au
@@ -802,9 +847,17 @@ io.on('connection', (socket) => {
     if (idx == null) return engine.toStaff(io, r).emit('cueillette:partage', { roundId: rt.roundId, dessin: null });
     const d = rt.dessins[Number(idx)];
     if (!d) return;
+    // LE NOM DU JOUEUR PART AVEC LE DESSIN, À LA PLACE DE SA NOTE (26/09) : « faut
+    // pas qu'il y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom
+    // d'utilisateur à la place. » La décision 2.5 du chantier v9 retenait le nom
+    // sur la console ; l'auteur la lève pour ce geste-là, et pour lui seul :
+    // c'est l'animateur qui choisit de mettre un joueur à l'honneur, un dessin à
+    // la fois. Le pourcentage ne part plus du tout.
+    const joueur = r.players.get(d.pid);
     engine.toStaff(io, r).emit('cueillette:partage', {
       roundId: rt.roundId,
-      dessin: { pourcent: d.pourcent, points: d.points, traits: d.traits },
+      idx: Number(idx),
+      dessin: { pseudo: joueur ? joueur.pseudo : null, traits: d.traits },
       cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
     });
   });
@@ -827,29 +880,11 @@ io.on('connection', (socket) => {
     if (r.ownerId && roomManager.ownerRooms.get(r.ownerId) === r.code) roomManager.ownerRooms.delete(r.ownerId);
   });
 
-  // Configuration de séance (R5) : ordre aléatoire on/off + sélection manuelle.
-  socket.on('host:sessionConfig', ({ shuffle, selected } = {}) => {
-    const r = requireRoom(socket); if (!isHost(socket, r)) return;
-    if (typeof shuffle === 'boolean') r.session.shuffle = shuffle;
-    if (selected && typeof selected === 'object') {
-      const clean = {};
-      for (const t of MODULE_TYPES) {
-        if (Array.isArray(selected[t])) clean[t] = selected[t].map(String).slice(0, 500);
-      }
-      r.session.selected = clean;
-    }
-  });
-  // Liste des questions disponibles d'un JEU (id + intitulé) pour la sélection.
-  socket.on('host:getBank', async ({ moduleId, moduleType } = {}, cb) => {
-    const r = requireRoom(socket);
-    if (!isHost(socket, r) || typeof cb !== 'function') return;
-    const module_ = moduleId
-      ? banksStore.getModule(r.ownerId, moduleId)
-      : (MODULE_TYPES.includes(moduleType) ? banksStore.getModuleParType(r.ownerId, moduleType) : null);
-    if (!module_) return cb([]);
-    const pool = await poolFor(r.ownerId, module_);
-    cb(pool.map((q) => ({ id: q.id, text: q.text })));
-  });
+  // `host:sessionConfig` ET `host:getBank` ONT DISPARU AVEC LA COLONNE
+  // « SÉANCE » DE LA CONSOLE (26/09) : « il faut que toutes les questions soient
+  // tout le temps aléatoires […] la section où on peut le régler, on s'en fout. »
+  // Garder la commande sans l'écran aurait laissé un interrupteur caché capable
+  // de rendre l'ordre prévisible — exactement ce que l'auteur ne veut plus.
 
   // ---- Réponse JOUEUR (validée serveur, anti-triche) ----
   socket.on('play:answer', ({ value } = {}) => {
@@ -858,6 +893,20 @@ io.on('connection', (socket) => {
     const r = requireRoom(socket);
     const res = engine.submitAnswer(io, r, socket.data.sub, value);
     socket.emit('play:accepted', res);
+  });
+
+  // LE BROUILLON DE « CUEILLETTE » — voir `engine.submitBrouillon`. Son propre
+  // seau de débit, et plus large : il part à chaque doigt levé, et un joueur qui
+  // pointille enchaîne les traits plus vite que les réponses ne s'enchaînent
+  // ailleurs. Le plus récent seul compte : en perdre un n'enlève rien.
+  socket.on('play:brouillon', ({ value } = {}) => {
+    if (socket.data.role !== 'player') return;
+    const now = Date.now();
+    socket.data._brouillons = (socket.data._brouillons || []).filter((t) => now - t < 1000);
+    if (socket.data._brouillons.length >= 12) return;
+    socket.data._brouillons.push(now);
+    const r = requireRoom(socket);
+    if (r) engine.submitBrouillon(r, socket.data.sub, value);
   });
 
   // Stream : lecture seule, n'émet rien d'accepté.

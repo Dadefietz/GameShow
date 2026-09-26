@@ -296,7 +296,9 @@ test.describe('Cache-cache', () => {
   });
 
   test('la manche entière : cinq questions, cinq réponses, la grille', async ({ browser }) => {
-    await annoncer(browser);
+    // SIX JOUEURS : c'est ce qui rend visible la coupe à cinq du classement de
+    // l'antenne (26/09) — avec moins, « les cinq premiers » ne coupe rien.
+    await annoncer(browser, ['Memo', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six']);
     await hote.page.getByTestId('cache-demarrer').click();
     const j = joueurs[0].page;
     await expect(j.getByTestId('cc-numero')).toContainText('Question 1/5', { timeout: 60_000 });
@@ -305,7 +307,10 @@ test.describe('Cache-cache', () => {
     // même bouton passe aux réponses.
     for (let n = 1; n <= 5; n += 1) {
       await expect(j.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
-      await repondre(j);
+      for (const x of joueurs) {
+        await expect(x.page.getByTestId('cc-numero')).toContainText(`Question ${n}/5`, { timeout: 20_000 });
+        await repondre(x.page);
+      }
       if (n < 5) await hote.page.getByTestId('host-reveler').click();
     }
 
@@ -319,11 +324,23 @@ test.describe('Cache-cache', () => {
       // Le classement de l'animateur gagne une colonne à chaque réponse.
       await expect(hote.page.locator('[data-testid="cache-classement"] .clsm__ligne--tete .clsm__col'))
         .toHaveCount(n + 1);
+      // ET CELUI DE L'ANTENNE AUSSI (26/09) — même construction, cinq lignes.
+      const aLAntenne = stream.getByTestId('stream-cc-classement');
+      await expect(aLAntenne.locator('.st-clsm__ligne--tete .st-clsm__col')).toHaveCount(n + 1);
+      await expect(aLAntenne.locator('.st-clsm__ligne:not(.st-clsm__ligne--tete)'),
+        'l’antenne doit montrer les cinq premiers, pas plus').toHaveCount(5);
     }
+    // La console, elle, garde tout le monde.
+    await expect(hote.page.locator('[data-testid="cache-classement"] .clsm__ligne:not(.clsm__ligne--tete)')).toHaveCount(6);
 
     // ET LE DERNIER GESTE RÉVÈLE LA GRILLE — c'est aussi la révélation de la manche.
     await expect(hote.page.getByTestId('host-reveler')).toHaveText(/Dévoiler la grille/);
     await hote.page.getByTestId('host-reveler').click();
+    // LE CLASSEMENT RESTE À L'ANTENNE À CÔTÉ DE LA GRILLE FINALE, et il tient
+    // dans le canevas de 1920 × 1080.
+    await expect(stream.getByTestId('stream-cc-finale').getByTestId('stream-cc-classement')).toBeVisible({ timeout: 15_000 });
+    const bas = await stream.getByTestId('stream-cc-classement').evaluate((e) => e.getBoundingClientRect().bottom);
+    expect(bas, 'le classement déborde du canevas du stream').toBeLessThanOrEqual(1080);
     await expect(j.getByTestId('points-gained')).toBeVisible({ timeout: 15_000 });
     await expect(j.getByTestId('voix-resultat')).toBeVisible();
     expect(await j.getByTestId('voix-resultat').innerText()).not.toMatch(/\{\w+\}/);

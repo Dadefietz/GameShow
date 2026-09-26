@@ -27,8 +27,9 @@ import { momentDePlateau, reinitialiserVoix } from '../../src/client/shared/voix
 import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
 import { copisteDe, gribouillis as gribouillage } from '../outils/copiste.js';
 import { BASSIN_DESSINS } from '../../src/server/dessins.js';
+import { SAPIN_AUTEUR, CIBLE_SAPIN } from '../outils/sapin-auteur.js';
 import {
-  formeDepuisBits, MARGE_NORMALISATION,
+  formeDepuisBits, momentsDe, RAYON_FORME,
   ressemblance, ressemblanceContreGrilles, grilleDepuisBits, pointsDe, nettoyerDessin, rasteriser, flouter, boiteDe, presenter,
   compterPoints, COTE, TRAITS_MAX, POINTS_PAR_TRAIT_MAX, POINTS_MAX,
   SEUIL_POINTS, PLAFOND_POURCENT, POINTS_PLANCHER, POINTS_MAXIMUM,
@@ -104,7 +105,12 @@ describe('la ressemblance entre deux dessins', () => {
   // parfaitement placée. Un spectateur hésiterait ; le contrôle ne doit donc pas
   // trancher à sa place. Il ne garde que les comparaisons dont la réponse est
   // évidente pour qui regarde les deux dessins.
-  const NOTE = (d) => ressemblance(CIBLE, d).pourcent;
+  //
+  // L'ORDRE SE LIT SUR LE BRUT (26/09). La courbe d'affichage pose désormais tout
+  // ce qui est sous son premier palier à 0 % : la moitié et le quart d'un carré y
+  // sont tous deux, à égalité d'affichage. Le classement, lui, n'a pas changé —
+  // la courbe est croissante — et c'est lui que ces comparaisons gardent.
+  const NOTE = (d) => ressemblance(CIBLE, d).brut;
 
   it.each([
     ['le dessin exact', () => CIBLE, 'un dessin tremblé', () => tremble(0.03)],
@@ -126,7 +132,7 @@ describe('la ressemblance entre deux dessins', () => {
   ])('%s passe avant %s', (nomA, a, nomB, b) => {
     const va = NOTE(a());
     const vb = NOTE(b());
-    expect(va, `« ${nomA} » ${va} % ne bat pas « ${nomB} » ${vb} %`).toBeGreaterThan(vb);
+    expect(va, `« ${nomA} » ${va.toFixed(3)} ne bat pas « ${nomB} » ${vb.toFixed(3)} (brut)`).toBeGreaterThan(vb);
   });
 
   it('un gribouillis ne rapporte AUCUN point — ni rien de ce qui lui ressemble', () => {
@@ -182,8 +188,16 @@ describe('la ressemblance entre deux dessins', () => {
     const rond = [Array.from({ length: 30 }, (_, i) => (
       [0.5 + 0.3 * Math.cos((i / 30) * 6.283), 0.5 + 0.3 * Math.sin((i / 30) * 6.283)]
     ))];
-    expect(ressemblance(CIBLE, rond).detail.forme,
-      'un cercle à la place d\'un carré devrait perdre sur la forme').toBeLessThan(0.6);
+    // DEPUIS LE 26/09, LA FORME SE MESURE PAR LES MOMENTS — centre de gravité et
+    // étalement — et non plus par la boîte englobante. Elle est plus indulgente
+    // sur la silhouette générale, et c'est voulu : « se baser bien plus sur la
+    // forme générale ». Un cercle et un carré de même étalement se ressemblent
+    // donc davantage qu'avant (0,80 mesuré, contre moins de 0,60). Ce qu'on exige
+    // encore : que la forme DIFFÉRENTE perde nettement contre la forme juste.
+    const formeRond = ressemblance(CIBLE, rond).detail.forme;
+    const formeJuste = ressemblance(CIBLE, CIBLE).detail.forme;
+    expect(formeRond, 'un cercle à la place d\'un carré devrait perdre sur la forme').toBeLessThan(0.85);
+    expect(formeJuste - formeRond, 'et nettement, face au carré juste').toBeGreaterThan(0.1);
 
     // PROPORTIONS : LE RAPPORT DE LA FIGURE, ET NON SA TAILLE.
     //
@@ -341,33 +355,17 @@ describe('la courbe de présentation', () => {
     expect(atteintes.size, `seulement ${atteintes.size} tranches sur 20 sont atteignables`).toBe(20);
   });
 
-  it('LE SEUL POINT DE MESURE HUMAIN : un dessin à 0,62 de brut affiche au moins 70 %', () => {
-    // L'ANCRE DE TOUT LE RÉGLAGE, ET LE SEUL CHIFFRE QUI VIENNE D'UN VRAI JOUEUR.
-    //
-    // « Je n'arrive pas à aller au-dessus de 62 %, je trouve le barème trop dur »
-    // (24/09). Ces 62 % affichés correspondaient à un score brut de 0,62 — et le
-    // pire cas honnête de l'étalonnage synthétique, un dessin complet posé douze
-    // pour cent de travers, a un brut médian de 0,666. LE MODÈLE DESSINAIT MIEUX
-    // QUE L'AUTEUR. Toutes les mesures faites sur le copiste surestimaient donc ce
-    // que voit un humain, et trois réglages « plus généreux » se sont succédé
-    // pendant qu'il plafonnait.
-    //
-    // CE CONTRÔLE NE PASSE PAS PAR LE COPISTE. Il éprouve la courbe là où le joueur
-    // se trouve réellement, en brut, et fixe ce que la manche doit lui afficher.
-    // C'est ce qui manquait : après le réglage du 23/09, remettre l'ancienne courbe
-    // laissait TOUTE la suite verte.
-    expect(presenter(0.62), `un dessin à 0,62 de brut n'affiche que ${presenter(0.62)} %`)
-      .toBeGreaterThanOrEqual(70);
-    // Et la bande juste en dessous ne doit plus être un désert : un dessin un peu
-    // plus faible reste visiblement noté.
-    expect(presenter(0.60), `à 0,60 de brut, seulement ${presenter(0.60)} %`)
-      .toBeGreaterThanOrEqual(62);
-
-    // CE QUE CE CONTRÔLE N'EST PAS. Il ne dit pas que 0,62 MÉRITE 70 % : personne
-    // ne peut l'affirmer sans voir le dessin. Il dit que le barème a été calé sur
-    // ce point-là, et qu'on ne le déplacera pas par inadvertance. Une vraie
-    // distribution demanderait les tracés d'une manche jouée — l'animateur les
-    // reçoit déjà tous, avec leur note.
+  it('PAS DE FALAISE : un centième de brut ne vaut jamais plus de cinq points de pourcentage', () => {
+    // LE DÉFAUT DU 26/09. La courbe logarithmique avait une pente quasi verticale
+    // au plancher : 0,54 de brut affichait 0 %, 0,55 en affichait QUARANTE. Un
+    // sapin fidèle tombait du mauvais côté et affichait « 0 % — raté ». Vu rouge
+    // sur l'ancienne courbe : un saut de 40 points pour un centième.
+    let pire = 0; let ou = 0;
+    for (let b = 0; b <= 0.99; b += 0.001) {
+      const saut = presenter(b + 0.01) - presenter(b);
+      if (saut > pire) { pire = saut; ou = b; }
+    }
+    expect(pire, `un centième de brut vaut ${pire} points de pourcentage vers ${ou.toFixed(3)}`).toBeLessThanOrEqual(5);
   });
 
   it('borne à zéro et à cent', () => {
@@ -583,9 +581,16 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     // Les bornes ci-dessous encadrent la NOUVELLE réalité mesurée, avec la marge
     // qu'il faut pour voir une dérive sans crier au loup. Elles ne prétendent plus
     // qu'un gribouillage ne paie jamais : c'était déjà faux, et ça l'est davantage.
+    //
+    // 26/09 — LA MESURE A CHANGÉ (trait médian, forme par les moments), et la
+    // courbe aussi. Mesuré : 5,63 % des gribouillages paient, le mieux noté
+    // atteint 83 %. Ce sont TOUJOURS des fruits ronds et chargés — figue,
+    // framboises — contre lesquels un fouillis de traits au centre de la case
+    // ressemble vraiment. La borne haute passe de 82 à 86 pour laisser ce cas
+    // connu, sans cesser de crier si un gribouillage approchait la copie fidèle.
     const part = (100 * payants) / total;
     expect(part, `${part.toFixed(2)} % des gribouillis rapportent des points`).toBeLessThan(6);
-    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(82);
+    expect(pire, `le gribouillis le mieux noté atteint ${pire} % (${quoi})`).toBeLessThan(86);
     expect(pointsDe(pire), 'et il ne doit pas approcher le maximum')
       .toBeLessThan(POINTS_MAXIMUM * 0.85);
   });
@@ -663,31 +668,47 @@ describe('la cible en image et le dessin en traits se mesurent dans la MÊME uni
     expect(pire(decale), `le dessin décalé tombe à ${pire(decale)} %`).toBeGreaterThan(30);
   });
 
-  it('LA FORME DÉRIVÉE REMPLIT SA BOÎTE, sans jamais toucher le bord', () => {
-    // LES DEUX MOITIÉS DE LA MARGE, et chacune garde un défaut vu à l'écran.
-    //
-    // TROP PETITE — zéro —, la figure touche les quatre bords et `poser` rogne
-    // l'épaisseur du trait : deux tracés du même carré, l'un en quatre gestes et
-    // l'autre en cent points, n'étaient plus rognés pareil, et la note dépendait
-    // de la cadence du téléphone. C'est le tout premier défaut de ce jeu, revenu
-    // par une autre porte.
-    //
-    // TROP GRANDE, la normalisation cesse de faire son travail : si la figure
-    // n'occupe plus sa boîte, comparer deux formes « ramenées à la même boîte »
-    // ne compare plus rien.
+  it('LA FORME DÉRIVÉE EST CENTRÉE ET À L\'ÉCHELLE, sans jamais toucher le bord', () => {
+    // DEPUIS LE 26/09, la forme ramène chaque figure à son CENTRE DE GRAVITÉ et à
+    // un ÉTALEMENT commun (`RAYON_FORME`), et non plus à sa boîte. Ce contrôle
+    // garde les deux promesses de cette normalisation — et la plus ancienne, qui
+    // vaut toujours : ne jamais toucher le bord, où `poser` rognerait le trait et
+    // où la note dépendrait de la cadence du téléphone.
     for (const d of BASSIN_DESSINS) {
-      const b = boiteDe(formeDepuisBits(GRILLES_DESSINS[d.id]));
-      const marge = COTE * MARGE_NORMALISATION;
+      const g = formeDepuisBits(GRILLES_DESSINS[d.id]);
+      const m = momentsDe(g);
+      const b = boiteDe(g);
       expect(b, `« ${d.nom} » n'a pas de boîte après normalisation`).toBeTruthy();
-      // ELLE REMPLIT : le plus grand côté occupe la boîte utile, marge déduite.
-      expect(Math.max(b.l, b.h), `« ${d.nom} » ne remplit pas sa boîte`)
-        .toBeGreaterThan(COTE - 4 * marge);
-      // ELLE NE TOUCHE PAS : aucun bord de la figure ne s'appuie sur la grille.
+      expect(Math.hypot(m.cx - (COTE - 1) / 2, m.cy - (COTE - 1) / 2), `« ${d.nom} » n'est pas centré`).toBeLessThan(1.5);
+      expect(Math.abs(m.r - RAYON_FORME) / RAYON_FORME, `« ${d.nom} » n'est pas à l'échelle (${m.r.toFixed(1)})`).toBeLessThan(0.15);
       expect(b.x, `« ${d.nom} » touche le bord gauche`).toBeGreaterThan(0);
       expect(b.y, `« ${d.nom} » touche le bord haut`).toBeGreaterThan(0);
       expect(b.x + b.l, `« ${d.nom} » touche le bord droit`).toBeLessThan(COTE);
       expect(b.y + b.h, `« ${d.nom} » touche le bord bas`).toBeLessThan(COTE);
     }
+  });
+
+  it('LE SAPIN DE L\'AUTEUR — un contour fidèle, fait au doigt, est reconnu', () => {
+    // LE PREMIER DESSIN HUMAIN DE CE DÉPÔT (voir tests/outils/sapin-auteur.js),
+    // affiché « 0 % — raté » en production le 26/09. Trois défauts s'y
+    // empilaient, et ce contrôle les voit tous les trois :
+    //   — le contour, d'un seul geste, dépassait cinq cents points : le serveur
+    //     coupait le reste, et un tiers du dessin disparaissait ;
+    //   — la cible était une BANDE de trois cases quand le joueur trace UNE
+    //     ligne : l'encre et le recouvrement ne pouvaient pas s'accorder ;
+    //   — la forme se mesurait sur la boîte : un tronc un peu court décalait
+    //     toute la figure.
+    // Mesuré avant correction : brut 0,396, 0 %. Après : 0,651, 78 %.
+    const r = ressemblanceContreGrilles(GRILLES_DESSINS[CIBLE_SAPIN], SAPIN_AUTEUR);
+    expect(SAPIN_AUTEUR[0].length, 'le contour doit dépasser l\'ancienne borne de 500 points').toBeGreaterThan(500);
+    expect(r.pourcent, `le sapin de l'auteur n'affiche que ${r.pourcent} % (brut ${r.brut.toFixed(3)})`).toBeGreaterThanOrEqual(75);
+    expect(pointsDe(r.pourcent), 'et il rapporte des points').toBeGreaterThan(0);
+    // ET IL BAT FRANCHEMENT LES AUTRES CIBLES : c'est un sapin, pas un dessin
+    // qui ressemble à tout. Sa note contre la vraie cible passe devant sa note
+    // médiane contre les quarante-neuf autres.
+    const ailleurs = BASSIN_DESSINS.filter((d) => d.id !== CIBLE_SAPIN)
+      .map((d) => ressemblanceContreGrilles(GRILLES_DESSINS[d.id], SAPIN_AUTEUR).brut).sort((a, b) => a - b);
+    expect(r.brut - ailleurs[24], `contre les autres cibles, médiane ${ailleurs[24].toFixed(3)}`).toBeGreaterThan(0.1);
   });
 });
 

@@ -1,7 +1,7 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
 import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
-import { BASSIN_DESSINS, dessinDe, srcDeDessin, FAMILLES } from './dessins.js';
+import { banqueDeCueillette, famillesDe } from './dessins.js';
 import { GRILLES_DESSINS } from './dessins-grilles.js';
 import {
   ressemblanceContreGrilles, pointsDe as pointsDuDessin, nettoyerDessin,
@@ -1044,20 +1044,47 @@ function questionReussie(q, valeur, rt) {
 // celui qu'on ajouterait — la même règle que les modes de « Cache-cache ».
 //
 // L'ORDRE DE CETTE TABLE EST CELUI DES ONGLETS.
+//
+// UNE TROISIÈME CATÉGORIE, ET ELLE, CHANGE LES RÈGLES (26/09) : « il faut qu'il y
+// ait trois catégories : vie, dilemme et sondage, et vie et dilemme peuvent
+// rapporter des points […] on ne doit pas sélectionner si ça rapporte des points
+// ou pas, vraiment automatiquement. »
+//
+// `points` EST DONC UNE PROPRIÉTÉ DE LA CATÉGORIE, déclarée ici et nulle part
+// ailleurs. Avant, c'était un interrupteur par question — « Rapporte des points /
+// Sondage sans points » — indépendant de la catégorie : on pouvait écrire un
+// « Dilemme » sans points ou un sondage rangé dans « Vie », et l'onglet ne disait
+// plus ce que la question allait faire.
 export const CATEGORIES_VOTE = [
-  { cle: 'vie', nom: 'Vie' },
-  { cle: 'dilemme', nom: 'Dilemme' },
+  { cle: 'vie', nom: 'Vie', points: true },
+  { cle: 'dilemme', nom: 'Dilemme', points: true },
+  { cle: 'sondage', nom: 'Sondage', points: false },
 ];
 export const CATEGORIE_VOTE_PAR_DEFAUT = 'vie';
 
 // LA CATÉGORIE D'UNE QUESTION, TOUJOURS VALIDE.
 //
-// Les questions écrites avant cette séance n'en portent pas : elles vont en
-// « Vie », la catégorie générique — aucune question déjà écrite ne devient
-// injouable, et aucune ne disparaît d'un onglet sans que personne ne le cherche.
+// Les questions écrites avant le 15/09 n'en portent pas : elles vont en « Vie »,
+// la catégorie générique — aucune question déjà écrite ne devient injouable, et
+// aucune ne disparaît d'un onglet sans que personne ne le cherche.
+//
+// L'ANCIEN INTERRUPTEUR EST RESPECTÉ. Une question que l'auteur avait passée en
+// « Sondage sans points » (`poll: true`) a été écrite pour ne PAS rapporter de
+// points ; la ranger en « Vie » la rendrait notée sans que personne l'ait
+// décidé. Elle devient donc un sondage — quelle que soit la catégorie qu'elle
+// portait, puisque cette catégorie ne réglait rien à l'époque. Le Studio écrit
+// désormais les deux champs d'accord, si bien que ce repli ne sert qu'aux
+// questions d'avant.
 export function categorieDe(q) {
+  if (q?.poll === true) return 'sondage';
   const cle = String(q?.categorie || '').trim().toLowerCase();
   return CATEGORIES_VOTE.some((c) => c.cle === cle) ? cle : CATEGORIE_VOTE_PAR_DEFAUT;
+}
+
+// UN VOTE RAPPORTE-T-IL DES POINTS ? La catégorie le dit, et elle seule.
+export function voteRapporte(q) {
+  const cle = categorieDe(q);
+  return CATEGORIES_VOTE.find((c) => c.cle === cle)?.points !== false;
 }
 
 export const modules = {
@@ -1929,9 +1956,10 @@ export const modules = {
   },
 
   vote: {
-    // `scored` par défaut. Chaque question peut néanmoins repasser en SONDAGE
-    // (`poll: true`) : on demande alors sincèrement à la salle, un seul tour,
-    // personne ne marque — et c'est le runtime qui tranche, pas le type.
+    // `scored` par défaut. Une question de la catégorie « Sondage » n'en
+    // rapporte pas : on demande alors sincèrement à la salle, un seul tour,
+    // personne ne marque — et c'est le runtime qui tranche, pas le type. La
+    // catégorie décide, voir `voteRapporte`.
     meta: {
       type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info',
       scored: true, malus: false, vitesse: false,
@@ -1943,7 +1971,7 @@ export const modules = {
       dureeS: null, dureeFixe: false,
     },
     buildRound(q) {
-      const poll = !!q.poll;
+      const poll = !voteRapporte(q);
       return {
         type: 'vote',
         questionId: q.id,
@@ -2290,6 +2318,9 @@ export const modules = {
     meta: {
       type: 'cueillette', name: 'Cueillette', icon: 'pencil', color: 'forest',
       scored: true, malus: false, vitesse: false,
+      // Ce qui est dessiné à la fin du chrono compte, même sans avoir été envoyé
+      // — voir `submitBrouillon` dans le moteur.
+      brouillon: true,
       // Dix secondes de cible, puis trente de dessin.
       dureeS: (DUREE_CIBLE_MS + DUREE_DESSIN_MS) / 1000, dureeFixe: true,
       // Pas de banque écrite : la cible se choisit à l'antenne, dans la banque de
@@ -2304,28 +2335,43 @@ export const modules = {
     // LA BANQUE DE DESSINS EST HORS DE `meta`, ET CE N'EST PAS UN DÉTAIL DE
     // RANGEMENT. `meta` part À TOUT LE MONDE avec chaque manche — le moteur le
     // diffuse tel quel dans `module:started`, joueurs et stream compris. Les
-    // cinquante dessins et leurs adresses y auraient voyagé deux fois par manche
-    // vers chaque téléphone du salon, pour un écran qui n'en a aucun usage.
+    // dessins et leurs adresses y auraient voyagé deux fois par manche vers
+    // chaque téléphone du salon, pour un écran qui n'en a aucun usage.
     //
     // Ils ne servent qu'à UN endroit : le panneau où l'animateur choisit sa cible.
     // Ils partent donc par `host:modules`, sur son canal, et nulle part ailleurs.
-    // Déclarés par le SERVEUR dans les deux cas : un écran qui recopierait la
-    // banque finirait par proposer un dessin que le jeu ne saurait pas servir.
-    banque: {
-      dessins: BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) })),
-      familles: FAMILLES,
+    //
+    // LA BANQUE EST CELLE DU MODULE (26/09), modérée au Studio comme celle de
+    // « Cache-cache » — voir `banqueDeCueillette`. Sans modération, ce sont les
+    // cinquante dessins du dépôt.
+    banqueDe(questions) {
+      const dessins = banqueDeCueillette(questions, GRILLES_DESSINS);
+      return {
+        // SANS LA GRILLE : sept cents caractères par dessin, dont la console n'a
+        // aucun usage. Elle ne quitte pas le serveur.
+        dessins: dessins.map(({ grille, ...d }) => d),
+        familles: famillesDe(dessins),
+      };
     },
 
     buildRound(q) {
+      // LA BANQUE VOYAGE AVEC LE TOP DE DÉPART, attachée par le serveur — jamais
+      // reçue de l'écran (voir `host:startModule`). À défaut, celle du dépôt.
+      const banque = Array.isArray(q?.banque) && q.banque.length
+        ? q.banque
+        : banqueDeCueillette(null, GRILLES_DESSINS);
       // LA CIBLE EST CELLE QUE L'ANIMATEUR A CHOISIE, et à défaut une au hasard :
       // un top de départ mal formé ne doit pas éteindre le jeu en direct.
-      const choisi = dessinDe(q?.dessinId);
-      const cible = choisi || BASSIN_DESSINS[Math.floor(Math.random() * BASSIN_DESSINS.length)];
+      const choisi = banque.find((d) => d.id === q?.dessinId);
+      const cible = choisi || banque[Math.floor(Math.random() * banque.length)];
       return {
         type: 'cueillette',
         questionId: q.id,
         text: 'Regarde bien…',
-        cible: { id: cible.id, nom: cible.nom, famille: cible.famille, src: srcDeDessin(cible.id) },
+        cible: { id: cible.id, nom: cible.nom, famille: cible.famille, src: cible.src },
+        // LA GRILLE DE COMPARAISON RESTE SUR LA MANCHE, HORS DE `cible` : la cible
+        // part à tout le salon avec la révélation, et la grille n'a rien à y faire.
+        grille: cible.grille,
         // Le tour 1 montre, le tour 2 fait dessiner.
         tours: 2,
         tour: 1,
@@ -2380,8 +2426,9 @@ export const modules = {
       ));
 
       for (const [pid, a] of rt.answers) {
-        // LA CIBLE EST UNE IMAGE : on la compare par ses grilles précalculées.
-        const position = GRILLES_DESSINS[rt.cible.id];
+        // LA CIBLE EST UNE IMAGE : on la compare par sa grille, posée sur la
+        // manche au départ.
+        const position = rt.grille;
         const { pourcent } = position
           ? ressemblanceContreGrilles(position, a.value)
           : { pourcent: 0 };

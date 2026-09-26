@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { io } from 'socket.io-client';
+import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
 
 const PORT = 8793;
 const BASE = `http://localhost:${PORT}`;
@@ -114,6 +115,20 @@ try {
             { id: 'tf-b', text: 'La Lune est une planète.', correct: false, durationSec: 3 },
           ],
         },
+        {
+          // L'ORDRE TOUJOURS ALÉATOIRE (26/09). Douze questions rangées dans un
+          // ordre connu : une file qui le reproduirait trahirait un ordre fixe.
+          // Une chance sur douze factorielle — quatre cent soixante-dix-neuf
+          // millions — qu'un vrai tirage le reproduise par hasard.
+          id: 'mod-ordre',
+          type: 'quiz',
+          name: 'Ordre témoin',
+          duration: 3,
+          color: 'fire',
+          questions: Array.from({ length: 12 }, (_, i) => ({
+            id: `ordre-${String(i + 1).padStart(2, '0')}`, text: `Question ${i + 1} ?`, options: ['a', 'b'], correctIndex: 0, durationSec: 3,
+          })),
+        },
       ],
     }),
   });
@@ -132,17 +147,27 @@ try {
   check('R7 room:state joueur sans leaderboard', !('leaderboard' in st1));
 
   // ---- R5 : sélection manuelle -> seule la question Studio est jouable ----
-  host.emit('host:sessionConfig', { shuffle: false, selected: { [JEU_ID]: ['studio-q1'] } });
-  await sleep(150);
   // La bibliothèque de l'animateur, telle qu'elle alimente son menu de lancement.
   const jeux = await new Promise((res) => host.emit('host:modules', {}, res));
   check('R4 le jeu nommé figure dans la bibliothèque',
     jeux.some((j) => j.id === JEU_ID && j.name === 'Culture générale'), JSON.stringify(jeux.map((j) => j.name)));
 
-  const bank = await new Promise((res) => host.emit('host:getBank', { moduleId: JEU_ID }, res));
-  // La banque est celle DU JEU, plus la fusion de toutes les questions de son type.
-  check('R5 getBank ne contient que les questions du jeu', bank.length === 1, `${bank.length} questions`);
-  check('R4 question studio présente dans la banque', bank.some((q) => q.id === 'studio-q1'));
+  // LA FILE D'UN JEU NE PORTE QUE SES QUESTIONS. Contrôle repris de l'ancien
+  // `host:getBank`, parti avec la colonne « Séance » (26/09) : c'est désormais
+  // la file que l'animateur voit, et elle seule.
+  const fileJeu = await new Promise((res) => host.emit('host:getQueue', { moduleId: JEU_ID }, res));
+  check('R5 la file ne contient que les questions du jeu', fileJeu.queue.length === 1, `${fileJeu.queue.length} questions`);
+  check('R4 question studio présente dans la file', fileJeu.queue.some((q) => q.id === 'studio-q1'));
+
+  // L'ORDRE EST TOUJOURS TIRÉ AU SORT — y compris quand un écran resté ouvert
+  // réclame encore l'ordre fixe par l'ancienne commande, qui doit être IGNORÉE.
+  host.emit('host:sessionConfig', { shuffle: false, selected: {} });
+  await sleep(100);
+  const fileOrdre = await new Promise((res) => host.emit('host:getQueue', { moduleId: 'mod-ordre' }, res));
+  const rangee = Array.from({ length: 12 }, (_, i) => `ordre-${String(i + 1).padStart(2, '0')}`).join(',');
+  check("l'ordre des questions est tiré au sort, sans réglage possible",
+    fileOrdre.queue.length === 12 && fileOrdre.queue.map((q) => q.id).join(',') !== rangee,
+    fileOrdre.queue.map((q) => q.id).join(','));
 
   // UN IDENTIFIANT DE QUESTION INVENTÉ NE DOIT NI PASSER, NI BLOQUER.
   //
@@ -230,12 +255,13 @@ try {
   // ---- SÉRIE : comptée, jamais monnayée (action 17) ----
   host.emit('host:nextModule');
   await sleep(150);
-  host.emit('host:sessionConfig', { shuffle: false, selected: {} });
   const started2 = waitFor(s1, 'module:started');
-  host.emit('host:startModule', { moduleType: 'true_false' }); // forme héritée : premier jeu de ce type
+  // LA QUESTION EST DÉSIGNÉE : l'ordre est tiré au sort, et ce contrôle a besoin
+  // de savoir que la bonne réponse est « vrai ».
+  host.emit('host:startModule', { moduleType: 'true_false', questionId: 'tf-a' }); // forme héritée : premier jeu de ce type
   const q2 = await started2;
   check('R5 vrai/faux lançable (bug truefalse corrigé)', q2.type === 'true_false', q2.questionId);
-  s1.emit('play:answer', { value: true }); // tf-soleil : correct = true
+  s1.emit('play:answer', { value: true }); // tf-a : correct = true
   // La révélation de cette manche est AUTOMATIQUE : elle tombe à la fin des
   // quinze secondes. Quinze secondes d'attente, c'était la limite exacte.
   const youA2 = await waitFor(s1, 'play:you', FIN_DU_CHRONO);
@@ -276,15 +302,43 @@ try {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      modules: [{ id: JEU_CUEIL, type: 'cueillette', name: 'Cueillette', duration: 40, color: 'forest', questions: [] }],
+      // UNE BANQUE MODÉRÉE AU STUDIO (26/09) : un dessin renommé et rangé sous
+      // le nom lisible de sa famille, et une ligne SANS grille, qui ne pourrait
+      // pas être notée et doit être écartée plutôt que de casser la manche.
+      modules: [{
+        id: JEU_CUEIL, type: 'cueillette', name: 'Cueillette', duration: 40, color: 'forest',
+        questions: [{
+          kind: 'contenu-cueillette',
+          dessins: [
+            { id: 'perso-chene', nom: 'Mon chêne', famille: 'Arbres', src: '/dessins/d001.webp', grille: GRILLES_DESSINS.d001 },
+            { id: 'perso-sans-grille', nom: 'Sans grille', famille: 'Arbres', src: '/dessins/d002.webp' },
+          ],
+        }],
+      }],
     }),
   });
   check('CUEILLETTE bibliothèque acceptée', putCueil.ok);
 
+  const menuCueil = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_CUEIL);
+  check('CUEILLETTE la console reçoit la banque DU MODULE, sans la ligne injouable',
+    menuCueil?.dessins?.length === 1 && menuCueil.dessins[0].nom === 'Mon chêne',
+    JSON.stringify(menuCueil?.dessins?.map((x) => x.nom)));
+  check('CUEILLETTE « Arbres » rejoint la famille du dépôt, au lieu d\'en ouvrir une seconde',
+    menuCueil?.dessins?.[0]?.famille === 'arbres' && menuCueil.familles.length === 1 && menuCueil.familles[0].nom === 'Arbres',
+    JSON.stringify(menuCueil?.familles));
+  check('CUEILLETTE LES GRILLES NE QUITTENT PAS LE SERVEUR',
+    !JSON.stringify(menuCueil).includes(GRILLES_DESSINS.d001.slice(0, 40)));
+
   const dessins = new Promise((r) => host.once('host:dessins', r));
   const partage = new Promise((r) => ov.once('cueillette:partage', r));
   const cible = waitFor(s1, 'module:started', 12000);
-  host.emit('host:startModule', { moduleId: JEU_CUEIL, question: { id: 'cu-int', dessinId: 'd001' } });
+  // UNE BANQUE GLISSÉE DANS LE TOP DE DÉPART EST IGNORÉE : c'est le serveur qui
+  // attache celle du module. Sinon la console deviendrait une source d'images
+  // pour l'antenne.
+  host.emit('host:startModule', {
+    moduleId: JEU_CUEIL,
+    question: { id: 'cu-int', dessinId: 'perso-chene', banque: [{ id: 'perso-chene', nom: 'INTRUS', src: 'https://exemple.invalid/x.webp', grille: GRILLES_DESSINS.d050 }] },
+  });
   const tour1 = await cible;
   check('CUEILLETTE tour 1 montre la cible', tour1.phase === 'cible' && !!tour1.cible?.src, JSON.stringify(tour1.cible));
   check('CUEILLETTE la cible dure dix secondes', tour1.durationMs === 10000, String(tour1.durationMs));
@@ -304,23 +358,36 @@ try {
     .catch(() => null);
   s1.emit('play:answer', { value: carre });
   s2.emit('play:answer', { value: coin });
+  // CHLOÉ DESSINE ET N'ENVOIE PAS (26/09) : son téléphone ne pousse que des
+  // brouillons, à chaque doigt levé. À la fin du chrono, le dernier doit compter.
+  s3.emit('play:brouillon', { value: coin });
+  s3.emit('play:brouillon', { value: carre });
   const revCueil = await waitForMatching(s1, 'module:reveal', (r) => r.type === 'cueillette', 60000);
   const relevé = await youCueil;
 
-  check('CUEILLETTE la révélation nomme la cible', revCueil.text === 'Chêne', String(revCueil.text));
+  check('CUEILLETTE la révélation nomme la cible de la banque modérée', revCueil.text === 'Mon chêne', String(revCueil.text));
+  check('CUEILLETTE la cible vient du serveur, pas du top de départ',
+    revCueil.cible?.src === '/dessins/d001.webp' && !JSON.stringify(revCueil).includes('INTRUS'), JSON.stringify(revCueil.cible));
+  check('CUEILLETTE la grille ne part pas avec la révélation', revCueil.cible && !('grille' in revCueil.cible) && !JSON.stringify(revCueil).includes(GRILLES_DESSINS.d001.slice(0, 40)));
   check('CUEILLETTE vingt tranches de cinq pour cent',
     Array.isArray(revCueil.stats?.tranches) && revCueil.stats.tranches.length === 20
     && revCueil.stats.tranches[19].haut === 100,
     String(revCueil.stats?.tranches?.length));
-  check('CUEILLETTE les tranches comptent les deux dessins',
-    revCueil.stats.tranches.reduce((a, t) => a + t.count, 0) === 2);
+  check('CUEILLETTE les tranches comptent les TROIS dessins — le brouillon compris',
+    revCueil.stats.tranches.reduce((a, t) => a + t.count, 0) === 3,
+    String(revCueil.stats.tranches.reduce((a, t) => a + t.count, 0)));
   check('CUEILLETTE LE RELEVÉ PERSONNEL PORTE LA RESSEMBLANCE',
     relevé && typeof relevé.pourcent === 'number', JSON.stringify(relevé && { p: relevé.pourcent, b: relevé.base }));
 
   const d = await dessins;
   check('CUEILLETTE les dessins partent à l’animateur, avec les noms',
-    Array.isArray(d.dessins) && d.dessins.length === 2 && d.dessins.every((x) => typeof x.pseudo === 'string'),
+    Array.isArray(d.dessins) && d.dessins.length === 3 && d.dessins.every((x) => typeof x.pseudo === 'string'),
     JSON.stringify(d.dessins?.map((x) => `${x.pseudo} ${x.pourcent}%`)));
+  const chloe = d.dessins.find((x) => x.pseudo === 'Chloe');
+  const alice = d.dessins.find((x) => x.pseudo === 'Alice');
+  check('CUEILLETTE LE BROUILLON NON ENVOYÉ EST NOTÉ — et c\'est le DERNIER qui compte',
+    chloe && alice && chloe.pourcent === alice.pourcent && JSON.stringify(chloe.traits) === JSON.stringify(carre),
+    JSON.stringify(chloe && { p: chloe.pourcent, traits: chloe.traits.length }));
   check('CUEILLETTE le meilleur dessin est présenté en premier',
     d.dessins[0].pourcent >= d.dessins[1].pourcent,
     `${d.dessins[0].pourcent} puis ${d.dessins[1].pourcent}`);
@@ -328,8 +395,23 @@ try {
   host.emit('host:partagerDessin', { idx: 0 });
   const p = await partage;
   check('CUEILLETTE le partage atteint le stream', !!p.dessin && Array.isArray(p.dessin.traits));
-  check('CUEILLETTE LE PARTAGE NE PORTE AUCUN NOM',
-    !JSON.stringify(p).includes('Alice') && !JSON.stringify(p).includes('Bob'), JSON.stringify(p).slice(0, 160));
+  // LE NOM PART, LA NOTE NE PART PLUS (26/09) : « faut pas qu'il y ait le
+  // pourcentage de ressemblance, il faut qu'il y ait le nom d'utilisateur à la
+  // place ». Le pseudonyme est celui du dessin partagé — et de lui seul.
+  check('CUEILLETTE LE PARTAGE PORTE LE NOM DE SON AUTEUR, ET LUI SEUL',
+    p.dessin.pseudo === d.dessins[0].pseudo
+      && ['Alice', 'Bob', 'Chloe'].filter((n) => JSON.stringify(p).includes(n)).length === 1,
+    JSON.stringify(p).slice(0, 160));
+  check('CUEILLETTE LE PARTAGE NE PORTE PLUS LA NOTE',
+    !('pourcent' in p.dessin) && !('points' in p.dessin), JSON.stringify(Object.keys(p.dessin)));
+
+  // UN SECOND PARTAGE REMPLACE LE PREMIER : il arrive avec son propre index.
+  const second = new Promise((r2) => ov.once('cueillette:partage', r2));
+  host.emit('host:partagerDessin', { idx: 1 });
+  const partage2 = await second;
+  check('CUEILLETTE un second partage désigne le second dessin',
+    partage2.idx === 1 && partage2.dessin.pseudo === d.dessins[1].pseudo,
+    JSON.stringify({ idx: partage2.idx, pseudo: partage2.dessin?.pseudo }));
 
   const repris = new Promise((r) => ov.once('cueillette:partage', r));
   host.emit('host:partagerDessin', { idx: null });

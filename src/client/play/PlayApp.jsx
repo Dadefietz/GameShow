@@ -8,7 +8,7 @@
 // RÈGLE ABSOLUE tenue ici : le rang du joueur n'apparaît JAMAIS en cours de
 // partie. Le seul repère de position est le déplacement (places gagnées ou
 // perdues). Le rang final n'est révélé qu'à l'écran de fin.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame, store } from '../shared/useGame.js';
 import { lettreDeChoix } from '../shared/lettres.js';
 import { joinRoom } from '../shared/net.js';
@@ -513,7 +513,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, element, buzz, objetCache, tourClos }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, onBrouillon, element, buzz, objetCache, tourClos }) {
   // L'objet de « Cache-cache » n'entre dans la grille qu'une fois son image
   // chargée : la plaque claire et le dessin apparaissent ensemble.
   const objetVisible = useObjetPret(objetCache);
@@ -851,9 +851,12 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, el
               </>
             ) : (
               <>
+                {/* CHAQUE DOIGT LEVÉ PART AUSSI EN BROUILLON (26/09) : si le chrono
+                    tombe avant « Envoyer », c'est ce brouillon que le serveur
+                    compte — voir `submitBrouillon` dans le moteur. */}
                 <Toile testid="cueillette-toile" etiquette="Dessine ce que tu as vu"
                   valeur={dessin} disabled={answered || disabled}
-                  onChange={setDessin} />
+                  onChange={(d) => { setDessin(d); if (!answered) onBrouillon?.(d); }} />
                 {/* L'ENVOI EST UN GESTE À PART, et il le reste. Envoyer à chaque
                     trait ferait partir un dessin inachevé au premier doigt levé ;
                     n'envoyer qu'à la fin du chrono perdrait ceux qui ont terminé
@@ -1391,7 +1394,10 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // dessin que le téléphone a gardé pour lui.
   const aUnDessinNote = isCueillette && monResultat?.pourcent != null;
   const hasData = !!monResultat;
-  const absent = answered === false;
+  // UN DESSIN COMPTÉ À LA FIN DU CHRONO EST UNE PARTICIPATION (26/09). Le joueur
+  // n'a pas appuyé sur « Envoyer », mais le serveur a pris son brouillon et l'a
+  // noté : lui dire « le temps t'a devancé » au-dessus de sa note serait faux.
+  const absent = answered === false && !aUnDessinNote;
   // DEUX ABSENCES, ET NON UNE.
   //
   // `answered === false` ne dit qu'une chose : aucune réponse enregistrée. Deux
@@ -2372,6 +2378,29 @@ export function PlayApp() {
     g.emit('play:answer', { value });
   }
 
+  // LE BROUILLON DE « CUEILLETTE » — le dessin tel qu'il est, envoyé à chaque
+  // doigt levé et gardé ici pour l'écran de résultat. Voir `submitBrouillon`
+  // dans le moteur : c'est lui qui compte si le chrono tombe avant « Envoyer ».
+  //
+  // UN ENVOI AU PLUS TOUS LES DEUX CENT CINQUANTE MILLIÈMES, et le DERNIER part
+  // toujours : un joueur qui pointille lève le doigt dix fois par seconde, et
+  // seul le plus récent compte de toute façon.
+  const [brouillon, setBrouillon] = useState(null);
+  const brouillonEnvoi = useRef({ minuterie: null, valeur: null });
+  const emitBrouillon = g.emit;
+  const handleBrouillon = useCallback((value) => {
+    setBrouillon(value);
+    const b = brouillonEnvoi.current;
+    b.valeur = value;
+    if (b.minuterie) return;
+    b.minuterie = setTimeout(() => {
+      b.minuterie = null;
+      if (b.valeur && b.valeur.length) emitBrouillon('play:brouillon', { value: b.valeur });
+    }, 250);
+  }, [emitBrouillon]);
+  const manchePourBrouillon = g.current ? `${g.current.roundId}:${g.current.tour}` : null;
+  useEffect(() => { setBrouillon(null); }, [manchePourBrouillon]);
+
   // LE CHOIX DU JOUEUR SURVIT AU RECHARGEMENT.
   //
   // `myAnswer` ne vit qu'en mémoire : un rechargement l'efface, et l'écran de
@@ -2439,7 +2468,8 @@ export function PlayApp() {
   if (g.reveal && (monResultatPret || g.answered === false)) {
     return (
       <>
-        <ScoreScreen you={g.you} reveal={g.reveal} myAnswer={myAnswer} current={g.current}
+        <ScoreScreen you={g.you} reveal={g.reveal} current={g.current}
+          myAnswer={myAnswer ?? (g.current?.type === 'cueillette' ? brouillon : null)}
           index={room?.progression?.index} total={room?.progression?.total}
           answered={g.answered} presentAuLancement={g.presentAuLancement} />
       </>
@@ -2478,6 +2508,7 @@ export function PlayApp() {
         answered={g.answered === true}
         myAnswer={myAnswer}
         onAnswer={handleAnswer}
+        onBrouillon={handleBrouillon}
         element={g.element}
         buzz={g.buzz}
         objetCache={g.objetCache}

@@ -629,8 +629,8 @@ function QuestionStage({ g }) {
   // question en cours — il n'y en a plus.
   // LE DESSIN PARTAGÉ PAR L'ANIMATEUR — « le dessin partagé s'affiche en grand à
   // la place de la phrase et du graphique ». Il arrive sur le canal du staff,
-  // SANS le nom de son auteur (décision 2.5) : le document demande de partager le
-  // dessin, et les pseudonymes ne quittent pas la console.
+  // AVEC le nom de son auteur depuis le 26/09 — l'auteur a levé la décision 2.5
+  // pour ce geste-là : c'est l'animateur qui choisit de montrer un joueur.
   //
   // IL EST OUBLIÉ À CHAQUE NOUVELLE MANCHE. Sans cela, un dessin partagé en fin de
   // manche resterait plein écran par-dessus la manche suivante — et personne sur
@@ -644,6 +644,18 @@ function QuestionStage({ g }) {
   }, [g]);
   useEffect(() => { setPartage(null); }, [roundIdCourant]);
   const dessinPartage = partage && partage.roundId === roundIdCourant ? partage : null;
+
+  // LE CLASSEMENT DE « CACHE-CACHE », À L'ANTENNE — les cinq premiers (26/09).
+  // Il se construit comme celui de la console, une colonne par réponse dévoilée,
+  // et il reste affiché sous la grille finale.
+  const [podiumCache, setPodiumCache] = useState(null);
+  useEffect(() => {
+    const onPodium = (d) => setPodiumCache(d && Array.isArray(d.lignes) ? d : null);
+    g.on('cache:podium', onPodium);
+    return () => g.off('cache:podium', onPodium);
+  }, [g]);
+  const classementCache = podiumCache && podiumCache.roundId === roundIdCourant && podiumCache.lignes.length
+    ? <ClassementCacheStream donnee={podiumCache} /> : null;
 
   const enDevoilement = current.type === 'cache_cache' && !revealed && devoilements.length > 0;
   // LA GRILLE FINALE : la manche est révélée et la scène montre les neuf objets.
@@ -889,6 +901,7 @@ function QuestionStage({ g }) {
                 <span className="st-answer__label">La réponse</span>
                 <span className="st-answer__value">{devoilements[devoilements.length - 1].reponse}</span>
               </p>
+              {classementCache}
             </div>
             <div className="st-cache__droite">
               <GrilleCache bloc="st-ccg" testid="stream-cc-matrice"
@@ -972,13 +985,15 @@ function QuestionStage({ g }) {
             /* « LE DERNIER ÉCRAN VISIBLE DU JEU C'EST LA MATRICE DÉVOILÉE
                COMPLÈTEMENT. » Neuf objets, tous montrés — c'est le moment où le
                public revoit d'un coup ce qu'il n'a vu qu'un par un. */
-            <div className="st-cache st-cache--grille" data-testid="stream-cc-finale">
+            <div className={`st-cache st-cache--grille${classementCache ? ' st-cache--avec-classement' : ''}`}
+              data-testid="stream-cc-finale">
               <GrilleCache bloc="st-ccg" modificateur="st-ccg--grande" testid="stream-cc-matrice-finale"
                 etiquette="Grille entièrement dévoilée"
                 montre={(place) => {
                   const o = (stats.matrice || []).find((x) => x.place === place);
                   return o ? <img className="st-ccg__objet" src={o.src} alt="" /> : null;
                 }} />
+              {classementCache}
             </div>
           ) : stats?.kind === 'visages' ? (
             <SerieStream stats={stats} />
@@ -996,12 +1011,20 @@ function QuestionStage({ g }) {
                dessin qu'elle ne commente pas. */
             dessinPartage ? (
               <div className="st-cueil st-cueil--partage" data-testid="stream-cueillette-partage">
-                <Toile testid="stream-cueillette-grand" etiquette="Le dessin d'un joueur"
+                {/* LA CLÉ EST CELLE DU DESSIN : un deuxième partage REMPLACE le
+                    premier. Voir aussi la note de `Toile` sur `valeur`. */}
+                <Toile key={dessinPartage.idx} testid="stream-cueillette-grand"
+                  etiquette={dessinPartage.dessin.pseudo ? `Le dessin de ${dessinPartage.dessin.pseudo}` : "Le dessin d'un joueur"}
                   disabled valeur={dessinPartage.dessin.traits} />
-                <p className="st-cueil__note">
-                  <span className="st-cueil__pc">{dessinPartage.dessin.pourcent} %</span>
-                  <span className="st-cueil__label">de ressemblance</span>
-                </p>
+                {/* LE NOM DU JOUEUR, À LA PLACE DE SA NOTE (26/09) — « faut pas
+                    qu'il y ait le pourcentage de ressemblance, il faut qu'il y ait
+                    le nom d'utilisateur à la place ». */}
+                {dessinPartage.dessin.pseudo ? (
+                  <p className="st-cueil__note" data-testid="stream-cueillette-auteur">
+                    <span className="st-cueil__label">Le dessin de</span>
+                    <span className="st-cueil__pc">{dessinPartage.dessin.pseudo}</span>
+                  </p>
+                ) : null}
               </div>
             ) : (
               <>
@@ -1488,6 +1511,32 @@ export function OverlayApp() {
           : null}
         <PastilleRejoindre code={g.room?.code} podium={!!ended} />
       </div>
+    </div>
+  );
+}
+
+// LE CLASSEMENT DE « CACHE-CACHE » À L'ANTENNE — les cinq premiers, une colonne
+// par réponse dévoilée, le total en dernier. Le même tableau que la console de
+// l'animateur, aux mesures de la scène.
+function ClassementCacheStream({ donnee }) {
+  const { n, lignes } = donnee;
+  return (
+    <div className="st-clsm" style={{ '--st-clsm-cols': n }} data-testid="stream-cc-classement">
+      <p className="st-kicker">Classement</p>
+      <div className="st-clsm__ligne st-clsm__ligne--tete">
+        <span className="st-clsm__rang" />
+        <span className="st-clsm__nom">Joueur</span>
+        {Array.from({ length: n }, (_, i) => <span className="st-clsm__col" key={i}>Q{i + 1}</span>)}
+        <span className="st-clsm__col">Total</span>
+      </div>
+      {lignes.map((l, i) => (
+        <div className="st-clsm__ligne" key={`${l.pseudo}-${i}`}>
+          <span className="st-clsm__rang">{i + 1}</span>
+          <span className="st-clsm__nom" title={l.pseudo}>{l.pseudo}</span>
+          {l.points.map((p, j) => <span className="st-clsm__col" key={j}>{p}</span>)}
+          <span className="st-clsm__col st-clsm__total">{l.total}</span>
+        </div>
+      ))}
     </div>
   );
 }

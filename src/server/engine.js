@@ -616,6 +616,12 @@ export function devoilerReponse(io, room) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 50);
   io.to(room.code + ':host').emit('cache:classement', { roundId: rt.roundId, n, lignes });
+  // LE MÊME CLASSEMENT À L'ANTENNE, LIMITÉ AUX CINQ PREMIERS (26/09) : « il
+  // faudrait qu'il apparaisse aussi sur l'écran de stream, avec le même
+  // fonctionnement mais avec uniquement les cinq premières lignes ». Même
+  // construction, colonne par colonne ; un AUTRE nom d'événement, parce que le
+  // canal du staff atteint aussi la console, qui garde ses cinquante lignes.
+  toStaff(io, room).emit('cache:podium', { roundId: rt.roundId, n, lignes: lignes.slice(0, 5) });
   roomManager.touch(room);
 }
 
@@ -623,10 +629,53 @@ export function closeWindow(io, room) {
   const rt = room.currentModule;
   if (!rt || rt.closed) return;
   rt.closed = true;
+  // LES BROUILLONS DEVIENNENT DES RÉPONSES — voir `submitBrouillon`. Seulement
+  // pour qui n'a PAS envoyé : un envoi volontaire reste celui qui compte, même
+  // si le joueur a retouché son dessin ensuite.
+  if (rt.brouillons) {
+    for (const [pid, value] of rt.brouillons) {
+      if (!rt.answers.has(pid)) rt.answers.set(pid, { value, at: rt.deadline, auto: true });
+    }
+    rt.brouillons = null;
+  }
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
   if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
   toRoom(io, room).emit('module:closed', { answers: rt.answers.size });
+}
+
+// LE BROUILLON — CE QUI EST DESSINÉ, MÊME SANS AVOIR ÉTÉ ENVOYÉ (26/09).
+//
+// « Quand le timer arrive à zéro, il faut que tu envoies automatiquement ce que
+// les gens ont dessiné. Faut pas effacer le dessin et ne pas le prendre en
+// compte. »
+//
+// L'ENVOI AUTOMATIQUE NE PEUT PAS PARTIR DU TÉLÉPHONE À ZÉRO. À zéro, la fenêtre
+// du serveur se ferme : un message parti du téléphone à ce moment-là arrive
+// APRÈS, et il est refusé comme toute réponse tardive — c'est la règle, et elle
+// protège tous les autres jeux. Le dessin aurait été perdu exactement dans le cas
+// qu'on veut sauver, et d'autant plus sûrement que le réseau est lent.
+//
+// LE TÉLÉPHONE ENVOIE DONC SON DESSIN À CHAQUE DOIGT LEVÉ, et le serveur le garde
+// de côté, sans en faire une réponse. À la fermeture de la fenêtre, le dernier
+// brouillon de chaque joueur QUI N'A PAS ENVOYÉ devient sa réponse. Rien ne
+// dépend plus de l'instant où le chrono s'arrête : ce qui était tracé est déjà
+// là. Seul le trait EN COURS au moment exact de la fin — doigt encore posé —
+// n'est pas compté.
+//
+// SEULS LES JEUX QUI LE DÉCLARENT (`meta.brouillon`) : sur un quiz, une réponse
+// non envoyée n'est pas une réponse, c'est une hésitation.
+export function submitBrouillon(room, playerId, rawValue) {
+  const rt = room.currentModule;
+  if (!rt || rt.closed || rt.revealed) return false;
+  const mod = modules[rt.type];
+  if (!mod?.meta?.brouillon || rt.answers.has(playerId)) return false;
+  if (!room.players.has(playerId)) return false;
+  const value = mod.validateAnswer(rt, rawValue);
+  if (value === null) return false;
+  if (!rt.brouillons) rt.brouillons = new Map();
+  rt.brouillons.set(playerId, value);
+  return true;
 }
 
 // Enregistre une réponse joueur (validée serveur, fenêtre ouverte, pas de doublon).

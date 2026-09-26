@@ -73,6 +73,10 @@ export const FLOU = 3;
 // dans deux unités différentes, ce qui est le défaut que la dérivation de la forme
 // vient précisément de supprimer.
 export const MARGE_NORMALISATION = 0.04;
+// L'ÉTALEMENT D'UNE FIGURE RAMENÉE À SA FORME, en cases. Treize : un bouleau —
+// le dessin le plus élancé de la banque — tient encore dans la grille, et une
+// pomme ronde n'y est pas minuscule.
+export const RAYON_FORME = 13;
 
 // LES TROIS MESURES ET LEUR POIDS. L'énoncé en cite cinq ; elles se ramènent à
 // trois, et le tableau dit laquelle couvre quoi.
@@ -221,7 +225,14 @@ const tempere = (accord, plancher) => plancher + (1 - plancher) * Math.min(1, Ma
 // on jette ce qui ne se lit pas — sans jamais refuser le dessin entier pour un
 // point aberrant, ce qui punirait un joueur pour un défaut de son navigateur.
 export const TRAITS_MAX = 400;
-export const POINTS_PAR_TRAIT_MAX = 500;
+// UN TRAIT PEUT ÊTRE LONG, ET C'EST UN GESTE NORMAL (26/09). Cette borne valait
+// cinq cents points : un sapin contourné d'un seul geste en compte plus de sept
+// cents — la toile garde un point tous les 0,4 % de la boîte —, et le serveur
+// coupait tout ce qui dépassait. Le côté gauche du dessin disparaissait sans
+// bruit : un contour fidèle notait comme un demi-contour. Le trait se borne
+// maintenant à cinq mille points, soit vingt fois le tour de la boîte ; c'est le
+// TOTAL, plus bas, qui tient la charge du serveur.
+export const POINTS_PAR_TRAIT_MAX = 5000;
 export const POINTS_MAX = 20_000;
 
 export function nettoyerDessin(brut) {
@@ -287,36 +298,49 @@ function poser(grille, x, y, quantite) {
 // UNE BOÎTE PLATE — un trait parfaitement horizontal — ne se divise pas : on la
 // laisse telle quelle plutôt que de rendre l'infini.
 export function normaliser(dessin) {
-  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
-  for (const t of dessin || []) {
-    for (const [x, y] of t) {
-      if (x < x0) x0 = x; if (x > x1) x1 = x;
-      if (y < y0) y0 = y; if (y > y1) y1 = y;
-    }
-  }
-  if (!Number.isFinite(x0)) return [];
-  const l = x1 - x0;
-  const h = y1 - y0;
-  // On garde le RAPPORT de la figure : l'étirer pour remplir le carré ferait d'un
-  // trait vertical et d'un trait horizontal la même forme.
-  // UNE MARGE, ET ELLE N'EST PAS DÉCORATIVE. Ramenée EXACTEMENT au carré unité, la
-  // figure touche les quatre bords — et `poser` coupe ce qui déborde de la grille.
-  // Le trait a une épaisseur : au bord, la moitié en est rognée, et la part rognée
-  // dépend de la position des échantillons AU DIXIÈME DE CASE PRÈS. Deux tracés du
-  // même carré, l'un en quatre gestes et l'autre en cent points, n'étaient plus
-  // rognés pareil : quatre pour cent d'écart sur la forme, pour la même figure.
-  // C'est le défaut de la cadence du téléphone, revenu par une autre porte.
-  //
-  // Avec deux cases et demie de marge — l'épaisseur du trait tient largement — la
-  // figure ne touche plus rien, et le rognage cesse d'exister.
-  const utile = 1 - 2 * MARGE_NORMALISATION;
-  const echelle = Math.max(l, h) > 0 ? utile / Math.max(l, h) : 1;
-  const dx = MARGE_NORMALISATION + (utile - l * echelle) / 2;
-  const dy = MARGE_NORMALISATION + (utile - h * echelle) / 2;
-  return dessin.map((t) => t.map(([x, y]) => [
-    (x - x0) * echelle + dx,
-    (y - y0) * echelle + dy,
+  const traits = (dessin || []).filter((t) => t.length);
+  if (!traits.length) return [];
+  // LES MOMENTS SE PRENNENT SUR L'ENCRE RASTÉRISÉE, et non sur les points : un
+  // téléphone qui rapporte cent points par seconde donnerait sinon plus de poids
+  // aux gestes lents qu'aux gestes rapides. L'encre, elle, pèse ce que le trait
+  // mesure — comme les cases du squelette de la cible.
+  const m = momentsDe(rasteriser(traits));
+  if (!m) return [];
+  const k = m.r > 0 ? RAYON_FORME / m.r : 1;
+  const c = (COTE - 1) / 2;
+  return traits.map((t) => t.map(([x, y]) => [
+    (c + (x * (COTE - 1) - m.cx) * k) / (COTE - 1),
+    (c + (y * (COTE - 1) - m.cy) * k) / (COTE - 1),
   ]));
+}
+
+// LE CENTRE ET L'ÉTALEMENT D'UNE FIGURE — son centre de gravité, et l'écart
+// quadratique moyen de son encre autour de lui.
+//
+// POURQUOI PLUS LA BOÎTE ENGLOBANTE (26/09). La forme se mesurait sur la figure
+// ramenée à SA BOÎTE : ses points les plus extrêmes décidaient de toute
+// l'échelle. Un sapin fidèlement contourné, mais au tronc un peu court, voyait
+// sa boîte rétrécie en hauteur — toute la figure était alors agrandie et décalée
+// par rapport à la cible, et la forme tombait à 0,60 pour un dessin juste. Une
+// extrémité, c'est un seul trait ; le centre de gravité et l'étalement, c'est
+// tout le dessin, et un détail n'y déplace presque rien.
+export function momentsDe(grille) {
+  let m = 0; let sx = 0; let sy = 0;
+  for (let i = 0; i < grille.length; i += 1) {
+    const v = grille[i];
+    if (!v) continue;
+    m += v; sx += v * (i % COTE); sy += v * Math.floor(i / COTE);
+  }
+  if (m <= 0) return null;
+  const cx = sx / m; const cy = sy / m;
+  let q = 0;
+  for (let i = 0; i < grille.length; i += 1) {
+    const v = grille[i];
+    if (!v) continue;
+    const dx = (i % COTE) - cx; const dy = Math.floor(i / COTE) - cy;
+    q += v * (dx * dx + dy * dy);
+  }
+  return { cx, cy, r: Math.sqrt(q / m) };
 }
 
 export function rasteriser(dessin) {
@@ -504,162 +528,77 @@ function accordDeDensite(gc, gj) {
 // LA COURBE DE PRÉSENTATION
 // ---------------------------------------------------------------------------
 //
-// POURQUOI LE SCORE BRUT NE PEUT PAS ÊTRE MONTRÉ TEL QUEL. Un recouvrement de
-// tracés donne des valeurs basses et TASSÉES : sur des dessins faits à la main, il
-// est rare de dépasser un tiers, et tout le monde se retrouve entre dix et trente
-// pour cent. Les vingt tranches de cinq pour cent que l'énoncé demande seraient
-// alors vides sur dix-huit d'entre elles, et deux dessins très différents
-// paraîtraient équivalents.
+// POURQUOI LE SCORE BRUT NE PEUT PAS ÊTRE MONTRÉ TEL QUEL. Il est TASSÉ : un
+// gribouillis vaut déjà 0,40, un dessin honnête 0,65 à 0,99. Montré tel quel,
+// tout le monde se retrouverait entre quarante et cent, et les vingt tranches de
+// cinq pour cent du graphique seraient vides aux deux tiers. La courbe étire la
+// plage utile sur zéro-cent. ELLE NE CHANGE PAS LE CLASSEMENT : strictement
+// croissante, l'ordre des joueurs est exactement celui du score brut.
 //
-// La courbe étire la plage utile sur zéro-cent. ELLE NE CHANGE PAS LE CLASSEMENT :
-// elle est strictement croissante, donc l'ordre des joueurs est exactement celui
-// du score brut. Seule sa lisibilité change — et c'est précisément ce que l'énoncé
-// demande, « classer de manière amusante et perçue comme juste ».
-// LES DEUX SEULS NOMBRES À TOURNER SI LE JEU PARAÎT TROP DUR OU TROP FACILE.
-//
-// Ils ont été calés sur une échelle de figures MESURÉE — le même carré, le même
-// tremblé, le même décalé, la moitié, le quart, un cercle à la place du carré, un
-// gribouillis. Le plancher est posé au-dessus du gribouillis : noircir la page au
-// hasard ne doit rapporter aucun point, et c'est le cas — il tombe sous les
-// quarante pour cent du barème.
-//
-// CE QUI RESTE INCERTAIN, ET IL FAUT LE DIRE : ces valeurs sont réglées sur des
-// figures de synthèse, pas sur de vrais dessins faits au doigt en trente secondes
-// contre une vraie banque d'images. Une seule partie réelle suffira à les ajuster,
-// et il n'y a que ces deux nombres à toucher — c'est pour cela qu'ils sont ici,
-// nommés, et non répartis dans le calcul.
 // ============================================================================
-// DEUX FOIS PLUS GÉNÉREUX — LE PLANCHER ET LA COURBE, ENSEMBLE
+// HISTOIRE COURTE D'UN BARÈME, POUR NE PAS LA REFAIRE
 // ============================================================================
 //
-// CE QUI A ÉTÉ DEMANDÉ (23/09) : « le jeu est encore trop compliqué, il faudrait
-// vraiment que l'analyse de reconnaissance soit franchement DEUX FOIS plus
-// généreuse. »
+// 21/09 : une droite. 23/09 : `1 − (1 − t)^k`, qui saturait — le dessin exact
+// et le dessin tremblé à égalité. 24/09 : un logarithme posé sur un plancher de
+// 0,54, ancré sur UN chiffre humain, les 62 % de l'auteur.
 //
-// OÙ CHERCHER, ET OÙ J'AVAIS CHERCHÉ À TORT. Les deux réglages précédents
-// travaillaient les POIDS. C'était le mauvais endroit : les poids décident QUI est
-// devant qui, pas à quelle hauteur tout le monde se situe. La hauteur, c'est cette
-// courbe — restée une droite depuis le premier jour.
+// 26/09, LE LOGARITHME A MONTRÉ SON VICE : UNE FALAISE. Sa pente au plancher est
+// quasi verticale : 0,54 de brut affichait 0 %, 0,55 en affichait QUARANTE. Un
+// centième de brut valait quarante points de pourcentage. Un sapin fidèlement
+// contourné — capture de l'auteur à l'appui — tombait du mauvais côté et
+// affichait « 0 % de ressemblance, raté ». Un barème qui dit zéro à un dessin
+// juste n'est pas « dur », il est incohérent ; c'est le mot employé.
 //
-// LA MESURE QUI A TOUT DÉCIDÉ : la séparation existe en BRUT, et elle est nette.
+// (Ce même jour, la mesure elle-même a été reprise — trait médian de la cible,
+// forme par les moments, traits longs plus coupés ; voir `squeletteDepuisBits`
+// et `momentsDe`. Les nombres ci-dessous sont ceux de la NOUVELLE mesure.)
+//
+// ============================================================================
+// DES PALIERS RELIÉS PAR DES DROITES
+// ============================================================================
+//
+// Plus de formule : une TABLE, lue telle quelle. Chaque ligne se lit « tel
+// brut s'affiche tel pourcentage », et entre deux lignes on trace une droite.
+// La pente est bornée partout — nulle part un centième de brut ne vaut plus de
+// cinq points de pourcentage —, donc plus de falaise, et un réglage se fait en
+// changeant UN nombre dont on voit l'effet.
+//
+// LES ANCRES, MESURÉES LE 26/09 SUR LES CINQUANTE DESSINS (brut) :
 //
 //                        p05     médiane   p95
-//   gribouillis         0,194     0,337    0,526
-//   JUSTE, DE TRAVERS   0,584     0,666    0,711
-//   main lourde         0,656     0,710    0,761
-//   copie fidèle        0,963     0,991    0,999
+//   gribouillis         0,237     0,400    0,562   (max 0,683)
+//   main lourde         0,696     0,749    0,795
+//   juste, de travers   0,757     0,819    0,846
+//   main humaine        0,816     0,851    0,874
+//   copie fidèle        0,989     0,992    0,996
+//   LE SAPIN DE L'AUTEUR          0,651             ← le point humain
 //
-// Le pire dessin honnête part à 0,58 quand quatre-vingt-quinze pour cent des
-// gribouillages plafonnent à 0,53. En pourcentage affiché, la droite écrasait
-// cette séparation et les deux se retrouvaient côte à côte. Le travail n'était pas
-// de mieux mesurer : c'était d'ARRÊTER DE GÂCHER une mesure déjà bonne.
-//
-// DEUX NOMBRES QUI TRAVAILLENT ENSEMBLE :
-//   — LE PLANCHER, posé juste au-dessus du plafond des gribouillages ;
-//   — LA COURBE, concave, qui remonte tout ce qui le dépasse.
-//
-// POURQUOI CETTE FORME-LÀ, ET PAS UNE PUISSANCE. `t^γ` avec un exposant petit a
-// une pente INFINIE en zéro : dès qu'un dessin dépasse le plancher d'un cheveu, il
-// saute à quarante pour cent, et CINQ DES VINGT TRANCHES du graphique deviennent
-// mathématiquement inatteignables. L'énoncé demande vingt tranches et dit qu'une
-// tranche vide signifie « personne ici » — elle se mettrait à signifier
-// « impossible ». Mesuré, puis écarté. `1 − (1 − t)^k` a la même concavité avec une
-// pente FINIE en zéro : les vingt tranches restent atteignables.
-//
-// CE QUE ÇA DONNE, sur les cinquante dessins (note médiane, puis points) :
-//
-//                     AVANT           APRÈS          points
-//   copie fidèle      99 %  1200      100 % 1200      ×1,0
-//   main légère       86 %  1020      100 % 1200      ×1,2
-//   main humaine      79 %   880      100 % 1200      ×1,4
-//   MAIN LOURDE       60 %   500       82 %  940      ×1,9
-//   JUSTE MAIS PETIT  71 %   720       91 % 1140      ×1,6
-//   JUSTE, DE TRAVERS 54 %   380       72 %  760      ×2,0
-//   dessin pointillé  59 %   480       80 %  900      ×1,9
-//
-// Deux fois plus généreux là où le joueur souffrait, et le maximum atteint plus
-// tôt là où il ne pouvait plus doubler.
-//
-// CE QUE ÇA COÛTE, ET IL FAUT LE DIRE. Sur deux mille tirages de gribouillage, la
-// part qui RAPPORTE des points passe de 2,45 % à 3,25 % — et le rare gribouillis
-// chanceux paie 700 points au lieu de 340. Le plancher retient la masse ; il ne
-// peut rien contre le tirage heureux, qui tombe dans la même bande que le dessin
-// honnête le plus faible. C'est le prix de l'indulgence demandée, et il a été
-// choisi en le mesurant.
-//
-// CE SONT LES DEUX SEULS NOMBRES À TOURNER si le jeu paraît encore trop dur ou
-// trop facile. Monter le plancher écarte les tricheurs et durcit le jeu ; monter
-// la courbe relève tout le monde.
-//
-// ============================================================================
-// RECALIBRÉ LE 24/09 SUR UN JOUEUR RÉEL — ET C'EST UN AVEU SUR TOUT CE QUI PRÉCÈDE
-// ============================================================================
-//
-// « Je n'arrive pas à aller au-dessus de 62 %, je trouve le barème trop dur. »
-//
-// 62 % affichés correspondaient à un score BRUT de 0,62. Or le pire cas honnête de
-// mon étalonnage — un dessin complet et correct, posé douze pour cent de travers —
-// a un brut médian de 0,666. IL EST MEILLEUR QUE LA MEILLEURE TENTATIVE DE
-// L'AUTEUR.
-//
-// Tout l'étalonnage reposait donc sur un joueur modèle QUI DESSINE MIEUX QU'UN
-// HUMAIN. Le copiste des contrôles retrace la grille de la cible elle-même avec du
-// tremblement : il ne dessine jamais UNE AUTRE FLEUR RECONNAISSABLE, il dessine LA
-// MÊME FLEUR, SECOUÉE. Sa topologie est parfaite par construction. Un humain qui
-// redessine de mémoire en trente secondes produit une forme franchement
-// différente — et c'est justement l'écart que mon modèle ne sait pas fabriquer.
-//
-// J'ai pu annoncer trois fois « c'est plus généreux » pendant que l'auteur
-// plafonnait à 62 %, parce que mes « médiane à cent pour cent » décrivaient un
-// copiste et non un joueur.
-//
-// LE RÉGLAGE EST DONC ANCRÉ SUR SON CHIFFRE, et plus sur mes figures : un dessin à
-// 0,62 de brut — ce qu'il considère comme une bonne tentative — passe de 520 à
-// 740 points. Et le bas de bande cesse de valoir zéro : 0,55 de brut rapporte 100
-// points au lieu de rien.
-//
-// PRIX MESURÉ, et il est faible : la part des gribouillages qui rapportent passe de
-// 3,25 % à 3,35 %. Le plancher relevé compense exactement ce que la courbe donne.
-//
-// CE QUI MANQUE ENCORE, ET IL FAUT LE DIRE : de VRAIS dessins. Une seule manche
-// jouée suffirait — l'animateur reçoit déjà tous les tracés avec leur note. Tant
-// qu'on n'a qu'UN point de mesure humain, ce réglage est une interpolation autour
-// de lui, pas une distribution.
-export const BRUT_PLANCHER = 0.54;
-export const BRUT_PLAFOND = 1.0;
+// ET CE QU'ELLES DONNENT : le gribouillis médian à 0 %, le sapin de l'auteur à
+// 78 %, la main lourde médiane à 91 %, la copie fidèle à 100 %. Le seuil des
+// points (40 %) tombe à 0,565 de brut : juste AU-DESSUS du p95 des
+// gribouillages (0,562) — posé à 0,55, huit pour cent d'entre eux payaient.
+export const PALIERS = [
+  [0.40, 0],
+  [0.48, 15],
+  [0.565, 40],
+  [0.61, 62],
+  [0.65, 78],
+  [0.75, 91],
+  [0.85, 97],
+  [1.00, 100],
+];
 
-// LE COEFFICIENT DE LA COURBE — attention, il n'a PAS le sens qu'il avait. Ce fut
-// un exposant (2,7) tant que la courbe valait `1 − (1 − t)^k` ; c'est désormais le
-// coefficient d'un logarithme, et il se compte en centaines. Plus il est grand,
-// plus la montée est vive juste au-dessus du plancher.
-export const COURBE = 500;
-
-// ============================================================================
-// POURQUOI UN LOGARITHME, ET PLUS `1 − (1 − t)^k`
-// ============================================================================
-//
-// LA FORME PRÉCÉDENTE SATURAIT. En cherchant à satisfaire « deux fois plus
-// généreux », on arrivait à un exposant de 4 — et là, un contrôle a rougi :
-// « le dessin exact 100 % ne bat pas un dessin tremblé 100 % ». Les deux
-// saturaient. Mesuré sur la bande réelle des joueurs, quatre niveaux de brut sur
-// neuf s'écrasaient sur le même 1200 : LE JEU NE SAVAIT PLUS DÉSIGNER UN GAGNANT.
-// Une manche où les trois meilleurs sont à égalité n'a plus d'intérêt à l'antenne.
-//
-// Le logarithme monte aussi vite en bas de bande, et garde de la pente en haut.
-// Mesuré sur les mêmes neuf points de brut, du dessin médiocre au quasi parfait :
-//
-//   brut       0,55  0,60  0,62  0,66  0,70  0,75  0,80  0,85  0,90
-//   AVANT (%)    39    56    61    71    80    87    93    97    99
-//   APRÈS (%)    40    67    72    78    83    87    91    94    96
-//   AVANT (pts)   0   420   520   720   900  1040  1160  1200  1200
-//   APRÈS (pts) 100   640   740   860   960  1040  1120  1180  1200
-//
-// NEUF NIVEAUX DE POINTS DISTINCTS SUR NEUF, contre huit avant et SIX avec la
-// puissance 4 : chaque écart de dessin se traduit encore par un écart de score,
-// jusqu'en haut. C'est ce qui permet à une manche de désigner un gagnant.
 export function presenter(brut) {
-  const t = Math.min(1, Math.max(0, (brut - BRUT_PLANCHER) / (BRUT_PLAFOND - BRUT_PLANCHER)));
-  return Math.round((Math.log1p(COURBE * t) / Math.log1p(COURBE)) * 100);
+  if (!Number.isFinite(brut) || brut <= PALIERS[0][0]) return 0;
+  for (let k = 1; k < PALIERS.length; k += 1) {
+    const [b1, p1] = PALIERS[k];
+    if (brut <= b1) {
+      const [b0, p0] = PALIERS[k - 1];
+      return Math.round(p0 + ((brut - b0) / (b1 - b0)) * (p1 - p0));
+    }
+  }
+  return 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -682,12 +621,66 @@ export function presenter(brut) {
 //
 // La cible passe donc par le MÊME épaississement que les traits du joueur.
 export function grilleDepuisBits(b64) {
-  const octets = Buffer.from(b64, 'base64');
   const g = new Float32Array(COTE * COTE);
-  for (let i = 0; i < COTE * COTE; i += 1) {
-    if (octets[i >> 3] & (1 << (i & 7))) poser(g, i % COTE, Math.floor(i / COTE), 1);
-  }
+  for (const [x, y] of squeletteDepuisBits(b64)) poser(g, x, y, 1);
   return g;
+}
+
+// LA CIBLE RAMENÉE À SON TRAIT MÉDIAN — CE QU'UN JOUEUR DESSINE VRAIMENT.
+//
+// LE DÉFAUT QUE CE CALCUL SUPPRIME (26/09), ET IL FAUSSAIT TOUT LE BARÈME. Un
+// sapin fidèlement contourné, trait pour trait, affichait 0 %. La cible est une
+// image : son contour noir, une fois réduit à 64 × 64, fait une BANDE de trois
+// cases de large — puis l'épaississement ci-dessus l'élargissait encore. Le
+// joueur, lui, trace UNE ligne. Même parfaitement posée, sa ligne ne couvrait
+// qu'une fraction de la bande : sur ce sapin, un accord de densité de 0,59 et un
+// recouvrement de 0,62, pour un dessin juste.
+//
+// C'EST AUSSI POURQUOI MES CONTRÔLES NE LE VOYAIENT PAS : le copiste qui les
+// alimente retrace chaque case d'encre de la cible, donc REMPLIT la bande. Il
+// dessinait mieux qu'un humain parce qu'il coloriait là où l'humain trace.
+//
+// On compare donc au TRAIT MÉDIAN de la cible — son squelette, amincissement de
+// Zhang et Suen : on retire couche après couche les cases de bord qui ne
+// coupent rien, jusqu'à ce qu'il ne reste qu'une ligne d'une case. C'est la
+// ligne que la main suit quand elle recopie un contour. Elle est ensuite
+// épaissie EXACTEMENT comme le trait du joueur : les deux figures sont enfin
+// mesurées dans la même unité.
+//
+// DÉRIVÉ, ET NON STOCKÉ, pour la même raison que la forme ci-dessous : une
+// donnée figée ne suit pas le code qui la lit.
+export function squeletteDepuisBits(b64) {
+  const octets = Buffer.from(b64, 'base64');
+  const c = new Uint8Array(COTE * COTE);
+  for (let i = 0; i < COTE * COTE; i += 1) if (octets[i >> 3] & (1 << (i & 7))) c[i] = 1;
+  const v = (x, y) => (x < 0 || y < 0 || x >= COTE || y >= COTE ? 0 : c[y * COTE + x]);
+  let change = true;
+  while (change) {
+    change = false;
+    for (let passe = 0; passe < 2; passe += 1) {
+      const retirer = [];
+      for (let y = 0; y < COTE; y += 1) {
+        for (let x = 0; x < COTE; x += 1) {
+          if (!c[y * COTE + x]) continue;
+          // Les huit voisins, dans l'ordre de Zhang et Suen : N, NE, E, SE, S, SO, O, NO.
+          const p = [v(x, y - 1), v(x + 1, y - 1), v(x + 1, y), v(x + 1, y + 1),
+            v(x, y + 1), v(x - 1, y + 1), v(x - 1, y), v(x - 1, y - 1)];
+          const b = p.reduce((n, q) => n + q, 0);
+          if (b < 2 || b > 6) continue;
+          let a = 0;
+          for (let k = 0; k < 8; k += 1) if (!p[k] && p[(k + 1) % 8]) a += 1;
+          if (a !== 1) continue;
+          if (passe === 0 ? (p[0] * p[2] * p[4] || p[2] * p[4] * p[6]) : (p[0] * p[2] * p[6] || p[0] * p[4] * p[6])) continue;
+          retirer.push(y * COTE + x);
+        }
+      }
+      for (const i of retirer) c[i] = 0;
+      if (retirer.length) change = true;
+    }
+  }
+  const points = [];
+  for (let i = 0; i < COTE * COTE; i += 1) if (c[i]) points.push([i % COTE, Math.floor(i / COTE)]);
+  return points;
 }
 
 // LA CIBLE RAMENÉE À SA PROPRE BOÎTE — DÉRIVÉE, ET NON STOCKÉE.
@@ -708,29 +701,16 @@ export function grilleDepuisBits(b64) {
 // traits du joueur. Une seule définition de « ramené à sa boîte », et elle vit dans
 // le code.
 export function formeDepuisBits(b64) {
-  const octets = Buffer.from(b64, 'base64');
-  const points = [];
-  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
-  for (let i = 0; i < COTE * COTE; i += 1) {
-    if (!(octets[i >> 3] & (1 << (i & 7)))) continue;
-    const x = i % COTE;
-    const y = Math.floor(i / COTE);
-    points.push([x, y]);
-    if (x < x0) x0 = x; if (x > x1) x1 = x;
-    if (y < y0) y0 = y; if (y > y1) y1 = y;
-  }
+  // LE MÊME TRAIT MÉDIAN que la position — voir `squeletteDepuisBits` — et LA
+  // MÊME RÈGLE que `normaliser` applique au joueur : le centre de gravité au
+  // milieu, l'étalement ramené à `RAYON_FORME`.
+  const points = squeletteDepuisBits(b64);
   const g = new Float32Array(COTE * COTE);
   if (!points.length) return g;
-  // LES MÊMES FORMULES QUE `normaliser`, en cases de grille plutôt qu'en fractions
-  // de boîte. Le rapport de la figure est gardé, la marge aussi.
-  const l = x1 - x0;
-  const h = y1 - y0;
-  const utile = (COTE - 1) * (1 - 2 * MARGE_NORMALISATION);
-  const bord = (COTE - 1) * MARGE_NORMALISATION;
-  const echelle = Math.max(l, h) > 0 ? utile / Math.max(l, h) : 1;
-  const dx = bord + (utile - l * echelle) / 2;
-  const dy = bord + (utile - h * echelle) / 2;
-  for (const [x, y] of points) poser(g, (x - x0) * echelle + dx, (y - y0) * echelle + dy, 1);
+  const m = momentsDe(grilleDepuisBits(b64));
+  const k = m && m.r > 0 ? RAYON_FORME / m.r : 1;
+  const c = (COTE - 1) / 2;
+  for (const [x, y] of points) poser(g, c + (x - m.cx) * k, c + (y - m.cy) * k, 1);
   return g;
 }
 

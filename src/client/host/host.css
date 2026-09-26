@@ -659,7 +659,9 @@
   .lobby {
     flex: 1;
     display: grid;
-    grid-template-columns: var(--pane-side) minmax(0, 1fr) var(--pane-side);
+    /* Deux colonnes depuis que « Séance » est partie (26/09) : l'invitation, et
+       les joueurs avec le lancement. */
+    grid-template-columns: var(--pane-side) minmax(0, 1fr);
     gap: var(--pane-gap);
     padding: var(--pane-gap) var(--sp-7) var(--sp-7);
     align-items: start;
@@ -792,65 +794,6 @@
     background: var(--c-bad-wash);
     font: 400 var(--fs-300) / var(--lh-snug) var(--f-ui);
     color: var(--c-ink);
-  }
-
-  /* Séance : bascule + banques cochables */
-  .switch { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--hit-dense); }
-  .switch__track {
-    width: 44px; height: 26px; flex: none;
-    border-radius: var(--r-full);
-    background: var(--c-surface-sunk);
-    box-shadow: var(--sh-inset);
-    padding: 3px;
-    display: flex;
-  }
-  .switch__knob {
-    width: 20px; height: 20px;
-    border-radius: var(--r-full);
-    background: var(--c-ink-3);
-    transition: transform var(--mo-fast) var(--ease-out), background var(--mo-fast) var(--ease-out);
-  }
-  .switch[aria-checked="true"] .switch__track { background: var(--c-ember-wash); }
-  .switch[aria-checked="true"] .switch__knob { transform: translateX(18px); background: var(--c-flame); }
-  .switch__label { font: 500 var(--fs-300) / 1.2 var(--f-ui); text-align: left; }
-
-  .bank { display: flex; flex-direction: column; }
-  .bank__head {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    width: 100%;
-    min-height: var(--row-dense);
-    padding: var(--sp-2) var(--sp-3);
-    border: 0;
-    border-radius: var(--r-m);
-    background: transparent;
-    color: var(--c-ink);
-    font: 500 var(--fs-300) / 1.2 var(--f-ui);
-    text-align: left;
-  }
-  .bank__head:hover { background: var(--c-surface-2); }
-  .bank__count { margin-left: auto; font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
-  .bank__count--partial { color: var(--c-ember-bright); }
-  .bank__list {
-    list-style: none;
-    margin: 0;
-    padding: var(--sp-2) 0 var(--sp-3) var(--sp-5);
-    max-height: 220px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-1);
-  }
-  .bank__q {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sp-3);
-    min-height: var(--hit-chip);
-    padding: var(--sp-1) 0;
-    font: 400 var(--fs-200) / 1.35 var(--f-ui);
-    color: var(--c-ink-2);
-    cursor: pointer;
   }
 
   /* ============================ A5 · PILOTAGE ============================ */
@@ -1280,6 +1223,11 @@
     background: var(--c-canvas);
   }
   .actions__spacer { flex: 1; }
+  /* LES BOUTONS DE DÉPART D'UN JEU, portés dans le pied — voir `ActionsDepart`.
+     Ils prennent la taille des commandes du pied : c'est là que l'animateur
+     vise en direct. */
+  .actions__slot, .actions__depart { display: flex; align-items: center; gap: var(--sp-3); }
+  .actions__depart .button { min-height: var(--hit); font-size: var(--fs-400); }
 
   /* ============================ A6 · PODIUM ============================ */
   .results { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) var(--pane-rail); gap: var(--pane-gap); padding: var(--pane-gap) var(--sp-7); align-items: start; }

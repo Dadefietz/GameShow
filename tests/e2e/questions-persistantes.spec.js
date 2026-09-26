@@ -46,7 +46,7 @@ test.describe('Les questions du studio', () => {
     const carte = page.getByRole('article').filter({ hasText: JEU });
     await expect(carte).toBeVisible({ timeout: 15_000 });
     await carte.getByRole('button').first().click();
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
 
     // La nouvelle question est vide : on la remplit entièrement, sinon
@@ -62,6 +62,12 @@ test.describe('Les questions du studio', () => {
     // 1. ELLE SURVIT AU RECHARGEMENT. Vérifier que l'écran l'affiche encore ne
     // prouverait rien : l'écran l'affichait déjà avant d'enregistrer.
     await page.reload();
+    // LE RECHARGEMENT ROUVRE LA PAGE D'ÉDITION, et c'est voulu depuis le 26/09 :
+    // elle a son adresse (`?jeu=…`). On revient à la liste par son bouton —
+    // c'est la carte, qui compte les questions du serveur, qu'on veut lire.
+    await expect(page.getByTestId('studio-editeur'), 'le rechargement n’a pas rouvert la page du jeu')
+      .toContainText(JEU, { timeout: 15_000 });
+    await page.getByTestId('studio-retour-liste').click();
     const carte2 = page.getByRole('article').filter({ hasText: JEU });
     await expect(carte2, 'le jeu a disparu du studio').toBeVisible({ timeout: 15_000 });
     // La carte compte les questions du SERVEUR : deux, si l'ajout est parti.

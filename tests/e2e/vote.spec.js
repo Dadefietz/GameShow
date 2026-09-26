@@ -138,26 +138,48 @@ test.describe('Module vote', () => {
       "l'animateur ne voit plus la réponse qu'il doit commenter").toBeVisible();
   });
 
-  test('le studio permet de repasser une question en sondage', async ({ browser, page }) => {
+  test('LE STUDIO RANGE LE VOTE EN TROIS SECTIONS, et la catégorie décide des points', async ({ page }) => {
+    // CE QUI A ÉTÉ DEMANDÉ (26/09) : « dans le vote, il faut qu'il y ait trois
+    // catégories : vie, dilemme et sondage […] on ne doit pas sélectionner si ça
+    // rapporte des points ou pas, vraiment automatiquement » — et « quand je
+    // suis sur une section, j'ai que les questions de ma section ».
     await page.goto('/studio');
-
-    // On ouvre le module de vote livré d'office et on y ajoute une question :
-    // plus déterministe que d'aller déplier une question existante, et ça place
-    // l'éditeur exactement là où vit l'interrupteur.
     await page.getByRole('article').filter({ hasText: 'Vote' }).first()
       .getByRole('button').first().click();
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await expect(editeur).toBeVisible();
-    await editeur.getByRole('button', { name: 'Ajouter une question' }).click();
 
-    // L'interrupteur existe, et il est sur « jeu » par défaut.
-    const choix = editeur.getByRole('radiogroup', { name: 'Nature du vote' });
-    await expect(choix).toBeVisible();
-    await expect(choix.getByRole('radio', { name: 'Rapporte des points' })).toHaveAttribute('aria-checked', 'true');
+    // LA PAGE D'ÉDITION REMPLACE LA LISTE (26/09) — elle ne s'ouvre plus à côté.
+    await expect(page.getByRole('article')).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get('jeu'), 'la page d’édition n’a pas d’adresse').toBeTruthy();
 
-    // Bascule en sondage : la conséquence est énoncée, pas seulement cochée.
-    await choix.getByRole('radio', { name: 'Sondage sans points' }).click();
-    await expect(choix.getByRole('radio', { name: 'Sondage sans points' })).toHaveAttribute('aria-checked', 'true');
-    await expect(editeur.getByText('Personne ne gagne')).toBeVisible();
+    // TROIS SECTIONS, dans l'ordre du serveur.
+    const sections = editeur.getByTestId('studio-sections');
+    await expect(sections.getByRole('tab')).toHaveText([/Vie/, /Dilemme/, /Sondage/]);
+    // L'interrupteur « Rapporte des points / Sondage sans points » a disparu.
+    await expect(editeur.getByRole('radiogroup', { name: 'Nature du vote' })).toHaveCount(0);
+
+    // Une question ajoutée DEPUIS la section « Sondage » est un sondage, et ne
+    // rapporte rien — sans que personne ait eu à le dire.
+    await editeur.getByTestId('studio-section-sondage').click();
+    await expect(editeur.getByTestId('studio-section-regle')).toContainText('personne ne gagne de points');
+    await editeur.getByRole('button', { name: /Ajouter une question « Sondage »/ }).click();
+    await expect(editeur.getByTestId('vote-cat-sondage')).toHaveAttribute('aria-checked', 'true');
+    await expect(editeur.getByTestId('vote-points')).toContainText('Sans points');
+    await expect(sections.getByTestId('studio-section-sondage')).toContainText('1');
+
+    // LA SECTION NE MONTRE QUE SES QUESTIONS : une seule ligne ici, alors que la
+    // banque en compte une vingtaine en « Vie ».
+    await expect(editeur.locator('.qlist .qrow')).toHaveCount(1);
+
+    // Changer la catégorie change la section — et les points suivent seuls.
+    await editeur.getByTestId('vote-cat-dilemme').click();
+    await expect(editeur.getByTestId('studio-section-dilemme')).toHaveAttribute('aria-selected', 'true');
+    await expect(editeur.getByTestId('vote-points')).toContainText('Rapporte des points');
+
+    // Et le retour à la liste passe par un bouton — ou par « précédent ».
+    await page.goBack();
+    await expect(page.getByTestId('studio-editeur')).toHaveCount(0);
+    await expect(page.getByRole('article').first()).toBeVisible();
   });
 });

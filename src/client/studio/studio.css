@@ -63,7 +63,10 @@
     color: var(--c-ink);
     font-family: var(--f-ui);
   }
-  .studio--editing { grid-template-columns: var(--studio-nav) minmax(0, 1fr) var(--studio-panel); }
+  /* L'ÉDITION EST UNE PAGE (26/09) : elle prend toute la place de la liste, elle
+     ne s'ouvre plus en troisième colonne. La grille garde donc ses deux colonnes
+     — la navigation, et ce qu'on regarde. */
+  .studio--editing { grid-template-columns: var(--studio-nav) minmax(0, 1fr); }
 
   /* ============================ E1 · NAVIGATION ============================ */
   .nav {
@@ -187,31 +190,62 @@
   }
 
   /* ============================ E3 · PANNEAU D'ÉDITION ============================ */
+  /* LA PAGE D'ÉDITION. Elle tient dans la hauteur de l'écran : l'en-tête en haut,
+     le bouton « Enregistrer » toujours visible en bas, et seul le contenu défile.
+     Sur une banque de vingt questions, un bouton d'enregistrement parti sous le
+     pli est un bouton qu'on oublie. */
   .editor {
     display: flex;
     flex-direction: column;
-    border-left: var(--bw-hair) solid var(--c-line);
-    background: var(--c-canvas-2);
-    min-height: 0;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    background: var(--c-canvas);
+    min-width: 0;
   }
   .editor__head {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-4);
-    padding: var(--sp-5) var(--sp-6);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-6) var(--sp-7) var(--sp-5);
     border-bottom: var(--bw-hair) solid var(--c-line);
   }
-  .editor__title { margin: 0; font: 600 var(--fs-500) / var(--lh-snug) var(--f-display); letter-spacing: var(--tr-display); }
-  .editor__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-6); }
+  .editor__retour { padding-left: 0; }
+  .editor__title { margin: 0; font: 600 var(--fs-700) / var(--lh-snug) var(--f-display); letter-spacing: var(--tr-display); text-transform: uppercase; }
+  .editor__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6) var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-6); }
+  /* UNE LIGNE DE SAISIE PLUS LARGE QU'UN PARAGRAPHE NE SE LIT PLUS. La page
+     occupe l'écran ; le formulaire, lui, garde une mesure de lecture. */
+  .editor__body > * { width: 100%; max-width: 960px; }
   .editor__foot {
-    padding: var(--sp-5) var(--sp-6);
+    padding: var(--sp-4) var(--sp-7);
     border-top: var(--bw-hair) solid var(--c-line);
-    background: var(--c-canvas);
+    background: var(--c-canvas-2);
     display: flex;
     flex-direction: column;
     gap: var(--sp-3);
   }
+  .editor__foot > * { max-width: 960px; }
+
+  /* LES SECTIONS DU VOTE — Vie, Dilemme, Sondage. Un onglet ouvert, et la liste
+     ne montre que ses questions. */
+  .sections { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+  .sections__onglet {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--row-dense);
+    padding: var(--sp-2) var(--sp-5);
+    border: 0;
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+    color: var(--c-ink-2);
+    font: 600 var(--fs-300) / 1 var(--f-ui);
+  }
+  .sections__onglet[aria-selected="true"] { background: var(--c-ember-wash); color: var(--c-ember-bright); box-shadow: inset 0 0 0 var(--bw-strong) var(--c-ember); }
+  .sections__compte { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
+  .sections__onglet[aria-selected="true"] .sections__compte { color: inherit; }
 
   /* Les primitives de formulaire (.fields, .frow, .fgroup, .flabel, .fhint,
      .input, .input-suffix) ont MONTÉ dans src/client/shared/app.css : la
@@ -322,8 +356,11 @@
   }
   .qopt__radio[aria-checked="true"] { background: var(--g-pine); box-shadow: none; color: var(--c-ink-on-leaf); }
   .qtiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+  .qtiles--trois { grid-template-columns: repeat(3, 1fr); }
   .qtile {
     min-height: var(--row-form);
+    padding: var(--sp-2) var(--sp-4);
+    text-align: center;
     border: 0;
     border-radius: var(--r-s);
     background: var(--c-surface);
@@ -410,7 +447,13 @@
   .cmod__ajouts { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
   .cmod__ajouts .button { font-family: var(--f-mono); font-size: var(--fs-200); }
 
-  .cmod--images { max-height: 420px; overflow-y: auto; }
+  /* LA BASE D'IMAGES S'ÉTALE SUR LA PAGE. Dans l'ancien panneau de 560 px, elle
+     défilait dans sa propre boîte de 420 px ; sur une page entière, c'était une
+     zone de défilement dans une autre — la molette s'y bloquait au milieu de la
+     page. Elle occupe maintenant la largeur, sur deux colonnes quand il y a la
+     place, et c'est la page qui défile. */
+  .cmod--images { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); align-items: start; }
+  .cmod--images > .qadd, .cmod--images > .fhint { grid-column: 1 / -1; }
   /* LE NOM ET LA COULEUR PARTAGENT UNE LIGNE. Quatre champs empilés faisaient une
      rangée de 228 px : deux cents rangées, quarante-cinq mille pixels, et une
      base qu'on ne parcourt plus. Les deux champs courts tiennent côte à côte. */

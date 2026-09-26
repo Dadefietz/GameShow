@@ -40,7 +40,7 @@ test.describe('La persistance du studio', () => {
 
     await page.goto('/studio');
     await page.getByRole('button', { name: JEU }).first().click();
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await expect(editeur).toBeVisible();
 
     await editeur.getByRole('button', { name: /Supprimer ce module/ }).click();
@@ -64,7 +64,7 @@ test.describe('La persistance du studio', () => {
     await expect(entree, 'le jeu en direct est introuvable dans la bibliothèque').toBeVisible();
     await entree.click();
 
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await expect(editeur).toBeVisible();
     await editeur.getByLabel('Nom').fill('Le lien renommé');
     await editeur.getByRole('button', { name: /^Enregistrer$/ }).click();

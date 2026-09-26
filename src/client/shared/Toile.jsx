@@ -47,6 +47,22 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 // l'on paierait le poids sur le réseau du salon, mille joueurs à la fois.
 const PAS_MINIMAL = 0.004;
 
+// UN POINT SE DESSINE (26/09) : « impossible de faire des points sur la surface
+// de dessin. Il faut toujours tirer le doigt […] il faut faire des points. »
+//
+// Le point EXISTAIT : un toucher sans glisser pose bien un trait d'un seul point,
+// que le serveur rastérise comme une tache (voir `nettoyerDessin`). Mais une
+// `polyline` d'un seul point n'a pas de longueur, et le navigateur ne dessine
+// RIEN : le joueur tapotait, ne voyait rien, et concluait que la toile refusait
+// les points. On le trace donc comme un segment d'un millième de case : les
+// bouts arrondis du trait en font un disque de l'épaisseur du trait, sur toutes
+// les toiles — téléphone, console, stream. (Un segment de longueur NULLE ne
+// suffirait pas : certains navigateurs n'en dessinent pas les bouts.)
+function coordonnees(t) {
+  const pts = t.length === 1 ? [t[0], [t[0][0] + 0.001, t[0][1]]] : t;
+  return pts.map(([x, y]) => `${x * 1000},${y * 1000}`).join(' ');
+}
+
 export function Toile({
   valeur, onChange, disabled = false, fond = null, superpose = null,
   etiquette = 'Zone de dessin', testid = 'toile',
@@ -56,9 +72,18 @@ export function Toile({
   const enCours = useRef(null);
 
   // LA VALEUR VIENT DU DEHORS QUAND ELLE CHANGE D'IDENTITÉ — une nouvelle manche,
-  // un dessin à relire. On ne la réinjecte pas à chaque rendu : le trait en cours
+  // un dessin à relire. On ne la réinjecte pas à chaque RENDU : le trait en cours
   // serait effacé sous le doigt.
-  useEffect(() => { setTraits(valeur || []); }, [valeur === undefined]);
+  //
+  // MAIS À CHAQUE CHANGEMENT D'IDENTITÉ, et non plus seulement quand elle passe
+  // de « rien » à « quelque chose » (26/09). L'ancienne dépendance —
+  // `valeur === undefined` — ne réagissait qu'à ce passage-là : partager un
+  // second dessin au stream laissait LE PREMIER à l'écran, et l'animateur
+  // concluait que le bouton « Partager » ne faisait rien. Pendant un tracé, la
+  // valeur ne change pas (le dehors n'est prévenu qu'au doigt levé), si bien que
+  // rien n'est effacé sous le doigt ; au doigt levé, elle revient identique à ce
+  // que la toile a déjà.
+  useEffect(() => { setTraits(valeur || []); }, [valeur]);
 
   const position = useCallback((e) => {
     const r = boite.current.getBoundingClientRect();
@@ -150,11 +175,10 @@ export function Toile({
               dessin en cours reste au premier plan. */}
           {(superpose || []).map((t, i) => (
             <polyline key={`s${i}`} className="toile__trait toile__trait--sien"
-              points={t.map(([x, y]) => `${x * 1000},${y * 1000}`).join(' ')} />
+              points={coordonnees(t)} />
           ))}
           {traits.map((t, i) => (
-            <polyline key={i} className="toile__trait"
-              points={t.map(([x, y]) => `${x * 1000},${y * 1000}`).join(' ')} />
+            <polyline key={i} className="toile__trait" points={coordonnees(t)} />
           ))}
         </svg>
       </div>

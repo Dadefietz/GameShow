@@ -121,3 +121,91 @@ export function srcDeDessin(id) {
 export function catalogueDesDessins() {
   return BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) }));
 }
+
+// ============================================================================
+// LA BANQUE MODÉRABLE (26/09)
+// ============================================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ : « Dans Cueillette, il faut qu'on ait le même mode de
+// gestion d'images que dans Cache-cache. Au cas où on aimerait rajouter ou
+// modifier les images, il faut qu'on puisse gérer la banque d'images pour le
+// jeu. »
+//
+// LE MÊME CHEMIN QUE « CACHE-CACHE », pour les mêmes raisons : la banque modérée
+// est rangée dans la banque du MODULE, sous une entrée marquée — c'est ce qui la
+// rend durable (la base la conserve avec les questions) sans table nouvelle.
+// Sans entrée, le jeu reprend les cinquante dessins du dépôt : un compte qui n'a
+// jamais ouvert la page de modération joue exactement comme avant.
+//
+// CE QU'UN DESSIN AJOUTÉ DOIT APPORTER, ET QUE CACHE-CACHE N'A PAS À FOURNIR : SA
+// GRILLE. Le jeu compare le tracé du joueur à la cible par une grille de 64 × 64
+// (voir `dessins-grilles.js`), et le serveur n'a pas de décodeur d'images — il
+// n'en aura pas, c'est une règle du dépôt. La grille est donc calculée par le
+// NAVIGATEUR au dépôt, avec la même règle que le script d'origine, et elle
+// voyage avec la ligne. Le serveur la VÉRIFIE (taille exacte, encre présente) ;
+// il ne la fabrique pas.
+//
+// UN DESSIN DU DÉPÔT GARDE SA GRILLE D'ORIGINE tant que son image n'est pas
+// remplacée. Renommer « Chêne » ou le changer de famille ne touche pas à la
+// figure : recalculer serait refaire, en moins bien, un calcul déjà juste.
+export const MARQUE_CUEILLETTE = 'contenu-cueillette';
+
+// Une grille est 64 × 64 bits : 512 octets, soit 684 caractères en base 64.
+export const OCTETS_GRILLE = 512;
+
+// UNE GRILLE RECEVABLE : la bonne taille, et de l'encre. Une grille vide
+// noterait chaque joueur à zéro quoi qu'il dessine — une manche perdue pour tout
+// le salon, sans que personne sache pourquoi.
+export function grilleValide(b64) {
+  if (typeof b64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return false;
+  const octets = Buffer.from(b64, 'base64');
+  if (octets.length !== OCTETS_GRILLE) return false;
+  let encre = 0;
+  for (const o of octets) { let v = o; while (v) { encre += v & 1; v >>= 1; } }
+  // Moins de vingt cases d'encre sur quatre mille : un point, pas un dessin.
+  return encre >= 20;
+}
+
+// LA FAMILLE SE SAISIT PAR SON NOM, comme on la lit : « Arbres », pas « arbres ».
+// Un nom qui désigne une famille du dépôt — quelle que soit sa casse — la
+// rejoint, au lieu d'ouvrir un second onglet « Arbres » à côté du premier.
+function familleNormalisee(brute) {
+  const t = String(brute || '').trim();
+  if (!t) return 'Autres';
+  const bas = t.toLowerCase();
+  const connue = FAMILLES.find((f) => f.cle === bas || f.nom.toLowerCase() === bas);
+  return connue ? connue.cle : t;
+}
+
+// LA BANQUE D'UN MODULE, TELLE QUE LE JEU LA JOUE : chaque dessin avec son
+// adresse et sa grille. Une ligne sans grille utilisable est ÉCARTÉE — elle ne
+// pourrait pas être notée. Une banque modérée entièrement inutilisable retombe
+// sur celle du dépôt : un jeu en direct ne doit jamais partir sans cible.
+export function banqueDeCueillette(questions, grillesDuDepot) {
+  const entree = (Array.isArray(questions) ? questions : []).find((q) => q && q.kind === MARQUE_CUEILLETTE);
+  const depot = BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id), grille: grillesDuDepot[d.id] || null }));
+  if (!Array.isArray(entree?.dessins) || !entree.dessins.length) return depot.filter((d) => d.grille);
+  const vus = new Set();
+  const lus = [];
+  for (const d of entree.dessins) {
+    const id = String(d?.id || '').trim();
+    const nom = String(d?.nom || '').trim();
+    if (!id || !nom || vus.has(id)) continue;
+    const grille = grilleValide(d.grille) ? d.grille : (grillesDuDepot[id] || null);
+    const src = String(d.src || '').trim() || srcDeDessin(id);
+    if (!grille || !src) continue;
+    vus.add(id);
+    lus.push({ id, nom, famille: familleNormalisee(d.famille), src, grille });
+  }
+  return lus.length ? lus : depot.filter((d) => d.grille);
+}
+
+// LES FAMILLES D'UNE BANQUE, DANS L'ORDRE OÙ ELLES APPARAISSENT. Celles du dépôt
+// gardent leur nom (« arbres » → « Arbres ») ; une famille inventée au Studio est
+// son propre nom. C'est ce qui fait les onglets de la console de l'animateur.
+export function famillesDe(dessins) {
+  const connues = new Map(FAMILLES.map((f) => [f.cle, f.nom]));
+  const ordre = [];
+  for (const d of dessins) if (!ordre.includes(d.famille)) ordre.push(d.famille);
+  return ordre.map((cle) => ({ cle, nom: connues.get(cle) || cle }));
+}

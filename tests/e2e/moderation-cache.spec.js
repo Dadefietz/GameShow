@@ -50,7 +50,7 @@ test.describe('La modération de Cache-cache', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     const gabarits = editeur.getByTestId('cache-gabarits');
     await expect(gabarits).toBeVisible();
 
@@ -78,7 +78,7 @@ test.describe('La modération de Cache-cache', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const relu = page.getByRole('complementary').getByTestId('cache-gabarits').locator('.cmod__ligne').first();
+    const relu = page.getByTestId('studio-editeur').getByTestId('cache-gabarits').locator('.cmod__ligne').first();
     await expect(relu.getByRole('textbox'),
       "l'énoncé réécrit a été perdu entre le Studio et le serveur").toHaveValue(ENONCE);
     await expect(relu.getByLabel('Min')).toHaveValue('2');
@@ -90,7 +90,7 @@ test.describe('La modération de Cache-cache', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const base = page.getByRole('complementary').getByTestId('cache-objets');
+    const base = page.getByTestId('studio-editeur').getByTestId('cache-objets');
     await expect(base).toBeVisible();
 
     // REPLIÉE PAR DÉFAUT : deux cents vignettes déroulées sous un formulaire qu'on
@@ -128,7 +128,7 @@ test.describe('La modération de Cache-cache', () => {
     // l'antenne, sur une case restée blanche.
     await base.getByTestId('cache-ajouter-objet').click();
     await expect(rangs).toHaveCount(BANQUE + 1);
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await editeur.getByRole('button', { name: /^Enregistrer/ }).click();
     await expect(editeur.locator('.save-state--invalid')).toBeVisible();
     await expect(editeur.locator('.save-state--invalid')).toContainText("n'a pas de nom");
@@ -146,7 +146,7 @@ test.describe('La modération de Cache-cache', () => {
     await page.reload();
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
-    const relue = page.getByRole('complementary').getByTestId('cache-objets');
+    const relue = page.getByTestId('studio-editeur').getByTestId('cache-objets');
     await relue.getByTestId('cache-voir-images').click();
     const relu = relue.locator('.cmod__objet');
     await expect(relu).toHaveCount(BANQUE + 1);
@@ -168,7 +168,7 @@ test.describe('La modération de Cache-cache', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const base = page.getByRole('complementary').getByTestId('cache-objets');
+    const base = page.getByTestId('studio-editeur').getByTestId('cache-objets');
     await base.getByTestId('cache-voir-images').click();
     const rangs = base.locator('.cmod__objet');
     await expect(rangs.first()).toBeVisible();
@@ -203,7 +203,7 @@ test.describe('La modération de Cache-cache', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     const lignes = editeur.getByTestId('cache-gabarits').locator('.cmod__ligne');
     await expect(lignes.first()).toBeVisible();
 

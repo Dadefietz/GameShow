@@ -70,8 +70,9 @@ test.describe('Les catégories du vote', () => {
 
     const onglets = hote.page.getByTestId('file-onglets');
     await expect(onglets).toBeVisible({ timeout: 15_000 });
-    // L'ORDRE VIENT DU SERVEUR : « Vie » puis « Dilemme », comme la table le dit.
-    await expect(onglets.getByRole('tab')).toHaveText([/Vie/, /Dilemme/]);
+    // L'ORDRE VIENT DU SERVEUR : « Vie », « Dilemme », puis « Sondage » depuis
+    // le 26/09, comme la table le dit.
+    await expect(onglets.getByRole('tab')).toHaveText([/Vie/, /Dilemme/, /Sondage/]);
     await expect(hote.page.getByTestId('file-onglet-vie')).toHaveAttribute('aria-selected', 'true');
 
     const lignes = () => hote.page.locator('[data-testid="file-row"] .file__text')

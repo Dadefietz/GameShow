@@ -10,11 +10,14 @@ describe('RoomManager', () => {
     expect(rm.get(room.code)).toBe(room);
   });
 
-  it('initialise la configuration de séance : aléatoire par défaut, aucune sélection', () => {
+  it('initialise la séance : aucune question jouée, et AUCUN réglage d\'ordre', () => {
+    // L'interrupteur d'ordre et la sélection manuelle ont disparu le 26/09 :
+    // « toutes les questions doivent être tout le temps aléatoires ». Un champ
+    // resté dans la séance serait un réglage caché qu'on pourrait rallumer.
     const rm = new RoomManager();
     const room = rm.createRoom('owner');
-    expect(room.session.shuffle).toBe(true);
-    expect(room.session.selected).toEqual({});
+    expect(room.session).not.toHaveProperty('shuffle');
+    expect(room.session).not.toHaveProperty('selected');
     expect(room.session.used.size).toBe(0);
   });
 

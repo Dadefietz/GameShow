@@ -47,12 +47,10 @@ export class RoomManager {
       // backToLobby) : elle permet de savoir si un résultat mémorisé appartient
       // à la manche en cours ou à un souvenir périmé (restitution, R12).
       roundSeq: 0,
-      // Configuration de séance (retours R5) : ordre aléatoire par défaut,
-      // sélection manuelle facultative (moduleType -> [questionIds]), et
-      // questions déjà jouées (pas de répétition tant que la banque n'est pas épuisée).
+      // La séance : les questions déjà jouées (pas de répétition dans un salon)
+      // et les files de chaque jeu. L'ordre est TOUJOURS tiré au sort : le
+      // réglage d'ordre et la sélection manuelle ont disparu le 26/09.
       session: {
-        shuffle: true,
-        selected: {},
         // Questions déjà posées DANS CE SALON. Indexées sur l'identifiant de
         // question SEUL : une question posée ne ressort dans aucun autre jeu de
         // la soirée — personne ne veut réentendre une question sous prétexte

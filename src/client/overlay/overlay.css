@@ -1100,6 +1100,35 @@
   .st-cache--question .st-options { justify-content: center; }
   .st-cache__droite { display: grid; place-items: center; }
 
+  /* LE CLASSEMENT À L'ANTENNE (26/09) — les cinq premiers, colonne par colonne.
+     Sous la réponse pendant le dévoilement ; à côté de la grille à la fin.
+     COMPACT PAR NÉCESSITÉ, et mesuré : aux tailles de la scène, sept colonnes de
+     chiffres prenaient toute la demi-largeur et la colonne du NOM tombait à zéro
+     — des rangs et des zéros, sans un seul joueur. Les chiffres tiennent dans
+     des colonnes étroites ; le nom prend tout le reste. */
+  /* À LA FIN, UNE RANGÉE : la grille, puis le classement à sa droite. Une
+     grille à deux colonnes poussait le tableau contre le bord droit du canevas,
+     à moitié coupé — mesuré sur la capture du stream. */
+  .st-cache--avec-classement { display: flex; align-items: center; justify-content: center; gap: var(--gap-st); }
+  .st-cache--avec-classement .st-ccg--grande { width: min(100%, 56vh); flex: none; }
+  .st-cache--avec-classement .st-clsm { flex: 0 1 720px; }
+  .st-clsm { display: grid; gap: var(--sp-2); min-width: 0; width: 100%; }
+  .st-clsm__ligne {
+    display: grid;
+    grid-template-columns: 1.4em minmax(6em, 1fr) repeat(var(--st-clsm-cols, 1), 2.8em) 3.6em;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    font: 500 var(--fs-st-100) / 1.3 var(--f-ui);
+  }
+  .st-clsm__ligne--tete { background: none; padding-block: 0; color: var(--c-ink-3); }
+  .st-clsm__rang { color: var(--c-ink-3); font-family: var(--f-mono); }
+  .st-clsm__nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .st-clsm__col { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  .st-clsm__total { color: var(--c-flame); font-weight: 600; }
+
   .st-ccg {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

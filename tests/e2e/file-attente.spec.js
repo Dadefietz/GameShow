@@ -65,6 +65,53 @@ test.describe('File d\'attente et non-répétition', () => {
     expect(duServeur[1]).toBe(avant);
   });
 
+  test('LE GLISSER TRAVERSE TOUTE LA FILE : la question 20 remonte en tête d\'un seul geste', async ({ browser }) => {
+    // LE DÉFAUT DU 26/09 : « impossible de la tirer en dehors de l'écran dans
+    // lequel on la voit […] si je dois tirer la question 20 et la pousser à la
+    // position 10, impossible : c'est trop long. Je dois m'y prendre trois fois. »
+    // Deux causes : le défilement automatique ne tournait qu'au MOUVEMENT du
+    // pointeur — tenu immobile au bord, il s'arrêtait —, et le rang visé ne
+    // comptait pas le défilement parcouru, si bien que la ligne ne pouvait pas
+    // quitter la portion de liste visible au départ.
+    //
+    // UNE VRAIE SOURIS, et c'est indispensable : le glisser capture le pointeur,
+    // et un événement fabriqué n'a pas de pointeur à capturer.
+    hote = await openHost(browser);
+    joueur = await joinAsPlayer(browser, hote.code, 'Glisse');
+    await lancerPremierJeu();
+    const page = hote.page;
+    const liste = page.locator('ol.file');
+    const lignes = page.getByTestId('file-attente').getByTestId('file-row');
+    await expect(lignes.first()).toBeVisible();
+    const n = await lignes.count();
+    expect(n, 'il faut une file plus longue que ce qui est visible').toBeGreaterThan(10);
+    const [haute, totale] = await liste.evaluate((l) => [l.clientHeight, l.scrollHeight]);
+    expect(totale, 'la file tient entière à l’écran : le contrôle ne prouverait rien').toBeGreaterThan(haute * 2);
+
+    // La dernière question, poignée en main. LA FILE D'ABORD À L'ÉCRAN : dans la
+    // fenêtre de 1280 × 720 du contrôle, elle commence sous le pli, et une souris
+    // ne saisit pas ce qu'elle ne voit pas.
+    await liste.scrollIntoViewIfNeeded();
+    await liste.evaluate((l) => { l.scrollTop = l.scrollHeight; });
+    const derniere = lignes.nth(n - 1);
+    const texte = await derniere.locator('.file__text').innerText();
+    const poignee = await derniere.locator('.file__grip').boundingBox();
+    const cadre = await liste.boundingBox();
+    await page.mouse.move(poignee.x + poignee.width / 2, poignee.y + poignee.height / 2);
+    await page.mouse.down();
+    // On monte jusqu'au bord haut de la liste… et on n'y bouge PLUS.
+    await page.mouse.move(poignee.x + poignee.width / 2, cadre.y + 8, { steps: 12 });
+    await expect.poll(() => liste.evaluate((l) => l.scrollTop), {
+      message: 'la liste ne défile pas sous un pointeur tenu immobile au bord', timeout: 5000,
+    }).toBe(0);
+    await page.mouse.up();
+
+    // Elle est arrivée en tête — pas un rang plus haut que là où elle était.
+    await expect.poll(async () => (await lignes.locator('.file__text').allInnerTexts()).indexOf(texte), {
+      message: 'la question tenue n’a pas quitté le bas de la file', timeout: 5000,
+    }).toBeLessThanOrEqual(1);
+  });
+
   test('retirer une question la sort de la file', async ({ browser }) => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Retrait');
@@ -104,12 +151,12 @@ test.describe('File d\'attente et non-répétition', () => {
     hote = await openHost(browser);
     joueur = await joinAsPlayer(browser, hote.code, 'Memoire');
 
-    // ORDRE FIXE : sans ça le test serait probabiliste. Avec le tirage aléatoire,
-    // l'ancien comportement — remise à zéro de la liste au retour au salon —
-    // repassait souvent inaperçu sur quelques manches, alors qu'il rejouait bel
-    // et bien tout le catalogue. En ordre fixe, la seconde partie recommence
-    // forcément par la première question : le défaut devient certain.
-    await hote.page.getByRole('switch', { name: 'Ordre des questions aléatoire' }).click();
+    // L'ORDRE EST TOUJOURS TIRÉ AU SORT depuis le 26/09 — l'interrupteur qui
+    // permettait de le figer a disparu avec la colonne « Séance ». Ce contrôle
+    // s'appuyait sur l'ordre fixe pour rendre le défaut certain ; il le rend
+    // certain autrement, plus bas : en lisant LA FILE de la seconde partie, qui
+    // ne doit contenir AUCUNE des questions déjà posées. Une file remise à zéro
+    // les contiendrait toutes, quel que soit le tirage.
     await lancerPremierJeu();
 
     const posees = new Set();
@@ -143,6 +190,9 @@ test.describe('File d\'attente et non-répétition', () => {
     await lancerPremierJeu();
     await expect(joueur.page.getByTestId('question-text')).toBeVisible();
     await noter();
+    const fileSeconde = await hote.page.getByTestId('file-attente').locator('.file__text').allInnerTexts();
+    expect(fileSeconde.filter((t) => posees.has(t)),
+      'la file de la seconde partie repropose des questions déjà posées').toEqual([]);
     await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
     await hote.page.getByRole('button', { name: 'Question suivante' }).click();
     await expect(joueur.page.getByTestId('question-text')).toBeVisible();

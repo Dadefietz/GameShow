@@ -8,7 +8,8 @@
 //      signal, non coloré) ; à la révélation le panneau devient public ;
 //   2. les actions destructives (terminer, fermer) passent toujours par une
 //      confirmation en deux temps, jamais par un clic direct.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import { lettreDeChoix } from '../shared/lettres.js';
 import { formatteurDe, secondes as secondesFr } from '../shared/temps.js';
@@ -276,6 +277,30 @@ function VoletNavigation({ overlayToken }) {
 // C'est le seul jeu dont la question s'écrit à l'antenne. Le bouton reste inerte
 // tant que les deux mots ne sont pas remplis : diffuser un lien à moitié posé
 // n'aurait aucun sens, et l'animateur le découvrirait devant son public.
+// LES BOUTONS DE DÉPART VONT DANS LE PIED DE PAGE (26/09).
+//
+// « Il y a toujours le bouton "Nouvelle partie" qui apparaît dans le footer,
+// alors qu'il devrait être remplacé par "Démarrer le jeu". À l'inverse, j'ai
+// "Démarrer le jeu" qui est sur le corps de la page. » Deux boutons primaires à
+// l'écran, dont celui du pied — le plus visible, celui qu'on vise en direct —
+// relançait une partie au lieu de démarrer celle qu'on prépare.
+//
+// Chaque panneau de préparation GARDE ses boutons — ils dépendent de ce qu'on y
+// a choisi : la cible, le mode, les deux mots — mais les AFFICHE dans le pied de
+// page, par un portail, à la place des commandes habituelles. Le pied fournit
+// l'emplacement par ce contexte ; sans lui (hors console de direct), les boutons
+// restent dans le panneau, comme avant.
+//
+// LES FORMULAIRES SUIVENT : un bouton d'envoi sorti de son formulaire dans le
+// document ne l'envoie plus. Il y est rattaché par l'attribut `form`, et la
+// touche Entrée dans un champ continue de lancer la diffusion.
+const PiedDepart = createContext(null);
+function ActionsDepart({ children }) {
+  const pied = useContext(PiedDepart);
+  if (pied) return createPortal(<div className="actions__depart" data-testid="pied-depart">{children}</div>, pied);
+  return <div className="lien-saisie__actions">{children}</div>;
+}
+
 function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
   const [mot1, setMot1] = useState('');
   const [mot2, setMot2] = useState('');
@@ -287,7 +312,7 @@ function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
         Deux mots. Le cercle cherchera celui qui les relie, et marque en pensant
         comme les autres.
       </p>
-      <form
+      <form id="depart-lien"
         className="lien-saisie__form"
         onSubmit={(e) => { e.preventDefault(); if (pret) onDiffuser(jeu, mot1.trim(), mot2.trim()); }}
       >
@@ -297,15 +322,15 @@ function SaisieLien({ jeu, onDiffuser, onAnnuler }) {
         <label className="flabel" htmlFor="lien-mot2">Mot n° 2</label>
         <input className="input" id="lien-mot2" type="text" autoComplete="off" maxLength={40}
           value={mot2} onChange={(e) => setMot2(e.target.value)} data-testid="lien-mot2" />
-        <div className="lien-saisie__actions">
+        <ActionsDepart>
           <button className="button button--primary" type="submit" disabled={!pret}
-            data-action="host:diffuserLien" data-testid="lien-diffuser">
+            data-action="host:diffuserLien" data-testid="lien-diffuser" form="depart-lien">
             Diffusion aux joueurs
           </button>
           {onAnnuler ? (
             <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
           ) : null}
-        </div>
+        </ActionsDepart>
       </form>
     </section>
   );
@@ -348,7 +373,7 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
           doivent être côte à côte et de la taille de ce qu'on y tape. Ce sont les
           primitives de formulaire du projet (`fields`, `frow`, `fgroup--short`),
           celles-là mêmes que la console partage avec le studio. */}
-      <form
+      <form id="depart-juste-temps"
         className="lien-saisie__form fields"
         onSubmit={(e) => { e.preventDefault(); if (pret) onDiffuser(jeu, cache, cible); }}
       >
@@ -377,15 +402,15 @@ function SaisieJusteTemps({ jeu, duree, onDiffuser, onAnnuler }) {
           vide, il reste visible jusqu'au bout. Le <strong>temps cible</strong> est celui
           qu'il faut viser : personne ne le voit avant la révélation.
         </p>
-        <div className="lien-saisie__actions">
+        <ActionsDepart>
           <button className="button button--primary" type="submit" disabled={!pret}
-            data-action="host:diffuserJusteTemps" data-testid="jt-diffuser">
+            data-action="host:diffuserJusteTemps" data-testid="jt-diffuser" form="depart-juste-temps">
             Diffusion aux joueurs
           </button>
           {onAnnuler ? (
             <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
           ) : null}
-        </div>
+        </ActionsDepart>
       </form>
     </section>
   );
@@ -412,7 +437,7 @@ function SaisieBuche({ jeu, onDiffuser, onAnnuler }) {
         Un curseur balaie la bûche{allure === 'rapide' ? ', deux allers-retours par seconde' : ', un aller-retour par seconde'}.
         Le cercle frappe quand il le croit sur la proportion demandée. Dix secondes de jeu.
       </p>
-      <form className="lien-saisie__form fields"
+      <form id="depart-buche" className="lien-saisie__form fields"
         onSubmit={(e) => { e.preventDefault(); if (dansLaBuche) onDiffuser(jeu, Number(cible), allure); }}>
         <div className="frow">
           <div className="fgroup fgroup--short">
@@ -445,15 +470,15 @@ function SaisieBuche({ jeu, onDiffuser, onAnnuler }) {
             ))}
           </div>
         </div>
-        <div className="lien-saisie__actions">
+        <ActionsDepart>
           <button className="button button--primary" type="submit" disabled={!dansLaBuche}
-            data-action="host:diffuserBuche" data-testid="cb-diffuser">
+            data-action="host:diffuserBuche" data-testid="cb-diffuser" form="depart-buche">
             Diffusion aux joueurs
           </button>
           {onAnnuler ? (
             <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
           ) : null}
-        </div>
+        </ActionsDepart>
       </form>
     </section>
   );
@@ -476,7 +501,7 @@ function DepartSimple({ jeu, onDemarrer, onAnnuler }) {
         Le cercle voit l'écran d'attente. Présente le jeu, puis donne le départ :
         la première question part à ce moment-là, et le chrono avec.
       </p>
-      <div className="lien-saisie__actions">
+      <ActionsDepart>
         <button className="button button--primary" type="button"
           data-action="host:demarrerSimple" data-testid="simple-demarrer"
           onClick={() => onDemarrer(jeu)}>
@@ -485,7 +510,7 @@ function DepartSimple({ jeu, onDemarrer, onAnnuler }) {
         {onAnnuler ? (
           <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
         ) : null}
-      </div>
+      </ActionsDepart>
     </section>
   );
 }
@@ -545,7 +570,7 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
           </div>
         </div>
       </div>
-      <div className="lien-saisie__actions">
+      <ActionsDepart>
         <button className="button button--primary" type="button"
           data-action="host:demarrerRetour" data-testid="retour-demarrer"
           onClick={() => onDemarrer(jeu, ecart, famille)}>
@@ -554,7 +579,7 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
         {onAnnuler ? (
           <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
         ) : null}
-      </div>
+      </ActionsDepart>
     </section>
   );
 }
@@ -610,7 +635,7 @@ function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
         </p>
       </div>
       ) : null}
-      <div className="lien-saisie__actions">
+      <ActionsDepart>
         <button className="button button--primary" type="button"
           data-action="host:demarrerCache" data-testid="cache-demarrer"
           onClick={() => onDemarrer(jeu, mode || defaut || undefined)}>
@@ -619,7 +644,7 @@ function DepartCache({ jeu, modes, defaut, onDemarrer, onAnnuler }) {
         {onAnnuler ? (
           <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
         ) : null}
-      </div>
+      </ActionsDepart>
     </section>
   );
 }
@@ -679,7 +704,7 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
           </div>
         </div>
       ) : null}
-      <div className="lien-saisie__actions">
+      <ActionsDepart>
         <button className="button button--primary" type="button"
           data-action="host:demarrerCueillette" data-testid="cueillette-demarrer"
           onClick={() => onDemarrer(jeu, choisi || undefined)}>
@@ -688,7 +713,7 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
         {onAnnuler ? (
           <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
         ) : null}
-      </div>
+      </ActionsDepart>
     </section>
   );
 }
@@ -702,7 +727,7 @@ function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
         quand ils le revoient. Quarante secondes de jeu — donne le départ quand tu
         es prêt.
       </p>
-      <div className="lien-saisie__actions">
+      <ActionsDepart>
         <button className="button button--primary" type="button"
           data-action="host:demarrerVisages" data-testid="visages-demarrer"
           onClick={() => onDemarrer(jeu)}>
@@ -711,7 +736,7 @@ function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
         {onAnnuler ? (
           <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
         ) : null}
-      </div>
+      </ActionsDepart>
     </section>
   );
 }
@@ -904,13 +929,14 @@ function ClassementManche({ g, roundId, revealed }) {
 // « un bouton "Partager !" doit permettre de partager le dessin d'un joueur en
 // grand sur le stream ».
 //
-// LES NOMS S'ARRÊTENT ICI. Le partage n'envoie qu'un INDEX au serveur, qui
-// rediffuse le tracé SANS le pseudonyme (décision 2.5 du chantier v9) : le
-// document demande de partager le dessin, et les pseudonymes n'ont jamais quitté
-// ce canal dans ce projet.
+// LE PARTAGE N'ENVOIE QU'UN INDEX au serveur, qui rediffuse le tracé — AVEC le
+// nom du joueur et SANS sa note, depuis le 26/09 : « faut pas qu'il y ait le
+// pourcentage de ressemblance, il faut qu'il y ait le nom d'utilisateur à la
+// place ». La décision 2.5, qui retenait les noms ici, est levée pour ce geste.
 //
-// UN SEUL DESSIN À L'ANTENNE À LA FOIS, et le bouton du dessin partagé devient
-// « Reprendre ». Sans ce retour en arrière, l'écran de stream resterait bloqué
+// UN SEUL DESSIN À L'ANTENNE À LA FOIS : en partager un autre REMPLACE le
+// premier — c'était le défaut du 26/09, le stream gardait l'ancien, voir la note
+// de `valeur` dans `Toile`. Le bouton du dessin partagé devient « Reprendre ». Sans ce retour en arrière, l'écran de stream resterait bloqué
 // sur un dessin jusqu'à la manche suivante — et l'animateur n'aurait aucun moyen
 // de revenir au graphique qu'il est en train de commenter.
 function DessinsCueillette({ g, roundId, revealed }) {
@@ -1166,6 +1192,7 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
   const depart = useRef(null);                  // { y, pas, ordre } à la prise
   const liste = useRef(null);                   // la fenêtre défilante de la file
   const vueCourante = useRef([]);               // la file telle qu'elle est AFFICHÉE
+  const pointeurY = useRef(0);                  // dernière hauteur du pointeur
 
   const rafraichir = useCallback(() => {
     if (!moduleId) return;
@@ -1205,11 +1232,23 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
   // Sans cela, le même geste aurait réordonné la file complète par ses indices
   // d'onglet — la troisième ligne de « Dilemme » prise pour la troisième du jeu.
   // Rien n'aurait planté : une autre question aurait changé de place, ailleurs.
+  //
+  // PAR IDENTIFIANT, JAMAIS PAR IDENTITÉ D'OBJET (26/09). La première version
+  // cherchait les lignes de la vue dans la file avec `indexOf` — donc par
+  // référence. Or le serveur RENVOIE la file pendant un glisser (trois fois,
+  // mesuré, sur un geste de deux secondes) : la file affichée est alors faite
+  // d'objets neufs, aucun ne correspondait plus à ceux de la vue prise au départ,
+  // et le lâcher envoyait l'ordre INCHANGÉ. La question revenait à sa place. Avec
+  // le défilement qui ne suivait pas, c'était le « je dois m'y prendre trois
+  // fois » de l'auteur.
   const reinjecter = (visuelle, vue) => {
-    const places = [];
-    vue.forEach((q) => { const i = file.indexOf(q); if (i >= 0) places.push(i); });
+    const rang = new Map(file.map((q, i) => [q.id, i]));
+    // Seules les lignes encore présentes : une question retirée entre-temps ne
+    // doit pas décaler toutes les autres d'une place.
+    const presentes = visuelle.filter((q) => rang.has(q.id));
+    const places = vue.filter((q) => rang.has(q.id)).map((q) => rang.get(q.id));
     const suivante = file.slice();
-    places.forEach((pos, k) => { suivante[pos] = visuelle[k]; });
+    places.forEach((pos, k) => { suivante[pos] = file[rang.get(presentes[k].id)]; });
     return suivante;
   };
 
@@ -1246,46 +1285,86 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
     // deux lignes. Une constante approchée redevient fausse au premier changement
     // de typo ou d'espacement ; celle d'avant l'était déjà.
     const pas = ligne ? ligne.offsetHeight + (cs ? parseFloat(cs.rowGap) || 0 : 0) : 0;
-    depart.current = { y: e.clientY, pas, ordre: vueCourante.current };
+    depart.current = {
+      y: e.clientY, pas, ordre: vueCourante.current, index: i,
+      // LE DÉFILEMENT AU MOMENT DE LA PRISE. Voir `suivre` : sans lui, une ligne
+      // ne pouvait pas quitter la portion de liste visible au départ.
+      defil: liste.current ? liste.current.scrollTop : 0,
+    };
+    pointeurY.current = e.clientY;
     setPris(i);
     setCible(i);
     setDecalage(0);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
-  // DÉCISION 4.5 — sans défilement automatique, avec quatre lignes visibles sur
-  // vingt et une, le glisser ne déplace une question que d'un rang : le pointeur
-  // atteint le bord et plus rien ne se passe. La vitesse croît avec la proximité
-  // du bord, et elle est plafonnée — un défilement qui s'emballe est pire que pas
-  // de défilement, on ne vise plus rien.
-  const autoDefiler = (y) => {
-    const el = liste.current;
-    if (!el || el.scrollHeight <= el.clientHeight) return;
-    const r = el.getBoundingClientRect();
-    const ZONE = 48;
-    const PLAFOND = 16;
-    const versHaut = y - r.top;
-    const versBas = r.bottom - y;
-    let part = 0;
-    if (versHaut < ZONE) part = -(ZONE - versHaut) / ZONE;
-    else if (versBas < ZONE) part = (ZONE - versBas) / ZONE;
-    if (part) el.scrollTop += part * PLAFOND;
-  };
+  // OÙ LA LIGNE TENUE TOMBERAIT, ET OÙ ELLE S'AFFICHE — calculés depuis la
+  // dernière position du pointeur ET le défilement parcouru depuis la prise.
+  //
+  // LE DÉFAUT QUE CE CALCUL CORRIGE (26/09) : « impossible de la tirer en dehors
+  // de l'écran dans lequel on la voit […] si je dois tirer la question 20 et la
+  // pousser à la position 10, impossible : c'est trop long. Je dois m'y prendre
+  // trois fois. » Le rang visé se déduisait du seul mouvement du POINTEUR. Or,
+  // quand la liste défile sous un pointeur immobile au bord, la ligne parcourt
+  // la liste sans que le pointeur bouge : le rang visé restait figé sur ce que
+  // l'écran montrait au départ. Le chemin parcouru est donc la somme des deux.
+  const suivre = useCallback(() => {
+    const d = depart.current;
+    if (!d) return;
+    const defil = liste.current ? liste.current.scrollTop - d.defil : 0;
+    const dy = pointeurY.current - d.y + defil;
+    // LA LIGNE NE SORT PAS DE LA LISTE. Déplacée au-delà du dernier rang, elle
+    // agrandirait la zone défilable — et le défilement automatique, qui la
+    // poursuit, ne s'arrêterait plus.
+    const n = d.ordre?.length || 1;
+    const borne = d.pas > 0 ? Math.max(-d.index * d.pas, Math.min((n - 1 - d.index) * d.pas, dy)) : dy;
+    setDecalage(borne);
+    if (d.pas > 0) {
+      // LA BORNE EST CELLE DE LA VUE, pas de la file entière : dans un onglet de
+      // trois questions, un geste ne doit pas viser un huitième rang absent.
+      const vers = Math.max(0, Math.min((d.ordre?.length || 1) - 1, d.index + Math.round(dy / d.pas)));
+      setCible(vers);
+    }
+  }, []);
+
+  // DÉCISION 4.5, REPRISE — LE DÉFILEMENT AUTOMATIQUE TOURNE EN CONTINU.
+  //
+  // Il ne tournait qu'au mouvement du pointeur : tenir la ligne immobile près du
+  // bord — le geste naturel, on attend que la liste vienne — ne faisait défiler
+  // qu'une fois. Il tourne maintenant à chaque image tant qu'une ligne est tenue,
+  // à une vitesse qui croît avec la proximité du bord et qui est MAXIMALE
+  // au-delà : pousser le pointeur hors de la liste, c'est demander d'aller vite.
+  // Plafonnée — un défilement qui s'emballe est pire que pas de défilement.
+  // À la vitesse maximale, dix rangs se parcourent en moins d'une seconde.
+  useEffect(() => {
+    if (pris == null) return undefined;
+    let image = 0;
+    const ZONE = 72;
+    const PLAFOND = 22;
+    const tourner = () => {
+      const el = liste.current;
+      if (el && el.scrollHeight > el.clientHeight) {
+        const r = el.getBoundingClientRect();
+        const y = pointeurY.current;
+        let part = 0;
+        if (y < r.top + ZONE) part = -Math.min(1, (r.top + ZONE - y) / ZONE);
+        else if (y > r.bottom - ZONE) part = Math.min(1, (y - (r.bottom - ZONE)) / ZONE);
+        if (part) {
+          const avant = el.scrollTop;
+          el.scrollTop += part * PLAFOND;
+          if (el.scrollTop !== avant) suivre();
+        }
+      }
+      image = requestAnimationFrame(tourner);
+    };
+    image = requestAnimationFrame(tourner);
+    return () => cancelAnimationFrame(image);
+  }, [pris, suivre]);
 
   const glisser = (e) => {
     if (pris == null || !depart.current) return;
-    const { y, pas } = depart.current;
-    const dy = e.clientY - y;
-    setDecalage(dy);                       // la ligne suit le doigt (décision 4.1)
-    if (pas > 0) {
-      const saut = Math.round(dy / pas);
-      // LA BORNE EST CELLE DE LA VUE, pas de la file entière : dans un onglet de
-      // trois questions, un geste ne doit pas viser un huitième rang qui n'y est
-      // pas affiché.
-      const vers = Math.max(0, Math.min((depart.current.ordre?.length || 1) - 1, pris + saut));
-      if (vers !== cible) setCible(vers);
-    }
-    autoDefiler(e.clientY);
+    pointeurY.current = e.clientY;
+    suivre();                              // la ligne suit le doigt (décision 4.1)
   };
 
   const reinitialiser = () => {
@@ -1686,7 +1765,7 @@ function HomeScreen({ variant, onOpenRoom, opening, onLogout, openError, email }
 }
 
 // ============================================================
-// A4 — Salon d'attente : invitation · joueurs et lancement · Séance
+// A4 — Salon d'attente : invitation · joueurs et lancement
 // ============================================================
 function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModule, onLogout, onCloseRoom }) {
   const jeux = useBibliotheque(g);
@@ -1696,12 +1775,6 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState('');
   const [picking, setPicking] = useState(false);
-
-  // Configuration de séance : ordre aléatoire + sélection manuelle.
-  const [shuffle, setShuffle] = useState(true);
-  const [banks, setBanks] = useState({});
-  const [checked, setChecked] = useState({});
-  const [openBank, setOpenBank] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -1718,39 +1791,6 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
       setCopied(key);
       setTimeout(() => setCopied(''), 1600);
     } catch { /* presse-papier indisponible */ }
-  };
-
-  const pushSessionConfig = useCallback((nextShuffle, nextChecked) => {
-    const selectedIds = {};
-    for (const [t, set] of Object.entries(nextChecked)) {
-      const bank = banks[t] || [];
-      if (set && bank.length && set.size < bank.length) selectedIds[t] = [...set];
-    }
-    g.emit('host:sessionConfig', { shuffle: nextShuffle, selected: selectedIds });
-  }, [g, banks]);
-
-  const toggleShuffle = () => { const n = !shuffle; setShuffle(n); pushSessionConfig(n, checked); };
-
-  const toggleBank = (jeu) => {
-    const cle = jeu.id || jeu.type;
-    if (openBank === cle) { setOpenBank(null); return; }
-    setOpenBank(cle);
-    if (!banks[cle]) {
-      g.emit('host:getBank', { moduleId: jeu.id, moduleType: jeu.type }, (list) => {
-        setBanks((prev) => ({ ...prev, [cle]: list || [] }));
-        setChecked((prev) => ({ ...prev, [cle]: new Set((list || []).map((q) => q.id)) }));
-      });
-    }
-  };
-
-  const toggleQuestion = (type, id) => {
-    setChecked((prev) => {
-      const set = new Set(prev[type] || []);
-      if (set.has(id)) set.delete(id); else set.add(id);
-      const next = { ...prev, [type]: set };
-      pushSessionConfig(shuffle, next);
-      return next;
-    });
   };
 
   const empty = !playerCount;
@@ -1865,50 +1905,13 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
           </div>
         </section>
 
-        {/* --- Colonne 3 : Séance --- */}
-        <section className="pane" aria-label="Configuration de la séance">
-          <h2 className="pane__title">Séance</h2>
-          <button className="switch" type="button" role="switch" aria-checked={shuffle}
-            data-action="host:sessionConfig" onClick={toggleShuffle}>
-            <span className="switch__track" aria-hidden="true"><span className="switch__knob" /></span>
-            <span className="switch__label">Ordre des questions aléatoire</span>
-          </button>
-
-          {jeux.map((m) => {
-            const cle = m.id || m.type;
-            const list = banks[cle] || [];
-            const set = checked[cle];
-            const partial = set && list.length && set.size < list.length;
-            return (
-              <div className="bank" key={cle}>
-                <button className="bank__head" type="button" aria-expanded={openBank === cle}
-                  onClick={() => toggleBank(m)}>
-                  <I.chevron s={16} open={openBank === cle} />
-                  {m.name}
-                  <span className={`bank__count${partial ? ' bank__count--partial' : ''}`}
-                    data-bind={`session.selected.${cle}`}>
-                    {set ? `${set.size}/${list.length}` : 'toutes'}
-                  </span>
-                </button>
-                {openBank === cle ? (
-                  <ul className="bank__list" data-action="host:getBank">
-                    {list.length === 0 ? (
-                      <li className="private__hint">Chargement…</li>
-                    ) : list.map((q) => (
-                      <li key={q.id}>
-                        <label className="bank__q">
-                          <input type="checkbox" checked={set ? set.has(q.id) : true}
-                            onChange={() => toggleQuestion(cle, q.id)} />
-                          {q.text}
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            );
-          })}
-        </section>
+        {/* LA COLONNE « SÉANCE » A DISPARU (26/09) : « la section où on peut le
+            régler et tout, on s'en fout. Juste, il faut que toutes les questions
+            soient tout le temps aléatoires. » Elle portait un interrupteur
+            d'ordre aléatoire et une sélection de questions à cocher, jeu par jeu.
+            L'ordre est désormais TOUJOURS tiré au sort, côté serveur, sans
+            réglage ; et la file de chaque jeu reste réordonnable en direct, ce
+            qui couvre le besoin de choisir. */}
       </main>
     </div>
   );
@@ -2198,6 +2201,8 @@ const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'cou
 // ============================================================
 function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
+  // L'emplacement des boutons de départ dans le pied — voir `ActionsDepart`.
+  const [pied, setPied] = useState(null);
   const room = g.room || {};
   const current = g.current;
   const tick = g.tick;
@@ -2240,6 +2245,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
   })() : null;
 
   return (
+    <PiedDepart.Provider value={prepare ? pied : null}>
     <div className="page page--dusk live">
       {connLost ? (
         <div className="conn-flag" role="alert">
@@ -2491,7 +2497,13 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
       </main>
 
       <nav className="actions" aria-label="Contrôles animateur">
-        {revealed ? (
+        {prepare ? (
+          /* L'EMPLACEMENT DES BOUTONS DE DÉPART — voir `ActionsDepart`. Tant
+             qu'un jeu se prépare, ce sont eux, et eux seuls, qui occupent le
+             pied : « Nouvelle partie » et « Changer de module » y parleraient
+             d'autre chose que de ce qu'on est en train de lancer. */
+          <div className="actions__slot" ref={setPied} />
+        ) : revealed ? (
           <>
             {/* « POUR LES MODULES SANS QUESTIONS, IL NE DEVRAIT PAS Y AVOIR
                 ÉCRIT "QUESTION SUIVANTE" MAIS "NOUVELLE PARTIE". »
@@ -2539,6 +2551,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
         <button className="button" type="button" onClick={onShowResults}>Voir le classement</button>
       </nav>
     </div>
+    </PiedDepart.Provider>
   );
 }
 

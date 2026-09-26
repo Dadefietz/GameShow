@@ -31,7 +31,7 @@ test.describe('Le dépôt d\'une image d\'objet', () => {
     await expect(page.locator('.studio')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: JEU }).first().click();
 
-    const base = page.getByRole('complementary').getByTestId('cache-objets');
+    const base = page.getByTestId('studio-editeur').getByTestId('cache-objets');
     await base.getByTestId('cache-voir-images').click();
     await expect(base.locator('.cmod__objet').first()).toBeVisible();
 

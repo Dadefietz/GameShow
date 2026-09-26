@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '../shared/supabaseClient.js';
 import { preparerImage, identifiantDObjet } from './imageObjet.js';
+import { preparerDessin } from './imageDessin.js';
 import './studio.css';
 
 // --- Référentiel des types de module (icône + variante couleur du mockup) ---
@@ -54,8 +55,8 @@ let SEQ = 0;
 const uid = (p = 'id') => `${p}-${Date.now().toString(36)}-${(SEQ++).toString(36)}`;
 
 // Fabrique une question vierge cohérente avec le type du module.
-function makeQuestion(type) {
-  const base = { id: uid('q'), type, prompt: '' };
+function makeQuestion(type, extra = {}) {
+  const base = { id: uid('q'), type, prompt: '', ...extra };
   if (type === 'quiz') return { ...base, options: ['', '', '', ''], correct: 0 };
   if (type === 'true_false') return { ...base, answer: true };
   if (type === 'estimation') return { ...base, target: 0 };
@@ -121,7 +122,12 @@ function serverToStudioQuestion(type, q) {
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
-  return { ...base, options: q.options || ['', ''], poll: !!q.poll, categorie: q.categorie || 'vie' }; // vote
+  // vote — L'ANCIEN INTERRUPTEUR « Sondage sans points » DEVIENT LA CATÉGORIE
+  // « Sondage », exactement comme le serveur le lit (`categorieDe`). Sans cette
+  // ligne, le Studio montrerait « Vie » pour une question que la partie joue en
+  // sondage — et la réenregistrerait en la rendant notée.
+  const sondage = q.poll === true;
+  return { ...base, options: q.options || ['', ''], poll: sondage, categorie: sondage ? 'sondage' : (q.categorie || 'vie') };
 }
 
 function studioToServerQuestion(type, q, durationSec) {
@@ -135,6 +141,11 @@ function studioToServerQuestion(type, q, durationSec) {
 // Le module du serveur a la MÊME forme que celui du Studio, au format des
 // questions près. Le nom et l'identifiant traversent donc intacts — c'est
 // précisément ce que l'ancien aplatissement par type détruisait.
+// La marque de la banque de « Cueillette » — la même que celle du serveur
+// (src/server/dessins.js). Elle est dans une donnée enregistrée : la changer d'un
+// côté seulement ferait disparaître la banque de tous les comptes.
+const MARQUE_CUEILLETTE = 'contenu-cueillette';
+
 function serveurVersStudio(m) {
   if (!m || typeof m !== 'object') return null;
   const type = TYPE_KEYS.includes(m.type) ? m.type : 'quiz';
@@ -149,8 +160,11 @@ function serveurVersStudio(m) {
     // base — c'est ce qui le rend durable sans table nouvelle — mais il porte des
     // gabarits et une banque d'images, pas des énoncés.
     contenuCache: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === 'contenu-cache') || null,
+    // LA BANQUE DE « CUEILLETTE », même traitement : une entrée marquée, qui n'est
+    // pas une question et ne doit jamais en devenir une vide au réenregistrement.
+    contenuCueillette: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_CUEILLETTE) || null,
     questions: (Array.isArray(m.questions) ? m.questions : [])
-      .filter((q) => q?.kind !== 'contenu-cache')
+      .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE)
       .map((q) => serverToStudioQuestion(type, q)),
   };
 }
@@ -164,6 +178,7 @@ function studioVersServeur(m) {
     color: m.color,
     questions: [
       ...(m.contenuCache ? [m.contenuCache] : []),
+      ...(m.contenuCueillette ? [m.contenuCueillette] : []),
       ...(m.questions || [])
         .filter((q) => (q.prompt || '').trim())
         .map((q) => studioToServerQuestion(m.type, q, m.duration)),
@@ -205,6 +220,10 @@ const I = {
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
       style={{ transform: open ? 'rotate(90deg)' : 'none' }}><path d="M9 6l6 6-6 6" /></svg>
+  ),
+  retour: ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="M11 6l-6 6 6 6" /></svg>
   ),
   x: ({ s = 14 }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -288,6 +307,29 @@ export function StudioApp() {
     })();
     return () => { alive = false; };
   }, [typeOuvert, catalogueCache, entetesHote]);
+
+  // LE CATALOGUE DE « CUEILLETTE » — les cinquante dessins du dépôt. Même règle
+  // que celui de « Cache-cache » : chargé seulement quand ce jeu est ouvert, et
+  // AVEC l'en-tête d'animateur, faute de quoi il répond 403 en production.
+  const [catalogueCueillette, setCatalogueCueillette] = useState(null);
+  const [catalogueCueilletteRate, setCatalogueCueilletteRate] = useState(null);
+  useEffect(() => {
+    if (typeOuvert !== 'cueillette' || catalogueCueillette) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/cueillette/catalogue', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) { setCatalogueCueillette(await res.json()); setCatalogueCueilletteRate(null); return; }
+        setCatalogueCueilletteRate(res.status === 403
+          ? "Ta session d'animateur ne permet pas de lire la banque de dessins. Reconnecte-toi."
+          : `La banque de dessins n'a pas pu être chargée (${res.status}).`);
+      } catch {
+        if (alive) setCatalogueCueilletteRate("La banque de dessins n'a pas pu être chargée.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [typeOuvert, catalogueCueillette, entetesHote]);
 
   // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
   //
@@ -375,7 +417,32 @@ export function StudioApp() {
     } catch { setSaveState('error'); }
   };
 
-  const selectModule = (id) => { setSelectedId(id); setEditingQuestionId(null); setConfirmDelete(null); };
+  // L'ÉDITION EST UNE PAGE, ET UNE PAGE A UNE ADRESSE (26/09) : « en cliquant sur
+  // "Modifier", il y ait une page qui s'ouvre entièrement pour la modification du
+  // jeu, et pas un panel à droite ».
+  //
+  // L'adresse porte le jeu ouvert (`?jeu=…`). Sans elle, le bouton « précédent »
+  // du navigateur — le premier geste qu'on fait pour quitter une page — sortirait
+  // du Studio au lieu de revenir à la liste, et un rechargement perdrait l'écran.
+  const selectModule = (id) => {
+    setSelectedId(id); setEditingQuestionId(null); setConfirmDelete(null);
+    try {
+      const u = new URL(window.location.href);
+      if ((u.searchParams.get('jeu') || null) === (id || null)) return;
+      if (id) u.searchParams.set('jeu', id); else u.searchParams.delete('jeu');
+      window.history.pushState({ jeu: id || null }, '', u);
+      window.scrollTo(0, 0);
+    } catch { /* navigateur sans History : l'écran suit quand même */ }
+  };
+  useEffect(() => {
+    const suivre = () => {
+      const id = new URLSearchParams(window.location.search).get('jeu');
+      setSelectedId(id || null); setEditingQuestionId(null); setConfirmDelete(null);
+    };
+    suivre();
+    window.addEventListener('popstate', suivre);
+    return () => window.removeEventListener('popstate', suivre);
+  }, []);
 
   // Validation avant enregistrement : un module invalide serait silencieusement
   // filtré en jeu — on préfère le dire AVANT la sauvegarde, question par question.
@@ -393,8 +460,17 @@ export function StudioApp() {
     if (!m.questions.length && !MODULE_TYPES[m.type]?.direct) {
       problems.push({ qid: null, tag: null, msg: 'Ajoute au moins une question.' });
     }
+    // LE VOTE SE LIT PAR ONGLET : sa « question 3 » est la troisième de son
+    // onglet, pas la troisième de la banque. Une étiquette « Q17 » renverrait
+    // l'animateur chercher dans un onglet qui n'en montre que six.
+    const rangs = {};
     m.questions.forEach((q, i) => {
-      const tag = `Q${i + 1}`;
+      let tag = `Q${i + 1}`;
+      if (m.type === 'vote') {
+        const c = q.categorie || 'vie';
+        rangs[c] = (rangs[c] || 0) + 1;
+        tag = `${c.charAt(0).toUpperCase()}${c.slice(1)} ${rangs[c]}`;
+      }
       if (!String(q.prompt || '').trim()) problems.push({ qid: q.id, tag, msg: "L'énoncé est vide." });
       if (m.type === 'quiz' || m.type === 'vote') {
         const opts = (q.options || []).map((o) => String(o || '').trim());
@@ -408,6 +484,25 @@ export function StudioApp() {
         problems.push({ qid: q.id, tag, msg: 'La cible doit être un nombre.' });
       }
     });
+
+    // LA BANQUE DE « CUEILLETTE ». Le serveur écarte en silence une ligne qu'il
+    // ne pourrait pas noter — c'est ce qui protège le direct. Mais l'animateur
+    // doit l'apprendre ICI, pas en cherchant à l'antenne un dessin disparu.
+    if (m.type === 'cueillette' && m.contenuCueillette) {
+      const dessins = m.contenuCueillette.dessins || [];
+      // Les dessins du DÉPÔT ont leur figure et leur grille côté serveur.
+      const duDepot = new Set((catalogueCueillette?.dessins || []).map((d) => d.id));
+      if (!dessins.length) problems.push({ qid: null, tag: null, msg: 'Garde au moins un dessin dans la banque.' });
+      dessins.forEach((d, i) => {
+        const tag = `Dessin ${i + 1}`;
+        if (!String(d.nom || '').trim()) problems.push({ qid: null, tag, msg: "Le dessin n'a pas de nom." });
+        // UN DESSIN AJOUTÉ SANS IMAGE N'A NI FIGURE NI GRILLE : il ne peut pas
+        // être joué. Un dessin du dépôt, lui, garde les siennes.
+        if (catalogueCueillette && !duDepot.has(d.id) && (!d.src || !d.grille)) {
+          problems.push({ qid: null, tag, msg: `« ${d.nom || 'sans nom'} » n'a pas d'image : dépose-la.` });
+        }
+      });
+    }
 
     // LA MODÉRATION DE « CACHE-CACHE » SE VALIDE ICI, ET C'EST NÉCESSAIRE.
     //
@@ -549,8 +644,10 @@ export function StudioApp() {
     ));
   };
 
-  const addQuestion = (module) => {
-    const q = makeQuestion(module.type);
+  // `extra` : ce que l'onglet ouvert impose à la question neuve — sa catégorie,
+  // pour le vote. Une question ajoutée depuis l'onglet « Dilemme » est un dilemme.
+  const addQuestion = (module, extra) => {
+    const q = makeQuestion(module.type, extra);
     setModules((prev) => prev.map((m) => (m.id === module.id ? { ...m, questions: [...m.questions, q] } : m)));
     setEditingQuestionId(q.id);
   };
@@ -569,6 +666,34 @@ export function StudioApp() {
       <Sidebar modules={modules} selectedId={selectedId} mode={mode} loading={remoteLoading}
         onSelect={selectModule} />
 
+      {/* LA PAGE D'ÉDITION REMPLACE LA LISTE, elle ne s'ouvre plus à côté. La
+          navigation reste à gauche : passer d'un jeu à l'autre ne demande pas de
+          revenir à la liste. */}
+      {selected ? (
+        <EditorPanel
+          module={selected}
+          typeServeur={typesServeur[selected.type]}
+          catalogueCache={catalogueCache}
+          catalogueRate={catalogueRate}
+          catalogueCueillette={catalogueCueillette}
+          catalogueCueilletteRate={catalogueCueilletteRate}
+          entetesHote={entetesHote}
+          editingQuestionId={editingQuestionId}
+          invalidQids={invalidQids}
+          saveState={saveState}
+          validationErrors={validationErrors}
+          confirmDelete={confirmDelete === selected.id}
+          onArmDelete={() => setConfirmDelete(confirmDelete === selected.id ? null : selected.id)}
+          onConfirmDelete={() => removeModule(selected.id)}
+          onPatchModule={(patch) => patchModule(selected.id, patch)}
+          onAddQuestion={(extra) => addQuestion(selected, extra)}
+          onEditQuestion={(qid) => setEditingQuestionId(qid === editingQuestionId ? null : qid)}
+          onPatchQuestion={(qid, patch) => patchQuestion(selected.id, qid, patch)}
+          onRemoveQuestion={(qid) => removeQuestion(selected.id, qid)}
+          onSave={saveModule}
+          onClose={() => selectModule(null)}
+        />
+      ) : (
       <main className="work" data-state={modules.length === 0 ? 'empty' : 'ready'} aria-label="Gestion des modules">
         <div className="work__head">
           <div>
@@ -626,30 +751,7 @@ export function StudioApp() {
           </section>
         )}
       </main>
-
-      {selected ? (
-        <EditorPanel
-          module={selected}
-          typeServeur={typesServeur[selected.type]}
-          catalogueCache={catalogueCache}
-          catalogueRate={catalogueRate}
-          entetesHote={entetesHote}
-          editingQuestionId={editingQuestionId}
-          invalidQids={invalidQids}
-          saveState={saveState}
-          validationErrors={validationErrors}
-          confirmDelete={confirmDelete === selected.id}
-          onArmDelete={() => setConfirmDelete(confirmDelete === selected.id ? null : selected.id)}
-          onConfirmDelete={() => removeModule(selected.id)}
-          onPatchModule={(patch) => patchModule(selected.id, patch)}
-          onAddQuestion={() => addQuestion(selected)}
-          onEditQuestion={(qid) => setEditingQuestionId(qid === editingQuestionId ? null : qid)}
-          onPatchQuestion={(qid, patch) => patchQuestion(selected.id, qid, patch)}
-          onRemoveQuestion={(qid) => removeQuestion(selected.id, qid)}
-          onSave={saveModule}
-          onClose={() => selectModule(null)}
-        />
-      ) : null}
+      )}
     </div>
   );
 }
@@ -716,6 +818,8 @@ function Sidebar({ modules, selectedId, mode, loading, onSelect, onAdd }) {
 // sert qu'à l'étiquette de la carte, avant que le catalogue ne soit chargé — la
 // carte ne va pas chercher deux cents images pour écrire un nombre.
 const GABARITS_CACHE_PAR_DEFAUT = 6;
+// Même raison pour « Cueillette » : les dessins livrés avec le dépôt.
+const DESSINS_PAR_DEFAUT = 50;
 
 function ModuleCard({ module, selected, onEdit, typeServeur }) {
   const t = MODULE_TYPES[module.type] || MODULE_TYPES.quiz;
@@ -728,18 +832,24 @@ function ModuleCard({ module, selected, onEdit, typeServeur }) {
   // une entrée marquée du même champ `questions` ; la compter comme une question
   // afficherait « 1 question » pour six énoncés et deux cents images.
   const estModere = module.type === 'cache_cache';
+  // « CUEILLETTE » COMPTE SES DESSINS. Cinquante tant que la banque n'a pas été
+  // modérée — ceux du dépôt.
+  const estDessin = module.type === 'cueillette';
+  const nbDessins = estDessin ? (module.contenuCueillette?.dessins?.length ?? DESSINS_PAR_DEFAUT) : 0;
   const nbGabarits = estModere
     ? (module.contenuCache?.gabarits?.length ?? GABARITS_CACHE_PAR_DEFAUT)
     : 0;
   return (
     <article className={`mcard mcard--${module.color}${selected ? ' mcard--selected' : ''}`}
-      data-state={noQuestion && !estModere ? 'no-question' : 'ready'}>
+      data-state={noQuestion && !estModere && !estDessin ? 'no-question' : 'ready'}>
       <h2 className="mcard__name" data-bind="module.name">{module.name}</h2>
       <div className="mcard__caps">
         <span className="mcard__cap" data-bind="module.type">{t.label}</span>
         <span className="mcard__cap" data-bind="module.duration">{duree} s</span>
-        <span className={`mcard__cap${noQuestion && !estModere ? ' mcard__cap--warn' : ''}`} data-bind="module.questionCount">
-          {estModere
+        <span className={`mcard__cap${noQuestion && !estModere && !estDessin ? ' mcard__cap--warn' : ''}`} data-bind="module.questionCount">
+          {estDessin
+            ? `${nbDessins} dessin${nbDessins > 1 ? 's' : ''}`
+            : estModere
             ? `${nbGabarits} question${nbGabarits > 1 ? 's' : ''} modérée${nbGabarits > 1 ? 's' : ''}`
             : noQuestion ? 'Aucune question' : `${module.questions.length} question${module.questions.length > 1 ? 's' : ''}`}
         </span>
@@ -751,6 +861,8 @@ function ModuleCard({ module, selected, onEdit, typeServeur }) {
            images se règlent dans cet éditeur ; la carte doit y conduire, pas en
            détourner. */
         <p className="mcard__note">Ses questions se tirent au sort. Énoncés, quotas et images se règlent ici.</p>
+      ) : estDessin ? (
+        <p className="mcard__note">La cible se choisit en direct. La banque de dessins se gère ici.</p>
       ) : MODULE_TYPES[module.type]?.direct ? (
         /* UN JEU EN DIRECT N'EST PAS UN JEU VIDE. Sa question — deux mots — se
            tape à l'antenne, au moment de lancer. Lui reprocher son absence de
@@ -1063,14 +1175,175 @@ function ModerationCache({ contenu, catalogue, onChange, moduleId, entetesHote, 
 }
 
 // ---------------------------------------------------------------------------
+// E3 ter — LA BANQUE DE DESSINS DE « CUEILLETTE »
+// ---------------------------------------------------------------------------
+//
+// CE QUI A ÉTÉ DEMANDÉ (26/09) : « le même mode de gestion d'images que dans
+// Cache-cache. Au cas où on aimerait rajouter ou modifier les images, il faut
+// qu'on puisse gérer la banque d'images pour le jeu. »
+//
+// LE MÊME GESTE QUE LA BASE D'IMAGES DE « CACHE-CACHE » : une ligne par image,
+// son nom, son rangement, un dépôt de fichier, un filtre, un ajout. Le rangement
+// est ici la FAMILLE — ce qui fait les onglets de la console quand l'animateur
+// choisit sa cible — là où « Cache-cache » range par couleur.
+//
+// CE QUE LE DÉPÔT FAIT DE PLUS : il PRÉPARE le dessin comme les cinquante
+// d'origine (recadré sur l'encre, carré, 512 px) et calcule sa GRILLE de
+// comparaison — sans elle, le jeu ne saurait pas noter les joueurs. Voir
+// `imageDessin.js`.
+function BanqueCueillette({ contenu, catalogue, catalogueRate, moduleId, entetesHote, onChange }) {
+  const nomsFamilles = new Map((catalogue?.familles || []).map((f) => [f.cle, f.nom]));
+  const nomFamille = (f) => nomsFamilles.get(f) || f || '';
+  // TANT QUE LA BANQUE N'A PAS ÉTÉ MODÉRÉE, ON MONTRE CELLE QUE LE JEU JOUE : les
+  // cinquante du dépôt. La première modification l'écrit en entier dans le
+  // module — ce qui en fait la banque de CE jeu, désormais.
+  const dessins = contenu?.dessins?.length
+    ? contenu.dessins
+    : (catalogue?.dessins || []).map((d) => ({ id: d.id, nom: d.nom, famille: nomFamille(d.famille), src: d.src }));
+  const familles = [...new Set(dessins.map((d) => nomFamille(d.famille)).filter(Boolean))];
+  const [filtre, setFiltre] = useState('');
+  const [depot, setDepot] = useState(null);   // { id, etat: 'envoi'|'ok'|'erreur', message, durable }
+
+  const poser = (liste) => onChange({ kind: MARQUE_CUEILLETTE, dessins: liste });
+  const maj = (i, patch) => poser(dessins.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+
+  const deposer = async (i, fichier) => {
+    const d = dessins[i];
+    setDepot({ id: d.id, etat: 'envoi', message: 'Préparation du dessin…' });
+    try {
+      const { dataUrl, octets, grille } = await preparerDessin(fichier);
+      // UN FICHIER PAR LIGNE, TOUJOURS LE MÊME : redéposer remplace l'image au
+      // lieu d'accumuler des copies orphelines. Le paramètre `v` force l'écran à
+      // relire la nouvelle — l'adresse, elle, n'a pas changé.
+      const fichierId = `cueillette-${String(d.id).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+      const res = await fetch('/api/cache/image', {
+        method: 'POST',
+        // MÊME EN-TÊTE QUE LE RESTE DU STUDIO : sans lui, 403 en production.
+        headers: await entetesHote(),
+        body: JSON.stringify({ id: fichierId, webp: dataUrl }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        if (res.status === 403) throw new Error("Ta session d'animateur a expiré. Reconnecte-toi, puis redépose.");
+        if (res.status === 413) throw new Error('Image trop lourde pour le serveur. Choisis-en une plus petite.');
+        throw new Error(detail.detail || detail.error || `refus du serveur (${res.status})`);
+      }
+      const recu = await res.json();
+      maj(i, { src: `${recu.src}${recu.src.includes('?') ? '&' : '?'}v=${Date.now().toString(36)}`, grille });
+      setDepot({
+        id: d.id, etat: 'ok', durable: recu.durable,
+        message: `Déposé — ${Math.round(octets / 1024)} ko, grille de comparaison calculée. N'oublie pas « Enregistrer ».`,
+      });
+    } catch (err) {
+      setDepot({ id: d.id, etat: 'erreur', message: err.message || 'Dépôt impossible.' });
+    }
+  };
+
+  const q = filtre.trim().toLowerCase();
+  const lignes = dessins.map((d, i) => [d, i])
+    .filter(([d]) => !q || `${d.id} ${d.nom} ${nomFamille(d.famille)}`.toLowerCase().includes(q));
+
+  return (
+    <>
+      {catalogueRate ? (
+        <p className="save-state save-state--failed" role="alert" data-testid="cueillette-catalogue-rate">
+          {catalogueRate}
+        </p>
+      ) : null}
+      <div className="fgroup" data-testid="cueillette-dessins">
+        <span className="flabel">Banque de dessins ({dessins.length})</span>
+        <p className="fhint">
+          La famille range les dessins en onglets sur la console, quand tu choisis la
+          cible. Un dessin déposé est recadré et mis au carré comme ceux d'origine.
+        </p>
+        <p className="fhint" data-testid="cueillette-familles">
+          Familles : {familles.length ? familles.join(' · ') : 'aucune'} ({familles.length}).
+        </p>
+        <input className="input" type="text" value={filtre} aria-label="Filtrer la banque de dessins"
+          placeholder="Filtrer par nom ou famille" onChange={(e) => setFiltre(e.target.value)} />
+        <datalist id={`familles-${moduleId}`}>
+          {familles.map((f) => <option key={f} value={f} />)}
+        </datalist>
+        <div className="cmod cmod--images">
+          {lignes.map(([d, i]) => (
+            <div className="cmod__objet" key={d.id} data-testid="cueillette-ligne">
+              <img className="cmod__vignette" src={d.src || VIGNETTE_VIDE} alt="" loading="lazy" />
+              <div className="cmod__tete">
+                <span className="cmod__id" title={d.id}>{d.nom || 'Nouveau dessin'}</span>
+                <button className="qrow__btn qrow__btn--danger" type="button"
+                  aria-label={`Retirer ${d.nom || d.id}`}
+                  onClick={() => poser(dessins.filter((_, j) => j !== i))}>
+                  <I.trash s={16} />
+                </button>
+              </div>
+              <input className="input" type="text" value={d.nom} aria-label={`Nom de ${d.nom || d.id}`}
+                placeholder="Nom — c'est lui qu'on annonce à la révélation"
+                onChange={(e) => maj(i, { nom: e.target.value })} />
+              {/* CHAMP LIBRE, comme la couleur de « Cache-cache » : on pioche une
+                  famille existante ou on en crée une. */}
+              <input className="input" type="text" value={nomFamille(d.famille)} list={`familles-${moduleId}`}
+                aria-label={`Famille de ${d.nom || d.id}`} placeholder="Famille"
+                onChange={(e) => maj(i, { famille: e.target.value })} />
+              <label className="cmod__depot">
+                <input type="file" accept="image/*" aria-label={`Déposer une image pour ${d.nom || d.id}`}
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) deposer(i, f); }} />
+                <I.plus s={14} />
+                <span>{d.src ? 'Remplacer le dessin' : 'Déposer le dessin'}</span>
+              </label>
+              {!d.src ? (
+                <p className="cmod__etat cmod__etat--erreur">Pas encore d'image : ce dessin ne peut pas être joué.</p>
+              ) : null}
+              {depot && depot.id === d.id ? (
+                <p className={`cmod__etat cmod__etat--${depot.etat}`} role="status">
+                  {depot.message}
+                  {depot.etat === 'ok' && depot.durable === false
+                    ? ' Attention : rangé sur le disque local, il ne survivra pas à un redémarrage du serveur.'
+                    : ''}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          {dessins.length && !lignes.length ? <p className="fhint">Aucun dessin ne correspond à ce filtre.</p> : null}
+          <button className="qadd" type="button" data-testid="cueillette-ajouter"
+            onClick={() => { setFiltre(''); poser([...dessins, { id: uid('dessin'), nom: '', famille: familles[0] || '', src: '' }]); }}>
+            <I.plus s={16} />
+            <span>Ajouter un dessin</span>
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // E3 — Panneau d'édition
 // ---------------------------------------------------------------------------
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
-  typeServeur, catalogueCache, catalogueRate, entetesHote,
+  typeServeur, catalogueCache, catalogueRate, catalogueCueillette, catalogueCueilletteRate, entetesHote,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
+  // LES SECTIONS DU VOTE (26/09) : « quand je suis dans "Vote", j'ai mes trois
+  // sections (Vie, Dilemme et Sondage), et quand je suis sur une section, j'ai
+  // que les questions de ma section. »
+  //
+  // Les catégories viennent du SERVEUR, comme les onglets de la file de la
+  // console : le Studio ne peut pas proposer une section que la partie ne sait
+  // pas ranger. Un jeu sans catégories n'a pas d'onglets, et sa liste reste
+  // entière — rien ne change pour les autres jeux.
+  const categories = typeServeur?.categories?.length ? typeServeur.categories : null;
+  const defaut = typeServeur?.categorieParDefaut || categories?.[0]?.cle || null;
+  const [section, setSection] = useState(null);
+  const sectionOuverte = categories
+    ? (categories.some((c) => c.cle === section) ? section : categories[0].cle)
+    : null;
+  useEffect(() => { setSection(null); }, [module.id]);
+  const categorieDe = (q) => q.categorie || defaut;
+  const visibles = module.questions
+    .map((q, i) => [q, i])
+    .filter(([q]) => !sectionOuverte || categorieDe(q) === sectionOuverte);
+  const categorieOuverte = categories?.find((c) => c.cle === sectionOuverte) || null;
   // La durée de jeu telle que le SERVEUR la déclare : fixe pour la plupart des
   // jeux (c'est une règle, pas un réglage), réglable pour les trois qui la lisent
   // vraiment — l'estimation, le vote et le lien.
@@ -1081,12 +1354,14 @@ function EditorPanel({
     : 'Enregistrer';
 
   return (
-    <aside className="editor" data-state={module.questions.length === 0 ? 'empty' : 'ready'} aria-label={`Édition du module ${module.name}`}>
+    <section className="editor" data-testid="studio-editeur" data-state={module.questions.length === 0 ? 'empty' : 'ready'}
+      aria-label={`Édition du module ${module.name}`}>
       <div className="editor__head">
-        <h2 className="editor__title">{module.name}</h2>
-        <button className="qrow__btn" type="button" aria-label="Fermer l'éditeur" onClick={onClose}>
-          <I.x s={16} />
+        <button className="button button--quiet editor__retour" type="button" data-testid="studio-retour-liste"
+          onClick={onClose}>
+          <I.retour s={16} /> Tous les questionnaires
         </button>
+        <h1 className="editor__title">{module.name}</h1>
       </div>
 
       <div className="editor__body">
@@ -1147,26 +1422,65 @@ function EditorPanel({
           <ModerationCache contenu={module.contenuCache} catalogue={catalogueCache} moduleId={module.id}
             entetesHote={entetesHote} catalogueRate={catalogueRate}
             onChange={(contenuCache) => onPatchModule({ contenuCache })} />
+        ) : module.type === 'cueillette' ? (
+          <BanqueCueillette contenu={module.contenuCueillette} catalogue={catalogueCueillette}
+            catalogueRate={catalogueCueilletteRate} moduleId={module.id} entetesHote={entetesHote}
+            onChange={(contenuCueillette) => onPatchModule({ contenuCueillette })} />
         ) : (
         <div className="fgroup">
-          <span className="flabel">Questions ({module.questions.length})</span>
+          {categories ? (
+            <div className="sections" role="tablist" aria-label="Sections" data-testid="studio-sections">
+              {categories.map((c) => {
+                const n = module.questions.filter((q) => categorieDe(q) === c.cle).length;
+                return (
+                  <button key={c.cle} type="button" role="tab" className="sections__onglet"
+                    aria-selected={sectionOuverte === c.cle} data-testid={`studio-section-${c.cle}`}
+                    onClick={() => setSection(c.cle)}>
+                    {c.nom} <span className="sections__compte">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          <span className="flabel">
+            {categorieOuverte ? `${categorieOuverte.nom} — ${visibles.length} question${visibles.length > 1 ? 's' : ''}` : `Questions (${module.questions.length})`}
+          </span>
+          {categorieOuverte ? (
+            <p className="fhint" data-testid="studio-section-regle">
+              {categorieOuverte.points === false
+                ? "Sondage : personne ne gagne de points, chacun répond ce qu'il pense vraiment."
+                : 'Rapporte des points : la majorité gagne. En cas d\'égalité, les deux camps gagnent.'}
+            </p>
+          ) : null}
           <div className="qlist">
-            {module.questions.map((q, i) => (
-              <QuestionRow key={q.id} index={i + 1} module={module} question={q} typeServeur={typeServeur}
+            {visibles.map(([q], k) => (
+              <QuestionRow key={q.id} index={k + 1} module={module} question={q} typeServeur={typeServeur}
                 editing={editingQuestionId === q.id} invalid={invalidQids.has(q.id)}
                 errors={validationErrors.filter((e) => e.qid === q.id)}
                 onToggle={() => onEditQuestion(q.id)}
-                onPatch={(patch) => onPatchQuestion(q.id, patch)}
+                onPatch={(patch) => {
+                  onPatchQuestion(q.id, patch);
+                  // UNE QUESTION QUI CHANGE DE SECTION Y EST SUIVIE. Sinon elle
+                  // disparaîtrait sous les doigts de l'animateur, en pleine saisie.
+                  if (patch.categorie && categories) setSection(patch.categorie);
+                }}
                 onRemove={() => onRemoveQuestion(q.id)} />
             ))}
-            {module.questions.length === 0 ? (
-              <p className="fhint">Aucune question. Ajoutes-en une pour démarrer la banque.</p>
+            {visibles.length === 0 ? (
+              <p className="fhint">
+                {categorieOuverte
+                  ? `Aucune question dans « ${categorieOuverte.nom} ». Ajoutes-en une ci-dessous.`
+                  : 'Aucune question. Ajoutes-en une pour démarrer la banque.'}
+              </p>
             ) : null}
           </div>
           {!MODULE_TYPES[module.type]?.direct ? (
-            <button className="qadd" type="button" data-action="studio:addQuestion" onClick={onAddQuestion}>
+            <button className="qadd" type="button" data-action="studio:addQuestion"
+              onClick={() => onAddQuestion(categorieOuverte
+                ? { categorie: categorieOuverte.cle, poll: categorieOuverte.points === false }
+                : undefined)}>
               <I.plus s={16} />
-              <span>Ajouter une question</span>
+              <span>{categorieOuverte ? `Ajouter une question « ${categorieOuverte.nom} »` : 'Ajouter une question'}</span>
             </button>
           ) : (
             <p className="fhint" data-testid="studio-jeu-direct">
@@ -1239,7 +1553,7 @@ function EditorPanel({
           {saveLabel}
         </button>
       </div>
-    </aside>
+    </section>
   );
 }
 
@@ -1377,42 +1691,35 @@ function QuestionFields({ type, question, onPatch, errors, categories, defautCat
   const options = question.options || ['', ''];
   return (
     <>
-      {/* JEU ou SONDAGE, question par question (action 18). Un vote noté n'est
-          plus un sondage : le joueur ne répond plus ce qu'il pense mais ce qu'il
-          croit que les autres vont répondre. L'interrupteur garde les deux
-          usages — demander sincèrement à la salle, ou en faire un pari. */}
-      {/* LA CATÉGORIE (15/09). Elle ne change RIEN aux règles — l'auteur le
-          précise — elle range. L'écran de l'animateur en fait des onglets, et
-          « Question suivante » pioche dans celui qu'il a ouvert.
-          LES CATÉGORIES VIENNENT DU SERVEUR : les recopier ici ferait proposer un
-          jour une catégorie que la file ne saurait pas ranger. */}
+      {/* LA CATÉGORIE, ET ELLE SEULE, DÉCIDE DES POINTS (26/09) : « on ne doit
+          pas sélectionner si ça rapporte des points ou pas, vraiment
+          automatiquement. Le sondage ne rapporte pas des points, et vie et
+          dilemme rapportent des points. »
+          L'interrupteur « Rapporte des points / Sondage sans points » a donc
+          disparu : il laissait écrire un dilemme sans points, ou un sondage
+          rangé dans « Vie ». C'est le SERVEUR qui dit quelle catégorie paie —
+          l'écran ne fait que l'afficher.
+          `poll` est écrit avec la catégorie, jamais seul : le serveur lit encore
+          l'ancien champ pour les questions d'avant, et un `poll` resté vrai
+          ramènerait la question en sondage. */}
       {categories?.length ? (
         <div className="fgroup">
           <span className="flabel" id={`cat-${question.id}`}>Catégorie</span>
-          <div className="qtiles" role="radiogroup" aria-labelledby={`cat-${question.id}`}>
+          <div className="qtiles qtiles--trois" role="radiogroup" aria-labelledby={`cat-${question.id}`}>
             {categories.map((c) => (
               <button key={c.cle} className="qtile" type="button" role="radio"
                 data-testid={`vote-cat-${c.cle}`}
                 aria-checked={(question.categorie || defautCategorie) === c.cle}
-                onClick={() => onPatch({ categorie: c.cle })}>{c.nom}</button>
+                onClick={() => onPatch({ categorie: c.cle, poll: c.points === false })}>{c.nom}</button>
             ))}
           </div>
+          <p className="fhint" data-testid="vote-points">
+            {categories.find((c) => c.cle === (question.categorie || defautCategorie))?.points === false
+              ? "Sans points : chacun répond ce qu'il pense vraiment."
+              : 'Rapporte des points : la majorité gagne.'}
+          </p>
         </div>
       ) : null}
-      <div className="fgroup">
-        <span className="flabel">Ce vote</span>
-        <div className="qtiles" role="radiogroup" aria-label="Nature du vote">
-          <button className="qtile" type="button" role="radio" aria-checked={!question.poll}
-            onClick={() => onPatch({ poll: false })}>Rapporte des points</button>
-          <button className="qtile" type="button" role="radio" aria-checked={!!question.poll}
-            onClick={() => onPatch({ poll: true })}>Sondage sans points</button>
-        </div>
-        <p className="fhint">
-          {question.poll
-            ? "Personne ne gagne : chacun répond ce qu'il pense vraiment."
-            : 'La majorité gagne. En cas d\'égalité, les deux camps gagnent.'}
-        </p>
-      </div>
       {prompt}
       <div className="fgroup">
         <span className="flabel">Choix proposés</span>

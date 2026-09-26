@@ -70,7 +70,7 @@ test.describe('Studio → partie (le pont)', () => {
     await page.goto('/studio');
     await page.getByRole('button', { name: 'Épreuve témoin (brouillon)' }).first().click();
 
-    const editeur = page.getByRole('complementary');
+    const editeur = page.getByTestId('studio-editeur');
     await expect(editeur).toBeVisible();
     await editeur.getByLabel('Nom').fill(JEU);
 

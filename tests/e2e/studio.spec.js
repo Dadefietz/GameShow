@@ -17,7 +17,7 @@ test.describe('Studio (E1-E4)', () => {
 
     // E3 — éditer ouvre le panneau, avec les quatre réglages du module.
     await cards.first().getByRole('button').first().click();
-    const editor = page.getByRole('complementary');
+    const editor = page.getByTestId('studio-editeur');
     await expect(editor).toBeVisible();
     await expect(editor.getByLabel('Nom')).toBeVisible();
     await expect(editor.getByRole('radiogroup', { name: 'Type' })).toBeVisible();
@@ -28,7 +28,7 @@ test.describe('Studio (E1-E4)', () => {
   test('une question sans énoncé bloque l\'enregistrement et dit pourquoi', async ({ page }) => {
     await page.goto('/studio');
     await page.getByRole('article').first().getByRole('button').first().click();
-    const editor = page.getByRole('complementary');
+    const editor = page.getByTestId('studio-editeur');
 
     // E4 — ajouter une question vierge, puis tenter d'enregistrer.
     await editor.getByRole('button', { name: 'Ajouter une question' }).click();
@@ -45,7 +45,7 @@ test.describe('Studio (E1-E4)', () => {
   test('la suppression d\'un module demande une confirmation', async ({ page }) => {
     await page.goto('/studio');
     await page.getByRole('article').first().getByRole('button').first().click();
-    const editor = page.getByRole('complementary');
+    const editor = page.getByTestId('studio-editeur');
 
     // Le libellé en « … » ouvre la confirmation, il ne supprime jamais directement.
     await editor.getByRole('button', { name: /Supprimer ce module/ }).click();
