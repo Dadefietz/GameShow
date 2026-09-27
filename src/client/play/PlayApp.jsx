@@ -32,6 +32,7 @@ import { Icon } from '../shared/icons.jsx';
 import { bipCompteRebours, sonFinDuTemps } from '../shared/sons.js';
 import { Visage, MasquesVisages, prechargerVisages } from '../shared/Visage.jsx';
 import { Flamme } from '../shared/Flamme.jsx';
+import { suivreLeClavier } from '../shared/clavier.js';
 import './play.css';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -2308,6 +2309,9 @@ function poserCodeDansUrl(code) {
 }
 
 export function PlayApp() {
+  // LE CLAVIER DU TÉLÉPHONE NE CACHE JAMAIS LA SAISIE — voir `shared/clavier.js`.
+  // Une seule fois, pour toute la surface : l'accueil, et chaque jeu où l'on tape.
+  useEffect(() => suivreLeClavier(), []);
   const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
   const urlCode = (params.get('code') || '').trim();
   const reprise = sessionInitiale(urlCode);

@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "gameshow-api-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "PORT=8787 DATA_DIR=tests/.data-repro node src/server/index.js"],
+      "port": 8787
+    },
+    {
       "name": "gameshow-repro",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "PORT=8795 DATA_DIR=tests/.data-repro node src/server/index.js"],

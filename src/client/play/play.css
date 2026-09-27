@@ -1269,4 +1269,53 @@
   .loader__mark { color: var(--c-flame); animation: om-flicker 2.4s var(--ease-in-out) infinite; }
 
   /* ---- Bouton Quitter flottant (absent de l'écran Question) ---- */
+
+  /* ============================ LE CLAVIER EST OUVERT (27/09) ============================
+     « Lorsqu'on saisit un texte et que le clavier apparaît sur mobile, il vient
+     cacher la zone de saisie. » Le clavier du téléphone se POSE sur la page : seule
+     la partie visible rétrécit, et nos écrans, qui font exactement la hauteur de
+     l'écran, n'avaient rien à faire défiler. Le champ restait dessous.
+
+     `src/client/shared/clavier.js` pose `data-clavier="ouvert"` sur <html> quand un
+     champ a le focus ET que la zone visible a réellement rétréci, avec sa hauteur
+     (`--vv-h`) et son décalage (`--vv-top`). L'écran se CALE alors sur cette zone :
+     le formulaire, ancré en bas, se retrouve juste au-dessus du clavier.
+
+     ET IL SE RESSERRE, parce que la place tombe de moitié. Ce qui s'efface est ce
+     qui ne sert pas pendant qu'on tape — l'en-tête de score, le titre et les
+     phrases d'aide de l'accueil. Ce qui reste est ce qu'il faut voir en tapant :
+     la question, le chrono, la grille de « Cache-cache » (les questions désignent
+     ses cases), le champ et le bouton d'envoi. Si la place manque encore, c'est
+     l'écran qui défile, jamais la page sous le clavier. */
+  :root[data-clavier="ouvert"] .screen {
+    position: fixed;
+    top: var(--vv-top, 0px);
+    left: 0;
+    right: 0;
+    height: var(--vv-h, 100dvh);
+    min-height: 0;
+  }
+  :root[data-clavier="ouvert"] .screen__main {
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: var(--sp-4);
+    padding-bottom: var(--sp-3);
+  }
+  :root[data-clavier="ouvert"] .q-hud,
+  :root[data-clavier="ouvert"] .q-round,
+  :root[data-clavier="ouvert"] .p-brand,
+  :root[data-clavier="ouvert"] #join-title,
+  :root[data-clavier="ouvert"] .p-lead,
+  :root[data-clavier="ouvert"] .join__reassure,
+  :root[data-clavier="ouvert"] .join__hint { display: none; }
+  :root[data-clavier="ouvert"] .q-meta { margin-top: 0; }
+  :root[data-clavier="ouvert"] .q-chrono { width: 64px; height: 64px; }
+  :root[data-clavier="ouvert"] .q-chrono__inner { width: 52px; height: 52px; }
+  :root[data-clavier="ouvert"] .q-chrono__value { font-size: var(--fs-500); }
+  :root[data-clavier="ouvert"] .q-text { margin-top: var(--sp-3); font-size: var(--fs-500); }
+  :root[data-clavier="ouvert"] .q-zone { padding-top: var(--sp-3); }
+  :root[data-clavier="ouvert"] .est__shell { height: 64px; }
+  :root[data-clavier="ouvert"] .lien__mots { padding: var(--sp-2) var(--sp-3); }
+  :root[data-clavier="ouvert"] .lien__mot { font-size: var(--fs-500); }
+  :root[data-clavier="ouvert"] .screen__push { padding-top: var(--sp-3); }
 }

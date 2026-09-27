@@ -922,3 +922,34 @@ pour ce jeu. La console y échappait parce qu'elle lit la file avant de désigne
   tiré au sort ; les boutons de départ d'un jeu sont dans le pied de page.
 - « Cache-cache » : le classement de l'animateur passe aussi à l'antenne, cinq
   premières lignes, colonne par colonne.
+
+## 12. Le clavier du téléphone cachait la saisie — 27/09
+
+« Lorsqu'on saisit un texte et que le clavier apparaît sur mobile, il vient cacher
+la zone de saisie. » Vu dans « Cache-cache » ; tour complet fait sur les cinq
+champs du joueur : code et pseudo de l'accueil, « Cache-cache », « Le lien »,
+« Estimation ».
+
+**La cause.** Sur iPhone, le clavier se POSE sur la page : seule la zone visible
+rétrécit. Nos écrans font exactement la hauteur de l'écran, le formulaire ancré en
+bas : rien à faire défiler, le champ restait dessous. Android fait pareil par
+défaut depuis Chrome 108.
+
+**La correction.** `src/client/shared/clavier.js` suit la zone visible et pose
+`data-clavier="ouvert"` sur `<html>` quand un champ a le focus ET que la zone a
+nettement rétréci (un clavier physique ne déclenche rien). L'écran se cale alors
+sur la zone visible et se resserre — l'en-tête de score, le titre et les aides de
+l'accueil s'effacent ; la question, le chrono, la grille de « Cache-cache », le
+champ et « Envoyer » restent. Il reste figé tant qu'un doigt est posé, pour que
+toucher « Envoyer » ne fasse pas glisser le bouton sous le doigt. La balise
+viewport demande en plus `interactive-widget=resizes-content` pour Android.
+
+**Les preuves.** Aucun navigateur de contrôle n'ouvre de clavier virtuel ; le
+simulateur iOS n'a pas pu l'afficher depuis cette session. Les deux modèles sont
+donc reproduits :
+- Android — la fenêtre passe de 874 à 440 px, champ en focus ;
+- iPhone — zoom de page ×2 : la page garde 874 px, la zone visible tombe à 437,
+  exactement le geste d'un clavier posé dessus. Vu rouge sans le calage :
+  « Entrer dans le salon » à 862 px, sous le clavier.
+La décision elle-même (champ + rétrécissement, étalon, rotation, doigt posé) a
+ses contrôles unitaires, chacun vu rouge par sabotage.
