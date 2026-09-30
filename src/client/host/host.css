@@ -1334,6 +1334,12 @@
      ouvrir dans un onglet à part d'un clic milieu. Le soulignement du lien, lui,
      n'a pas sa place dans un menu. */
   a.exit-menu__item { text-decoration: none; }
+  /* LA MUSIQUE D'AMBIANCE — son panneau garde la forme des menus de la barre,
+     avec un interrupteur et un curseur au lieu d'une liste. */
+  .musique { gap: var(--sp-3); padding: var(--sp-3); min-width: 300px; }
+  .musique__ligne { display: grid; grid-template-columns: auto 1fr 3ch; align-items: center; gap: var(--sp-3); }
+  .musique__volume { width: 100%; accent-color: var(--c-flame); }
+  .musique__valeur { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-2); text-align: right; }
   /* Note NEUTRE, à ne pas confondre avec `.exit-menu__consequence` : celle-ci
      rassure (le salon reste ouvert), l'autre alerte (elle est lavée de rouge). */
   .exit-menu__note {

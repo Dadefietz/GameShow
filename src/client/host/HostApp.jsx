@@ -99,6 +99,14 @@ const I = {
       <circle cx="12" cy="13" r="8" /><path d="M12 13V9" /><path d="M12 13l3 2" /><path d="M9.5 3h5" />
     </svg>
   ),
+  note: ({ s = 18 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 18V5.5l10-2V16" />
+      <circle cx="6.5" cy="18" r="2.5" />
+      <circle cx="16.5" cy="16" r="2.5" />
+    </svg>
+  ),
   eye: ({ s = 18 }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -220,6 +228,62 @@ function ExitMenu({ onCloseRoom, onLogout, onEndGame, playerCount }) {
 //
 // DÉCISION 9.5 — aucune confirmation en pleine manche. C'est son métier ; une
 // confirmation de plus en direct coûte plus qu'elle ne protège.
+// LA MUSIQUE D'AMBIANCE — marche/arrêt et volume, depuis la console (30/09).
+//
+// « Un petit fond sonore en mode petite musique de camp. » Elle JOUE sur le
+// stream (voir `shared/musique.js`) ; ici, l'animateur la RÈGLE. Le réglage vit
+// sur le salon, côté serveur : un stream rechargé le retrouve, et deux onglets de
+// console ne se contredisent pas. Le bouton de la barre dit l'état d'un coup
+// d'œil — on doit savoir, en plein direct, si la musique joue.
+//
+// LE CURSEUR ENVOIE AU FIL DU GESTE : l'animateur règle À L'OREILLE, en écoutant
+// le plateau. Un volume qui ne changerait qu'au lâcher le ferait tâtonner.
+function CommandeMusique({ g }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const m = g.musique;
+  const [volume, setVolume] = useState(m?.volume ?? 50);
+  useEffect(() => { if (m) setVolume(m.volume); }, [m?.volume]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onEsc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc); };
+  }, [open]);
+
+  if (!m) return null;
+  const active = !!m.active;
+  return (
+    <div className="exit-menu" ref={ref} data-testid="commande-musique">
+      <button className={`button ${active ? '' : 'button--quiet'}`} type="button" aria-haspopup="dialog"
+        aria-expanded={open} data-action="musique:ouvrir" onClick={() => setOpen((v) => !v)}>
+        <I.note s={18} />
+        {active ? 'Musique' : 'Musique coupée'}
+      </button>
+      {open ? (
+        <div className="exit-menu__pop musique" role="dialog" aria-label="Musique d'ambiance">
+          <p className="exit-menu__note">« Feu de camp », en boucle. Elle joue sur le stream — la salle l'entend par lui.</p>
+          <button className={`button ${active ? 'button--primary' : 'button--quiet'}`} type="button"
+            role="switch" aria-checked={active} data-testid="musique-interrupteur"
+            onClick={() => g.emit('host:musique', { active: !active })}>
+            {active ? 'Allumée' : 'Coupée'}
+          </button>
+          <label className="musique__ligne">
+            <span className="h-label">Volume</span>
+            <input className="musique__volume" type="range" min="0" max="100" step="5" value={volume}
+              aria-label="Volume de la musique" data-testid="musique-volume"
+              onChange={(e) => { const v = Number(e.target.value); setVolume(v); g.emit('host:musique', { volume: v }); }} />
+            <span className="musique__valeur">{volume}</span>
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function VoletNavigation({ overlayToken }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -1807,6 +1871,7 @@ function LobbyScreen({ g, code, playerCount, players, overlayToken, onStartModul
         </div>
         <div className="topbar__end">
           <a className="button" href="/studio" data-action="goto:studio">Questionnaires</a>
+          <CommandeMusique g={g} />
           <VoletNavigation overlayToken={overlayToken} />
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} playerCount={playerCount} />
         </div>
@@ -2279,7 +2344,8 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           <span className="h-label">Chrono</span>
         </span>
         {/* DÉCISION 9.2 — atteignable à TOUTE phase, direct compris. */}
-        <VoletNavigation overlayToken={overlayToken} />
+        <CommandeMusique g={g} />
+          <VoletNavigation overlayToken={overlayToken} />
         <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame}
           playerCount={room.playerCount} />
       </header>
@@ -2607,6 +2673,7 @@ function ResultsScreen({ g, overlayToken, onNextModule, continueLabel, onEndGame
         </div>
         <div className="topbar__end">
           <span className="h-cap"><I.eye s={16} /> Toi et le stream uniquement</span>
+          <CommandeMusique g={g} />
           <VoletNavigation overlayToken={overlayToken} />
           <ExitMenu onCloseRoom={onCloseRoom} onLogout={onLogout} onEndGame={onEndGame}
             playerCount={g.room?.playerCount} />

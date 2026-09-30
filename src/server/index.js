@@ -542,6 +542,9 @@ io.on('connection', (socket) => {
   // seulement qu'un contrôle regarde la console APRÈS un rattachement.
   if (socket.data.role === 'host' || socket.data.role === 'overlay') {
     socket.emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, engine.CLASSEMENT_MAX) });
+    // LE RÉGLAGE DE LA MUSIQUE, rejoué : un stream rechargé en pleine soirée
+    // reprend là où l'animateur l'avait laissé, pas au volume d'usine.
+    socket.emit('stream:musique', room.musique);
   }
 
   // Rattachement joueur (reconnexion sans perte de score — S5).
@@ -872,6 +875,20 @@ io.on('connection', (socket) => {
   socket.on('host:backToLobby', () => { const r = requireRoom(socket); if (isHost(socket, r)) engine.backToLobby(io, r); });
   // Fermer le salon : le supprime (mémoire + mapping propriétaire), notifie les joueurs.
   // L'animateur reste authentifié et pourra rouvrir un salon neuf.
+  // LA MUSIQUE D'AMBIANCE — marche/arrêt et volume, de la console au stream.
+  // Le réglage est BLANCHI ici : un volume venu du réseau est borné à 0-100 et
+  // arrondi, un interrupteur est un booléen ou n'est rien.
+  socket.on('host:musique', ({ active, volume } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    const suivante = { ...r.musique };
+    if (typeof active === 'boolean') suivante.active = active;
+    if (Number.isFinite(Number(volume)) && volume !== null && volume !== '') {
+      suivante.volume = Math.max(0, Math.min(100, Math.round(Number(volume))));
+    }
+    r.musique = suivante;
+    engine.toStaff(io, r).emit('stream:musique', r.musique);
+  });
+
   socket.on('host:closeRoom', () => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     r.state = RoomState.ENDED;

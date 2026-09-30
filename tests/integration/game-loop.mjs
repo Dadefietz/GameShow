@@ -140,11 +140,41 @@ try {
   const s2 = connect(p2.playerToken);
   const s3 = connect(p3.playerToken);
   const ov = connect(overlayToken);
+  // L'écoute AVANT la connexion : le réglage de la musique part dès l'arrivée.
+  const musiqueArrivee = waitFor(ov, 'stream:musique');
   const st1Promise = waitFor(s1, 'room:state');
   await Promise.all([host, s1, s2, s3, ov].map((s) => waitFor(s, 'connect')));
 
   const st1 = await st1Promise;
   check('R7 room:state joueur sans leaderboard', !('leaderboard' in st1));
+
+  // ---- LA MUSIQUE D'AMBIANCE (30/09) ----
+  // Le stream reçoit le réglage à sa connexion : allumée, à mi-volume.
+  const m0 = await musiqueArrivee;
+  check('MUSIQUE le stream reçoit le réglage à sa connexion, allumée à mi-volume',
+    m0 && m0.active === true && m0.volume === 50, JSON.stringify(m0));
+  // Un JOUEUR ne la règle pas : sa commande est ignorée, rien ne part.
+  let intrusion = null;
+  const surIntrusion = (m) => { intrusion = m; };
+  ov.on('stream:musique', surIntrusion);
+  s1.emit('host:musique', { active: false });
+  await sleep(200);
+  ov.off('stream:musique', surIntrusion);
+  check('MUSIQUE un joueur ne peut pas couper la musique', intrusion === null, JSON.stringify(intrusion));
+  // L'animateur la règle — et le serveur BLANCHIT ce qu'il reçoit.
+  const m1 = waitFor(ov, 'stream:musique');
+  host.emit('host:musique', { active: false, volume: 999 });
+  const r1 = await m1;
+  check('MUSIQUE l’animateur la coupe, et un volume hors bornes est ramené à 100',
+    r1.active === false && r1.volume === 100, JSON.stringify(r1));
+  const m2 = waitFor(ov, 'stream:musique');
+  host.emit('host:musique', { active: 'oui', volume: 'fort' });
+  const r2 = await m2;
+  check('MUSIQUE un réglage mal formé ne change rien', r2.active === false && r2.volume === 100, JSON.stringify(r2));
+  const m3 = waitFor(ov, 'stream:musique');
+  host.emit('host:musique', { active: true, volume: 42.6 });
+  const r3 = await m3;
+  check('MUSIQUE rallumée, volume arrondi', r3.active === true && r3.volume === 43, JSON.stringify(r3));
 
   // ---- R5 : sélection manuelle -> seule la question Studio est jouable ----
   // La bibliothèque de l'animateur, telle qu'elle alimente son menu de lancement.

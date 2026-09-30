@@ -47,6 +47,11 @@ export class RoomManager {
       // backToLobby) : elle permet de savoir si un résultat mémorisé appartient
       // à la manche en cours ou à un souvenir périmé (restitution, R12).
       roundSeq: 0,
+      // LA MUSIQUE D'AMBIANCE DU STREAM (30/09) — « Feu de camp », en boucle.
+      // Allumée d'office, à mi-volume : c'est l'ambiance du cercle, et
+      // l'animateur la règle depuis sa console. Elle vit sur le SALON pour qu'un
+      // stream rechargé retrouve le réglage au lieu de repartir à fond.
+      musique: { active: true, volume: 50 },
       // La séance : les questions déjà jouées (pas de répétition dans un salon)
       // et les files de chaque jeu. L'ordre est TOUJOURS tiré au sort : le
       // réglage d'ordre et la sélection manuelle ont disparu le 26/09.

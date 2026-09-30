@@ -1,0 +1,283 @@
+{
+ "violoncelle": [
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_A2_v1_1.wav",
+   "octets": 2336738
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_B1_v1_1.wav",
+   "octets": 2372492
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_B3_v1_1.wav",
+   "octets": 1690082
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_C1_v1_1.wav",
+   "octets": 2347376
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_C3_v1_1.wav",
+   "octets": 2444174
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_D2_v1_1.wav",
+   "octets": 2550956
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_D4_v1_1.wav",
+   "octets": 2153228
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_E1_v1_1.wav",
+   "octets": 2468348
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_E3_v1_1.wav",
+   "octets": 2456672
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_F2_v1_1.wav",
+   "octets": 2186012
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_F4_v1_1.wav",
+   "octets": 1922948
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_G1_v1_1.wav",
+   "octets": 2161700
+  },
+  {
+   "depot": "sgossner/VSCO-2-CE",
+   "chemin": "Strings/Cello Section/susvib/susvib_G3_v1_1.wav",
+   "octets": 2431598
+  }
+ ],
+ "flute": [
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#4_rr1_Main.wav",
+   "octets": 2148688
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#5_rr1_Main.wav",
+   "octets": 2064280
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C4_rr1_Main.wav",
+   "octets": 1992312
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
+   "octets": 2031908
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C6_rr1_Main.wav",
+   "octets": 1979600
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D4_rr1_Main.wav",
+   "octets": 2696024
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D5_rr1_Main.wav",
+   "octets": 2393280
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
+   "octets": 2616636
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E5_rr1_Main.wav",
+   "octets": 2747436
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#4_rr1_Main.wav",
+   "octets": 2254524
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#5_rr1_Main.wav",
+   "octets": 2777292
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_G#4_rr1_Main.wav",
+   "octets": 1727644
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_G5_rr1_Main.wav",
+   "octets": 2469240
+  }
+ ],
+ "harpe": [
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#1_v2_RR1.wav",
+   "octets": 1418986
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#2_v2_RR1.wav",
+   "octets": 1109786
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#3_v2_RR1.wav",
+   "octets": 691094
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#4_v2_RR1.wav",
+   "octets": 339042
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C1_v2_RR1.wav",
+   "octets": 3515478
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C2_v2_RR1.wav",
+   "octets": 1807522
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C3_v2_RR1.wav",
+   "octets": 1382798
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C4_v2_RR1.wav",
+   "octets": 775134
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C5_v2_RR1.wav",
+   "octets": 366550
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D1_v2_RR1.wav",
+   "octets": 3182430
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D2_v2_RR1.wav",
+   "octets": 1177714
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D3_v2_RR1.wav",
+   "octets": 1008386
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D4_v2_RR1.wav",
+   "octets": 955322
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D5_v2_RR1.wav",
+   "octets": 460266
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E1_v2_RR1.wav",
+   "octets": 2516318
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E2_v2_RR1.wav",
+   "octets": 1371190
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E3_v2_RR1.wav",
+   "octets": 1177490
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E4_v2_RR1.wav",
+   "octets": 723350
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E5_v2_RR1.wav",
+   "octets": 284994
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#1_v2_RR1.wav",
+   "octets": 1473982
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#2_v2_RR1.wav",
+   "octets": 1587074
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#3_v2_RR1.wav",
+   "octets": 1166902
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#4_v2_RR1.wav",
+   "octets": 517414
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#5_v2_RR1.wav",
+   "octets": 276122
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#1_v2_RR1.wav",
+   "octets": 3231918
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#2_v2_RR1.wav",
+   "octets": 1327638
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#3_v2_RR1.wav",
+   "octets": 718130
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#4_v2_RR1.wav",
+   "octets": 348666
+  },
+  {
+   "depot": "sgossner/VCSL",
+   "chemin": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#5_v2_RR1.wav",
+   "octets": 222890
+  }
+ ]
+}

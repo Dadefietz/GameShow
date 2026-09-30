@@ -35,6 +35,7 @@ import { SerieGraphique } from '../shared/SerieGraphique.jsx';
 import { Symbole } from '../shared/Symbole.jsx';
 import { useBlancEntreImages } from '../shared/defile.js';
 import { chronoAffiche, secondes, formatteurDe, useCompteARebours } from '../shared/temps.js';
+import { lecteurDeMusique } from '../shared/musique.js';
 import './overlay.css';
 
 const nf = new Intl.NumberFormat('fr-FR');
@@ -1458,10 +1459,27 @@ function usePastilleGeometrie(phase) {
   }, []);
 }
 
+// LA MUSIQUE D'AMBIANCE — un seul lecteur pour toute la vie du stream, réglé à
+// chaque changement venu de la console. Voir `shared/musique.js`.
+function useMusiqueDuCamp(reglage) {
+  const lecteur = useRef(null);
+  const [prete, setPrete] = useState(false);
+  const [son, setSon] = useState(null);
+  useEffect(() => {
+    lecteur.current = lecteurDeMusique(window, () => setPrete(true), setSon);
+    return () => lecteur.current?.arreter();
+  }, []);
+  useEffect(() => {
+    if (reglage) lecteur.current?.regler(reglage);
+  }, [reglage?.active, reglage?.volume]);
+  return { prete, son };
+}
+
 export function OverlayApp() {
   const token = new URLSearchParams(window.location.search).get('token');
   const g = useGame(token);
   useStreamScale();
+  const musiqueLue = useMusiqueDuCamp(g.musique);
 
   // La phase est calculée AVANT la sortie anticipée : les crochets ne peuvent pas
   // vivre après un `return`, et la mesure de la pastille doit se refaire à chaque
@@ -1481,7 +1499,11 @@ export function OverlayApp() {
   const classement = g.leaderboard || [];
 
   return (
-    <div className="stream-fit">
+    <div className="stream-fit" data-testid="stream-fit"
+      data-musique={g.musique ? (g.musique.active ? 'joue' : 'coupee') : undefined}
+      data-musique-volume={g.musique?.volume}
+      data-musique-prete={musiqueLue.prete ? 'oui' : undefined}
+      data-musique-son={musiqueLue.son || undefined}>
       <div className={`stream${inRound && !ended ? ' stream--question' : ''}`} data-state={ended ? 'ended' : 'live'}>
         {/* L'ANNONCE passe AVANT l'attente : le cercle et le public doivent voir
             le jingle au même instant, pas l'un le jeu et l'autre le salon. */}

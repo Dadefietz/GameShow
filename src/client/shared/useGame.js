@@ -63,6 +63,9 @@ export function useGame(token) {
   // respecter.
   const [fatalDe, setFatalDe] = useState(null);           // { token, msg }
   const [serverError, setServerError] = useState(null);   // erreur signalée par le serveur (host:error)
+  // LA MUSIQUE D'AMBIANCE — son réglage, tel que le serveur le tient. Seuls
+  // l'animateur et le stream le reçoivent : c'est le canal du staff.
+  const [musique, setMusique] = useState(null);           // { active, volume }
 
   useEffect(() => {
     if (!token) return;
@@ -168,6 +171,7 @@ export function useGame(token) {
       setReveal(null); setTick(null); setYou(null); setAnswered(false);
     });
     s.on('room:closed', () => setFermeDe(token));
+    s.on('stream:musique', (m) => setMusique(m && typeof m === 'object' ? m : null));
     return () => s.close();
   }, [token]);
 
@@ -188,7 +192,7 @@ export function useGame(token) {
   const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
   const roomClosed = !!token && fermeDe === token;
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, objetCache, devoilements, monCompte, tourClos, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, objetCache, devoilements, monCompte, tourClos, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

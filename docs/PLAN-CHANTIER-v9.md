@@ -953,3 +953,83 @@ donc reproduits :
   « Entrer dans le salon » à 862 px, sous le clavier.
 La décision elle-même (champ + rétrécissement, étalon, rotation, doigt posé) a
 ses contrôles unitaires, chacun vu rouge par sabotage.
+
+## 13. La musique d'ambiance — « Feu de camp » — 30/09
+
+« Un petit fond sonore en mode petite musique de camp […] une boucle de 2 min »,
+puis « un petit coup de style à la hobbit dedans ».
+
+**Composée et rendue dans le dépôt** (`design/audio/feu-de-camp.mjs`, sans
+dépendance ; `ffmpeg` pour l'encodage). 6/8 à 60 à la noire pointée : une mesure
+dure deux secondes, soixante mesures font deux minutes à l'échantillon près. Sol
+majeur. Violoncelle à l'archet à la basse, flûte ornée à la manière du tin whistle
+(cuts, rolls) sur une mélodie originale en rythme de gigue, harpe celtique en
+contretemps, bourdon sol–ré, feu (souffle et crépitements), grillons lointains.
+Pas de percussion : elle passe sous la voix.
+
+**Trois versions, trois écoutes de l'auteur** : guitare + ocarina (« pas mal »),
+couleur hobbit (« un petit coup de style à la hobbit »), guitare reculée de 5 dB,
+puis SANS guitare (« il faut vraiment pas de guitare, peut-être du violoncelle ») :
+c'est l'attaque des cordes pincées qui ressortait — dix-huit petits chocs par
+mesure —, pas leur niveau. Le violoncelle tient l'harmonie sans rien frapper.
+
+**De vrais instruments** (« je pense que tu n'as pas les instruments pour.
+Télécharge-les ») : violoncelle, harpe et flûte ne sont plus synthétisés. Ce sont
+des ENREGISTREMENTS du domaine public (CC0 — le dépôt est public, la musique part
+en direct) : pupitre de violoncelles de VSCO 2 Community Edition, harpe celtique et
+flûte à bec soprano de la Versilian Community Sample Library (aucun tin whistle
+n'existe sous licence libre ; la flûte à bec est de la même famille). 55 fichiers,
+95 Mo, listés dans `design/audio/echantillons.json` et **non versionnés** — ils ne
+servent qu'au rendu ; `node design/audio/echantillonneur.mjs` les télécharge et
+vérifie chaque taille. L'échantillonneur MESURE la hauteur de chaque prise (YIN,
+médiane de cinq fenêtres) au lieu de croire son nom : les trois banques nomment
+leurs octaves avec une octave de décalage, et « D2 » de la harpe sonne un ré 4 —
+il est écarté. Chaque note est transposée depuis la prise la plus proche (deux
+demi-tons au plus), à trois centièmes de ton. La synthèse ne garde que le bourdon,
+le feu et les grillons.
+
+Deux défauts trouvés à la mesure, avant toute écoute : chaque attaque du
+violoncelle claquait (58 clics — une prise ne commence pas sur un zéro ; fondu
+d'entrée de 4 ms, moins que les 15 ms gardées avant l'attaque) ; une note tenue
+plus longtemps que sa prise se serait coupée net (fondu jusqu'au zéro exact).
+
+**Les grillons réglés** (« attention au bruit des oiseaux, pas harmonieux et [qui]
+sortent vraiment en désordre. J'aime bien, il faut juste bien les régler ») : ils
+chantaient à 4 300 et 4 650 Hz — entre deux notes, et l'un contre l'autre — sur
+des périodes de 1,1 et 1,37 s secouées au hasard, sans rapport avec la pulsation.
+Puis, à l'écoute : « on fait avec un grillon chaque 15 secondes. Et plus pendant
+la flûte. » Désormais : UN grillon, accordé sur l'accord de sol (si 7), quatre
+syllabes par chant comme l'insecte, un chant toutes les quinze secondes sur la
+grille des croches (la boucle en contient huit), et PLUS DU TOUT sur une mesure où
+la flûte chante — il en reste quatre par tour (intro, thème nu, respiration,
+retour). L'écart de mixage passe de −21 à −32,7 dB : il dose le niveau MOYEN, et
+quatre chants au lieu de cent vingt l'avaient fait tomber de 11,7 dB — chaque chant
+garde ainsi la force écoutée (mesuré : −33,9 contre −33,5 dB). Contrôlé : note
+entière dans l'accord, 15 s sur la grille, période qui divise la boucle, aucun
+chant sur une mesure de mélodie.
+
+**Un stream qui s'éteignait pour un moteur audio incomplet.** Le lecteur de
+musique appelait `cancelScheduledValues` sans filet, dans un effet React : un
+contexte audio qui ne l'avait pas (celui, minimal, du contrôle A25) levait une
+exception qui démontait TOUT l'écran de révélation. Chaque appel au Web Audio est
+désormais gardé : un moteur incomplet ne coûte que la musique.
+
+**La boucle est sans couture** : rendu dans un tampon circulaire (notes et
+réverbération qui débordent retombent au début), bourdon accordé à un nombre
+entier de cycles en 120 s, souffle du feu fondu sur sa jointure. Le fichier porte
+une seconde de marge de part et d'autre ; le stream boucle de 1 s à 121 s en Web
+Audio (une balise `<audio loop>` sur un MP3 laisse un blanc à chaque tour).
+
+**Mesures qui ont redressé le premier jet** : le feu sortait 19 dB au-dessus de la
+guitare, presque tout sous 35 Hz ; le mixage est désormais réglé par niveaux
+MESURÉS (par rapport au niveau brut du violoncelle : flûte −3, harpe −8, feu
+−10, bourdon −14, grillons −32,7 dB) et un coupe-bas à 60 Hz. Rendu actuel :
+−18,0 LUFS, crête −3,1 dBFS, moins de −61 dB sous 50 Hz.
+
+**Dans le jeu** : elle joue sur le STREAM seul — c'est lui que la salle entend ;
+quinze téléphones feraient écho. Allumée d'office à mi-volume ; l'animateur la
+coupe et la dose depuis un bouton « Musique » dans les trois barres de sa console.
+Le réglage vit sur le salon (un stream rechargé le retrouve), blanchi par le
+serveur, refusé aux joueurs. Le stream affiche l'état du son (`data-musique-son`) :
+« suspended » tant que le navigateur retient le son faute de geste — dans OBS, il
+joue d'office.
