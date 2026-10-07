@@ -27,6 +27,9 @@
 import { test, expect } from '@playwright/test';
 import { openHost, joinAsPlayer, lancerJeu } from './helpers.js';
 import { terminerPartie } from './cloture.js';
+import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
+import { copisteDe } from '../outils/copiste.js';
+import { MOMENTS } from '../../src/client/shared/voix.js';
 
 test.setTimeout(180_000);
 
@@ -339,5 +342,99 @@ test.describe('Cueillette', () => {
     await fiches.nth(1).getByTestId('cueillette-partager').click();
     await expect(stream.getByTestId('stream-cueillette-grand')).toHaveCount(0);
     await expect(stream.getByTestId('stream-cueillette-histo')).toBeVisible();
+  });
+
+  // ==========================================================================
+  // LE COUP DE CŒUR (07/10)
+  // ==========================================================================
+  //
+  // « Après la notation du jeu, l'animateur doit avoir la possibilité de désigner
+  // un coup de cœur. Il remplacerait donc sa note par la note du meilleur joueur.
+  // (Le meilleur joueur conserverait sa note.) »
+  //
+  // UN SCÉNARIO QUI NE PEUT PAS PASSER À VIDE. Un carré et une croix tracés contre
+  // un arbre valent tous deux zéro : la « note du meilleur » vaudrait zéro, et rien
+  // ne bougerait sous le clic. « Pinceau » trace donc une vraie copie de la cible —
+  // celle du copiste des contrôles —, « Gomme » une croix.
+  const nombre = (t) => Number(String(t).replace(/[^0-9]/g, '')) || 0;
+
+  async function tracerTraits(page, traits) {
+    const boite = await page.getByTestId('cueillette-toile').boundingBox();
+    const P = ([fx, fy]) => [boite.x + boite.width * fx, boite.y + boite.height * fy];
+    for (const trait of traits) {
+      await page.mouse.move(...P(trait[0]));
+      await page.mouse.down();
+      for (const pt of trait.slice(1)) await page.mouse.move(...P(pt), { steps: 2 });
+      await page.mouse.up();
+    }
+  }
+
+  test('LE COUP DE CŒUR : la note du meilleur, à qui l’animateur la donne — et elle se déplace, et elle se retire', async ({ browser }) => {
+    await annoncer(browser, ['Pinceau', 'Gomme']);
+    await hote.page.getByTestId('cu-famille-arbres').click();
+    const choix = hote.page.getByTestId('cu-dessin').first();
+    const src = await choix.locator('img').getAttribute('src');
+    const id = src.match(/(d\d{3})\.webp/)[1];
+    await choix.click();
+    await hote.page.getByTestId('cueillette-demarrer').click();
+
+    const [pinceau, gomme] = joueurs.map((x) => x.page);
+    await expect(pinceau.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await expect(gomme.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await tracerTraits(pinceau, copisteDe(GRILLES_DESSINS[id]));
+    await pinceau.getByTestId('answer-submit').click();
+    await tracer(gomme, 'croix');
+    await gomme.getByTestId('answer-submit').click();
+
+    // LES DEUX NOTES, LUES SUR LA CONSOLE — le meilleur en premier.
+    const fiches = hote.page.getByTestId('cueillette-fiche');
+    await expect(fiches).toHaveCount(2, { timeout: 45_000 });
+    const ficheDe = (nom) => fiches.filter({ has: hote.page.locator('.cudess__nom', { hasText: nom }) });
+    const ptsPinceau = nombre(await ficheDe('Pinceau').getByTestId('cueillette-points').textContent());
+    const ptsGomme = nombre(await ficheDe('Gomme').getByTestId('cueillette-points').textContent());
+    expect(ptsPinceau, 'le scénario est à vide : le meilleur dessin ne vaut pas plus que la croix')
+      .toBeGreaterThan(ptsGomme);
+    await expect(gomme.getByTestId('cueillette-ressemblance')).toBeVisible({ timeout: 20_000 });
+    const ressemblanceGomme = await gomme.getByTestId('cueillette-ressemblance').textContent();
+    await expect(hote.page.locator('[data-coeur="oui"]')).toHaveCount(0);
+
+    // COUP DE CŒUR À GOMME.
+    await ficheDe('Gomme').getByTestId('cueillette-coup-de-coeur').click();
+    await expect(ficheDe('Gomme')).toHaveAttribute('data-coeur', 'oui');
+    await expect(ficheDe('Gomme').getByTestId('cueillette-coeur-marque')).toContainText('Coup de cœur');
+    await expect.poll(async () => nombre(await ficheDe('Gomme').getByTestId('cueillette-points').textContent()),
+      'la fiche ne porte pas la note du meilleur').toBe(ptsPinceau);
+    await expect(ficheDe('Gomme').getByTestId('cueillette-coup-de-coeur')).toHaveAttribute('aria-pressed', 'true');
+    // Le meilleur garde la sienne.
+    expect(nombre(await ficheDe('Pinceau').getByTestId('cueillette-points').textContent())).toBe(ptsPinceau);
+
+    // SON TÉLÉPHONE LE DIT, ET NE SE CONTREDIT PAS : un titre qui le nomme (et
+    // non « Raté » au-dessus d'un gain), la ligne du calcul, le total de la
+    // manche égal à la note du meilleur, une phrase du bon moment — et la
+    // ressemblance de son dessin, inchangée.
+    await expect(gomme.locator('#verdict')).toHaveText('Coup de cœur');
+    const bonus = (await gomme.getByTestId('points-bonus-coeur').textContent()).trim();
+    expect(bonus.startsWith('+') && nombre(bonus), `la ligne du coup de cœur dit « ${bonus} »`).toBe(ptsPinceau - ptsGomme);
+    await expect.poll(async () => nombre(await gomme.getByTestId('points-gained').textContent()),
+      'le gain de la manche n’est pas la note du meilleur').toBe(ptsPinceau);
+    const voix = (await gomme.getByTestId('voix-resultat').textContent()).trim();
+    expect(MOMENTS['cueillette.coup-de-coeur'].phrases, `phrase hors du moment : « ${voix} »`).toContain(voix);
+    await expect(gomme.getByTestId('cueillette-ressemblance')).toHaveText(ressemblanceGomme);
+
+    // IL SE DÉPLACE : sur Pinceau, Gomme retrouve sa note.
+    await ficheDe('Pinceau').getByTestId('cueillette-coup-de-coeur').click();
+    await expect(ficheDe('Pinceau')).toHaveAttribute('data-coeur', 'oui');
+    await expect(ficheDe('Gomme')).not.toHaveAttribute('data-coeur', 'oui');
+    await expect.poll(async () => nombre(await ficheDe('Gomme').getByTestId('cueillette-points').textContent())).toBe(ptsGomme);
+    // Le meilleur désigné : aucun point de plus, donc rien « au lieu de ».
+    await expect(ficheDe('Pinceau').locator('.cudess__avant')).toHaveCount(0);
+    await expect(gomme.getByTestId('points-bonus-coeur')).toHaveCount(0);
+    await expect(gomme.locator('#verdict')).not.toHaveText('Coup de cœur');
+    await expect(pinceau.locator('#verdict')).toHaveText('Coup de cœur');
+
+    // ET IL SE RETIRE.
+    await ficheDe('Pinceau').getByTestId('cueillette-coup-de-coeur').click();
+    await expect(hote.page.locator('[data-coeur="oui"]')).toHaveCount(0);
+    await expect(pinceau.locator('#verdict')).not.toHaveText('Coup de cœur');
   });
 });

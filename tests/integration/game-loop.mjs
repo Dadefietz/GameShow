@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { io } from 'socket.io-client';
 import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
+import { copisteDe } from '../outils/copiste.js';
 
 const PORT = 8793;
 const BASE = `http://localhost:${PORT}`;
@@ -380,13 +381,17 @@ try {
   // Deux dessins : un carré franc, et trois traits jetés dans un coin.
   const carre = [[[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8], [0.2, 0.2]]];
   const coin = [[[0.05, 0.05], [0.12, 0.09]], [[0.06, 0.1], [0.11, 0.06]]];
+  // ET ALICE COPIE LE CHÊNE (07/10). Le carré et les traits ne valent rien contre
+  // un chêne : le coup de cœur, plus bas, se vérifiait alors à vide — la « note du
+  // meilleur » valait zéro, et rien ne pouvait bouger.
+  const chene = copisteDe(GRILLES_DESSINS.d001);
   // LE RELEVÉ PERSONNEL S'ÉCOUTE AVANT D'ÊTRE PROVOQUÉ. Le serveur émet
   // `module:reveal` puis `play:you` dans le même souffle : attendre le premier
   // pour n'écouter le second qu'ensuite, c'est arriver après son passage. Ce
   // contrôle a échoué une fois pour cette seule raison, en accusant le serveur.
   const youCueil = waitForMatching(s1, 'play:you', (y) => y.roundId === tour2.roundId, 60000)
     .catch(() => null);
-  s1.emit('play:answer', { value: carre });
+  s1.emit('play:answer', { value: chene });
   s2.emit('play:answer', { value: coin });
   // CHLOÉ DESSINE ET N'ENVOIE PAS (26/09) : son téléphone ne pousse que des
   // brouillons, à chaque doigt levé. À la fin du chrono, le dernier doit compter.
@@ -415,8 +420,9 @@ try {
     JSON.stringify(d.dessins?.map((x) => `${x.pseudo} ${x.pourcent}%`)));
   const chloe = d.dessins.find((x) => x.pseudo === 'Chloe');
   const alice = d.dessins.find((x) => x.pseudo === 'Alice');
+  // Le DERNIER brouillon se reconnaît à son tracé : le carré, pas le coin.
   check('CUEILLETTE LE BROUILLON NON ENVOYÉ EST NOTÉ — et c\'est le DERNIER qui compte',
-    chloe && alice && chloe.pourcent === alice.pourcent && JSON.stringify(chloe.traits) === JSON.stringify(carre),
+    chloe && alice && JSON.stringify(chloe.traits) === JSON.stringify(carre),
     JSON.stringify(chloe && { p: chloe.pourcent, traits: chloe.traits.length }));
   check('CUEILLETTE le meilleur dessin est présenté en premier',
     d.dessins[0].pourcent >= d.dessins[1].pourcent,
@@ -446,6 +452,37 @@ try {
   const repris = new Promise((r) => ov.once('cueillette:partage', r));
   host.emit('host:partagerDessin', { idx: null });
   check('CUEILLETTE le partage se reprend', (await repris).dessin === null);
+
+  // LE COUP DE CŒUR (07/10) — « il remplacerait sa note par la note du meilleur
+  // joueur ». Bob, dont les trois traits dans un coin sont le moins bon dessin,
+  // tente d'abord de se l'accorder LUI-MÊME : la commande est celle de l'animateur.
+  const bob = d.dessins.find((x) => x.pseudo === 'Bob');
+  const idxBob = d.dessins.indexOf(bob);
+  const meilleurPts = Math.max(...d.dessins.map((x) => x.points));
+  check('COUP DE CŒUR le scénario n’est pas à vide : le meilleur dessin vaut plus que celui de Bob',
+    meilleurPts > bob.points && alice.points === meilleurPts, JSON.stringify(d.dessins.map((x) => `${x.pseudo} ${x.points}`)));
+  const usurpe = new Promise((r) => {
+    const t = setTimeout(() => r(null), 1500);
+    host.once('host:coupDeCoeur', (c) => { clearTimeout(t); r(c); });
+  });
+  s2.emit('host:coupDeCoeur', { idx: idxBob });
+  check('COUP DE CŒUR un joueur ne peut pas se l’accorder', (await usurpe) === null);
+
+  const confirme = new Promise((r) => host.once('host:coupDeCoeur', r));
+  const relevéBob = waitForMatching(s2, 'play:you', (y) => y.coupDeCoeur === true, 10000).catch(() => null);
+  const classementCoeur = new Promise((r) => ov.once('leaderboard:update', r));
+  host.emit('host:coupDeCoeur', { idx: idxBob });
+  const c = await confirme;
+  check('COUP DE CŒUR la console reçoit la note versée — celle du meilleur dessin',
+    c.idx === idxBob && c.points === meilleurPts && c.gain === meilleurPts - bob.points && c.roundId === tour2.roundId, JSON.stringify(c));
+  const yBob = await relevéBob;
+  check('COUP DE CŒUR le téléphone du joueur l’apprend, calcul compris',
+    yBob && yBob.roundId === tour2.roundId && yBob.base + yBob.bonusCoeur === meilleurPts && yBob.pourcent === bob.pourcent,
+    JSON.stringify(yBob && { base: yBob.base, coeur: yBob.bonusCoeur, p: yBob.pourcent }));
+  const lb = await classementCoeur;
+  check('COUP DE CŒUR le classement du stream suit : Bob y porte la note du meilleur',
+    lb.leaderboard?.find((x) => x.pseudo === 'Bob')?.score === yBob?.score && yBob.score >= meilleurPts,
+    JSON.stringify(lb.leaderboard?.slice?.(0, 3)));
 
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');

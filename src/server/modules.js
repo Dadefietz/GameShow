@@ -2010,11 +2010,17 @@ export const modules = {
       const results = new Map();
 
       if (rt.poll) {
-        // SONDAGE : pas de bonne réponse, pas de gagnant. Participation seule, et
-        // la série n'est ni nourrie ni rompue (le runtime n'est pas noté).
+        // SONDAGE : pas de bonne réponse, pas de gagnant — et PAS UN POINT, pas
+        // même de participation (07/10). « Quand les joueurs jouent à sondage ils
+        // ne devraient pas gagner de point. » Chaque réponse valait 100 points de
+        // présence, que le moteur ajoutait au total sans regarder si la manche
+        // était notée — pendant que l'écran du joueur, qui cache les points d'un
+        // sondage, lui affirmait « Position inchangée » au-dessus d'un classement
+        // que ces 100 points venaient de remuer. La série n'est ni nourrie ni
+        // rompue (le runtime n'est pas noté).
         const tally = tallyOptions(rt, rt.options.length);
         const stats = { kind: 'options', options: rt.options, tally, total: rt.answers.size };
-        for (const [pid] of rt.answers) results.set(pid, { base: 100, speed: 0, correct: null });
+        for (const [pid] of rt.answers) results.set(pid, { base: 0, speed: 0, correct: null });
         return { results, reveal: { tally, options: rt.options, text: rt.text, poll: true, stats } };
       }
 

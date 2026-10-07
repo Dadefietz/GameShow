@@ -368,6 +368,21 @@ export const MOMENTS = {
       'Rien de cueilli. La prochaine sera la bonne.',
     ],
   },
+  // LE COUP DE CŒUR DE L'ANIMATEUR (07/10) : le joueur prend la note du meilleur
+  // dessin. Ses phrases doivent rester vraies dans les DEUX cas — un dessin moins
+  // ressemblant qui reçoit la note du meilleur, ou le meilleur lui-même désigné,
+  // qui ne gagne alors aucun point de plus. D'où : jamais « pas le plus
+  // ressemblant », jamais « des points en plus ».
+  'cueillette.coup-de-coeur': {
+    surface: 'play',
+    quand: 'l’animateur a désigné ce dessin comme son coup de cœur de la manche',
+    phrases: [
+      'L’animateur a eu un coup de cœur pour ton dessin. Il vaut la note du meilleur.',
+      'Ton dessin a touché l’animateur : il rejoint le meilleur au score de la manche.',
+      'Le dessin préféré de l’animateur. La note du meilleur est pour toi.',
+      'Coup de cœur ! Ton trait a parlé à l’animateur.',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',

@@ -372,7 +372,9 @@ describe('vote — deux tours : ce que tu penses, puis ce que pense le cercle', 
     rt.answers.set('p1', { value: 0, at: rt.startedAt });
     rt.answers.set('p2', { value: 1, at: rt.startedAt });
     const { results, reveal } = modules.vote.score(rt);
-    expect(results.get('p1')).toEqual({ base: 100, speed: 0, correct: null });
+    // AUCUN POINT, pas même de participation (07/10).
+    expect(results.get('p1')).toEqual({ base: 0, speed: 0, correct: null });
+    expect(results.get('p2')).toEqual({ base: 0, speed: 0, correct: null });
     expect(reveal.poll).toBe(true);
     expect(reveal.winners).toBeUndefined();
     // La manche n'est pas notée : ni série nourrie, ni série rompue.

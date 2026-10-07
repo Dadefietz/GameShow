@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { modules } from '../../src/server/modules.js';
 import { roomManager, RoomState } from '../../src/server/rooms.js';
 import * as engine from '../../src/server/engine.js';
+import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
+import { copisteDe, gribouillis } from '../outils/copiste.js';
 
 // Faux io : capture chaque emit avec sa cible (room, canal staff ou socket joueur).
 function mockIo() {
@@ -129,15 +131,41 @@ describe('engine.reveal', () => {
     expect(ya.placesDelta).toBeGreaterThan(0); // Alice passe devant Bob
   });
 
-  it('un SONDAGE laisse la série intacte et ne note personne', () => {
+  it('un SONDAGE laisse la série intacte, ne note personne — et ne rapporte AUCUN point', () => {
+    // « Quand les joueurs jouent à sondage ils ne devraient pas gagner de point »
+    // (07/10). Chaque réponse valait 100 points de présence, ajoutés au total
+    // pendant que l'écran du joueur affirmait « Position inchangée ».
     a.streak = 3;
+    a.score = 500; b.score = 550;
     const VO = { id: 'vo', text: '?', options: ['X', 'Y'], durationSec: 10, poll: true };
     setRound(room, 'vote', VO, [[a.id, { value: 0, at: Date.now() - 2000 }]]);
     engine.reveal(io, room);
     const ya = youOf(a);
-    expect(ya.base).toBe(100);
+    expect(ya.base, 'un sondage a payé sa participation').toBe(0);
+    expect(ya.delta).toBe(0);
     expect(ya.speed).toBe(0);
+    expect(ya.score, 'le total a bougé sur un sondage').toBe(500);
+    // Alice était derrière Bob, elle y reste : 100 points l'auraient fait passer devant.
+    expect(ya.placesDelta, 'un sondage a remué le classement').toBe(0);
     expect(ya.streak).toBe(3); // ni nourrie, ni rompue
+  });
+
+  it('LA CATÉGORIE « Sondage » NE RAPPORTE RIEN, quelle que soit la façon dont la question a été écrite', () => {
+    // Le Studio écrit `categorie: 'sondage'` ; les questions d'avant le 26/09
+    // portent `poll: true`. Les deux chemins, et aucun point sur aucun.
+    for (const q of [
+      { id: 'vs1', text: '?', options: ['X', 'Y'], durationSec: 10, categorie: 'sondage' },
+      { id: 'vs2', text: '?', options: ['X', 'Y'], durationSec: 10, poll: true, categorie: 'vie' },
+    ]) {
+      io.emitted.length = 0;
+      a.score = 0; b.score = 0;
+      setRound(room, 'vote', q, [[a.id, { value: 0, at: Date.now() - 2000 }], [b.id, { value: 1, at: Date.now() - 1000 }]]);
+      engine.reveal(io, room);
+      for (const p of [a, b]) {
+        expect(youOf(p).delta, `${q.id} : un sondage a rapporté des points`).toBe(0);
+        expect(p.score).toBe(0);
+      }
+    }
   });
 
   it('un VOTE-JEU nourrit la série pour qui a LU LE CERCLE, la rompt pour les autres', () => {
@@ -206,5 +234,130 @@ describe('engine.reveal', () => {
     const ya = io.emitted.find((e) => e.target === a.socketId && e.ev === 'play:you').payload;
     expect(ya.rank).toBe(1);
     expect(ya.final).toBe(true);
+  });
+});
+
+// ============================================================
+// « CUEILLETTE » — LE COUP DE CŒUR DE L'ANIMATEUR (07/10)
+// ============================================================
+// « Après la notation du jeu, l'animateur doit avoir la possibilité de désigner un
+// coup de cœur. Il remplacerait donc sa note par la note du meilleur joueur. (Le
+// meilleur joueur conserverait sa note.) »
+describe('engine.coupDeCoeur', () => {
+  let io, room, a, b, c, rt;
+  const CIBLE = Object.keys(GRILLES_DESSINS)[0];
+  const dessin = (traits) => modules.cueillette.validateAnswer({ tour: 2 }, traits);
+
+  beforeEach(() => {
+    io = mockIo();
+    room = roomManager.createRoom('owner');
+    a = roomManager.addPlayer(room, 'Alice');    // dessin fidèle — le meilleur
+    b = roomManager.addPlayer(room, 'Bob');      // gribouillis — zéro
+    c = roomManager.addPlayer(room, 'Chloe');    // dessin approché
+    for (const [i, p] of [a, b, c].entries()) { p.connected = true; p.socketId = 's' + i; }
+    rt = setRound(room, 'cueillette', { id: 'cu', dessinId: CIBLE }, [
+      [a.id, { value: dessin(copisteDe(GRILLES_DESSINS[CIBLE])), at: Date.now() - 3000 }],
+      [b.id, { value: dessin(gribouillis({ graine: 7, traits: 4, points: 20 })), at: Date.now() - 3000 }],
+      [c.id, { value: dessin(copisteDe(GRILLES_DESSINS[CIBLE], { bruit: 0.05 })), at: Date.now() - 3000 }],
+    ]);
+    rt.tour = 2;
+    // Des totaux d'avant la manche, pour que les places aient un sens.
+    a.score = 3000; b.score = 2500; c.score = 2000;
+    engine.reveal(io, room);
+    io.emitted.length = 0;
+  });
+
+  const idxDe = (p) => rt.dessins.findIndex((d) => d.pid === p.id);
+  const pointsDe = (p) => rt.dessins[idxDe(p)].points;
+  const dernierYou = (p) => io.emitted.filter((e) => e.target === p.socketId && e.ev === 'play:you').at(-1)?.payload;
+
+  it('le dessin choisi prend la note du meilleur ; le meilleur garde la sienne', () => {
+    const meilleur = pointsDe(a);
+    const avantB = pointsDe(b);
+    expect(meilleur, 'le jeu de test doit séparer les dessins').toBeGreaterThan(avantB);
+    const scoreA = a.score; const scoreB = b.score;
+    const r = engine.coupDeCoeur(io, room, idxDe(b));
+    expect(r.ok).toBe(true);
+    expect(b.score - scoreB, 'Bob n’a pas reçu la note du meilleur').toBe(meilleur - avantB);
+    expect(a.score, 'le meilleur a perdu ou gagné des points').toBe(scoreA);
+    // SON TÉLÉPHONE LE SAIT, et le calcul se lit : la base de son dessin, plus
+    // l'écart que le coup de cœur a comblé.
+    const yb = dernierYou(b);
+    expect(yb.coupDeCoeur).toBe(true);
+    expect(yb.bonusCoeur).toBe(meilleur - avantB);
+    expect(yb.base + yb.bonusCoeur, 'la note de manche n’est pas celle du meilleur').toBe(meilleur);
+    expect(yb.delta).toBe(meilleur);
+    expect(yb.score).toBe(b.score);
+    expect(yb.roundId, 'le relevé corrigé ne porte plus sa manche').toBe(rt.roundId);
+    // LA RESSEMBLANCE NE CHANGE PAS : c'est une mesure.
+    expect(yb.pourcent).toBe(rt.dessins[idxDe(b)].pourcent);
+    // Le relevé mémorisé aussi : un joueur qui se reconnecte doit le retrouver.
+    expect(b.lastResult.coupDeCoeur).toBe(true);
+    // Le classement de l'animateur et du stream, et la console.
+    expect(io.emitted.some((e) => e.ev === 'leaderboard:update')).toBe(true);
+    const confirme = io.emitted.find((e) => e.ev === 'host:coupDeCoeur');
+    expect(confirme.target).toBe(room.code + ':host');
+    expect(confirme.payload).toMatchObject({ roundId: rt.roundId, idx: idxDe(b), points: meilleur });
+  });
+
+  it('UN SEUL PAR MANCHE : en désigner un autre rend au précédent sa note', () => {
+    const scoreB = b.score; const scoreC = c.score;
+    engine.coupDeCoeur(io, room, idxDe(b));
+    engine.coupDeCoeur(io, room, idxDe(c));
+    expect(b.score, 'le précédent coup de cœur a gardé ses points').toBe(scoreB);
+    expect(dernierYou(b).coupDeCoeur).toBe(false);
+    expect(dernierYou(b).bonusCoeur).toBe(0);
+    expect(dernierYou(b).delta).toBe(pointsDe(b));
+    expect(c.score - scoreC).toBe(pointsDe(a) - pointsDe(c));
+    expect(dernierYou(c).coupDeCoeur).toBe(true);
+  });
+
+  it('se retire : `null` rend à chacun sa note d’origine', () => {
+    const scores = [a.score, b.score, c.score];
+    engine.coupDeCoeur(io, room, idxDe(b));
+    engine.coupDeCoeur(io, room, null);
+    expect([a.score, b.score, c.score]).toEqual(scores);
+    expect(rt.coupDeCoeur).toBe(null);
+    expect(io.emitted.filter((e) => e.ev === 'host:coupDeCoeur').at(-1).payload.idx).toBe(null);
+  });
+
+  it('sur le meilleur lui-même, il est désigné mais ne change aucun point', () => {
+    const scoreA = a.score;
+    engine.coupDeCoeur(io, room, idxDe(a));
+    expect(a.score).toBe(scoreA);
+    expect(dernierYou(a).coupDeCoeur).toBe(true);
+    expect(dernierYou(a).bonusCoeur).toBe(0);
+  });
+
+  it('LES PLACES SUIVENT : celui qui monte en fait descendre un autre, et son écran le dit', () => {
+    // Avant la manche : Alice 3000, Bob 2500, Chloé 2000. Après la révélation,
+    // Chloé (≈ +1080) passe devant Bob (+0). Le coup de cœur de Bob le remet devant.
+    const avantB = b.lastResult.placesDelta; const avantC = c.lastResult.placesDelta;
+    expect(avantC, 'le scénario suppose que Chloé est passée devant Bob').toBeGreaterThan(0);
+    engine.coupDeCoeur(io, room, idxDe(b));
+    expect(dernierYou(b).placesDelta).toBeGreaterThan(avantB);
+    expect(dernierYou(c), 'Chloé a perdu une place sans que son écran le sache').toBeDefined();
+    expect(dernierYou(c).placesDelta).toBeLessThan(avantC);
+  });
+
+  it('refuse ce qui n’est pas un dessin de la manche révélée — et ne touche alors à aucun score', () => {
+    const scores = () => [a.score, b.score, c.score];
+    const avant = scores();
+    expect(engine.coupDeCoeur(io, room, 99).ok).toBe(false);
+    expect(engine.coupDeCoeur(io, room, -1).ok).toBe(false);
+    expect(engine.coupDeCoeur(io, room, 'x').ok).toBe(false);
+    expect(scores()).toEqual(avant);
+    // Une manche d'un autre jeu.
+    setRound(room, 'quiz', QUIZ_Q, [[a.id, { value: 1, at: Date.now() }]]);
+    engine.reveal(io, room);
+    const avantQuiz = scores();
+    expect(engine.coupDeCoeur(io, room, 0).ok).toBe(false);
+    expect(scores()).toEqual(avantQuiz);
+  });
+
+  it('pas avant la révélation : la notation doit être faite', () => {
+    const rt2 = setRound(room, 'cueillette', { id: 'cu2', dessinId: CIBLE }, []);
+    rt2.dessins = [{ pid: b.id, pourcent: 0, points: 0, traits: [] }];
+    expect(engine.coupDeCoeur(io, room, 0).ok).toBe(false);
   });
 });

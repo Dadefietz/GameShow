@@ -1033,3 +1033,58 @@ Le réglage vit sur le salon (un stream rechargé le retrouve), blanchi par le
 serveur, refusé aux joueurs. Le stream affiche l'état du son (`data-musique-son`) :
 « suspended » tant que le navigateur retient le son faute de geste — dans OBS, il
 joue d'office.
+
+## 14. Deux retours du 07/10 — le sondage, le coup de cœur
+
+### 14.1 — « Quand les joueurs jouent à sondage ils ne devraient pas gagner de point »
+
+Le défaut était au serveur, pas dans les règles : la catégorie « Sondage »
+déclarait bien `points: false`, mais le module versait à chaque réponse **100 points
+de participation**, que le moteur ajoutait au total sans regarder si la manche était
+notée. Pire : l'écran du joueur, qui cache les points d'un sondage, affirmait
+« Position inchangée » au-dessus d'un classement que ces 100 points venaient de
+remuer. Un sondage ne rapporte désormais **aucun point** (`base: 0`) ; la série
+n'est ni nourrie ni rompue, comme avant. Contrôlé sur les deux chemins d'écriture
+d'une question (`categorie: 'sondage'` et l'ancien `poll: true`), total et places
+compris ; vu rouge en remettant les 100 points.
+
+### 14.2 — Le coup de cœur de l'animateur (« Cueillette »)
+
+« Après la notation du jeu, l'animateur doit avoir la possibilité de désigner un
+coup de cœur. Il remplacerait donc sa note par la note du meilleur joueur. (Le
+meilleur joueur conserverait sa note.) »
+
+- **Où** : la console, sur chaque fiche de dessin révélée, un bouton bascule
+  « Coup de cœur » sous « Partager ! ». La fiche désignée porte un contour
+  d'étincelle (`--c-glow`, distinct de la braise du dessin « à l'antenne »), la
+  mention « Coup de cœur » et la note versée, avec « au lieu de N » quand elle a
+  changé.
+- **La règle** (`engine.coupDeCoeur`) : les points de manche du dessin choisi
+  deviennent ceux du meilleur dessin ; le total du joueur est corrigé de l'écart ;
+  le meilleur garde les siens, et le désigner lui-même ne change aucun point.
+  **Un seul par manche** : en désigner un autre rend au précédent sa note d'origine,
+  le rechoisir l'annule. Seulement sur la manche révélée et encore affichée.
+- **La ressemblance ne change pas** : c'est une mesure. Le coup de cœur remplace la
+  note — les points.
+- **Le joueur l'apprend** : son relevé de manche lui est renvoyé corrigé
+  (`coupDeCoeur`, `bonusCoeur`) — titre « Coup de cœur » (et non « Raté » au-dessus
+  d'un gain), sa propre phrase de voix (`cueillette.coup-de-coeur`, vraie que le
+  dessin soit le meilleur ou non), une ligne « Coup de cœur +N » dans le détail.
+- **Les places suivent pour tout le cercle** : recalculées depuis les rangs d'avant
+  la manche (gardés sur elle à la révélation) ; seuls les relevés qui changent
+  repartent. Le classement de la console et du stream est rediffusé.
+- **Ce n'est pas la correction de score supprimée à l'action 8**, « sans règle,
+  sans trace et sans retour arrière » : celle-ci a une règle fixe, une trace sur la
+  manche et dans le relevé, et son retour arrière.
+- **Réservé à l'animateur** : un joueur qui émet la commande n'obtient rien (contrôle
+  d'intégration, vu rouge en ouvrant la commande).
+
+Contrôles : sept unitaires du moteur (règle, déplacement, retrait, meilleur
+désigné, places, refus, avant révélation — cinq sabotages vus rouges), cinq
+d'intégration (dont un garde-fou contre le scénario à vide : le premier jet notait
+tous les dessins à zéro et passait sans rien prouver), un E2E de bout en bout où un
+joueur trace à la souris une vraie copie de la cible (deux sabotages d'interface
+vus rouges, dont le titre : sans lui, le téléphone écrivait « Bien joué »). Un défaut
+de mise en page trouvé à la capture — le libellé « Retirer le coup de cœur »
+élargissait toute sa colonne — a été corrigé (libellé constant, état porté par
+`aria-pressed`).

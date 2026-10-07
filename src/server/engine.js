@@ -855,6 +855,10 @@ export function reveal(io, room) {
 
   rt.revealed = true;
   room.state = RoomState.RESULTS;
+  // LES RANGS D'AVANT LA MANCHE, GARDÉS SUR ELLE : un coup de cœur de « Cueillette »
+  // change un total APRÈS la révélation, et les places gagnées se recalculent
+  // alors depuis le même point de départ — pas depuis l'instant du coup de cœur.
+  rt.rangsAvant = ranksBefore;
   const ranksAfter = roomManager.rankMap(room);
   room.history.push({ moduleType: rt.type, text: rt.text, reveal: revealPayload, options: rt.options || null, at: Date.now() });
   rt.revealPayload = { ...revealPayload, type: rt.type }; // mémorisé pour la restauration à la reconnexion
@@ -993,6 +997,9 @@ export function reveal(io, room) {
       // choisie ; elle coûte une ligne par champ, et c'est le prix de savoir
       // exactement ce qui sort.
       pourcent: d.pourcent ?? null,
+      // LE COUP DE CŒUR DE L'ANIMATEUR — nul à la révélation ; voir `coupDeCoeur`.
+      bonusCoeur: 0,
+      coupDeCoeur: false,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,
@@ -1014,6 +1021,105 @@ export function reveal(io, room) {
     if (p.socketId) io.to(p.socketId).emit('play:you', you);
   }
   roomManager.touch(room);
+}
+
+// « CUEILLETTE » — LE COUP DE CŒUR DE L'ANIMATEUR (07/10).
+//
+// « Après la notation du jeu, l'animateur doit avoir la possibilité de désigner un
+// coup de cœur. Il remplacerait donc sa note par la note du meilleur joueur. (Le
+// meilleur joueur conserverait sa note.) »
+//
+// CE N'EST PAS LA CORRECTION DE SCORE SUPPRIMÉE À L'ACTION 8, et la différence est
+// tout l'objet de cette fonction. Celle-là ajoutait ou retirait 100 points à
+// n'importe qui, « sans règle, sans trace et sans retour arrière ». Celle-ci :
+//   — a UNE RÈGLE : les points de manche du dessin choisi deviennent ceux du
+//     meilleur dessin de la manche — ni plus, ni autre chose. Le meilleur garde les
+//     siens ; un coup de cœur sur le meilleur lui-même ne change aucun point ;
+//   — laisse UNE TRACE : elle vit sur la manche (`rt.coupDeCoeur`), voyage à part
+//     dans le relevé du joueur (`bonusCoeur`) pour que son écran MONTRE d'où
+//     viennent ces points, et s'affiche sur la console ;
+//   — a SON RETOUR ARRIÈRE : un seul coup de cœur par manche. En désigner un autre
+//     rend au précédent sa note d'origine ; `idx` à null l'annule.
+// Elle ne vaut que sur la manche RÉVÉLÉE et encore affichée : passée au jeu
+// suivant, la manche n'est plus là, et son coup de cœur non plus.
+//
+// LA RESSEMBLANCE NE CHANGE PAS : c'est une mesure, et l'écrire fausse mentirait au
+// joueur sur son dessin. Le coup de cœur remplace la NOTE — les points.
+//
+// LES PLACES SE RECALCULENT POUR TOUS depuis les rangs d'avant la manche : celui
+// que le coup de cœur fait monter en fait descendre d'autres, et leur écran
+// affichait encore « Position inchangée ». Seuls les relevés qui changent repartent.
+export function coupDeCoeur(io, room, idx) {
+  const rt = room.currentModule;
+  if (!rt || rt.type !== 'cueillette' || !rt.revealed || !Array.isArray(rt.dessins)) {
+    return { ok: false, reason: 'pas-de-manche' };
+  }
+  let choisi = null;
+  if (idx != null) {
+    const i = Number(idx);
+    const d = Number.isInteger(i) ? rt.dessins[i] : null;
+    if (!d || !room.players.has(d.pid)) return { ok: false, reason: 'dessin-inconnu' };
+    choisi = { idx: i, d };
+  }
+  const touches = new Set();
+
+  // LE PRÉCÉDENT RETROUVE SA NOTE.
+  const avant = rt.coupDeCoeur;
+  if (avant) {
+    const p = room.players.get(avant.pid);
+    if (p) {
+      p.score = Math.max(0, p.score - avant.gain);
+      if (p.lastResult && p.lastResult.roundId === rt.roundId) {
+        p.lastResult = {
+          ...p.lastResult, score: p.score, delta: p.lastResult.delta - avant.gain,
+          bonusCoeur: 0, coupDeCoeur: false,
+        };
+      }
+      touches.add(avant.pid);
+    }
+    rt.coupDeCoeur = null;
+  }
+
+  // LE NOUVEAU PREND CELLE DU MEILLEUR.
+  if (choisi) {
+    const meilleur = Math.max(...rt.dessins.map((x) => x.points || 0));
+    const gain = Math.max(0, meilleur - (choisi.d.points || 0));
+    const p = room.players.get(choisi.d.pid);
+    p.score += gain;
+    rt.coupDeCoeur = { idx: choisi.idx, pid: choisi.d.pid, gain, points: (choisi.d.points || 0) + gain };
+    if (p.lastResult && p.lastResult.roundId === rt.roundId) {
+      p.lastResult = {
+        ...p.lastResult, score: p.score, delta: p.lastResult.delta + gain,
+        bonusCoeur: gain, coupDeCoeur: true,
+      };
+    }
+    touches.add(choisi.d.pid);
+  }
+
+  // LES PLACES, POUR TOUT LE CERCLE.
+  const rangsApres = roomManager.rankMap(room);
+  for (const [pid, p] of room.players) {
+    if (!p.lastResult || p.lastResult.roundId !== rt.roundId) continue;
+    const places = ((rt.rangsAvant && rt.rangsAvant.get(pid)) || 0) - (rangsApres.get(pid) || 0);
+    if (places !== p.lastResult.placesDelta) {
+      p.lastResult = { ...p.lastResult, placesDelta: places };
+      touches.add(pid);
+    }
+  }
+  for (const pid of touches) {
+    const p = room.players.get(pid);
+    if (p && p.socketId && p.lastResult && p.lastResult.roundId === rt.roundId) io.to(p.socketId).emit('play:you', p.lastResult);
+  }
+
+  toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
+  io.to(room.code + ':host').emit('host:coupDeCoeur', {
+    roundId: rt.roundId,
+    idx: rt.coupDeCoeur ? rt.coupDeCoeur.idx : null,
+    points: rt.coupDeCoeur ? rt.coupDeCoeur.points : null,
+    gain: rt.coupDeCoeur ? rt.coupDeCoeur.gain : 0,
+  });
+  roomManager.touch(room);
+  return { ok: true, coupDeCoeur: rt.coupDeCoeur };
 }
 
 // La correction manuelle de score a été SUPPRIMÉE (action 8). Elle s'affichait

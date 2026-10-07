@@ -1389,7 +1389,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // Le total d'une manche, recomposé : `base` ne porte plus que le palier depuis
   // que les bonus voyagent à part pour être MONTRÉS au joueur.
   const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0)
-    + (r?.bonusGroupe || 0) + (r?.speed || 0);
+    + (r?.bonusGroupe || 0) + (r?.bonusCoeur || 0) + (r?.speed || 0);
+  // « CUEILLETTE » : LE COUP DE CŒUR DE L'ANIMATEUR (07/10). Il arrive APRÈS la
+  // révélation — le serveur renvoie le relevé de la manche, corrigé. Le titre, le
+  // badge, la voix et le détail des points le suivent tous : un dessin sous le
+  // seuil lirait sinon « Raté » au-dessus d'un gain.
+  const coupDeCoeur = isCueillette && monResultat?.coupDeCoeur === true;
   // LE SERVEUR A-T-IL NOTÉ UN DESSIN DE CE JOUEUR ? Voir la note du bloc de
   // « Cueillette », plus bas : c'est ce qui distingue un dessin envoyé d'un
   // dessin que le téléphone a gardé pour lui.
@@ -1453,6 +1458,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   } else if (!isSondage && Array.isArray(rv.winners) && typeof myAnswer === 'number') {
     correct = rv.winners.includes(myAnswer);
   }
+  if (coupDeCoeur) correct = true;
 
   // Quel moment de voix ce résultat mérite-t-il ? Chaque branche est adossée à un
   // fait vérifié : le palier renvoyé par le serveur, le supplément de rapidité
@@ -1498,6 +1504,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // — le seuil de points, puis deux repères au-dessus — plutôt que des nombres
     // choisis ici, qui finiraient par contredire les points affichés juste à côté.
     if (isCueillette) {
+      if (coupDeCoeur) return 'cueillette.coup-de-coeur';
       const p = monResultat.pourcent ?? 0;
       if (p >= 80) return 'cueillette.parfait';
       if (p >= 60) return 'cueillette.bien';
@@ -1657,6 +1664,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     // n'a rien reconnu.
                     ? (monResultat?.bons >= 5 ? 'Sans faute'
                       : monResultat?.bons > 0 ? `${monResultat.bons} sur 5` : 'La grille a gagné')
+                  : coupDeCoeur ? 'Coup de cœur'
                     : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
               {/* La voix du jeu remplace les commentaires figés : « Ça se
@@ -1862,7 +1870,8 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
             ) : null}
 
             {!isVote && !isRetour && (monResultat.base || monResultat.speed
-              || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe) ? (
+              || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe
+              || monResultat.bonusCoeur) ? (
               <div className="breakdown">
                 {monResultat.base ? (
                   <div className="breakdown__cell">
@@ -1906,6 +1915,18 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     <span className="breakdown__value breakdown__value--accent"
                       data-bind="you.bonusProche" data-testid="points-bonus-proche">
                       +{fmtNum(monResultat.bonusProche)}
+                    </span>
+                  </div>
+                ) : null}
+                {/* LE COUP DE CŒUR, SUR SA LIGNE : ce qui sépare la note du
+                    dessin de celle du meilleur. Le joueur doit voir que ces
+                    points-là viennent de l'animateur, pas de sa ressemblance. */}
+                {monResultat.bonusCoeur ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Coup de cœur</span>
+                    <span className="breakdown__value breakdown__value--accent"
+                      data-bind="you.bonusCoeur" data-testid="points-bonus-coeur">
+                      +{fmtNum(monResultat.bonusCoeur)}
                     </span>
                   </div>
                 ) : null}

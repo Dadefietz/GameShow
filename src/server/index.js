@@ -864,6 +864,13 @@ io.on('connection', (socket) => {
       cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
     });
   });
+  // LE COUP DE CŒUR — l'animateur n'envoie qu'un INDEX, comme pour le partage ;
+  // la règle (la note du meilleur dessin) et sa réversibilité vivent dans le
+  // moteur, voir `engine.coupDeCoeur`. `idx` à null l'annule.
+  socket.on('host:coupDeCoeur', ({ idx } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    engine.coupDeCoeur(io, r, idx ?? null);
+  });
   // La commande host:adjustScore a été supprimée avec le panneau « Bonus / Malus »
   // de l'écran animateur (action 8) : correction manuelle sans règle ni trace.
   socket.on('host:nextModule', () => {

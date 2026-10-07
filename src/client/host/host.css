@@ -629,6 +629,32 @@
   .cudess__note strong { font: 600 var(--fs-500) / 1 var(--f-mono); color: var(--c-pine); }
   .cudess__pts { font: 500 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink-3); }
   .cudess__fiche .button { width: 100%; }
+  /* LE COUP DE CŒUR — une étincelle autour de la fiche, distincte de la braise
+     du dessin « à l'antenne » : les deux peuvent tomber sur la même fiche, et
+     l'animateur doit les lire séparément. */
+  .cudess__fiche--coeur { box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-glow); }
+  .cudess__fiche--antenne.cudess__fiche--coeur {
+    box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-ember), 0 0 0 calc(2 * var(--bw-strong)) var(--c-glow);
+  }
+  .cudess__coeur {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--sp-1);
+    margin: 0;
+    font: 600 var(--fs-200) / 1.2 var(--f-ui);
+    color: var(--c-ember-bright);
+  }
+  .cudess__avant { font-weight: 400; color: var(--c-ink-3); }
+  /* Une marge latérale resserrée : à `--sp-5` de chaque côté, « Coup de cœur »
+     passait sur deux lignes dans une fiche de 167 px. */
+  .cudess__coeur-bouton {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1);
+    padding-inline: var(--sp-2);
+    white-space: normal;
+  }
+  /* LA FICHE NE DICTE PAS SA COLONNE : sans `min-width: 0`, un élément de grille
+     ne descend pas sous la largeur de son contenu, et la fiche désignée — une
+     ligne de plus — s'élargissait seule. */
+  .cudess__fiche { min-width: 0; }
+  .cudess__coeur-bouton[aria-pressed="true"] { color: var(--c-ember-bright); }
 
   /* À la révélation, le panneau perd sa hachure : il est devenu public. */
   .private--public { box-shadow: var(--sh-edge); }

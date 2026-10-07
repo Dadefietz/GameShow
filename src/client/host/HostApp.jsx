@@ -107,6 +107,13 @@ const I = {
       <circle cx="16.5" cy="16" r="2.5" />
     </svg>
   ),
+  // LE COUP DE CŒUR de « Cueillette » — même trait que le reste du registre.
+  coeur: ({ s = 16, plein = false }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill={plein ? 'currentColor' : 'none'} stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z" />
+    </svg>
+  ),
   eye: ({ s = 18 }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1003,13 +1010,23 @@ function ClassementManche({ g, roundId, revealed }) {
 // de `valeur` dans `Toile`. Le bouton du dessin partagé devient « Reprendre ». Sans ce retour en arrière, l'écran de stream resterait bloqué
 // sur un dessin jusqu'à la manche suivante — et l'animateur n'aurait aucun moyen
 // de revenir au graphique qu'il est en train de commenter.
+//
+// LE COUP DE CŒUR (07/10) — « après la notation du jeu, l'animateur doit avoir la
+// possibilité de désigner un coup de cœur. Il remplacerait donc sa note par la
+// note du meilleur joueur. » Un par manche ; en choisir un autre le déplace, le
+// rechoisir l'annule. L'état affiché est celui que le SERVEUR confirme
+// (`host:coupDeCoeur`), pas celui du clic : c'est lui qui a changé les scores, et
+// la fiche doit dire les points qu'il a réellement versés.
 function DessinsCueillette({ g, roundId, revealed }) {
   const [donnee, setDonnee] = useState(null);
   const [partage, setPartage] = useState(null);
+  const [coeur, setCoeur] = useState(null);
   useEffect(() => {
-    const onDessins = (d) => { setDonnee(d && Array.isArray(d.dessins) ? d : null); setPartage(null); };
+    const onDessins = (d) => { setDonnee(d && Array.isArray(d.dessins) ? d : null); setPartage(null); setCoeur(null); };
+    const onCoeur = (c) => setCoeur(c && c.idx != null ? c : null);
     g.on('host:dessins', onDessins);
-    return () => g.off('host:dessins', onDessins);
+    g.on('host:coupDeCoeur', onCoeur);
+    return () => { g.off('host:dessins', onDessins); g.off('host:coupDeCoeur', onCoeur); };
   }, [g]);
   // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
   // manche antérieure ferait partager à l'antenne le dessin d'une manche close.
@@ -1021,6 +1038,10 @@ function DessinsCueillette({ g, roundId, revealed }) {
     setPartage(suivant);
     g.emit('host:partagerDessin', { idx: suivant });
   };
+  // Le coup de cœur de CETTE manche seulement : un souvenir de la précédente
+  // marquerait une fiche qui n'a rien reçu.
+  const coeurIci = coeur && coeur.roundId === roundId ? coeur : null;
+  const designer = (idx) => g.emit('host:coupDeCoeur', { idx: coeurIci?.idx === idx ? null : idx });
 
   return (
     <section className="private" aria-label="Les dessins du cercle" data-testid="cueillette-dessins">
@@ -1039,22 +1060,47 @@ function DessinsCueillette({ g, roundId, revealed }) {
         </div>
       ) : null}
       <div className="cudess">
-        {donnee.dessins.map((d) => (
-          <div className={`cudess__fiche${partage === d.idx ? ' cudess__fiche--antenne' : ''}`} key={d.idx}>
-            <Toile testid="cueillette-dessin" etiquette={`Le dessin de ${d.pseudo}`}
-              disabled valeur={d.traits} />
-            <p className="cudess__nom" title={d.pseudo}>{d.pseudo}</p>
-            <p className="cudess__note">
-              <strong>{d.pourcent} %</strong>
-              <span className="cudess__pts">{fmt(d.points)} pts</span>
-            </p>
-            <button className={`button ${partage === d.idx ? 'button--quiet' : 'button--primary'}`}
-              type="button" data-action="host:partagerDessin" data-testid="cueillette-partager"
-              onClick={() => basculer(d.idx)}>
-              {partage === d.idx ? 'Reprendre' : 'Partager !'}
-            </button>
-          </div>
-        ))}
+        {donnee.dessins.map((d) => {
+          const estCoeur = coeurIci?.idx === d.idx;
+          return (
+            <div className={`cudess__fiche${partage === d.idx ? ' cudess__fiche--antenne' : ''}${estCoeur ? ' cudess__fiche--coeur' : ''}`}
+              key={d.idx} data-testid="cueillette-fiche" data-coeur={estCoeur ? 'oui' : undefined}>
+              <Toile testid="cueillette-dessin" etiquette={`Le dessin de ${d.pseudo}`}
+                disabled valeur={d.traits} />
+              <p className="cudess__nom" title={d.pseudo}>{d.pseudo}</p>
+              <p className="cudess__note">
+                <strong>{d.pourcent} %</strong>
+                {/* LES POINTS QUE LE SERVEUR A VERSÉS, et ceux d'origine à côté :
+                    l'animateur doit voir ce que son geste a changé. */}
+                <span className="cudess__pts" data-testid="cueillette-points">
+                  {fmt(estCoeur ? coeurIci.points : d.points)} pts
+                </span>
+              </p>
+              {estCoeur ? (
+                <p className="cudess__coeur" data-testid="cueillette-coeur-marque">
+                  <I.coeur s={14} plein /> Coup de cœur
+                  {coeurIci.gain > 0 ? <span className="cudess__avant">au lieu de {fmt(d.points)}</span> : null}
+                </p>
+              ) : null}
+              <button className={`button ${partage === d.idx ? 'button--quiet' : 'button--primary'}`}
+                type="button" data-action="host:partagerDessin" data-testid="cueillette-partager"
+                onClick={() => basculer(d.idx)}>
+                {partage === d.idx ? 'Reprendre' : 'Partager !'}
+              </button>
+              {/* UN BOUTON BASCULE, AU LIBELLÉ CONSTANT. « Retirer le coup de
+                  cœur » ne tenait pas dans une fiche : le bouton ne passe pas à la
+                  ligne, et sa largeur élargissait toute la colonne — la fiche
+                  désignée débordait de la grille. L'état se lit au cœur plein, à
+                  la couleur et à `aria-pressed` ; l'infobulle dit le geste. */}
+              <button className="button button--quiet cudess__coeur-bouton" type="button"
+                data-action="host:coupDeCoeur" data-testid="cueillette-coup-de-coeur"
+                aria-pressed={estCoeur} title={estCoeur ? 'Retirer le coup de cœur' : 'Désigner ce dessin comme coup de cœur'}
+                onClick={() => designer(d.idx)}>
+                <I.coeur s={15} plein={estCoeur} /> Coup de cœur
+              </button>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
