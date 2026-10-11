@@ -926,16 +926,9 @@ export function reveal(io, room) {
   if (prives && Array.isArray(prives.dessins) && prives.dessins.length) {
     // Le meilleur d'abord : c'est celui que l'animateur commente en premier.
     rt.dessins = [...prives.dessins].sort((a, b) => b.pourcent - a.pourcent);
-    io.to(room.code + ':host').emit('host:dessins', {
-      roundId: rt.roundId,
-      cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
-      dessins: rt.dessins
-        .map((d, idx) => {
-          const p = room.players.get(d.pid);
-          return p ? { idx, pseudo: p.pseudo, pourcent: d.pourcent, points: d.points, traits: d.traits } : null;
-        })
-        .filter(Boolean),
-    });
+    rt.antenne = null;
+    rt.coupDeCoeur = null;
+    io.to(room.code + ':host').emit('host:dessins', dessinsPourLHote(room, rt));
   }
 
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
@@ -1021,6 +1014,82 @@ export function reveal(io, room) {
     if (p.socketId) io.to(p.socketId).emit('play:you', you);
   }
   roomManager.touch(room);
+}
+
+// « CUEILLETTE » — CE QUE VOIT L'ANIMATEUR, ET CE QUI EST À L'ANTENNE.
+//
+// LE SERVEUR SAIT QUEL DESSIN EST À L'ANTENNE (`rt.antenne`), ET LUI SEUL. Tant
+// que seul le bouton « Partager ! » y menait, la console pouvait le retenir de son
+// côté. Depuis que le coup de cœur y mène aussi (11/10), deux gestes décident de
+// ce que montre le stream : il faut un seul endroit qui le sache — sinon la
+// console marquerait « à l'antenne » un dessin que le coup de cœur vient de
+// remplacer. Et c'est aussi ce qui permet de le REJOUER à un stream rechargé.
+function dessinsPourLHote(room, rt) {
+  return {
+    roundId: rt.roundId,
+    cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
+    dessins: rt.dessins
+      .map((d, idx) => {
+        const p = room.players.get(d.pid);
+        return p ? { idx, pseudo: p.pseudo, pourcent: d.pourcent, points: d.points, traits: d.traits } : null;
+      })
+      .filter(Boolean),
+  };
+}
+
+// La charge du partage : le dessin à l'antenne, AVEC le nom de son auteur et SANS
+// sa note (26/09) — et désormais le drapeau du coup de cœur, pour que le stream
+// dise POURQUOI ce dessin-là est montré.
+function partageCourant(room, rt) {
+  const d = rt.antenne != null ? rt.dessins[rt.antenne] : null;
+  if (!d) return { roundId: rt.roundId, idx: null, dessin: null };
+  const joueur = room.players.get(d.pid);
+  return {
+    roundId: rt.roundId,
+    idx: rt.antenne,
+    dessin: { pseudo: joueur ? joueur.pseudo : null, traits: d.traits },
+    cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
+    coupDeCoeur: rt.coupDeCoeur != null && rt.coupDeCoeur.idx === rt.antenne,
+  };
+}
+
+// Le coup de cœur, tel que le STREAM peut le connaître : un nom, jamais de points.
+function coeurPublic(room, rt) {
+  const c = rt.coupDeCoeur;
+  const p = c ? room.players.get(c.pid) : null;
+  return { roundId: rt.roundId, idx: c ? c.idx : null, pseudo: p ? p.pseudo : null };
+}
+
+// « PARTAGER ! » — un dessin à l'antenne, ou aucun (`idx` à null).
+export function partagerDessin(io, room, idx) {
+  const rt = room.currentModule;
+  if (!rt || rt.type !== 'cueillette' || !Array.isArray(rt.dessins)) return { ok: false, reason: 'pas-de-manche' };
+  if (idx == null) {
+    rt.antenne = null;
+  } else {
+    const i = Number(idx);
+    if (!Number.isInteger(i) || !rt.dessins[i]) return { ok: false, reason: 'dessin-inconnu' };
+    rt.antenne = i;
+  }
+  toStaff(io, room).emit('cueillette:partage', partageCourant(room, rt));
+  return { ok: true };
+}
+
+// LE REJEU, pour une console ou un stream qui se rattache pendant la révélation :
+// la liste des dessins (console seule), ce qui est à l'antenne, le coup de cœur.
+// Sans lui, un stream rechargé dans OBS perdait le coup de cœur qu'il affichait,
+// et une console rechargée perdait jusqu'à la liste des dessins.
+export function rejouerCueillette(io, room, socket, estHote) {
+  const rt = room.currentModule;
+  if (!rt || rt.type !== 'cueillette' || !rt.revealed || !Array.isArray(rt.dessins)) return;
+  if (estHote) {
+    socket.emit('host:dessins', dessinsPourLHote(room, rt));
+    if (rt.coupDeCoeur) {
+      socket.emit('host:coupDeCoeur', { roundId: rt.roundId, idx: rt.coupDeCoeur.idx, points: rt.coupDeCoeur.points, gain: rt.coupDeCoeur.gain });
+    }
+  }
+  if (rt.antenne != null) socket.emit('cueillette:partage', partageCourant(room, rt));
+  if (rt.coupDeCoeur) socket.emit('cueillette:coupDeCoeur', coeurPublic(room, rt));
 }
 
 // « CUEILLETTE » — LE COUP DE CŒUR DE L'ANIMATEUR (07/10).
@@ -1110,6 +1179,22 @@ export function coupDeCoeur(io, room, idx) {
     const p = room.players.get(pid);
     if (p && p.socketId && p.lastResult && p.lastResult.roundId === rt.roundId) io.to(p.socketId).emit('play:you', p.lastResult);
   }
+
+  // À L'ANTENNE (11/10) : « le coup de cœur doit aussi apparaître sur le stream
+  // si l'animateur a décidé d'un coup de cœur ». Le désigner le MONTRE — en
+  // grand, avec son auteur et la mention, à la place de ce qui y était (un seul
+  // dessin à l'antenne à la fois). Le retirer le retire de l'antenne s'il y était ;
+  // un autre dessin partagé entre-temps, lui, reste en place.
+  if (rt.coupDeCoeur) {
+    rt.antenne = rt.coupDeCoeur.idx;
+    toStaff(io, room).emit('cueillette:partage', partageCourant(room, rt));
+  } else if (avant && rt.antenne === avant.idx) {
+    rt.antenne = null;
+    toStaff(io, room).emit('cueillette:partage', partageCourant(room, rt));
+  }
+  // ET HORS DE L'ANTENNE : le stream le nomme encore sous le graphique quand
+  // l'animateur y revient. Un nom, jamais de points.
+  toStaff(io, room).emit('cueillette:coupDeCoeur', coeurPublic(room, rt));
 
   toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
   io.to(room.code + ':host').emit('host:coupDeCoeur', {

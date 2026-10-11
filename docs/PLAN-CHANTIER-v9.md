@@ -1088,3 +1088,36 @@ vus rouges, dont le titre : sans lui, le téléphone écrivait « Bien joué »)
 de mise en page trouvé à la capture — le libellé « Retirer le coup de cœur »
 élargissait toute sa colonne — a été corrigé (libellé constant, état porté par
 `aria-pressed`).
+
+### 14.3 — Le coup de cœur à l'antenne (11/10)
+
+« Le coup de cœur doit aussi apparaître sur le stream si l'animateur a décidé d'un
+coup de cœur. »
+
+- **Le désigner le met à l'antenne** : son dessin en grand, à la place du graphique,
+  avec « ♥ Coup de cœur » devant le nom de son auteur — jamais sa note. Un seul
+  dessin à l'antenne à la fois : il remplace ce qui y était. Le déplacer y met le
+  nouveau ; le retirer l'en sort (un autre dessin partagé entre-temps, lui, reste).
+- **Hors de l'antenne, il reste nommé** : quand l'animateur revient au graphique,
+  un troisième repère « Coup de cœur — pseudo » se tient à côté de « Le meilleur »
+  et « Moyenne ». Un nom, jamais de points ; aucun téléphone ne le reçoit.
+- **Le serveur sait ce qui est à l'antenne** (`rt.antenne`), et lui seul : deux
+  gestes y mènent désormais (« Partager ! » et le coup de cœur), la console
+  affiche donc ce que le serveur lui dit au lieu de le retenir de son côté.
+- **Un écran qui se rattache le retrouve** (`engine.rejouerCueillette`) : le
+  stream rechargé dans OBS, son dessin à l'antenne et le nom ; la console
+  rechargée, sa liste de dessins (qu'elle perdait jusqu'ici) et son coup de cœur.
+- **Défaut trouvé par le contrôle E2E, invisible à l'intégration** : le serveur
+  rejouait bien, mais les écrans de la révélation n'existent qu'une fois la manche
+  arrivée — les événements rejoués dans le même souffle se perdaient avant que
+  React ait monté l'écran qui les écoutait. Ils sont désormais retenus par la
+  connexion (`useGame`, `cueillette`), qui écoute dès la première seconde.
+- **Le contrôle d'intégration ne dépend plus d'un port fixe** : le 8793 occupé par
+  un autre programme le faisait échouer en « serveur injoignable », sans dire
+  pourquoi. Il demande un port libre au système.
+
+Contrôles : cinq unitaires (antenne, déplacement, retrait, cohabitation avec un
+partage, rejeu — six sabotages vus rouges), quatre d'intégration (antenne, nom
+sans points, rejeu au stream rechargé, aucune fuite vers les téléphones — deux
+sabotages vus rouges), l'E2E du coup de cœur étendu au stream et aux deux
+rechargements (deux sabotages vus rouges).

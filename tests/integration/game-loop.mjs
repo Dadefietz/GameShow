@@ -3,11 +3,22 @@
 // (issues des retours produit R1..R9), puis arrête tout. `npm run test:integration`.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import { io } from 'socket.io-client';
 import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
 import { copisteDe } from '../outils/copiste.js';
 
-const PORT = 8793;
+// UN PORT LIBRE, DEMANDÉ AU SYSTÈME — et non un port fixe (11/10). Le 8793 était
+// écrit ici en dur ; le jour où un autre programme l'a occupé (un petit serveur de
+// fichiers lancé à côté), le serveur du test n'a pas pu démarrer, et le contrôle
+// a interrogé l'intrus à sa place avant de conclure « serveur injoignable » —
+// sans rien dire de la cause. Le système attribue un port libre ; on le relâche
+// aussitôt pour que le serveur du jeu le prenne.
+const PORT = await new Promise((resolve, reject) => {
+  const sonde = net.createServer();
+  sonde.once('error', reject);
+  sonde.listen(0, '127.0.0.1', () => { const { port } = sonde.address(); sonde.close(() => resolve(port)); });
+});
 const BASE = `http://localhost:${PORT}`;
 const DATA_DIR = 'tests/.data-integration';
 
@@ -469,6 +480,14 @@ try {
   check('COUP DE CŒUR un joueur ne peut pas se l’accorder', (await usurpe) === null);
 
   const confirme = new Promise((r) => host.once('host:coupDeCoeur', r));
+  // À L'ANTENNE (11/10) : le stream reçoit le dessin, avec la mention, et le nom.
+  // Les téléphones, eux, n'en reçoivent RIEN — ils écoutent pendant toute la
+  // séquence, rechargement du stream compris.
+  let fuites = 0;
+  const fuite = () => { fuites += 1; };
+  for (const sj of [s1, s2, s3]) { sj.on('cueillette:partage', fuite); sj.on('cueillette:coupDeCoeur', fuite); }
+  const antenneCoeur = new Promise((r) => ov.once('cueillette:partage', r));
+  const nomCoeur = new Promise((r) => ov.once('cueillette:coupDeCoeur', r));
   const relevéBob = waitForMatching(s2, 'play:you', (y) => y.coupDeCoeur === true, 10000).catch(() => null);
   const classementCoeur = new Promise((r) => ov.once('leaderboard:update', r));
   host.emit('host:coupDeCoeur', { idx: idxBob });
@@ -479,6 +498,28 @@ try {
   check('COUP DE CŒUR le téléphone du joueur l’apprend, calcul compris',
     yBob && yBob.roundId === tour2.roundId && yBob.base + yBob.bonusCoeur === meilleurPts && yBob.pourcent === bob.pourcent,
     JSON.stringify(yBob && { base: yBob.base, coeur: yBob.bonusCoeur, p: yBob.pourcent }));
+  const surStream = await antenneCoeur;
+  check('COUP DE CŒUR IL PASSE À L’ANTENNE, avec la mention et son auteur — sans sa note',
+    surStream.idx === idxBob && surStream.coupDeCoeur === true && surStream.dessin?.pseudo === 'Bob'
+      && !('points' in surStream.dessin) && !('pourcent' in surStream.dessin),
+    JSON.stringify({ idx: surStream.idx, coeur: surStream.coupDeCoeur, pseudo: surStream.dessin?.pseudo }));
+  const nom = await nomCoeur;
+  check('COUP DE CŒUR le stream le nomme — un nom, pas de points',
+    nom.pseudo === 'Bob' && nom.roundId === tour2.roundId && !/points|gain/.test(JSON.stringify(nom)), JSON.stringify(nom));
+
+  // UN STREAM RECHARGÉ DANS OBS LE RETROUVE.
+  const ov2 = connect(overlayToken);
+  const [rejeuPartage, rejeuNom] = await Promise.all([
+    waitFor(ov2, 'cueillette:partage', 5000).catch(() => null),
+    waitFor(ov2, 'cueillette:coupDeCoeur', 5000).catch(() => null),
+  ]);
+  check('COUP DE CŒUR un stream rechargé le retrouve à l’antenne, et nommé',
+    rejeuPartage?.coupDeCoeur === true && rejeuPartage.dessin?.pseudo === 'Bob' && rejeuNom?.pseudo === 'Bob',
+    JSON.stringify({ coeur: rejeuPartage?.coupDeCoeur, nom: rejeuNom?.pseudo }));
+  ov2.close();
+  check('COUP DE CŒUR aucun téléphone ne reçoit l’antenne ni le nom', fuites === 0, String(fuites));
+  for (const sj of [s1, s2, s3]) { sj.off('cueillette:partage', fuite); sj.off('cueillette:coupDeCoeur', fuite); }
+
   const lb = await classementCoeur;
   check('COUP DE CŒUR le classement du stream suit : Bob y porte la note du meilleur',
     lb.leaderboard?.find((x) => x.pseudo === 'Bob')?.score === yBob?.score && yBob.score >= meilleurPts,

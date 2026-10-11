@@ -66,6 +66,18 @@ export function useGame(token) {
   // LA MUSIQUE D'AMBIANCE — son réglage, tel que le serveur le tient. Seuls
   // l'animateur et le stream le reçoivent : c'est le canal du staff.
   const [musique, setMusique] = useState(null);           // { active, volume }
+  // « CUEILLETTE » À LA RÉVÉLATION — RETENU ICI, ET NON DANS LES ÉCRANS (11/10).
+  // Les écrans de la révélation n'existent qu'une fois la manche arrivée. Écoutés
+  // par eux, ces événements se PERDAIENT au rattachement : le serveur rejoue la
+  // salle, puis les dessins, l'antenne et le coup de cœur, dans le même souffle —
+  // avant que React ait monté l'écran qui les attend. Vu sur un stream rechargé
+  // dans OBS : le coup de cœur avait disparu. La connexion, elle, écoute depuis la
+  // première seconde ; chaque écran lit ensuite ce qui concerne SA manche.
+  //   dessins   : la liste avec les noms et les notes — console seule ;
+  //   coeurHote : le coup de cœur avec ses points — console seule ;
+  //   partage   : le dessin à l'antenne — console et stream ;
+  //   coeur     : le coup de cœur, un nom sans points — console et stream.
+  const [cueillette, setCueillette] = useState({ dessins: null, coeurHote: null, partage: null, coeur: null });
 
   useEffect(() => {
     if (!token) return;
@@ -172,6 +184,13 @@ export function useGame(token) {
     });
     s.on('room:closed', () => setFermeDe(token));
     s.on('stream:musique', (m) => setMusique(m && typeof m === 'object' ? m : null));
+    // Une nouvelle liste ouvre une nouvelle révélation : ce qui suit la complète.
+    s.on('host:dessins', (d) => setCueillette({
+      dessins: d && Array.isArray(d.dessins) ? d : null, coeurHote: null, partage: null, coeur: null,
+    }));
+    s.on('host:coupDeCoeur', (c) => setCueillette((x) => ({ ...x, coeurHote: c && c.idx != null ? c : null })));
+    s.on('cueillette:partage', (p) => setCueillette((x) => ({ ...x, partage: p && p.dessin ? p : null })));
+    s.on('cueillette:coupDeCoeur', (c) => setCueillette((x) => ({ ...x, coeur: c && c.pseudo ? c : null })));
     return () => s.close();
   }, [token]);
 
@@ -192,7 +211,7 @@ export function useGame(token) {
   const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
   const roomClosed = !!token && fermeDe === token;
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, objetCache, devoilements, monCompte, tourClos, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

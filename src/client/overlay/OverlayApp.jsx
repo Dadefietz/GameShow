@@ -28,6 +28,7 @@ import { EmblemeCache } from '../shared/EmblemeCache.jsx';
 import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { Toile } from '../shared/Toile.jsx';
+import { Coeur } from '../shared/Coeur.jsx';
 import { HistogrammeCueillette } from '../shared/HistogrammeCueillette.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
 import { positionDuCurseur, pourcent, useBalayage } from '../shared/proportion.js';
@@ -636,15 +637,21 @@ function QuestionStage({ g }) {
   // IL EST OUBLIÉ À CHAQUE NOUVELLE MANCHE. Sans cela, un dessin partagé en fin de
   // manche resterait plein écran par-dessus la manche suivante — et personne sur
   // le plateau ne comprendrait pourquoi l'antenne montre une fleur.
-  const [partage, setPartage] = useState(null);
+  //
+  // RETENU PAR LA CONNEXION, PAS PAR CET ÉCRAN (11/10) : un stream rechargé reçoit
+  // la salle puis le dessin à l'antenne dans le même souffle, avant que cet écran
+  // existe — écouté ici, le dessin se perdait. L'oubli d'une manche à l'autre
+  // tient à la comparaison des `roundId`, et à elle seule.
   const roundIdCourant = current.roundId;
-  useEffect(() => {
-    const onPartage = (d) => setPartage(d && d.dessin ? d : null);
-    g.on('cueillette:partage', onPartage);
-    return () => g.off('cueillette:partage', onPartage);
-  }, [g]);
-  useEffect(() => { setPartage(null); }, [roundIdCourant]);
+  const { partage, coeur } = g.cueillette || {};
   const dessinPartage = partage && partage.roundId === roundIdCourant ? partage : null;
+
+  // LE COUP DE CŒUR DE L'ANIMATEUR, À L'ANTENNE (11/10) — « le coup de cœur doit
+  // aussi apparaître sur le stream si l'animateur a décidé d'un coup de cœur ».
+  // Le désigner le met à l'antenne en grand (le serveur l'y envoie comme un
+  // partage, avec la mention) ; et quand l'animateur revient au graphique, son
+  // nom reste sous lui. Un nom, jamais de points : le stream ne parle pas de notes.
+  const coeurIci = coeur && coeur.roundId === roundIdCourant ? coeur : null;
 
   // LE CLASSEMENT DE « CACHE-CACHE », À L'ANTENNE — les cinq premiers (26/09).
   // Il se construit comme celui de la console, une colonne par réponse dévoilée,
@@ -1021,8 +1028,16 @@ function QuestionStage({ g }) {
                     qu'il y ait le pourcentage de ressemblance, il faut qu'il y ait
                     le nom d'utilisateur à la place ». */}
                 {dessinPartage.dessin.pseudo ? (
-                  <p className="st-cueil__note" data-testid="stream-cueillette-auteur">
-                    <span className="st-cueil__label">Le dessin de</span>
+                  <p className={`st-cueil__note${dessinPartage.coupDeCoeur ? ' st-cueil__note--coeur' : ''}`}
+                    data-testid="stream-cueillette-auteur" data-coeur={dessinPartage.coupDeCoeur ? 'oui' : undefined}>
+                    {/* LE COUP DE CŒUR DIT POURQUOI CE DESSIN-LÀ EST MONTRÉ : ce
+                        n'est pas le plus ressemblant, c'est celui que l'animateur
+                        a préféré. */}
+                    {dessinPartage.coupDeCoeur ? (
+                      <span className="st-cueil__label st-cueil__label--coeur" data-testid="stream-cueillette-coeur">
+                        <Coeur s={30} plein /> Coup de cœur
+                      </span>
+                    ) : <span className="st-cueil__label">Le dessin de</span>}
                     <span className="st-cueil__pc">{dessinPartage.dessin.pseudo}</span>
                   </p>
                 ) : null}
@@ -1035,7 +1050,7 @@ function QuestionStage({ g }) {
                 </div>
                 <HistogrammeCueillette tranches={stats.tranches} bloc="st-cuhist"
                   testid="stream-cueillette-histo" />
-                <div className="st-facts st-facts--deux">
+                <div className={`st-facts${coeurIci ? '' : ' st-facts--deux'}`}>
                   <div className="st-fact">
                     <span className="st-fact__label">Le meilleur</span>
                     <span className="st-fact__value st-fact__value--good">{stats.meilleur} %</span>
@@ -1044,6 +1059,14 @@ function QuestionStage({ g }) {
                     <span className="st-fact__label">Moyenne</span>
                     <span className="st-fact__value">{stats.moyenne} %</span>
                   </div>
+                  {/* LE COUP DE CŒUR, HORS DE L'ANTENNE : l'animateur est revenu
+                      au graphique, et le public doit encore savoir qui il a choisi. */}
+                  {coeurIci ? (
+                    <div className="st-fact st-fact--coeur" data-testid="stream-cueillette-coeur-fait">
+                      <span className="st-fact__label st-fact__label--coeur"><Coeur s={22} plein /> Coup de cœur</span>
+                      <span className="st-fact__value st-fact__value--coeur">{coeurIci.pseudo}</span>
+                    </div>
+                  ) : null}
                 </div>
               </>
             )

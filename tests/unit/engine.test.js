@@ -355,6 +355,66 @@ describe('engine.coupDeCoeur', () => {
     expect(scores()).toEqual(avantQuiz);
   });
 
+  // ---- À L'ANTENNE (11/10) — « le coup de cœur doit aussi apparaître sur le
+  // stream si l'animateur a décidé d'un coup de cœur ».
+  const versStaff = (ev) => io.emitted.filter((e) => e.target === room.code + ':staff' && e.ev === ev);
+
+  it('À L’ANTENNE : le désigner le montre en grand, avec son auteur et la mention — et le nomme au stream', () => {
+    engine.coupDeCoeur(io, room, idxDe(b));
+    const p = versStaff('cueillette:partage').at(-1)?.payload;
+    expect(p, 'le coup de cœur n’est pas parti à l’antenne').toBeDefined();
+    expect(p).toMatchObject({ roundId: rt.roundId, idx: idxDe(b), coupDeCoeur: true });
+    expect(p.dessin.pseudo).toBe('Bob');
+    expect(p.dessin, 'la note est partie à l’antenne').not.toHaveProperty('points');
+    const c = versStaff('cueillette:coupDeCoeur').at(-1)?.payload;
+    expect(c).toEqual({ roundId: rt.roundId, idx: idxDe(b), pseudo: 'Bob' });
+    expect(JSON.stringify(c), 'des points sont partis au stream').not.toMatch(/points|gain/);
+  });
+
+  it('il se déplace à l’antenne, et en sort quand on le retire', () => {
+    engine.coupDeCoeur(io, room, idxDe(b));
+    engine.coupDeCoeur(io, room, idxDe(c));
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(c), coupDeCoeur: true });
+    expect(versStaff('cueillette:coupDeCoeur').at(-1).payload.pseudo).toBe('Chloe');
+    engine.coupDeCoeur(io, room, null);
+    expect(versStaff('cueillette:partage').at(-1).payload.dessin, 'le coup de cœur retiré est resté à l’antenne').toBe(null);
+    expect(versStaff('cueillette:coupDeCoeur').at(-1).payload).toEqual({ roundId: rt.roundId, idx: null, pseudo: null });
+  });
+
+  it('un autre dessin partagé ensuite le remplace à l’antenne — et le retirer alors ne coupe pas ce dessin-là', () => {
+    engine.coupDeCoeur(io, room, idxDe(b));
+    engine.partagerDessin(io, room, idxDe(a));
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(a), coupDeCoeur: false });
+    const avant = versStaff('cueillette:partage').length;
+    engine.coupDeCoeur(io, room, null);
+    expect(versStaff('cueillette:partage').length, 'retirer le coup de cœur a coupé le dessin d’Alice').toBe(avant);
+    expect(rt.antenne).toBe(idxDe(a));
+  });
+
+  it('« Partager ! » sur le coup de cœur lui-même garde la mention', () => {
+    engine.coupDeCoeur(io, room, idxDe(c));
+    engine.partagerDessin(io, room, null);
+    engine.partagerDessin(io, room, idxDe(c));
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(c), coupDeCoeur: true });
+  });
+
+  it('UN ÉCRAN QUI SE RATTACHE LE RETROUVE : le stream, le dessin à l’antenne et le nom ; la console, en plus, ses dessins et sa note', () => {
+    engine.coupDeCoeur(io, room, idxDe(b));
+    const recus = (estHote) => {
+      const sock = { emitted: [], emit(ev, payload) { this.emitted.push({ ev, payload }); } };
+      engine.rejouerCueillette(io, room, sock, estHote);
+      return sock.emitted;
+    };
+    const stream = recus(false);
+    expect(stream.map((e) => e.ev).sort()).toEqual(['cueillette:coupDeCoeur', 'cueillette:partage']);
+    expect(stream.find((e) => e.ev === 'cueillette:partage').payload).toMatchObject({ idx: idxDe(b), coupDeCoeur: true });
+    const console_ = recus(true);
+    expect(console_.map((e) => e.ev)).toEqual(expect.arrayContaining(['host:dessins', 'host:coupDeCoeur', 'cueillette:partage', 'cueillette:coupDeCoeur']));
+    expect(console_.find((e) => e.ev === 'host:coupDeCoeur').payload).toMatchObject({ idx: idxDe(b), points: pointsDe(a) });
+    // Le stream ne reçoit jamais la liste des dessins avec les noms et les notes.
+    expect(stream.some((e) => e.ev === 'host:dessins')).toBe(false);
+  });
+
   it('pas avant la révélation : la notation doit être faite', () => {
     const rt2 = setRound(room, 'cueillette', { id: 'cu2', dessinId: CIBLE }, []);
     rt2.dessins = [{ pid: b.id, pourcent: 0, points: 0, traits: [] }];

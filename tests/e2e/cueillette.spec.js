@@ -408,6 +408,16 @@ test.describe('Cueillette', () => {
     // Le meilleur garde la sienne.
     expect(nombre(await ficheDe('Pinceau').getByTestId('cueillette-points').textContent())).toBe(ptsPinceau);
 
+    // À L'ANTENNE (11/10) — « le coup de cœur doit aussi apparaître sur le
+    // stream ». Le dessin de Gomme en grand, la mention, son nom — et la console
+    // le marque « à l'antenne », puisque c'est le serveur qui l'y a mis.
+    await expect(stream.getByTestId('stream-cueillette-grand')).toBeVisible({ timeout: 10_000 });
+    await expect(stream.getByTestId('stream-cueillette-coeur')).toContainText('Coup de cœur');
+    await expect(stream.getByTestId('stream-cueillette-auteur')).toContainText('Gomme');
+    await expect(stream.getByTestId('stream-cueillette-partage'), 'une note est partie à l’antenne').not.toContainText('pts');
+    await expect(ficheDe('Gomme')).toHaveClass(/cudess__fiche--antenne/);
+    await expect(ficheDe('Gomme').getByTestId('cueillette-partager')).toHaveText('Reprendre');
+
     // SON TÉLÉPHONE LE DIT, ET NE SE CONTREDIT PAS : un titre qui le nomme (et
     // non « Raté » au-dessus d'un gain), la ligne du calcul, le total de la
     // manche égal à la note du meilleur, une phrase du bon moment — et la
@@ -431,10 +441,29 @@ test.describe('Cueillette', () => {
     await expect(gomme.getByTestId('points-bonus-coeur')).toHaveCount(0);
     await expect(gomme.locator('#verdict')).not.toHaveText('Coup de cœur');
     await expect(pinceau.locator('#verdict')).toHaveText('Coup de cœur');
+    // Le stream a suivi : Pinceau à l'antenne, avec la mention ; Gomme n'y est plus.
+    await expect(stream.getByTestId('stream-cueillette-auteur')).toContainText('Pinceau');
+    await expect(stream.getByTestId('stream-cueillette-coeur')).toBeVisible();
+    await expect(ficheDe('Gomme')).not.toHaveClass(/cudess__fiche--antenne/);
 
-    // ET IL SE RETIRE.
+    // L'ANIMATEUR REVIENT AU GRAPHIQUE : le coup de cœur reste nommé dessous.
+    await ficheDe('Pinceau').getByTestId('cueillette-partager').click();
+    await expect(stream.getByTestId('stream-cueillette-histo')).toBeVisible();
+    await expect(stream.getByTestId('stream-cueillette-coeur-fait')).toContainText('Pinceau');
+    // ET UN STREAM RECHARGÉ DANS OBS LE RETROUVE.
+    await stream.reload();
+    await expect(stream.getByTestId('stream-cueillette-coeur-fait')).toContainText('Pinceau', { timeout: 15_000 });
+    // ET UNE CONSOLE RECHARGÉE RETROUVE SES DESSINS ET SON COUP DE CŒUR — elle
+    // perdait jusqu'à la liste : on ne la lui envoyait qu'à la révélation.
+    await hote.page.reload();
+    await expect(fiches).toHaveCount(2, { timeout: 15_000 });
+    await expect(ficheDe('Pinceau')).toHaveAttribute('data-coeur', 'oui');
+
+    // ET IL SE RETIRE — de la console, du téléphone et du stream.
     await ficheDe('Pinceau').getByTestId('cueillette-coup-de-coeur').click();
     await expect(hote.page.locator('[data-coeur="oui"]')).toHaveCount(0);
     await expect(pinceau.locator('#verdict')).not.toHaveText('Coup de cœur');
+    await expect(stream.getByTestId('stream-cueillette-coeur-fait')).toHaveCount(0);
+    await expect(stream.getByTestId('stream-cueillette-histo')).toBeVisible();
   });
 });

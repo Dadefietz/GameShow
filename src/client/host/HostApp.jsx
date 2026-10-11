@@ -29,6 +29,7 @@ import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseDeManche } from '../shared/voix-hooks.js';
 import { Visage } from '../shared/Visage.jsx';
 import { NOM_DU_JEU } from '../shared/marque.js';
+import { Coeur } from '../shared/Coeur.jsx';
 import './host.css';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -105,13 +106,6 @@ const I = {
       <path d="M9 18V5.5l10-2V16" />
       <circle cx="6.5" cy="18" r="2.5" />
       <circle cx="16.5" cy="16" r="2.5" />
-    </svg>
-  ),
-  // LE COUP DE CŒUR de « Cueillette » — même trait que le reste du registre.
-  coeur: ({ s = 16, plein = false }) => (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill={plein ? 'currentColor' : 'none'} stroke="currentColor"
-      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z" />
     </svg>
   ),
   eye: ({ s = 18 }) => (
@@ -1018,26 +1012,20 @@ function ClassementManche({ g, roundId, revealed }) {
 // (`host:coupDeCoeur`), pas celui du clic : c'est lui qui a changé les scores, et
 // la fiche doit dire les points qu'il a réellement versés.
 function DessinsCueillette({ g, roundId, revealed }) {
-  const [donnee, setDonnee] = useState(null);
-  const [partage, setPartage] = useState(null);
-  const [coeur, setCoeur] = useState(null);
-  useEffect(() => {
-    const onDessins = (d) => { setDonnee(d && Array.isArray(d.dessins) ? d : null); setPartage(null); setCoeur(null); };
-    const onCoeur = (c) => setCoeur(c && c.idx != null ? c : null);
-    g.on('host:dessins', onDessins);
-    g.on('host:coupDeCoeur', onCoeur);
-    return () => { g.off('host:dessins', onDessins); g.off('host:coupDeCoeur', onCoeur); };
-  }, [g]);
+  // TOUT VIENT DE LA CONNEXION (`g.cueillette`), qui l'a retenu dès son arrivée —
+  // y compris au rechargement de la console, où les écouter ici les perdait. Et
+  // CE QUI EST À L'ANTENNE EST CE QUE LE SERVEUR DIT (11/10) : deux gestes y
+  // mènent désormais, « Partager ! » et le coup de cœur, qui MONTRE le dessin
+  // qu'il désigne. Retenu côté console, l'état marquait encore « à l'antenne » un
+  // dessin que le coup de cœur venait de remplacer.
+  const { dessins: donnee, coeurHote: coeur, partage: surAntenne } = g.cueillette || {};
   // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
   // manche antérieure ferait partager à l'antenne le dessin d'une manche close.
   if (!revealed || !donnee || donnee.roundId !== roundId) return null;
   if (!donnee.dessins.length) return null;
+  const partage = surAntenne && surAntenne.roundId === roundId ? surAntenne.idx : null;
 
-  const basculer = (idx) => {
-    const suivant = partage === idx ? null : idx;
-    setPartage(suivant);
-    g.emit('host:partagerDessin', { idx: suivant });
-  };
+  const basculer = (idx) => g.emit('host:partagerDessin', { idx: partage === idx ? null : idx });
   // Le coup de cœur de CETTE manche seulement : un souvenir de la précédente
   // marquerait une fiche qui n'a rien reçu.
   const coeurIci = coeur && coeur.roundId === roundId ? coeur : null;
@@ -1078,7 +1066,7 @@ function DessinsCueillette({ g, roundId, revealed }) {
               </p>
               {estCoeur ? (
                 <p className="cudess__coeur" data-testid="cueillette-coeur-marque">
-                  <I.coeur s={14} plein /> Coup de cœur
+                  <Coeur s={14} plein /> Coup de cœur
                   {coeurIci.gain > 0 ? <span className="cudess__avant">au lieu de {fmt(d.points)}</span> : null}
                 </p>
               ) : null}
@@ -1096,7 +1084,7 @@ function DessinsCueillette({ g, roundId, revealed }) {
                 data-action="host:coupDeCoeur" data-testid="cueillette-coup-de-coeur"
                 aria-pressed={estCoeur} title={estCoeur ? 'Retirer le coup de cœur' : 'Désigner ce dessin comme coup de cœur'}
                 onClick={() => designer(d.idx)}>
-                <I.coeur s={15} plein={estCoeur} /> Coup de cœur
+                <Coeur s={15} plein={estCoeur} /> Coup de cœur
               </button>
             </div>
           );

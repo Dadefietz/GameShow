@@ -545,6 +545,9 @@ io.on('connection', (socket) => {
     // LE RÉGLAGE DE LA MUSIQUE, rejoué : un stream rechargé en pleine soirée
     // reprend là où l'animateur l'avait laissé, pas au volume d'usine.
     socket.emit('stream:musique', room.musique);
+    // « CUEILLETTE », PENDANT LA RÉVÉLATION : le dessin à l'antenne et le coup de
+    // cœur — et, pour la console, la liste des dessins.
+    engine.rejouerCueillette(io, room, socket, socket.data.role === 'host' && room.ownerId === socket.data.sub);
   }
 
   // Rattachement joueur (reconnexion sans perte de score — S5).
@@ -837,32 +840,18 @@ io.on('connection', (socket) => {
   // sur la manche, côté serveur, depuis la révélation. Renvoyer les tracés
   // eux-mêmes aurait fait de sa console une source de contenu pour l'antenne.
   //
-  // LE NOM NE PART PAS (décision 2.5). Le document demande de partager le dessin ;
-  // les pseudonymes n'ont jamais quitté le canal de l'animateur dans ce projet, et
-  // ce n'est pas un jeu de dessin qui va les y faire entrer.
+  // LE NOM PART AVEC LE DESSIN, ET SA NOTE NON (26/09) : « faut pas qu'il y ait le
+  // pourcentage de ressemblance. Il faut qu'il y ait le nom d'utilisateur à la
+  // place. » La décision 2.5 est levée pour ce geste-là, et pour lui seul.
   //
   // `idx` à null REPREND le dessin : sans retour en arrière, l'écran de stream
   // resterait bloqué sur un dessin jusqu'à la manche suivante.
+  // La règle — un seul dessin à l'antenne, avec son auteur et sans sa note, et le
+  // drapeau du coup de cœur — vit dans le moteur, qui seul sait ce qui y est
+  // depuis que deux gestes y mènent. Voir `engine.partagerDessin`.
   socket.on('host:partagerDessin', ({ idx } = {}) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
-    const rt = r.currentModule;
-    if (!rt || rt.type !== 'cueillette' || !Array.isArray(rt.dessins)) return;
-    if (idx == null) return engine.toStaff(io, r).emit('cueillette:partage', { roundId: rt.roundId, dessin: null });
-    const d = rt.dessins[Number(idx)];
-    if (!d) return;
-    // LE NOM DU JOUEUR PART AVEC LE DESSIN, À LA PLACE DE SA NOTE (26/09) : « faut
-    // pas qu'il y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom
-    // d'utilisateur à la place. » La décision 2.5 du chantier v9 retenait le nom
-    // sur la console ; l'auteur la lève pour ce geste-là, et pour lui seul :
-    // c'est l'animateur qui choisit de mettre un joueur à l'honneur, un dessin à
-    // la fois. Le pourcentage ne part plus du tout.
-    const joueur = r.players.get(d.pid);
-    engine.toStaff(io, r).emit('cueillette:partage', {
-      roundId: rt.roundId,
-      idx: Number(idx),
-      dessin: { pseudo: joueur ? joueur.pseudo : null, traits: d.traits },
-      cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
-    });
+    engine.partagerDessin(io, r, idx ?? null);
   });
   // LE COUP DE CŒUR — l'animateur n'envoie qu'un INDEX, comme pour le partage ;
   // la règle (la note du meilleur dessin) et sa réversibilité vivent dans le

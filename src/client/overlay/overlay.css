@@ -470,10 +470,10 @@
     --toile-trait: 10px;
   }
   /* LE DESSIN PARTAGÉ, EN GRAND — « à la place de la phrase et du graphique ».
-     Sa note de ressemblance l'accompagne : c'est ce que l'animateur commente, et
-     sans elle le public verrait un dessin sans savoir ce qu'il vaut. LE NOM DE
-     SON AUTEUR N'Y EST PAS (décision 2.5) : les pseudonymes ne quittent pas la
-     console de l'animateur, et ce jeu-ci ne fait pas exception. */
+     AVEC LE NOM DE SON AUTEUR ET SANS SA NOTE depuis le 26/09 : « faut pas qu'il
+     y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom
+     d'utilisateur à la place. » Et, si c'est le coup de cœur de l'animateur
+     (11/10), la mention le dit, à la place de « Le dessin de ». */
 
   .st-cueil__note { display: flex; align-items: baseline; gap: var(--gap-st); margin: 0; }
   .st-cueil__pc {
@@ -486,6 +486,13 @@
     letter-spacing: var(--tr-label);
     text-transform: uppercase;
     color: var(--c-ink-3);
+  }
+  /* LE COUP DE CŒUR — la braise claire, celle du texte d'accent (6,6:1), et le
+     cœur plein devant : la seule mention du stream qui nomme un CHOIX. */
+  .st-cueil__label--coeur {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    align-self: center;
+    color: var(--c-ember-bright);
   }
 
   /* LA RÉPARTITION — les vingt tranches de cinq pour cent, à l'échelle de la
@@ -1224,6 +1231,16 @@
     color: var(--c-ink);
   }
   .st-fact__value--good { color: var(--c-pine); }
+  .st-fact--coeur { box-shadow: var(--sh-edge), 0 0 0 var(--bw-strong) var(--c-glow); }
+  .st-fact__label--coeur { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-ember-bright); }
+  /* UN PSEUDONYME, PAS UN NOMBRE : la police de l'interface, et il se coupe
+     proprement s'il est long plutôt que de pousser la colonne. */
+  .st-fact__value--coeur {
+    font-family: var(--f-ui);
+    color: var(--c-ember-bright);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .st-fact { min-width: 0; }
 
   /* ---- Podium (S4) ---- */
   .st-podium { flex: 1; display: flex; align-items: flex-end; gap: var(--gap-st); }
