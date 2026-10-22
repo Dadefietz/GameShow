@@ -114,7 +114,7 @@ describe('convention de la voix — contrôle bloquant', () => {
       // ressemblait ». Les paliers de l'estimation parlent d'une cible chiffrée,
       // ceux de « Cache-cache » de cases retrouvées.
       cueillette: ['cueillette.parfait', 'cueillette.bien', 'cueillette.passable', 'cueillette.rien',
-        'cueillette.coup-de-coeur'],
+        'cueillette.coup-de-coeur', 'cueillette.haut-le-coeur'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

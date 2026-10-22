@@ -643,7 +643,7 @@ function QuestionStage({ g }) {
   // existe — écouté ici, le dessin se perdait. L'oubli d'une manche à l'autre
   // tient à la comparaison des `roundId`, et à elle seule.
   const roundIdCourant = current.roundId;
-  const { partage, coeur } = g.cueillette || {};
+  const { partage, coeur, haut } = g.cueillette || {};
   const dessinPartage = partage && partage.roundId === roundIdCourant ? partage : null;
 
   // LE COUP DE CŒUR DE L'ANIMATEUR, À L'ANTENNE (11/10) — « le coup de cœur doit
@@ -652,6 +652,10 @@ function QuestionStage({ g }) {
   // partage, avec la mention) ; et quand l'animateur revient au graphique, son
   // nom reste sous lui. Un nom, jamais de points : le stream ne parle pas de notes.
   const coeurIci = coeur && coeur.roundId === roundIdCourant ? coeur : null;
+  // ET SON INVERSE, LE HAUT LE CŒUR (22/10) — même traitement, même retenue : un
+  // nom, jamais le malus.
+  const hautIci = haut && haut.roundId === roundIdCourant ? haut : null;
+  const nbFaits = 2 + (coeurIci ? 1 : 0) + (hautIci ? 1 : 0);
 
   // LE CLASSEMENT DE « CACHE-CACHE », À L'ANTENNE — les cinq premiers (26/09).
   // Il se construit comme celui de la console, une colonne par réponse dévoilée,
@@ -1028,14 +1032,19 @@ function QuestionStage({ g }) {
                     qu'il y ait le pourcentage de ressemblance, il faut qu'il y ait
                     le nom d'utilisateur à la place ». */}
                 {dessinPartage.dessin.pseudo ? (
-                  <p className={`st-cueil__note${dessinPartage.coupDeCoeur ? ' st-cueil__note--coeur' : ''}`}
-                    data-testid="stream-cueillette-auteur" data-coeur={dessinPartage.coupDeCoeur ? 'oui' : undefined}>
+                  <p className="st-cueil__note"
+                    data-testid="stream-cueillette-auteur" data-coeur={dessinPartage.coupDeCoeur ? 'oui' : undefined}
+                    data-haut={dessinPartage.hautLeCoeur ? 'oui' : undefined}>
                     {/* LE COUP DE CŒUR DIT POURQUOI CE DESSIN-LÀ EST MONTRÉ : ce
                         n'est pas le plus ressemblant, c'est celui que l'animateur
                         a préféré. */}
                     {dessinPartage.coupDeCoeur ? (
                       <span className="st-cueil__label st-cueil__label--coeur" data-testid="stream-cueillette-coeur">
                         <Coeur s={30} plein /> Coup de cœur
+                      </span>
+                    ) : dessinPartage.hautLeCoeur ? (
+                      <span className="st-cueil__label st-cueil__label--haut" data-testid="stream-cueillette-haut">
+                        <Coeur s={30} plein brise /> Haut le cœur
                       </span>
                     ) : <span className="st-cueil__label">Le dessin de</span>}
                     <span className="st-cueil__pc">{dessinPartage.dessin.pseudo}</span>
@@ -1050,7 +1059,7 @@ function QuestionStage({ g }) {
                 </div>
                 <HistogrammeCueillette tranches={stats.tranches} bloc="st-cuhist"
                   testid="stream-cueillette-histo" />
-                <div className={`st-facts${coeurIci ? '' : ' st-facts--deux'}`}>
+                <div className={`st-facts${nbFaits === 2 ? ' st-facts--deux' : nbFaits === 4 ? ' st-facts--quatre' : ''}`}>
                   <div className="st-fact">
                     <span className="st-fact__label">Le meilleur</span>
                     <span className="st-fact__value st-fact__value--good">{stats.meilleur} %</span>
@@ -1065,6 +1074,12 @@ function QuestionStage({ g }) {
                     <div className="st-fact st-fact--coeur" data-testid="stream-cueillette-coeur-fait">
                       <span className="st-fact__label st-fact__label--coeur"><Coeur s={22} plein /> Coup de cœur</span>
                       <span className="st-fact__value st-fact__value--coeur">{coeurIci.pseudo}</span>
+                    </div>
+                  ) : null}
+                  {hautIci ? (
+                    <div className="st-fact st-fact--haut" data-testid="stream-cueillette-haut-fait">
+                      <span className="st-fact__label st-fact__label--haut"><Coeur s={22} plein brise /> Haut le cœur</span>
+                      <span className="st-fact__value st-fact__value--haut">{hautIci.pseudo}</span>
                     </div>
                   ) : null}
                 </div>

@@ -33,7 +33,11 @@ const hauteurRendue = (son) => {
 };
 const PARTITION = notesDeLaPartition();
 
-describe.skipIf(!presentes)('les instruments enregistrés', () => {
+// UN DÉLAI À SA MESURE (22/10) : le premier contrôle décode les 55 prises — 95 Mo
+// passés par ffmpeg —, ce que les cinq secondes par défaut ne couvrent que sur une
+// machine au repos. Sous charge (synchronisation iCloud en cours), il en a fallu
+// neuf, et le contrôle tombait sans qu'un seul instrument soit faux.
+describe.skipIf(!presentes)('les instruments enregistrés', { timeout: 60_000 }, () => {
   it('le manifeste est entier : trois banques, sous licence CC0, aucune vide', () => {
     expect(Object.keys(MANIFESTE).sort()).toEqual(['flute', 'harpe', 'violoncelle']);
     for (const liste of Object.values(MANIFESTE)) {

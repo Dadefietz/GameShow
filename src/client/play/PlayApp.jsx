@@ -1389,12 +1389,16 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // Le total d'une manche, recomposé : `base` ne porte plus que le palier depuis
   // que les bonus voyagent à part pour être MONTRÉS au joueur.
   const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0)
-    + (r?.bonusGroupe || 0) + (r?.bonusCoeur || 0) + (r?.speed || 0);
+    + (r?.bonusGroupe || 0) + (r?.bonusCoeur || 0) - (r?.malusHaut || 0) + (r?.speed || 0);
   // « CUEILLETTE » : LE COUP DE CŒUR DE L'ANIMATEUR (07/10). Il arrive APRÈS la
   // révélation — le serveur renvoie le relevé de la manche, corrigé. Le titre, le
   // badge, la voix et le détail des points le suivent tous : un dessin sous le
   // seuil lirait sinon « Raté » au-dessus d'un gain.
   const coupDeCoeur = isCueillette && monResultat?.coupDeCoeur === true;
+  // ET SON INVERSE, LE HAUT LE CŒUR (22/10) : 500 points de moins, infligés par
+  // l'animateur à un dessin. Le titre, le badge, la voix et le détail le suivent
+  // de la même façon — « Bien joué » au-dessus de « −500 » serait une gifle.
+  const hautLeCoeur = isCueillette && monResultat?.hautLeCoeur === true;
   // LE SERVEUR A-T-IL NOTÉ UN DESSIN DE CE JOUEUR ? Voir la note du bloc de
   // « Cueillette », plus bas : c'est ce qui distingue un dessin envoyé d'un
   // dessin que le téléphone a gardé pour lui.
@@ -1459,6 +1463,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     correct = rv.winners.includes(myAnswer);
   }
   if (coupDeCoeur) correct = true;
+  if (hautLeCoeur) correct = false;
 
   // Quel moment de voix ce résultat mérite-t-il ? Chaque branche est adossée à un
   // fait vérifié : le palier renvoyé par le serveur, le supplément de rapidité
@@ -1505,6 +1510,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // choisis ici, qui finiraient par contredire les points affichés juste à côté.
     if (isCueillette) {
       if (coupDeCoeur) return 'cueillette.coup-de-coeur';
+      if (hautLeCoeur) return 'cueillette.haut-le-coeur';
       const p = monResultat.pourcent ?? 0;
       if (p >= 80) return 'cueillette.parfait';
       if (p >= 60) return 'cueillette.bien';
@@ -1665,6 +1671,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     ? (monResultat?.bons >= 5 ? 'Sans faute'
                       : monResultat?.bons > 0 ? `${monResultat.bons} sur 5` : 'La grille a gagné')
                   : coupDeCoeur ? 'Coup de cœur'
+                  : hautLeCoeur ? 'Haut le cœur'
                     : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
               </h1>
               {/* La voix du jeu remplace les commentaires figés : « Ça se
@@ -1732,7 +1739,9 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
 
             {!isSondage ? (
               <div className="gain">
-                <p className="p-label">Points gagnés</p>
+                {/* « POINTS GAGNÉS » AU-DESSUS DE « −500 » se contredisait (22/10) : depuis
+                    le haut le cœur, une manche peut COÛTER des points. */}
+                <p className="p-label" data-testid="points-libelle">{gained < 0 ? 'Points de la manche' : 'Points gagnés'}</p>
                 <p className={`gain__value${gainClass}`} data-bind="you.delta" data-testid="points-gained">{gainText}</p>
                 <span className={`places${places > 0 ? ' places--up' : places < 0 ? ' places--down' : ''}`}
                   data-bind="you.placesDelta" data-testid="places-delta">
@@ -1871,7 +1880,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
 
             {!isVote && !isRetour && (monResultat.base || monResultat.speed
               || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe
-              || monResultat.bonusCoeur) ? (
+              || monResultat.bonusCoeur || monResultat.malusHaut) ? (
               <div className="breakdown">
                 {monResultat.base ? (
                   <div className="breakdown__cell">
@@ -1927,6 +1936,18 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     <span className="breakdown__value breakdown__value--accent"
                       data-bind="you.bonusCoeur" data-testid="points-bonus-coeur">
                       +{fmtNum(monResultat.bonusCoeur)}
+                    </span>
+                  </div>
+                ) : null}
+                {/* LE HAUT LE CŒUR, SUR SA LIGNE : le joueur doit voir que ces
+                    points-là lui ont été retirés par l'animateur, pas par la
+                    ressemblance de son dessin. */}
+                {monResultat.malusHaut ? (
+                  <div className="breakdown__cell">
+                    <span className="p-label p-label--tiny">Haut le cœur</span>
+                    <span className="breakdown__value breakdown__value--rate"
+                      data-bind="you.malusHaut" data-testid="points-malus-haut">
+                      −{fmtNum(monResultat.malusHaut)}
                     </span>
                   </div>
                 ) : null}

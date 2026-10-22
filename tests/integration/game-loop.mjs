@@ -525,6 +525,46 @@ try {
     lb.leaderboard?.find((x) => x.pseudo === 'Bob')?.score === yBob?.score && yBob.score >= meilleurPts,
     JSON.stringify(lb.leaderboard?.slice?.(0, 3)));
 
+  // LE HAUT LE CŒUR (22/10) — « un malus de moins 500 au niveau de ce jeu-là ».
+  // Bob porte encore le coup de cœur : le haut le cœur doit d'abord le lui retirer
+  // (un même dessin ne porte pas les deux), PUIS lui ôter 500 points.
+  const scoreBobAvant = yBob.score;
+  const usurpeHaut = waitFor(host, 'host:hautLeCoeur', 1500).catch(() => null);
+  s2.emit('host:hautLeCoeur', { idx: idxBob });
+  check('HAUT LE CŒUR un joueur ne peut pas l’infliger', (await usurpeHaut) === null);
+
+  let fuitesHaut = 0;
+  const fuiteHaut = () => { fuitesHaut += 1; };
+  for (const sj of [s1, s2, s3]) sj.on('cueillette:hautLeCoeur', fuiteHaut);
+  const confirmeHaut = waitFor(host, 'host:hautLeCoeur', 8000).catch(() => null);
+  const coeurTombe = waitForMatching(host, 'host:coupDeCoeur', (x) => x.idx === null, 8000).catch(() => null);
+  const antenneHaut = waitForMatching(ov, 'cueillette:partage', (x) => x.hautLeCoeur === true, 8000).catch(() => null);
+  const nomHaut = waitFor(ov, 'cueillette:hautLeCoeur', 8000).catch(() => null);
+  const relevéHaut = waitForMatching(s2, 'play:you', (y) => y.hautLeCoeur === true, 8000).catch(() => null);
+  host.emit('host:hautLeCoeur', { idx: idxBob });
+  const h = await confirmeHaut;
+  check('HAUT LE CŒUR la console reçoit le retrait — 500',
+    h && h.idx === idxBob && h.retrait === 500 && h.points === bob.points - 500, JSON.stringify(h));
+  check('HAUT LE CŒUR il retire d’abord le coup de cœur du même dessin', (await coeurTombe) !== null);
+  const yHaut = await relevéHaut;
+  check('HAUT LE CŒUR le téléphone l’apprend : le gain du coup de cœur rendu, puis 500 de moins',
+    yHaut && yHaut.malusHaut === 500 && yHaut.coupDeCoeur === false && yHaut.bonusCoeur === 0
+      && yHaut.score === scoreBobAvant - (meilleurPts - bob.points) - 500 && yHaut.pourcent === bob.pourcent,
+    JSON.stringify(yHaut && { score: yHaut.score, avant: scoreBobAvant, malus: yHaut.malusHaut, coeur: yHaut.coupDeCoeur }));
+  const aHaut = await antenneHaut;
+  check('HAUT LE CŒUR IL PASSE À L’ANTENNE, avec la mention et son auteur — sans sa note',
+    aHaut && aHaut.dessin?.pseudo === 'Bob' && aHaut.coupDeCoeur === false && !('points' in aHaut.dessin),
+    JSON.stringify(aHaut && { coeur: aHaut.coupDeCoeur, haut: aHaut.hautLeCoeur, pseudo: aHaut.dessin?.pseudo }));
+  const nh = await nomHaut;
+  check('HAUT LE CŒUR le stream le nomme — un nom, pas de points',
+    nh && nh.pseudo === 'Bob' && !/points|retrait|malus/.test(JSON.stringify(nh)), JSON.stringify(nh));
+  const ov3 = connect(overlayToken);
+  const rejeuHaut = await waitFor(ov3, 'cueillette:hautLeCoeur', 5000).catch(() => null);
+  check('HAUT LE CŒUR un stream rechargé le retrouve', rejeuHaut?.pseudo === 'Bob', JSON.stringify(rejeuHaut));
+  ov3.close();
+  check('HAUT LE CŒUR aucun téléphone ne reçoit le nom', fuitesHaut === 0, String(fuitesHaut));
+  for (const sj of [s1, s2, s3]) sj.off('cueillette:hautLeCoeur', fuiteHaut);
+
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');
   // On attend LE relevé final, reconnaissable à son drapeau — pas le prochain

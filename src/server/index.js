@@ -860,6 +860,12 @@ io.on('connection', (socket) => {
     const r = requireRoom(socket); if (!isHost(socket, r)) return;
     engine.coupDeCoeur(io, r, idx ?? null);
   });
+  // LE HAUT LE CŒUR (22/10) — son inverse, un malus de 500 sur la manche, sous les
+  // mêmes garanties. Voir `engine.distinguer`.
+  socket.on('host:hautLeCoeur', ({ idx } = {}) => {
+    const r = requireRoom(socket); if (!isHost(socket, r)) return;
+    engine.hautLeCoeur(io, r, idx ?? null);
+  });
   // La commande host:adjustScore a été supprimée avec le panneau « Bonus / Malus »
   // de l'écran animateur (action 8) : correction manuelle sans règle ni trace.
   socket.on('host:nextModule', () => {

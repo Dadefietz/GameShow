@@ -655,6 +655,20 @@
      ligne de plus — s'élargissait seule. */
   .cudess__fiche { min-width: 0; }
   .cudess__coeur-bouton[aria-pressed="true"] { color: var(--c-ember-bright); }
+  /* LE HAUT LE CŒUR — la braise éteinte (`--c-bad`, 6,0:1), la couleur que le jeu
+     réserve à ce qui coûte. Distincte de l'étincelle du coup de cœur et de la
+     braise de l'antenne : les trois marques peuvent coexister sur la console. */
+  .cudess__fiche--haut { box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-bad); }
+  .cudess__fiche--antenne.cudess__fiche--haut {
+    box-shadow: var(--sh-2), 0 0 0 var(--bw-strong) var(--c-ember), 0 0 0 calc(2 * var(--bw-strong)) var(--c-bad);
+  }
+  .cudess__haut {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--sp-1);
+    margin: 0;
+    font: 600 var(--fs-200) / 1.2 var(--f-ui);
+    color: var(--c-bad);
+  }
+  .cudess__haut-bouton[aria-pressed="true"] { color: var(--c-bad); }
 
   /* À la révélation, le panneau perd sa hachure : il est devenu public. */
   .private--public { box-shadow: var(--sh-edge); }

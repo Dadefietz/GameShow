@@ -494,6 +494,13 @@
     align-self: center;
     color: var(--c-ember-bright);
   }
+  /* LE HAUT LE CŒUR — la braise éteinte, la couleur que le jeu réserve à ce qui
+     coûte. */
+  .st-cueil__label--haut {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    align-self: center;
+    color: var(--c-bad);
+  }
 
   /* LA RÉPARTITION — les vingt tranches de cinq pour cent, à l'échelle de la
      scène. Mêmes données et même composant que la console de l'animateur ;
@@ -529,7 +536,15 @@
   /* DEUX FAITS, PAS TROIS. La grille des faits est faite pour l'estimation, qui
      en publie trois ; « Cueillette » n'en a que deux, et la troisième colonne
      laissait un trou d'un tiers de largeur à droite. */
-  .st-facts--deux { grid-template-columns: repeat(2, 1fr); }
+  /*
+     CETTE RÈGLE N'AVAIT JAMAIS PRIS (mesuré le 22/10) : `.st-facts`, déclarée plus
+     bas dans la même couche, avec le même poids, la recouvrait — la grille
+     calculait TROIS colonnes pour deux faits, et le trou d'un tiers était toujours
+     là. Le modificateur porte désormais les deux classes : il l'emporte quel que
+     soit l'ordre du fichier. */
+  .st-facts.st-facts--deux { grid-template-columns: repeat(2, 1fr); }
+  /* Le coup de cœur ET le haut le cœur sous le graphique : quatre repères. */
+  .st-facts.st-facts--quatre { grid-template-columns: repeat(4, 1fr); }
 
   /* LA SÉRIE À LA RÉVÉLATION. Trente colonnes sur une toile de 1920 : elles
      tiennent sur deux rangs. Le visage doublé est plus gros à ses deux places,
@@ -1241,6 +1256,13 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .st-fact { min-width: 0; }
+  .st-fact--haut { box-shadow: var(--sh-edge), 0 0 0 var(--bw-strong) var(--c-bad); }
+  .st-fact__label--haut { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--c-bad); }
+  .st-fact__value--haut {
+    font-family: var(--f-ui);
+    color: var(--c-bad);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 
   /* ---- Podium (S4) ---- */
   .st-podium { flex: 1; display: flex; align-items: flex-end; gap: var(--gap-st); }

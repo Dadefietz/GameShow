@@ -466,4 +466,89 @@ test.describe('Cueillette', () => {
     await expect(stream.getByTestId('stream-cueillette-coeur-fait')).toHaveCount(0);
     await expect(stream.getByTestId('stream-cueillette-histo')).toBeVisible();
   });
+
+  // ==========================================================================
+  // LE HAUT LE CŒUR (22/10)
+  // ==========================================================================
+  //
+  // « L'inverse : qu'en plus, l'animateur puisse, s'il veut, sélectionner une
+  // personne et qu'il lui donne un malus de moins 500 au niveau de ce jeu-là. Il
+  // va forcément sélectionner une personne qui a mal dessiné. »
+  test('LE HAUT LE CŒUR : 500 points de moins au dessin raté — sur la console, le téléphone et le stream', async ({ browser }) => {
+    await annoncer(browser, ['Pinceau', 'Gomme']);
+    await hote.page.getByTestId('cu-famille-arbres').click();
+    const choix = hote.page.getByTestId('cu-dessin').first();
+    const id = (await choix.locator('img').getAttribute('src')).match(/(d\d{3})\.webp/)[1];
+    await choix.click();
+    await hote.page.getByTestId('cueillette-demarrer').click();
+
+    const [pinceau, gomme] = joueurs.map((x) => x.page);
+    await expect(pinceau.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await expect(gomme.getByTestId('cueillette-toile')).toBeVisible({ timeout: 25_000 });
+    await tracerTraits(pinceau, copisteDe(GRILLES_DESSINS[id]));
+    await pinceau.getByTestId('answer-submit').click();
+    await tracer(gomme, 'croix');
+    await gomme.getByTestId('answer-submit').click();
+
+    const fiches = hote.page.getByTestId('cueillette-fiche');
+    await expect(fiches).toHaveCount(2, { timeout: 45_000 });
+    const ficheDe = (nom) => fiches.filter({ has: hote.page.locator('.cudess__nom', { hasText: nom }) });
+    const ptsGomme = nombre(await ficheDe('Gomme').getByTestId('cueillette-points').textContent());
+    await expect(gomme.getByTestId('cueillette-ressemblance')).toBeVisible({ timeout: 20_000 });
+    const ressemblance = await gomme.getByTestId('cueillette-ressemblance').textContent();
+
+    // HAUT LE CŒUR À GOMME.
+    await ficheDe('Gomme').getByTestId('cueillette-haut-le-coeur').click();
+    await expect(ficheDe('Gomme')).toHaveAttribute('data-haut', 'oui');
+    await expect(ficheDe('Gomme').getByTestId('cueillette-haut-marque')).toContainText('Haut le cœur');
+    await expect(ficheDe('Gomme').getByTestId('cueillette-haut-marque')).toContainText('500');
+    await expect(ficheDe('Gomme').getByTestId('cueillette-haut-le-coeur')).toHaveAttribute('aria-pressed', 'true');
+    // LES POINTS DE LA FICHE : ceux du dessin, moins 500 — négatifs s'il le faut.
+    await expect.poll(async () => (await ficheDe('Gomme').getByTestId('cueillette-points').textContent()).replace(/[\s\u202f\u00a0]/g, ''),
+      'la fiche ne porte pas le malus').toBe(`${(ptsGomme - 500).toLocaleString('fr-FR').replace(/[\s\u202f\u00a0]/g, '').replace('−', '-')}pts`);
+
+    // SON TÉLÉPHONE : le titre le nomme, la ligne du calcul le montre, le gain de
+    // la manche le porte, une phrase du bon moment — et la ressemblance ne bouge pas.
+    await expect(gomme.locator('#verdict')).toHaveText('Haut le cœur');
+    const malus = (await gomme.getByTestId('points-malus-haut').textContent()).trim();
+    expect(/^[−-]/.test(malus) && nombre(malus), `la ligne du haut le cœur dit « ${malus} »`).toBe(500);
+    await expect.poll(async () => (await gomme.getByTestId('points-gained').textContent()).trim(),
+      'le gain de la manche ne porte pas le malus').toMatch(/^[−-]500$/);
+    await expect(gomme.getByTestId('points-libelle'), '« Points gagnés » au-dessus d’une perte').toHaveText('Points de la manche');
+    const voix = (await gomme.getByTestId('voix-resultat').textContent()).trim();
+    expect(MOMENTS['cueillette.haut-le-coeur'].phrases, `phrase hors du moment : « ${voix} »`).toContain(voix);
+    await expect(gomme.getByTestId('cueillette-ressemblance')).toHaveText(ressemblance);
+
+    // À L'ANTENNE : le dessin de Gomme en grand, la mention, son nom — pas de note.
+    await expect(stream.getByTestId('stream-cueillette-haut')).toContainText('Haut le cœur', { timeout: 10_000 });
+    await expect(stream.getByTestId('stream-cueillette-auteur')).toContainText('Gomme');
+    await expect(stream.getByTestId('stream-cueillette-partage'), 'le malus est parti à l’antenne').not.toContainText('500');
+
+    // LES DEUX DISTINCTIONS ENSEMBLE, puis retour au graphique : quatre repères,
+    // sur UNE ligne de quatre colonnes — le modificateur de grille ne prenait pas.
+    await ficheDe('Pinceau').getByTestId('cueillette-coup-de-coeur').click();
+    await expect(stream.getByTestId('stream-cueillette-coeur')).toBeVisible();
+    await ficheDe('Pinceau').getByTestId('cueillette-partager').click();
+    await expect(stream.getByTestId('stream-cueillette-haut-fait')).toContainText('Gomme');
+    await expect(stream.getByTestId('stream-cueillette-coeur-fait')).toContainText('Pinceau');
+    expect(await stream.locator('.st-facts').evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length),
+      'quatre repères sur une grille qui n’a pas quatre colonnes').toBe(4);
+
+    // UN MÊME DESSIN NE PORTE PAS LES DEUX : le coup de cœur sur Gomme lui retire
+    // son haut le cœur.
+    await ficheDe('Gomme').getByTestId('cueillette-coup-de-coeur').click();
+    await expect(ficheDe('Gomme')).toHaveAttribute('data-coeur', 'oui');
+    await expect(ficheDe('Gomme')).not.toHaveAttribute('data-haut', 'oui');
+    await expect(gomme.getByTestId('points-malus-haut')).toHaveCount(0);
+    await expect(gomme.locator('#verdict')).toHaveText('Coup de cœur');
+
+    // Et un haut le cœur se retire comme il se donne.
+    await ficheDe('Pinceau').getByTestId('cueillette-haut-le-coeur').click();
+    await expect(ficheDe('Pinceau')).toHaveAttribute('data-haut', 'oui');
+    await expect(pinceau.locator('#verdict')).toHaveText('Haut le cœur');
+    await ficheDe('Pinceau').getByTestId('cueillette-haut-le-coeur').click();
+    await expect(hote.page.locator('[data-haut="oui"]')).toHaveCount(0);
+    await expect(pinceau.locator('#verdict')).not.toHaveText('Haut le cœur');
+    await expect(stream.getByTestId('stream-cueillette-haut-fait')).toHaveCount(0);
+  });
 });

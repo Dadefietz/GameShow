@@ -415,6 +415,160 @@ describe('engine.coupDeCoeur', () => {
     expect(stream.some((e) => e.ev === 'host:dessins')).toBe(false);
   });
 
+  // ---- LE HAUT LE CŒUR (22/10) — « l'inverse : […] un malus de moins 500 au
+  // niveau de ce jeu-là. Il va forcément sélectionner une personne qui a mal
+  // dessiné. »
+  it('HAUT LE CŒUR : 500 points de moins, lus sur le relevé du joueur — et personne d’autre ne bouge', () => {
+    const [sa, sb, sc] = [a.score, b.score, c.score];
+    const r = engine.hautLeCoeur(io, room, idxDe(b));
+    expect(r.ok).toBe(true);
+    expect(sb - b.score, 'le malus n’est pas de 500').toBe(engine.MALUS_HAUT_LE_COEUR);
+    expect(engine.MALUS_HAUT_LE_COEUR).toBe(500);
+    expect([a.score, c.score]).toEqual([sa, sc]);
+    const yb = dernierYou(b);
+    expect(yb.hautLeCoeur).toBe(true);
+    expect(yb.malusHaut).toBe(500);
+    expect(yb.delta, 'le relevé ne montre pas le malus').toBe(pointsDe(b) - 500);
+    expect(yb.score).toBe(b.score);
+    expect(yb.pourcent, 'la ressemblance a changé').toBe(rt.dessins[idxDe(b)].pourcent);
+    expect(b.lastResult.hautLeCoeur).toBe(true);
+    // La console, avec ses points ; le stream, un nom ; l'antenne, avec la mention.
+    expect(io.emitted.filter((e) => e.ev === 'host:hautLeCoeur').at(-1)).toMatchObject({
+      target: room.code + ':host', payload: { idx: idxDe(b), retrait: 500, points: pointsDe(b) - 500 },
+    });
+    const pub = versStaff('cueillette:hautLeCoeur').at(-1).payload;
+    expect(pub).toEqual({ roundId: rt.roundId, idx: idxDe(b), pseudo: 'Bob' });
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(b), hautLeCoeur: true, coupDeCoeur: false });
+    expect(io.emitted.some((e) => e.ev === 'leaderboard:update')).toBe(true);
+  });
+
+  it('HAUT LE CŒUR : 500 ENTIERS, quitte à passer sous zéro — et l’annulation les rend exactement', () => {
+    // Borné à zéro, il ne retirait RIEN au joueur qui n'avait encore rien marqué :
+    // « Haut le cœur −0 pts » sur la console, vu à la capture.
+    b.score = 0;
+    engine.hautLeCoeur(io, room, idxDe(b));
+    expect(b.score, 'le malus a été absorbé par un plancher à zéro').toBe(-500);
+    expect(dernierYou(b).malusHaut).toBe(500);
+    expect(dernierYou(b).score).toBe(-500);
+    engine.hautLeCoeur(io, room, null);
+    expect(b.score, 'l’annulation n’a pas rendu ce qui avait été pris').toBe(0);
+    expect(dernierYou(b).hautLeCoeur).toBe(false);
+    expect(dernierYou(b).malusHaut).toBe(0);
+  });
+
+  it('UN TOTAL NÉGATIF SURVIT À LA MANCHE SUIVANTE — la révélation ne le remet plus à zéro', () => {
+    b.score = 0;
+    engine.hautLeCoeur(io, room, idxDe(b));
+    expect(b.score).toBe(-500);
+    // Manche suivante : Bob rate (0 point) — il reste à −500, au lieu d'être
+    // remis à zéro par le plancher de la révélation, qui effaçait le malus.
+    setRound(room, 'quiz', QUIZ_Q, [[b.id, { value: 0, at: Date.now() - 4000 }], [a.id, { value: 1, at: Date.now() - 4000 }]]);
+    engine.reveal(io, room);
+    expect(b.score, 'la manche suivante a effacé le haut le cœur').toBe(-500);
+    // Et une bonne réponse s'y ajoute normalement.
+    setRound(room, 'quiz', QUIZ_Q, [[b.id, { value: 1, at: Date.now() - 4000 }]]);
+    engine.reveal(io, room);
+    expect(b.score).toBeGreaterThan(-500);
+    expect(b.score).toBe(-500 + dernierYou(b).delta);
+  });
+
+  it('un total POSITIF ne passe toujours pas sous zéro à la révélation', () => {
+    // Le plancher historique, conservé pour tout ce qui n'est pas un haut le cœur.
+    a.score = 50;
+    const rt2 = setRound(room, 'quiz', QUIZ_Q, [[a.id, { value: 1, at: Date.now() - 4000 }]]);
+    const score0 = modules.quiz.score;
+    modules.quiz.score = (r) => { const out = score0(r); for (const v of out.results.values()) { v.base = -200; v.speed = 0; } return out; };
+    try { engine.reveal(io, room); } finally { modules.quiz.score = score0; }
+    expect(rt2.revealed).toBe(true);
+    expect(a.score).toBe(0);
+  });
+
+  it('le coup de cœur annulé rend EXACTEMENT son gain, même à un total négatif', () => {
+    b.score = -500;
+    engine.coupDeCoeur(io, room, idxDe(b));
+    const gain = rt.coupDeCoeur.gain;
+    engine.coupDeCoeur(io, room, null);
+    expect(b.score, 'l’annulation a arrondi un total négatif').toBe(-500);
+    expect(gain).toBeGreaterThan(0);
+  });
+
+  it('HAUT LE CŒUR : un seul par manche — le déplacer rend au précédent ses points, le retirer aussi', () => {
+    const [sb, sc] = [b.score, c.score];
+    engine.hautLeCoeur(io, room, idxDe(b));
+    engine.hautLeCoeur(io, room, idxDe(c));
+    expect(b.score).toBe(sb);
+    expect(c.score).toBe(sc - 500);
+    expect(dernierYou(b).hautLeCoeur).toBe(false);
+    engine.hautLeCoeur(io, room, null);
+    expect(c.score).toBe(sc);
+    expect(rt.hautLeCoeur).toBe(null);
+    expect(versStaff('cueillette:partage').at(-1).payload.dessin, 'le haut le cœur retiré est resté à l’antenne').toBe(null);
+    expect(versStaff('cueillette:hautLeCoeur').at(-1).payload.pseudo).toBe(null);
+  });
+
+  it('UN MÊME DESSIN NE PORTE PAS LES DEUX : le haut le cœur retire le coup de cœur, et inversement', () => {
+    const sc = c.score;
+    engine.coupDeCoeur(io, room, idxDe(c));
+    const gain = rt.coupDeCoeur.gain;
+    expect(gain).toBeGreaterThan(0);
+    engine.hautLeCoeur(io, room, idxDe(c));
+    expect(rt.coupDeCoeur, 'le coup de cœur a survécu au haut le cœur').toBe(null);
+    expect(c.score, 'le gain du coup de cœur n’a pas été rendu avant le malus').toBe(sc - 500);
+    expect(dernierYou(c)).toMatchObject({ coupDeCoeur: false, bonusCoeur: 0, hautLeCoeur: true, malusHaut: 500 });
+    // La console et le stream apprennent que le coup de cœur est tombé.
+    expect(io.emitted.filter((e) => e.ev === 'host:coupDeCoeur').at(-1).payload.idx).toBe(null);
+    expect(versStaff('cueillette:coupDeCoeur').at(-1).payload.pseudo).toBe(null);
+    // Et l'inverse.
+    engine.coupDeCoeur(io, room, idxDe(c));
+    expect(rt.hautLeCoeur).toBe(null);
+    expect(c.score).toBe(sc + gain);
+  });
+
+  it('les deux distinctions sur deux joueurs différents coexistent ; l’antenne montre la dernière', () => {
+    engine.coupDeCoeur(io, room, idxDe(c));
+    engine.hautLeCoeur(io, room, idxDe(b));
+    expect(rt.coupDeCoeur.pid).toBe(c.id);
+    expect(rt.hautLeCoeur.pid).toBe(b.id);
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(b), hautLeCoeur: true });
+    // Rendre l'antenne au coup de cœur garde SA mention.
+    engine.partagerDessin(io, room, idxDe(c));
+    expect(versStaff('cueillette:partage').at(-1).payload).toMatchObject({ idx: idxDe(c), coupDeCoeur: true, hautLeCoeur: false });
+  });
+
+  it('HAUT LE CŒUR : les places suivent pour tout le cercle', () => {
+    // Après la révélation : Alice 4200, Chloé ≈ 3080, Bob 2500 — porté ici à 2700.
+    // Le haut le cœur de Chloé (−500 → ≈ 2580) la fait passer sous Bob.
+    b.score = 2700;
+    const avantB = b.lastResult.placesDelta; const avantC = c.lastResult.placesDelta;
+    engine.hautLeCoeur(io, room, idxDe(c));
+    expect(c.score, 'le scénario ne fait changer personne de place').toBeLessThan(b.score);
+    expect(dernierYou(c).placesDelta).toBeLessThan(avantC);
+    expect(dernierYou(b), 'Bob a gagné une place sans que son écran le sache').toBeDefined();
+    expect(dernierYou(b).placesDelta).toBeGreaterThan(avantB);
+  });
+
+  it('HAUT LE CŒUR : refusé hors d’une manche révélée, ou sur un dessin inconnu', () => {
+    const avant = [a.score, b.score, c.score];
+    expect(engine.hautLeCoeur(io, room, 42).ok).toBe(false);
+    expect([a.score, b.score, c.score]).toEqual(avant);
+    const rt2 = setRound(room, 'cueillette', { id: 'cu3', dessinId: CIBLE }, []);
+    rt2.dessins = [{ pid: b.id, pourcent: 0, points: 0, traits: [] }];
+    expect(engine.hautLeCoeur(io, room, 0).ok).toBe(false);
+    expect(b.score).toBe(avant[1]);
+  });
+
+  it('UN ÉCRAN QUI SE RATTACHE RETROUVE AUSSI LE HAUT LE CŒUR', () => {
+    engine.hautLeCoeur(io, room, idxDe(b));
+    const sock = { emitted: [], emit(ev, payload) { this.emitted.push({ ev, payload }); } };
+    engine.rejouerCueillette(io, room, sock, false);
+    expect(sock.emitted.find((e) => e.ev === 'cueillette:hautLeCoeur')?.payload.pseudo).toBe('Bob');
+    expect(sock.emitted.find((e) => e.ev === 'cueillette:partage')?.payload.hautLeCoeur).toBe(true);
+    expect(sock.emitted.some((e) => e.ev === 'host:hautLeCoeur'), 'la note du malus est partie au stream').toBe(false);
+    const hote = { emitted: [], emit(ev, payload) { this.emitted.push({ ev, payload }); } };
+    engine.rejouerCueillette(io, room, hote, true);
+    expect(hote.emitted.find((e) => e.ev === 'host:hautLeCoeur')?.payload).toMatchObject({ idx: idxDe(b), retrait: 500 });
+  });
+
   it('pas avant la révélation : la notation doit être faite', () => {
     const rt2 = setRound(room, 'cueillette', { id: 'cu2', dessinId: CIBLE }, []);
     rt2.dessins = [{ pid: b.id, pourcent: 0, points: 0, traits: [] }];

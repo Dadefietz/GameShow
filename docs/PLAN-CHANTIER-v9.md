@@ -1121,3 +1121,46 @@ partage, rejeu — six sabotages vus rouges), quatre d'intégration (antenne, no
 sans points, rejeu au stream rechargé, aucune fuite vers les téléphones — deux
 sabotages vus rouges), l'E2E du coup de cœur étendu au stream et aux deux
 rechargements (deux sabotages vus rouges).
+
+### 14.4 — Le haut le cœur (22/10)
+
+« Maintenant, je veux qu'on fasse l'inverse : qu'en plus de ça, l'animateur
+puisse, s'il veut, sélectionner une personne et qu'il lui donne un malus de moins
+500 au niveau de ce jeu-là. Il va forcément sélectionner une personne qui a mal
+dessiné. Et j'aimerais qu'on appelle ça le "Haut le cœur". »
+
+- **La règle** : 500 points de moins au dessin choisi, sur cette manche. Un par
+  manche, déplaçable (le précédent retrouve ses points) et annulable. Mêmes
+  garanties que le coup de cœur — une seule mécanique, `engine.distinguer`, porte
+  désormais les deux « distinctions » de l'animateur.
+- **Un même dessin ne porte pas les deux** : désigner l'une retire l'autre.
+- **500 entiers, quitte à passer sous zéro.** Borné à zéro comme le reste du jeu,
+  il ne retirait rien au joueur qui n'avait encore rien marqué — la capture
+  montrait « Haut le cœur −0 pts ». La révélation suivante ne remet plus un total
+  négatif à zéro : son plancher devient « jamais plus bas qu'avant » (un total
+  positif ne passe toujours pas sous zéro). L'annulation du coup de cœur rend
+  désormais exactement son gain, sans arrondir.
+- **Partout où le coup de cœur paraît** : la console (fiche cerclée de braise
+  éteinte, « Haut le cœur −500 pts », bouton bascule au cœur brisé), le téléphone
+  (titre « Haut le cœur », phrase de voix `cueillette.haut-le-coeur` — taquine
+  sans se moquer, sans promettre la discrétion puisque le dessin passe à
+  l'antenne —, ligne « Haut le cœur −500 », libellé « Points de la manche » sur
+  un total négatif), le stream (dessin en grand avec la mention, puis repère sous
+  le graphique ; un nom, jamais le malus), le rejeu au rechargement.
+- **Le seul malus du jeu** reste un geste de l'animateur, jamais la règle d'un
+  module ; l'en-tête du moteur le consigne.
+
+Défauts trouvés en chemin :
+- **La grille des repères du stream n'avait jamais pris son modificateur** —
+  mesuré : trois colonnes pour deux faits (le correctif « deux faits » du 24/09 ne
+  s'appliquait pas, la règle de base déclarée plus bas l'écrasait), trois pour
+  quatre. Les modificateurs portent désormais les deux classes.
+- **Le contrôle des instruments enregistrés** tombait sous charge (décodage de
+  95 Mo en plus de cinq secondes pendant une synchronisation iCloud) : délai
+  explicite de soixante secondes.
+
+Contrôles : onze unitaires (règle, plancher, annulation exacte, exclusivité,
+coexistence, places, refus, rejeu, total négatif qui survit à la manche suivante,
+plancher positif conservé, annulation exacte du coup de cœur — dix sabotages vus
+rouges), huit d'intégration (deux sabotages vus rouges), un E2E de bout en bout
+(trois sabotages d'interface vus rouges, dont la grille).

@@ -75,9 +75,11 @@ export function useGame(token) {
   // première seconde ; chaque écran lit ensuite ce qui concerne SA manche.
   //   dessins   : la liste avec les noms et les notes — console seule ;
   //   coeurHote : le coup de cœur avec ses points — console seule ;
+  //   hautHote  : le haut le cœur avec son retrait — console seule (22/10) ;
   //   partage   : le dessin à l'antenne — console et stream ;
-  //   coeur     : le coup de cœur, un nom sans points — console et stream.
-  const [cueillette, setCueillette] = useState({ dessins: null, coeurHote: null, partage: null, coeur: null });
+  //   coeur     : le coup de cœur, un nom sans points — console et stream ;
+  //   haut      : le haut le cœur, un nom sans points — console et stream.
+  const [cueillette, setCueillette] = useState({ dessins: null, coeurHote: null, hautHote: null, partage: null, coeur: null, haut: null });
 
   useEffect(() => {
     if (!token) return;
@@ -186,11 +188,13 @@ export function useGame(token) {
     s.on('stream:musique', (m) => setMusique(m && typeof m === 'object' ? m : null));
     // Une nouvelle liste ouvre une nouvelle révélation : ce qui suit la complète.
     s.on('host:dessins', (d) => setCueillette({
-      dessins: d && Array.isArray(d.dessins) ? d : null, coeurHote: null, partage: null, coeur: null,
+      dessins: d && Array.isArray(d.dessins) ? d : null, coeurHote: null, hautHote: null, partage: null, coeur: null, haut: null,
     }));
     s.on('host:coupDeCoeur', (c) => setCueillette((x) => ({ ...x, coeurHote: c && c.idx != null ? c : null })));
     s.on('cueillette:partage', (p) => setCueillette((x) => ({ ...x, partage: p && p.dessin ? p : null })));
     s.on('cueillette:coupDeCoeur', (c) => setCueillette((x) => ({ ...x, coeur: c && c.pseudo ? c : null })));
+    s.on('host:hautLeCoeur', (c) => setCueillette((x) => ({ ...x, hautHote: c && c.idx != null ? c : null })));
+    s.on('cueillette:hautLeCoeur', (c) => setCueillette((x) => ({ ...x, haut: c && c.pseudo ? c : null })));
     return () => s.close();
   }, [token]);
 

@@ -1018,7 +1018,7 @@ function DessinsCueillette({ g, roundId, revealed }) {
   // mènent désormais, « Partager ! » et le coup de cœur, qui MONTRE le dessin
   // qu'il désigne. Retenu côté console, l'état marquait encore « à l'antenne » un
   // dessin que le coup de cœur venait de remplacer.
-  const { dessins: donnee, coeurHote: coeur, partage: surAntenne } = g.cueillette || {};
+  const { dessins: donnee, coeurHote: coeur, hautHote: haut, partage: surAntenne } = g.cueillette || {};
   // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
   // manche antérieure ferait partager à l'antenne le dessin d'une manche close.
   if (!revealed || !donnee || donnee.roundId !== roundId) return null;
@@ -1030,6 +1030,10 @@ function DessinsCueillette({ g, roundId, revealed }) {
   // marquerait une fiche qui n'a rien reçu.
   const coeurIci = coeur && coeur.roundId === roundId ? coeur : null;
   const designer = (idx) => g.emit('host:coupDeCoeur', { idx: coeurIci?.idx === idx ? null : idx });
+  // LE HAUT LE CŒUR (22/10) — l'inverse : 500 points de moins sur la manche, à un
+  // dessin raté. Mêmes gestes : un par manche, rechoisir l'annule.
+  const hautIci = haut && haut.roundId === roundId ? haut : null;
+  const ecoeurer = (idx) => g.emit('host:hautLeCoeur', { idx: hautIci?.idx === idx ? null : idx });
 
   return (
     <section className="private" aria-label="Les dessins du cercle" data-testid="cueillette-dessins">
@@ -1050,9 +1054,13 @@ function DessinsCueillette({ g, roundId, revealed }) {
       <div className="cudess">
         {donnee.dessins.map((d) => {
           const estCoeur = coeurIci?.idx === d.idx;
+          const estHaut = hautIci?.idx === d.idx;
+          // Les points que le serveur a versés — ou retirés.
+          const points = estCoeur ? coeurIci.points : estHaut ? hautIci.points : d.points;
           return (
-            <div className={`cudess__fiche${partage === d.idx ? ' cudess__fiche--antenne' : ''}${estCoeur ? ' cudess__fiche--coeur' : ''}`}
-              key={d.idx} data-testid="cueillette-fiche" data-coeur={estCoeur ? 'oui' : undefined}>
+            <div className={`cudess__fiche${partage === d.idx ? ' cudess__fiche--antenne' : ''}${estCoeur ? ' cudess__fiche--coeur' : ''}${estHaut ? ' cudess__fiche--haut' : ''}`}
+              key={d.idx} data-testid="cueillette-fiche" data-coeur={estCoeur ? 'oui' : undefined}
+              data-haut={estHaut ? 'oui' : undefined}>
               <Toile testid="cueillette-dessin" etiquette={`Le dessin de ${d.pseudo}`}
                 disabled valeur={d.traits} />
               <p className="cudess__nom" title={d.pseudo}>{d.pseudo}</p>
@@ -1061,13 +1069,20 @@ function DessinsCueillette({ g, roundId, revealed }) {
                 {/* LES POINTS QUE LE SERVEUR A VERSÉS, et ceux d'origine à côté :
                     l'animateur doit voir ce que son geste a changé. */}
                 <span className="cudess__pts" data-testid="cueillette-points">
-                  {fmt(estCoeur ? coeurIci.points : d.points)} pts
+                  {fmt(points)} pts
                 </span>
               </p>
               {estCoeur ? (
                 <p className="cudess__coeur" data-testid="cueillette-coeur-marque">
                   <Coeur s={14} plein /> Coup de cœur
                   {coeurIci.gain > 0 ? <span className="cudess__avant">au lieu de {fmt(d.points)}</span> : null}
+                </p>
+              ) : null}
+              {estHaut ? (
+                <p className="cudess__haut" data-testid="cueillette-haut-marque">
+                  <Coeur s={14} plein brise /> Haut le cœur
+                  {/* LE RETRAIT RÉEL : 500, ou moins si le total ne les avait pas. */}
+                  <span className="cudess__avant">−{fmt(hautIci.retrait)} pts</span>
                 </p>
               ) : null}
               <button className={`button ${partage === d.idx ? 'button--quiet' : 'button--primary'}`}
@@ -1085,6 +1100,12 @@ function DessinsCueillette({ g, roundId, revealed }) {
                 aria-pressed={estCoeur} title={estCoeur ? 'Retirer le coup de cœur' : 'Désigner ce dessin comme coup de cœur'}
                 onClick={() => designer(d.idx)}>
                 <Coeur s={15} plein={estCoeur} /> Coup de cœur
+              </button>
+              <button className="button button--quiet cudess__coeur-bouton cudess__haut-bouton" type="button"
+                data-action="host:hautLeCoeur" data-testid="cueillette-haut-le-coeur"
+                aria-pressed={estHaut} title={estHaut ? 'Retirer le haut le cœur' : 'Retirer 500 points à ce dessin : haut le cœur'}
+                onClick={() => ecoeurer(d.idx)}>
+                <Coeur s={15} plein={estHaut} brise /> Haut le cœur
               </button>
             </div>
           );

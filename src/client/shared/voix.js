@@ -383,6 +383,21 @@ export const MOMENTS = {
       'Coup de cœur ! Ton trait a parlé à l’animateur.',
     ],
   },
+  // LE HAUT LE CŒUR DE L'ANIMATEUR (22/10) : 500 points de moins à un dessin qu'il
+  // n'a pas aimé. La voix INTIME peut taquiner — personne d'autre ne la lit — mais
+  // elle ne se moque pas : le geste vient de l'animateur, elle en adoucit le
+  // coup. Aucune phrase ne cite le montant : les chiffres sont juste à côté. Et
+  // aucune ne promet la discrétion : le dessin passe À L'ANTENNE, avec le nom.
+  'cueillette.haut-le-coeur': {
+    surface: 'play',
+    quand: 'l’animateur a infligé son haut le cœur à ce dessin',
+    phrases: [
+      'Ton dessin a donné un haut-le-cœur à l’animateur. Il s’en remettra.',
+      'L’animateur a détourné les yeux. Le prochain dessin le fera revenir.',
+      'Haut le cœur ! Le cercle s’en souviendra — jusqu’à la prochaine manche.',
+      'Pas ton meilleur coup de crayon. Le feu, lui, ne juge pas.',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',

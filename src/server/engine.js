@@ -60,6 +60,9 @@ import { RoomState, roomManager } from './rooms.js';
 //  - Le MALUS n'existe plus, dans aucun jeu. Une mauvaise réponse ne rapporte
 //    rien ; elle ne coûte rien. Contrepartie assumée : répondre au hasard est
 //    gratuit, ce qui est la norme du genre et sert la participation.
+//    SEULE EXCEPTION, ET ELLE N'EST PAS UNE RÈGLE DE JEU : le « haut le cœur » de
+//    « Cueillette » (22/10), un malus que l'ANIMATEUR inflige à la main, à un
+//    dessin, une fois par manche, réversible — voir `distinguer`.
 // CHANTIER v4, décision 4.2 : le supplément du plus rapide est SUPPRIMÉ du calcul.
 // Décision 4.5 : le plus rapide reste DÉSIGNÉ, comme information et non comme
 // points — exactement le traitement que T1 du chantier v1 a réservé à la série.
@@ -805,7 +808,12 @@ export function reveal(io, room) {
       }
     }
     const delta = base + bonusExact + bonusProche + bonusGroupe + speed;
-    p.score = Math.max(0, p.score + delta);
+    // LE PLANCHER : « JAMAIS PLUS BAS QU'AVANT », ET PLUS « JAMAIS SOUS ZÉRO »
+    // (22/10). Un total positif ne passe toujours pas sous zéro ; mais un total
+    // devenu négatif par un haut le cœur n'est plus remis à zéro par la manche
+    // suivante — `Math.max(0, …)` effaçait le malus en silence au premier relevé.
+    const plancher = Math.min(0, p.score);
+    p.score = Math.max(plancher, p.score + delta);
     perPlayer.set(pid, {
       base, bonusExact, bonusProche, bonusGroupe, speed, delta, streak: p.streak, palier: r ? r.palier : null,
       // LE VERDICT DU SERVEUR, ENVOYÉ AU JOUEUR — il ne l'était pas.
@@ -928,6 +936,7 @@ export function reveal(io, room) {
     rt.dessins = [...prives.dessins].sort((a, b) => b.pourcent - a.pourcent);
     rt.antenne = null;
     rt.coupDeCoeur = null;
+    rt.hautLeCoeur = null;
     io.to(room.code + ':host').emit('host:dessins', dessinsPourLHote(room, rt));
   }
 
@@ -990,9 +999,11 @@ export function reveal(io, room) {
       // choisie ; elle coûte une ligne par champ, et c'est le prix de savoir
       // exactement ce qui sort.
       pourcent: d.pourcent ?? null,
-      // LE COUP DE CŒUR DE L'ANIMATEUR — nul à la révélation ; voir `coupDeCoeur`.
+      // LES DISTINCTIONS DE L'ANIMATEUR — nulles à la révélation ; voir `distinguer`.
       bonusCoeur: 0,
       coupDeCoeur: false,
+      malusHaut: 0,
+      hautLeCoeur: false,
       speed: d.speed,
       streak: d.streak,
       fastest: d.fastest,
@@ -1038,8 +1049,8 @@ function dessinsPourLHote(room, rt) {
 }
 
 // La charge du partage : le dessin à l'antenne, AVEC le nom de son auteur et SANS
-// sa note (26/09) — et désormais le drapeau du coup de cœur, pour que le stream
-// dise POURQUOI ce dessin-là est montré.
+// sa note (26/09) — et les drapeaux des distinctions de l'animateur, pour que le
+// stream dise POURQUOI ce dessin-là est montré.
 function partageCourant(room, rt) {
   const d = rt.antenne != null ? rt.dessins[rt.antenne] : null;
   if (!d) return { roundId: rt.roundId, idx: null, dessin: null };
@@ -1050,14 +1061,8 @@ function partageCourant(room, rt) {
     dessin: { pseudo: joueur ? joueur.pseudo : null, traits: d.traits },
     cible: rt.cible ? { nom: rt.cible.nom, src: rt.cible.src } : null,
     coupDeCoeur: rt.coupDeCoeur != null && rt.coupDeCoeur.idx === rt.antenne,
+    hautLeCoeur: rt.hautLeCoeur != null && rt.hautLeCoeur.idx === rt.antenne,
   };
-}
-
-// Le coup de cœur, tel que le STREAM peut le connaître : un nom, jamais de points.
-function coeurPublic(room, rt) {
-  const c = rt.coupDeCoeur;
-  const p = c ? room.players.get(c.pid) : null;
-  return { roundId: rt.roundId, idx: c ? c.idx : null, pseudo: p ? p.pseudo : null };
 }
 
 // « PARTAGER ! » — un dessin à l'antenne, ou aucun (`idx` à null).
@@ -1075,50 +1080,130 @@ export function partagerDessin(io, room, idx) {
   return { ok: true };
 }
 
-// LE REJEU, pour une console ou un stream qui se rattache pendant la révélation :
-// la liste des dessins (console seule), ce qui est à l'antenne, le coup de cœur.
-// Sans lui, un stream rechargé dans OBS perdait le coup de cœur qu'il affichait,
-// et une console rechargée perdait jusqu'à la liste des dessins.
-export function rejouerCueillette(io, room, socket, estHote) {
-  const rt = room.currentModule;
-  if (!rt || rt.type !== 'cueillette' || !rt.revealed || !Array.isArray(rt.dessins)) return;
-  if (estHote) {
-    socket.emit('host:dessins', dessinsPourLHote(room, rt));
-    if (rt.coupDeCoeur) {
-      socket.emit('host:coupDeCoeur', { roundId: rt.roundId, idx: rt.coupDeCoeur.idx, points: rt.coupDeCoeur.points, gain: rt.coupDeCoeur.gain });
-    }
-  }
-  if (rt.antenne != null) socket.emit('cueillette:partage', partageCourant(room, rt));
-  if (rt.coupDeCoeur) socket.emit('cueillette:coupDeCoeur', coeurPublic(room, rt));
-}
-
-// « CUEILLETTE » — LE COUP DE CŒUR DE L'ANIMATEUR (07/10).
+// ============================================================================
+// « CUEILLETTE » — LES DEUX DISTINCTIONS DE L'ANIMATEUR
+// ============================================================================
 //
-// « Après la notation du jeu, l'animateur doit avoir la possibilité de désigner un
-// coup de cœur. Il remplacerait donc sa note par la note du meilleur joueur. (Le
-// meilleur joueur conserverait sa note.) »
+// LE COUP DE CŒUR (07/10) — « après la notation du jeu, l'animateur doit avoir la
+// possibilité de désigner un coup de cœur. Il remplacerait donc sa note par la note
+// du meilleur joueur. (Le meilleur joueur conserverait sa note.) »
 //
-// CE N'EST PAS LA CORRECTION DE SCORE SUPPRIMÉE À L'ACTION 8, et la différence est
-// tout l'objet de cette fonction. Celle-là ajoutait ou retirait 100 points à
-// n'importe qui, « sans règle, sans trace et sans retour arrière ». Celle-ci :
-//   — a UNE RÈGLE : les points de manche du dessin choisi deviennent ceux du
-//     meilleur dessin de la manche — ni plus, ni autre chose. Le meilleur garde les
-//     siens ; un coup de cœur sur le meilleur lui-même ne change aucun point ;
-//   — laisse UNE TRACE : elle vit sur la manche (`rt.coupDeCoeur`), voyage à part
-//     dans le relevé du joueur (`bonusCoeur`) pour que son écran MONTRE d'où
-//     viennent ces points, et s'affiche sur la console ;
-//   — a SON RETOUR ARRIÈRE : un seul coup de cœur par manche. En désigner un autre
-//     rend au précédent sa note d'origine ; `idx` à null l'annule.
-// Elle ne vaut que sur la manche RÉVÉLÉE et encore affichée : passée au jeu
-// suivant, la manche n'est plus là, et son coup de cœur non plus.
+// LE HAUT LE CŒUR (22/10) — « l'inverse : qu'en plus, l'animateur puisse, s'il
+// veut, sélectionner une personne et qu'il lui donne un malus de moins 500 au niveau
+// de ce jeu-là. Il va forcément sélectionner une personne qui a mal dessiné. »
+//
+// CE NE SONT PAS LA CORRECTION DE SCORE SUPPRIMÉE À L'ACTION 8, et la différence est
+// tout l'objet de ce bloc. Celle-là ajoutait ou retirait 100 points à n'importe qui,
+// « sans règle, sans trace et sans retour arrière ». Chaque distinction :
+//   — a UNE RÈGLE fixe : la note du meilleur dessin pour le coup de cœur ; 500
+//     points de moins pour le haut le cœur ;
+//   — laisse UNE TRACE : elle vit sur la manche (`rt.coupDeCoeur`,
+//     `rt.hautLeCoeur`), voyage à part dans le relevé du joueur (`bonusCoeur`,
+//     `malusHaut`) pour que son écran MONTRE d'où vient l'écart, s'affiche sur la
+//     console et à l'antenne ;
+//   — a SON RETOUR ARRIÈRE : une seule de chaque par manche. En désigner un autre
+//     rend au précédent ses points ; `idx` à null l'annule.
+// Elles ne valent que sur la manche RÉVÉLÉE et encore affichée.
+//
+// LE HAUT LE CŒUR EST LE SEUL MALUS DU JEU, et il le reste par choix de
+// l'animateur, jamais par la règle d'un module (voir l'en-tête : « le MALUS
+// n'existe plus, dans aucun jeu »).
+//
+// IL RETIRE 500 POINTS, ENTIERS, QUITTE À PASSER SOUS ZÉRO. La première écriture
+// le bornait à zéro, comme tout le reste du jeu — et la capture l'a démentie : la
+// console affichait « Haut le cœur −0 pts » à un joueur qui n'avait encore rien
+// marqué. Les mauvais dessinateurs sont souvent en bas du classement, et
+// « Cueillette » peut ouvrir la soirée : borné, le haut le cœur ne retirait rien
+// précisément là où l'animateur s'en sert. « Un malus de moins 500 au niveau de ce
+// jeu-là » : c'est ce qui est appliqué. La révélation, en face, ne remet plus un
+// total négatif à zéro (voir le plancher dans `reveal`).
+//
+// UN MÊME DESSIN NE PORTE PAS LES DEUX : désigner l'une sur le dessin qui porte
+// l'autre retire d'abord l'autre. « Coup de cœur » et « haut le cœur » sur un même
+// joueur ne veulent rien dire ensemble.
 //
 // LA RESSEMBLANCE NE CHANGE PAS : c'est une mesure, et l'écrire fausse mentirait au
-// joueur sur son dessin. Le coup de cœur remplace la NOTE — les points.
+// joueur sur son dessin. Les distinctions changent les POINTS.
 //
 // LES PLACES SE RECALCULENT POUR TOUS depuis les rangs d'avant la manche : celui
-// que le coup de cœur fait monter en fait descendre d'autres, et leur écran
+// qu'une distinction fait monter ou descendre en déplace d'autres, et leur écran
 // affichait encore « Position inchangée ». Seuls les relevés qui changent repartent.
-export function coupDeCoeur(io, room, idx) {
+//
+// À L'ANTENNE (11/10) : « le coup de cœur doit aussi apparaître sur le stream si
+// l'animateur a décidé d'un coup de cœur » — le haut le cœur aussi, par symétrie :
+// c'est l'animateur qui le choisit. Désigner MONTRE le dessin en grand, avec son
+// auteur et la mention, à la place de ce qui y était ; retirer l'en sort s'il y
+// était ; un autre dessin partagé entre-temps reste en place. Et le stream le
+// nomme encore sous le graphique — un nom, jamais de points.
+export const MALUS_HAUT_LE_COEUR = 500;
+
+const DISTINCTIONS = {
+  coeur: { champ: 'coupDeCoeur', evHote: 'host:coupDeCoeur', evPublic: 'cueillette:coupDeCoeur' },
+  haut: { champ: 'hautLeCoeur', evHote: 'host:hautLeCoeur', evPublic: 'cueillette:hautLeCoeur' },
+};
+
+// Une distinction, telle que le STREAM peut la connaître : un nom, jamais de points.
+function distinctionPublique(room, rt, sorte) {
+  const c = rt[DISTINCTIONS[sorte].champ];
+  const p = c ? room.players.get(c.pid) : null;
+  return { roundId: rt.roundId, idx: c ? c.idx : null, pseudo: p ? p.pseudo : null };
+}
+// Et telle que la CONSOLE la connaît : avec ses points.
+function distinctionHote(rt, sorte) {
+  const c = rt[DISTINCTIONS[sorte].champ];
+  return sorte === 'coeur'
+    ? { roundId: rt.roundId, idx: c ? c.idx : null, points: c ? c.points : null, gain: c ? c.gain : 0 }
+    : { roundId: rt.roundId, idx: c ? c.idx : null, points: c ? c.points : null, retrait: c ? c.retrait : 0 };
+}
+
+// Le relevé de manche d'un joueur, corrigé — s'il porte bien CETTE manche.
+function corrigerReleve(p, rt, champs) {
+  if (p.lastResult && p.lastResult.roundId === rt.roundId) p.lastResult = { ...p.lastResult, score: p.score, ...champs(p.lastResult) };
+}
+
+// RENDRE ce qu'une distinction avait pris ou donné.
+function annulerDistinction(room, rt, sorte, touches) {
+  const c = rt[DISTINCTIONS[sorte].champ];
+  if (!c) return null;
+  const p = room.players.get(c.pid);
+  if (p) {
+    if (sorte === 'coeur') {
+      // EXACTEMENT ce qui avait été donné : un total redevenu négatif entre-temps
+      // n'a pas à être arrondi à zéro par l'annulation.
+      p.score -= c.gain;
+      corrigerReleve(p, rt, (r) => ({ delta: r.delta - c.gain, bonusCoeur: 0, coupDeCoeur: false }));
+    } else {
+      p.score += c.retrait;
+      corrigerReleve(p, rt, (r) => ({ delta: r.delta + c.retrait, malusHaut: 0, hautLeCoeur: false }));
+    }
+    touches.add(c.pid);
+  }
+  rt[DISTINCTIONS[sorte].champ] = null;
+  return c;
+}
+
+function appliquerDistinction(room, rt, sorte, choisi, touches) {
+  const p = room.players.get(choisi.d.pid);
+  const points = choisi.d.points || 0;
+  if (sorte === 'coeur') {
+    // LA NOTE DU MEILLEUR — le meilleur garde la sienne, et le désigner lui-même
+    // ne change aucun point.
+    const meilleur = Math.max(...rt.dessins.map((x) => x.points || 0));
+    const gain = Math.max(0, meilleur - points);
+    p.score += gain;
+    rt.coupDeCoeur = { idx: choisi.idx, pid: choisi.d.pid, gain, points: points + gain };
+    corrigerReleve(p, rt, (r) => ({ delta: r.delta + gain, bonusCoeur: gain, coupDeCoeur: true }));
+  } else {
+    // 500 POINTS DE MOINS, entiers — voir plus haut.
+    const retrait = MALUS_HAUT_LE_COEUR;
+    p.score -= retrait;
+    rt.hautLeCoeur = { idx: choisi.idx, pid: choisi.d.pid, retrait, points: points - retrait };
+    corrigerReleve(p, rt, (r) => ({ delta: r.delta - retrait, malusHaut: retrait, hautLeCoeur: true }));
+  }
+  touches.add(choisi.d.pid);
+}
+
+function distinguer(io, room, sorte, idx) {
   const rt = room.currentModule;
   if (!rt || rt.type !== 'cueillette' || !rt.revealed || !Array.isArray(rt.dessins)) {
     return { ok: false, reason: 'pas-de-manche' };
@@ -1130,40 +1215,17 @@ export function coupDeCoeur(io, room, idx) {
     if (!d || !room.players.has(d.pid)) return { ok: false, reason: 'dessin-inconnu' };
     choisi = { idx: i, d };
   }
+  const autre = sorte === 'coeur' ? 'haut' : 'coeur';
   const touches = new Set();
 
-  // LE PRÉCÉDENT RETROUVE SA NOTE.
-  const avant = rt.coupDeCoeur;
-  if (avant) {
-    const p = room.players.get(avant.pid);
-    if (p) {
-      p.score = Math.max(0, p.score - avant.gain);
-      if (p.lastResult && p.lastResult.roundId === rt.roundId) {
-        p.lastResult = {
-          ...p.lastResult, score: p.score, delta: p.lastResult.delta - avant.gain,
-          bonusCoeur: 0, coupDeCoeur: false,
-        };
-      }
-      touches.add(avant.pid);
-    }
-    rt.coupDeCoeur = null;
+  // LA PRÉCÉDENTE RETROUVE SES POINTS.
+  const avant = annulerDistinction(room, rt, sorte, touches);
+  // UN MÊME DESSIN NE PORTE PAS LES DEUX.
+  let autreAvant = null;
+  if (choisi && rt[DISTINCTIONS[autre].champ]?.pid === choisi.d.pid) {
+    autreAvant = annulerDistinction(room, rt, autre, touches);
   }
-
-  // LE NOUVEAU PREND CELLE DU MEILLEUR.
-  if (choisi) {
-    const meilleur = Math.max(...rt.dessins.map((x) => x.points || 0));
-    const gain = Math.max(0, meilleur - (choisi.d.points || 0));
-    const p = room.players.get(choisi.d.pid);
-    p.score += gain;
-    rt.coupDeCoeur = { idx: choisi.idx, pid: choisi.d.pid, gain, points: (choisi.d.points || 0) + gain };
-    if (p.lastResult && p.lastResult.roundId === rt.roundId) {
-      p.lastResult = {
-        ...p.lastResult, score: p.score, delta: p.lastResult.delta + gain,
-        bonusCoeur: gain, coupDeCoeur: true,
-      };
-    }
-    touches.add(choisi.d.pid);
-  }
+  if (choisi) appliquerDistinction(room, rt, sorte, choisi, touches);
 
   // LES PLACES, POUR TOUT LE CERCLE.
   const rangsApres = roomManager.rankMap(room);
@@ -1180,31 +1242,43 @@ export function coupDeCoeur(io, room, idx) {
     if (p && p.socketId && p.lastResult && p.lastResult.roundId === rt.roundId) io.to(p.socketId).emit('play:you', p.lastResult);
   }
 
-  // À L'ANTENNE (11/10) : « le coup de cœur doit aussi apparaître sur le stream
-  // si l'animateur a décidé d'un coup de cœur ». Le désigner le MONTRE — en
-  // grand, avec son auteur et la mention, à la place de ce qui y était (un seul
-  // dessin à l'antenne à la fois). Le retirer le retire de l'antenne s'il y était ;
-  // un autre dessin partagé entre-temps, lui, reste en place.
-  if (rt.coupDeCoeur) {
-    rt.antenne = rt.coupDeCoeur.idx;
+  // À L'ANTENNE.
+  const actuelle = rt[DISTINCTIONS[sorte].champ];
+  if (actuelle) {
+    rt.antenne = actuelle.idx;
     toStaff(io, room).emit('cueillette:partage', partageCourant(room, rt));
   } else if (avant && rt.antenne === avant.idx) {
     rt.antenne = null;
     toStaff(io, room).emit('cueillette:partage', partageCourant(room, rt));
   }
-  // ET HORS DE L'ANTENNE : le stream le nomme encore sous le graphique quand
-  // l'animateur y revient. Un nom, jamais de points.
-  toStaff(io, room).emit('cueillette:coupDeCoeur', coeurPublic(room, rt));
-
+  // ET HORS DE L'ANTENNE, au stream (un nom) et à la console (des points) — pour
+  // l'autre distinction aussi, si ce geste l'a retirée.
+  for (const s of autreAvant ? [sorte, autre] : [sorte]) {
+    toStaff(io, room).emit(DISTINCTIONS[s].evPublic, distinctionPublique(room, rt, s));
+    io.to(room.code + ':host').emit(DISTINCTIONS[s].evHote, distinctionHote(rt, s));
+  }
   toStaff(io, room).emit('leaderboard:update', { leaderboard: roomManager.leaderboard(room, CLASSEMENT_MAX) });
-  io.to(room.code + ':host').emit('host:coupDeCoeur', {
-    roundId: rt.roundId,
-    idx: rt.coupDeCoeur ? rt.coupDeCoeur.idx : null,
-    points: rt.coupDeCoeur ? rt.coupDeCoeur.points : null,
-    gain: rt.coupDeCoeur ? rt.coupDeCoeur.gain : 0,
-  });
   roomManager.touch(room);
-  return { ok: true, coupDeCoeur: rt.coupDeCoeur };
+  return { ok: true, [DISTINCTIONS[sorte].champ]: actuelle };
+}
+
+export function coupDeCoeur(io, room, idx) { return distinguer(io, room, 'coeur', idx); }
+export function hautLeCoeur(io, room, idx) { return distinguer(io, room, 'haut', idx); }
+
+// LE REJEU, pour une console ou un stream qui se rattache pendant la révélation :
+// la liste des dessins (console seule), ce qui est à l'antenne, les distinctions.
+// Sans lui, un stream rechargé dans OBS perdait le coup de cœur qu'il affichait,
+// et une console rechargée perdait jusqu'à la liste des dessins.
+export function rejouerCueillette(io, room, socket, estHote) {
+  const rt = room.currentModule;
+  if (!rt || rt.type !== 'cueillette' || !rt.revealed || !Array.isArray(rt.dessins)) return;
+  if (estHote) socket.emit('host:dessins', dessinsPourLHote(room, rt));
+  for (const sorte of Object.keys(DISTINCTIONS)) {
+    if (!rt[DISTINCTIONS[sorte].champ]) continue;
+    if (estHote) socket.emit(DISTINCTIONS[sorte].evHote, distinctionHote(rt, sorte));
+    socket.emit(DISTINCTIONS[sorte].evPublic, distinctionPublique(room, rt, sorte));
+  }
+  if (rt.antenne != null) socket.emit('cueillette:partage', partageCourant(room, rt));
 }
 
 // La correction manuelle de score a été SUPPRIMÉE (action 8). Elle s'affichait
