@@ -575,3 +575,60 @@ describe('engine.coupDeCoeur', () => {
     expect(engine.coupDeCoeur(io, room, 0).ok).toBe(false);
   });
 });
+
+// ============================================================
+// LES PLACES ENTRE EX ÆQUO (24/10)
+// ============================================================
+// « Le haut le cœur ne fonctionne pas bien quand il y a beaucoup de joueurs. »
+// Mesuré au banc (40 joueurs) : le rang était POSITIONNEL — deux joueurs à égalité
+// recevaient deux rangs différents, départagés par leur ordre d'arrivée dans le
+// salon. Avec beaucoup de joueurs, beaucoup finissent la manche à égalité (zéro
+// pour un dessin raté) ; le haut le cœur de l'un faisait « gagner une place » à
+// six autres qui n'avaient rien fait, et la révélation leur annonçait déjà des
+// pertes arbitraires (−11, −9, −7… pour des joueurs partis tous à zéro).
+describe('les places entre ex æquo', () => {
+  let io, room, a, b, c, d;
+  const CIBLE = Object.keys(GRILLES_DESSINS)[0];
+  const dessin = (traits) => modules.cueillette.validateAnswer({ tour: 2 }, traits);
+  const youOf = (p) => io.emitted.filter((e) => e.target === p.socketId && e.ev === 'play:you').at(-1)?.payload;
+  const nbReleves = (p) => io.emitted.filter((e) => e.target === p.socketId && e.ev === 'play:you').length;
+
+  beforeEach(() => {
+    io = mockIo();
+    room = roomManager.createRoom('owner');
+    [a, b, c, d] = ['Alice', 'Bob', 'Chloe', 'David'].map((n) => roomManager.addPlayer(room, n));
+    for (const [i, p] of [a, b, c, d].entries()) { p.connected = true; p.socketId = 's' + i; }
+  });
+
+  it('À LA RÉVÉLATION : deux joueurs dépassés par un troisième lisent −1 place — tous deux', () => {
+    // Tous partent à zéro, ex æquo. Seule Alice répond juste : Bob et Chloé ont
+    // été dépassés, chacun d'une place. En rang positionnel, Bob (2e → 2e) et
+    // Chloé (3e → 3e) lisaient « Position inchangée ».
+    setRound(room, 'quiz', QUIZ_Q, [[a.id, { value: 1, at: Date.now() - 4000 }], [b.id, { value: 0, at: Date.now() - 4000 }], [c.id, { value: 0, at: Date.now() - 4000 }]]);
+    engine.reveal(io, room);
+    expect(youOf(a).placesDelta).toBe(0);
+    expect(youOf(b).placesDelta, 'Bob a été dépassé par Alice').toBe(-1);
+    expect(youOf(c).placesDelta, 'Chloé a été dépassée par Alice — son rang d’arrivée n’y change rien').toBe(-1);
+  });
+
+  it('AU HAUT LE CŒUR : celui qui tombe ne fait gagner aucune place à ses ex æquo', () => {
+    // Alice copie la cible, les trois autres gribouillent : Bob, Chloé et David
+    // sont ex æquo à zéro. Le haut le cœur de Bob le fait passer derrière eux —
+    // mais il n'était pas DEVANT eux : ils n'ont rien gagné.
+    const rt = setRound(room, 'cueillette', { id: 'cu', dessinId: CIBLE }, [
+      [a.id, { value: dessin(copisteDe(GRILLES_DESSINS[CIBLE])), at: Date.now() - 3000 }],
+      ...[b, c, d].map((p, k) => [p.id, { value: dessin(gribouillis({ graine: 11 + k, traits: 4, points: 20 })), at: Date.now() - 3000 }]),
+    ]);
+    rt.tour = 2;
+    engine.reveal(io, room);
+    expect([b, c, d].map((p) => p.score), 'le scénario suppose trois ex æquo').toEqual([0, 0, 0]);
+    const avant = new Map([c, d].map((p) => [p.id, [nbReleves(p), youOf(p).placesDelta]]));
+    engine.hautLeCoeur(io, room, rt.dessins.findIndex((x) => x.pid === b.id));
+    for (const p of [c, d]) {
+      expect(youOf(p).placesDelta, `${p.pseudo} « gagne une place » qu’il n’a pas gagnée`).toBe(avant.get(p.id)[1]);
+      expect(nbReleves(p), `${p.pseudo} a reçu un relevé alors que rien n’a changé pour lui`).toBe(avant.get(p.id)[0]);
+    }
+    // Bob, lui, est bien passé derrière ses deux ex æquo.
+    expect(youOf(b).placesDelta).toBeLessThan(0);
+  });
+});

@@ -127,9 +127,22 @@ export class RoomManager {
   }
 
   // Rang de chaque joueur (playerId -> rank), pour calculer les places gagnées/perdues.
+  //
+  // UN RANG DE COMPÉTITION, ET NON UNE POSITION DANS LA LISTE (24/10) : 1 + le
+  // nombre de joueurs STRICTEMENT devant. Des ex æquo partagent leur rang.
+  // Calculé sur la position, deux joueurs à égalité recevaient deux rangs
+  // différents, départagés par leur seul ordre d'arrivée dans le salon — et les
+  // places annoncées en découlaient. Mesuré à quarante joueurs : la révélation
+  // annonçait −11, −9, −7… à des joueurs partis tous à zéro et restés à zéro, et
+  // le haut le cœur d'un ex æquo faisait « gagner une place » à six autres qui
+  // n'avaient rien fait. Plus il y a de joueurs, plus il y a d'ex æquo.
+  //
+  // `leaderboard`, lui, garde ses rangs de position : il ORDONNE l'affichage, et
+  // le podium indexe ses trois marches sur ce rang.
   rankMap(room) {
     const map = new Map();
-    for (const r of this.leaderboard(room)) map.set(r.id, r.rank);
+    const scores = [...room.players.values()].map((p) => p.score);
+    for (const p of room.players.values()) map.set(p.id, 1 + scores.filter((s) => s > p.score).length);
     return map;
   }
 

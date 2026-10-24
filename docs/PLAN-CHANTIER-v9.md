@@ -1164,3 +1164,38 @@ coexistence, places, refus, rejeu, total négatif qui survit à la manche suivan
 plancher positif conservé, annulation exacte du coup de cœur — dix sabotages vus
 rouges), huit d'intégration (deux sabotages vus rouges), un E2E de bout en bout
 (trois sabotages d'interface vus rouges, dont la grille).
+
+### 14.5 — « Le haut le cœur ne fonctionne pas bien quand il y a beaucoup de joueurs » (24/10)
+
+Diagnostic au banc, 40 puis 100 joueurs (banc jetable : une vraie salle, des
+dessins variés, un haut le cœur sur un dessin raté) :
+
+- **Écarté — le serveur** : le bon joueur perd exactement 500, personne d'autre ne
+  bouge, la console, le téléphone et le stream sont prévenus en 2 à 4 ms, même à
+  100 joueurs (735 ko de dessins).
+- **Écarté — la console** : à 40 et 100 fiches, le bouton du bas de liste n'est
+  couvert par rien, la fiche est marquée 43 ms après le clic, aucune tâche longue.
+- **Écartés — un joueur parti** (il n'est jamais retiré du salon : son dessin reste
+  désignable) ; **un téléphone en veille** (son relevé corrigé lui est rejoué à la
+  reconnexion).
+- **TROUVÉ — les places entre ex æquo.** Le rang servant aux places était une
+  POSITION dans la liste : deux joueurs à égalité recevaient deux rangs différents,
+  départagés par leur ordre d'arrivée. Avec beaucoup de joueurs, beaucoup finissent
+  la manche à égalité (zéro pour un dessin raté) : le haut le cœur de l'un faisait
+  « gagner une place » à six autres qui n'avaient rien fait (leur écran passait de
+  « Position inchangée » à « +1 place »), et la révélation annonçait déjà des
+  pertes arbitraires (−11, −9, −7… à des joueurs tous partis de zéro et restés à
+  zéro). Le défaut est antérieur au haut le cœur ; il le rendait visible.
+
+Correctif : `rankMap` donne désormais un rang de compétition — 1 + le nombre de
+joueurs strictement devant ; des ex æquo partagent leur rang. Il ne sert qu'aux
+places. Le classement affiché garde son ordre, et le podium ses trois marches.
+
+Contrôles : deux unitaires écrits avant le correctif et vus rouges (Bob, dépassé,
+lisait « 0 place » ; Chloé « gagnait » une place quand son ex æquo tombait), le
+banc d'origine vert à 40 et 100 joueurs, les scénarios E2E qui affichent des
+places (partie complète, vote, Cueillette) verts.
+
+À savoir, hors du jeu : le dossier de compilation local `dist` porte 328 doublons
+iCloud (« pomme-vert 3.webp »), qui allongent la compilation et le démarrage du
+serveur sur le poste. Ignoré par git, absent des sources et de la production.
