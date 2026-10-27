@@ -1199,3 +1199,67 @@ places (partie complète, vote, Cueillette) verts.
 À savoir, hors du jeu : le dossier de compilation local `dist` porte 328 doublons
 iCloud (« pomme-vert 3.webp »), qui allongent la compilation et le démarrage du
 serveur sur le poste. Ignoré par git, absent des sources et de la production.
+
+## 15. Quatre retours du 26/10 — ce que voit l'animateur
+
+### 15.1 — « À 11 joueurs, je n'avais accès qu'à "Coup de cœur" »
+
+Mesuré dans un vrai navigateur, onze joueurs, six tailles de console (1024×768 à
+1920×1080, plus 768×1024) : les deux boutons sont présents sur les onze fiches,
+entiers, dans leur fiche, et c'est bien eux qui reçoivent le clic. Le code les
+affiche sans condition depuis le 22/10, et le site en ligne les porte (bundle de
+la console du 24/10).
+
+**Cause retenue : une console au code périmé.** Avant le 22/10, chaque fiche
+n'avait QUE « Coup de cœur » — exactement ce qui a été vu. Une page ouverte
+avant une mise en ligne garde son ancien code tant qu'on ne la recharge pas, même
+quand le redémarrage tue le salon et qu'on en rouvre un autre sans quitter la page.
+
+Correctif : le serveur lit la version du client qu'il sert (le nom à empreinte du
+script principal, `index-XXXX.js`) et l'annonce à chaque connexion
+(`serveur:version`). Une console qui ne tourne pas la même affiche en tête
+« Nouvelle version en ligne » avec un bouton « Recharger » — pas de rechargement
+d'office : l'animateur peut être en train de parler. Le stream, que personne ne
+touche dans OBS, se recharge seul, une fois par version (un mémo de session
+empêche toute boucle). En développement, aucun des deux côtés n'a d'empreinte :
+rien ne s'alarme.
+
+Tranché : les téléphones ne reçoivent pas ce bandeau (non demandé). Et la console
+sur TÉLÉPHONE (390 px) reste hors périmètre : sa colonne centrale entière s'y
+écrase sous le rail du classement — tous les panneaux, pas ces deux boutons ; la
+console est un poste pour écran large.
+
+### 15.2 — Estimation : « jusqu'à 20 personnes, Nom, Écart, Réponse donnée »
+
+Le classement de la manche (déjà utilisé par le juste temps, la bûche, le retour
+de flamme) reçoit l'estimation : colonnes Nom, Écart, Réponse donnée, du plus
+proche au plus loin. Jusqu'à 20 répondants, tout le monde ; au-delà, les 10
+meilleurs, une ligne « N joueurs entre les dix meilleurs et les dix derniers », et
+les 10 derniers à leur VRAI rang. Rang de compétition : des écarts égaux
+partagent leur rang. Une année s'écrit sans espace de milliers. Seuls ceux qui
+ont répondu y figurent. Le panneau « Le plus proche » et sa phrase restent
+au-dessus. Canal de l'animateur seul.
+
+### 15.3 — Les visages : « les 10 premiers à gauche, les 10 derniers à droite »
+
+Nouvelle section « Les votes, visage par visage — toi seul » : les vingt places de
+la série, 1 à 10 à gauche, 11 à 20 à droite (l'une sous l'autre sur une console
+étroite). Chaque visage dans un cadre avec les noms de ceux qui ont buzzé dessus,
+dans l'ordre du buzz, dix au plus (« et N de plus » au-delà), « Personne » sinon.
+Le cadre de la bonne réponse — la SECONDE apparition, la seule qui rapporte — est
+vert. Tranché : la première apparition du visage doublé n'est pas verte (y buzzer
+était trop tôt).
+
+### 15.4 — Vote, Quiz, Vrai/Faux : « les noms des joueurs ayant bien répondu »
+
+Nouvelle section « Bonnes réponses — toi seul » : les vingt premiers bons
+répondants, du plus rapide au plus lent, le total en tête, « et N de plus »
+au-delà, « Personne n'a trouvé » quand c'est le cas. Au vote, ce sont ceux qui ont
+lu le cercle au second tour ; un sondage n'en a pas et n'affiche rien.
+
+Contrôles : 10 unitaires (`vues-animateur.test.js`) et 3 de version
+(`version.test.js`) vus rouges avant le code ou sur sabotage ; le test
+d'intégration vérifie que la version arrive à chaque écran et qu'aucun téléphone
+ni le stream ne reçoit les noms (12 fuites détectées sur sabotage) ; six scénarios
+E2E (`vues-animateur`, `console-perimee`, `cueillette-boutons`) vus rouges sur
+sabotage, puis verts.

@@ -22,6 +22,7 @@ import { GRILLES_DESSINS } from './dessins-grilles.js';
 import { getServiceClient } from './supabase.js';
 import * as banksStore from './store.js';
 import * as engine from './engine.js';
+import { lireVersionClient } from './version-client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,6 +65,8 @@ app.addHook('onSend', (req, reply, payload, done) => {
 // Statique : build front + assets publics.
 const distDir = path.resolve(process.cwd(), config.clientDist);
 app.register(fastifyStatic, { root: distDir, prefix: '/', decorateReply: true, wildcard: false });
+// La version du client servi, annoncée à chaque connexion (voir `version-client.js`).
+const VERSION_CLIENT = lireVersionClient(distDir);
 
 // LES IMAGES D'OBJETS DÉPOSÉES AU STUDIO.
 //
@@ -519,6 +522,9 @@ io.on('connection', (socket) => {
   const room = requireRoom(socket);
   if (!room) return socket.disconnect(true);
   socket.join(room.code);
+  // LA VERSION SERVIE, en premier : un écran qui tourne un code plus ancien le
+  // dit (la console) ou se recharge (le stream, que personne ne touche dans OBS).
+  socket.emit('serveur:version', { client: VERSION_CLIENT });
   // Canal staff (classement) : animateur + stream uniquement — jamais les joueurs.
   // L'animateur rejoint EN PLUS une sous-room privée : répartition des réponses en direct.
   if (socket.data.role === 'host' && room.ownerId === socket.data.sub) {

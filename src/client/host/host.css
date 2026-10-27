@@ -515,6 +515,52 @@
   .vsgraf__col--bonne .visage { box-shadow: 0 0 0 var(--bw-strong) var(--c-pine); }
   .vsgraf__buzz { font: 600 var(--fs-200) / 1 var(--f-mono); color: var(--c-ink); }
   .vsgraf__buzz--vide { color: var(--c-ink-4); }
+
+  /* QUI A BUZZÉ SUR QUEL VISAGE (26/10) — les dix premiers à gauche, les dix
+     derniers à droite, chaque visage dans un cadre avec ses votants. Le cadre de
+     la bonne réponse est vert (`--c-pine`, la couleur de la réussite sur toute la
+     console). Sur une console étroite, les deux colonnes se suivent. */
+  .vsvot { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3); }
+  .vsvot__colonne { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); align-content: start; }
+  .vsvot__cadre {
+    display: grid;
+    grid-template-columns: 2ch 52px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-surface);
+    box-shadow: inset 0 0 0 var(--bw-hair) var(--c-line);
+  }
+  .vsvot__cadre--bonne { background: var(--c-good-wash); box-shadow: inset 0 0 0 var(--bw-strong) var(--c-good); }
+  .vsvot__cadre .visage { border-radius: var(--r-s); background: var(--c-surface-sunk); }
+  .vsvot__num { font: 500 var(--fs-100) / 1 var(--f-mono); color: var(--c-ink-3); text-align: right; }
+  .vsvot__noms { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); min-width: 0; }
+  .vsvot__nom {
+    max-width: 100%;
+    font: 500 var(--fs-200) / 1.3 var(--f-ui);
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .vsvot__nom:not(:last-child)::after { content: ","; color: var(--c-ink-3); }
+  .vsvot__reste, .vsvot__noms--vide { font: 400 var(--fs-200) / 1.3 var(--f-ui); color: var(--c-ink-3); }
+
+  /* LES BONNES RÉPONSES (26/10) — des noms à la suite, comme on les lit à voix haute. */
+  .bons { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .bons__nom {
+    max-width: 220px;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--r-full);
+    background: var(--c-good-wash);
+    font: 500 var(--fs-200) / 1.3 var(--f-ui);
+    color: var(--c-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bons__reste { align-self: center; font: 400 var(--fs-200) / 1.3 var(--f-ui); color: var(--c-ink-3); }
   /* ==========================================================================
      « CUEILLETTE » — LA CONSOLE
      ==========================================================================
@@ -1480,7 +1526,17 @@
     color: var(--c-ink-3);
     padding-bottom: var(--sp-2);
   }
-  .clsm__ligne:nth-child(even of :not(.clsm__ligne--tete)) { background: var(--c-surface-sunk); }
+  .clsm__ligne:nth-child(even of .clsm__ligne:not(.clsm__ligne--tete)) { background: var(--c-surface-sunk); }
+  /* LA COUPURE DE L'ESTIMATION : entre les dix meilleurs et les dix derniers, la
+     ligne qui dit combien de joueurs ne sont pas montrés. */
+  .clsm__coupure {
+    margin: var(--sp-1) 0;
+    padding: var(--sp-1) 0;
+    border-block: var(--bw-hair) dashed var(--c-line);
+    font: 500 var(--fs-100) / 1.4 var(--f-ui);
+    color: var(--c-ink-3);
+    text-align: center;
+  }
   .clsm__rang { font: 500 var(--fs-100) / 1.4 var(--f-mono); color: var(--c-ink-3); text-align: right; }
   .clsm__nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink); }
   .clsm__col { font: 500 var(--fs-200) / 1.4 var(--f-mono); color: var(--c-ink-2); text-align: right; }
@@ -1549,6 +1605,28 @@
     border-top-color: transparent;
     animation: om-spin 700ms linear infinite;
   }
+
+  /* LA CONSOLE AU CODE PÉRIMÉ (26/10) — en tête d'écran, au-dessus de tout : tant
+     qu'elle n'est pas rechargée, des boutons peuvent lui manquer. */
+  .version-perimee {
+    position: fixed;
+    top: var(--sp-3);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--sp-4));
+    padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-5);
+    border-radius: var(--r-m);
+    background: var(--c-surface-2);
+    color: var(--c-ink);
+    box-shadow: var(--sh-3), inset 0 0 0 var(--bw-strong) var(--c-ember);
+  }
+  .version-perimee__texte { margin: 0; font: 500 var(--fs-300) / 1.35 var(--f-ui); }
+  .version-perimee .button { flex: none; }
 
   .toast {
     position: fixed;

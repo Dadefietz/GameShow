@@ -155,7 +155,19 @@ try {
   // L'écoute AVANT la connexion : le réglage de la musique part dès l'arrivée.
   const musiqueArrivee = waitFor(ov, 'stream:musique');
   const st1Promise = waitFor(s1, 'room:state');
+  // LA VERSION SERVIE (26/10), annoncée à chaque écran dès sa connexion.
+  const versions = [host, s1, ov].map((s) => waitFor(s, 'serveur:version'));
+  // LES NOMS RÉSERVÉS À L'ANIMATEUR (26/10) : aucun téléphone ne doit les recevoir,
+  // de toute la partie. Le relevé se lit à la fin.
+  let fuitesNoms = 0;
+  const fuiteNom = () => { fuitesNoms += 1; };
+  for (const sj of [s1, s2, s3, ov]) for (const ev of ['host:bonnesReponses', 'host:visagesVotes', 'host:classement']) sj.on(ev, fuiteNom);
+  const bonnesReponsesHote = [];
+  host.on('host:bonnesReponses', (b) => bonnesReponsesHote.push(b));
   await Promise.all([host, s1, s2, s3, ov].map((s) => waitFor(s, 'connect')));
+  const vus = await Promise.all(versions);
+  check('VERSION chaque écran reçoit la version du client servi',
+    vus.every((v) => v && 'client' in v) && new Set(vus.map((v) => v.client)).size === 1, JSON.stringify(vus[0]));
 
   const st1 = await st1Promise;
   check('R7 room:state joueur sans leaderboard', !('leaderboard' in st1));
@@ -575,6 +587,14 @@ try {
   const yf = await youFinal;
   check('podium final public', Array.isArray(endData.podium) && endData.podium.length > 0);
   check('rang final envoyé au joueur (fin de partie uniquement)', yf.final === true && yf.rank >= 1, JSON.stringify(yf));
+
+  // LES BONNES RÉPONSES (26/10) : l'animateur a reçu, à chaque quiz et vrai/faux
+  // révélé, les noms des bons répondants — et aucun téléphone, ni le stream.
+  check('BONNES RÉPONSES l’animateur reçoit les noms, avec leur total',
+    bonnesReponsesHote.length > 0 && bonnesReponsesHote.every((b) => Array.isArray(b.joueurs) && b.total === b.joueurs.length)
+      && bonnesReponsesHote.some((b) => b.joueurs.length > 0),
+    JSON.stringify(bonnesReponsesHote.map((b) => b.joueurs)));
+  check('NOMS RÉSERVÉS aucun téléphone ni le stream ne les reçoit', fuitesNoms === 0, String(fuitesNoms));
 
   console.log(failures === 0 ? '\nINTEGRATION: ALL CHECKS PASSED' : `\nINTEGRATION: ${failures} CHECK(S) FAILED`);
   [host, s1, s2, s3, ov].forEach((s) => s.close());

@@ -880,7 +880,16 @@ const COLONNES_CLASSEMENT = {
     ['Réussis', (l) => fmt(l.bons)],
     ['Ratés', (l) => fmt(l.rates)],
   ],
+  // L'ESTIMATION (26/10) — « en colonne : Nom, Écart, Réponse donnée ». Une année
+  // s'écrit sans espace de milliers : « 1 969 » ne se lit pas comme une date.
+  estimation: [
+    ['Écart', (l, nature) => nombreEstime(l.ecart, nature)],
+    ['Réponse donnée', (l, nature) => nombreEstime(l.valeur, nature)],
+  ],
 };
+// L'en-tête de la colonne des noms, quand un jeu l'a nommée autrement.
+const TETE_NOM_CLASSEMENT = { estimation: 'Nom' };
+const nombreEstime = (n, nature) => (nature === 'annee' ? String(n) : fmt(n));
 
 // « CACHE-CACHE » — CE QUE L'ANIMATEUR VOIT PENDANT LES RÉPONSES.
 //
@@ -951,7 +960,7 @@ function CacheReponses({ g, roundId }) {
   );
 }
 
-function ClassementManche({ g, roundId, revealed }) {
+function ClassementManche({ g, roundId, revealed, nature }) {
   const [donnee, setDonnee] = useState(null);
   useEffect(() => {
     const onClassement = (d) => setDonnee(d && Array.isArray(d.lignes) ? d : null);
@@ -963,25 +972,119 @@ function ClassementManche({ g, roundId, revealed }) {
   if (!revealed || !donnee || donnee.roundId !== roundId) return null;
   const colonnes = COLONNES_CLASSEMENT[donnee.type];
   if (!colonnes || !donnee.lignes.length) return null;
+  // LES DEUX BOUTS DE L'ESTIMATION (26/10) : au-delà de vingt joueurs, les dix
+  // meilleurs puis les dix pires, et entre eux combien on en tait.
+  const masques = donnee.masques || 0;
+  const coupure = masques ? Math.floor(donnee.lignes.length / 2) : -1;
+  const ligne = (l, i) => (
+    <div className="clsm__ligne" key={`${l.pseudo}-${i}`} data-testid="classement-ligne">
+      {/* LE RANG DU SERVEUR quand il l'envoie : ex æquo partagés, et le premier
+          des pires à sa vraie place, pas onzième. */}
+      <span className="clsm__rang">{l.rang ?? i + 1}</span>
+      <span className="clsm__nom" title={l.pseudo}>{l.pseudo}</span>
+      {colonnes.map(([titre, lire]) => <span className="clsm__col" key={titre}>{lire(l, nature)}</span>)}
+    </div>
+  );
   return (
     <section className="private" aria-label="Classement de la manche" data-testid="classement-manche">
       <p className="private__title">
         <I.eye s={16} /> Classement de la manche — toi seul
-        <span className="private__count">{fmt(donnee.lignes.length)}</span>
+        <span className="private__count">{fmt(donnee.lignes.length + masques)}</span>
       </p>
       <div className="clsm" style={{ '--clsm-cols': colonnes.length }}>
         <div className="clsm__ligne clsm__ligne--tete">
           <span className="clsm__rang" />
-          <span className="clsm__nom">Joueur</span>
+          <span className="clsm__nom">{TETE_NOM_CLASSEMENT[donnee.type] || 'Joueur'}</span>
           {colonnes.map(([titre]) => <span className="clsm__col" key={titre}>{titre}</span>)}
         </div>
-        {donnee.lignes.map((l, i) => (
-          <div className="clsm__ligne" key={`${l.pseudo}-${i}`}>
-            <span className="clsm__rang">{i + 1}</span>
-            <span className="clsm__nom" title={l.pseudo}>{l.pseudo}</span>
-            {colonnes.map(([titre, lire]) => <span className="clsm__col" key={titre}>{lire(l)}</span>)}
-          </div>
-        ))}
+        {donnee.lignes.slice(0, coupure < 0 ? undefined : coupure).map(ligne)}
+        {masques ? (
+          <p className="clsm__coupure" data-testid="classement-masques">
+            {fmt(masques)} {masques > 1 ? 'joueurs' : 'joueur'} entre les dix meilleurs et les dix derniers
+          </p>
+        ) : null}
+        {coupure < 0 ? null : donnee.lignes.slice(coupure).map((l, i) => ligne(l, coupure + i))}
+      </div>
+    </section>
+  );
+}
+
+// LES BONNES RÉPONSES — POUR L'ANIMATEUR SEUL (26/10).
+//
+// « Dans le jeu Vote, Quiz, Vrai/Faux, il faudrait une nouvelle section avec les
+// noms des joueurs ayant bien répondu, dans la limite de 20 noms. » Le serveur
+// envoie les vingt premiers arrivés et le total ; au-delà, l'écran dit combien
+// il en tait. Une liste vide se montre aussi : « personne n'a trouvé » se commente.
+function BonnesReponses({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  useEffect(() => {
+    const onBons = (d) => setDonnee(d && Array.isArray(d.joueurs) ? d : null);
+    g.on('host:bonnesReponses', onBons);
+    return () => g.off('host:bonnesReponses', onBons);
+  }, [g]);
+  if (!revealed || !donnee || donnee.roundId !== roundId) return null;
+  const reste = donnee.total - donnee.joueurs.length;
+  return (
+    <section className="private" aria-label="Les bonnes réponses" data-testid="bonnes-reponses">
+      <p className="private__title">
+        <I.eye s={16} /> Bonnes réponses — toi seul
+        <span className="private__count" data-testid="bonnes-reponses-total">{fmt(donnee.total)}</span>
+      </p>
+      {donnee.joueurs.length ? (
+        <ul className="bons">
+          {donnee.joueurs.map((p, i) => (
+            <li className="bons__nom" key={`${p}-${i}`} title={p} data-testid="bonne-reponse-nom">{p}</li>
+          ))}
+          {reste > 0 ? <li className="bons__reste" data-testid="bonnes-reponses-reste">et {fmt(reste)} de plus</li> : null}
+        </ul>
+      ) : (
+        <p className="private__hint" data-testid="bonnes-reponses-aucune">Personne n’a trouvé.</p>
+      )}
+    </section>
+  );
+}
+
+// « LES VISAGES » — QUI A BUZZÉ SUR QUEL VISAGE, POUR L'ANIMATEUR SEUL (26/10).
+//
+// « Une nouvelle section avec les 10 premiers visages à gauche de l'écran et les
+// 10 derniers à droite ; à côté de chaque visage, les noms des joueurs qui ont
+// voté pour le visage (limité à 10 noms). Le visage et les noms des votants se
+// trouvent dans un cadre, le cadre du visage étant la bonne réponse est en vert. »
+// Le graphique public dit COMBIEN ont buzzé ; celui-ci dit QUI. Les noms arrivent
+// par le canal de l'animateur, jamais par celui que le stream écoute.
+function VotantsVisages({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  useEffect(() => {
+    const onVotes = (d) => setDonnee(d && Array.isArray(d.places) ? d : null);
+    g.on('host:visagesVotes', onVotes);
+    return () => g.off('host:visagesVotes', onVotes);
+  }, [g]);
+  if (!revealed || !donnee || donnee.roundId !== roundId || !donnee.places.length) return null;
+  const moitie = Math.ceil(donnee.places.length / 2);
+  const colonne = (places, cote) => (
+    <ol className="vsvot__colonne" data-testid={`visages-votants-${cote}`}>
+      {places.map((x) => (
+        <li className={`vsvot__cadre${x.bonne ? ' vsvot__cadre--bonne' : ''}`} key={x.place}
+          data-testid="visage-votants" data-bonne={x.bonne ? 'oui' : undefined}>
+          <span className="vsvot__num">{x.place}</span>
+          <Visage id={`place-${x.place}`} src={x.src} taille={52}
+            titre={x.bonne ? `Visage ${x.place}, la bonne réponse` : `Visage ${x.place}`} />
+          {x.total ? (
+            <p className="vsvot__noms">
+              {x.joueurs.map((p, i) => <span className="vsvot__nom" key={`${p}-${i}`} data-testid="visage-votant">{p}</span>)}
+              {x.total > x.joueurs.length ? <span className="vsvot__reste">et {fmt(x.total - x.joueurs.length)} de plus</span> : null}
+            </p>
+          ) : <p className="vsvot__noms vsvot__noms--vide">Personne</p>}
+        </li>
+      ))}
+    </ol>
+  );
+  return (
+    <section className="private" aria-label="Qui a buzzé sur quel visage" data-testid="visages-votants">
+      <p className="private__title"><I.eye s={16} /> Les votes, visage par visage — toi seul</p>
+      <div className="vsvot">
+        {colonne(donnee.places.slice(0, moitie), 'gauche')}
+        {colonne(donnee.places.slice(moitie), 'droite')}
       </div>
     </section>
   );
@@ -2537,7 +2640,10 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
             </section>
           ) : null}
           <DessinsCueillette g={g} roundId={current && current.roundId} revealed={revealed} />
-          <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed} />
+          <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed}
+            nature={reveal?.stats?.nature} />
+          <BonnesReponses g={g} roundId={current && current.roundId} revealed={revealed} />
+          <VotantsVisages g={g} roundId={current && current.roundId} revealed={revealed} />
 
           {/* LA SÉRIE DE VISAGES, À LA RÉVÉLATION. Elle vient de `reveal.stats` et
               non d'un canal réservé : une fois la manche révélée, la série n'a
@@ -3108,7 +3214,27 @@ export function HostApp() {
     return () => clearTimeout(t);
   }, [g.connected, hostToken]);
 
-  const toastEl = toast ? <div className="toast" role="alert">{toast}</div> : null;
+  // UNE CONSOLE AU CODE PÉRIMÉ (26/10). « À 11 joueurs, je n'avais accès qu'à
+  // "Coup de cœur" » : c'était la console d'avant le haut le cœur, restée ouverte
+  // pendant la mise en ligne. Le serveur annonce la version qu'il sert ; si ce
+  // n'est pas celle de cette page, l'animateur le voit, sur tous les écrans de la
+  // console, avec le geste qui règle tout. Pas de rechargement d'office : il peut
+  // être en train de parler à l'antenne.
+  const avisVersion = g.perimee ? (
+    <div className="version-perimee" role="alert" data-testid="console-perimee">
+      <p className="version-perimee__texte">
+        <strong>Nouvelle version en ligne.</strong> Cette console tourne l’ancienne : des boutons peuvent lui manquer.
+      </p>
+      <button className="button button--primary" type="button" data-testid="console-recharger"
+        onClick={() => window.location.reload()}>Recharger</button>
+    </div>
+  ) : null;
+  const toastEl = (
+    <>
+      {toast ? <div className="toast" role="alert">{toast}</div> : null}
+      {avisVersion}
+    </>
+  );
 
   // --- Accès refusé (compte non-animateur) ---
   if (denied) {

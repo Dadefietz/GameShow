@@ -79,6 +79,11 @@ import { RoomState, roomManager } from './rooms.js';
 // plafonds différents finiraient par diverger.
 export const CLASSEMENT_MAX = 500;
 
+// Ce que la console de l'animateur liste à la révélation (26/10) : vingt noms de
+// bonnes réponses au plus, dix votants à côté d'un visage.
+export const BONNES_REPONSES_MAX = 20;
+export const VOTANTS_PAR_VISAGE = 10;
+
 // Diffusion : room Socket.IO = code du salon (tout le monde) ;
 // canal staff = code + ':staff' (animateur + stream uniquement — classement).
 function toRoom(io, room) {
@@ -917,6 +922,41 @@ export function reveal(io, room) {
           return p ? { pseudo: p.pseudo, ...reste } : null;
         })
         .filter(Boolean),
+      // L'estimation n'en montre que les deux bouts au-delà de vingt joueurs :
+      // combien sont tus au milieu, pour que l'écran le dise.
+      masques: prives.masques || 0,
+    });
+  }
+
+  // LES NOMS DES BONNES RÉPONSES — CANAL ANIMATEUR SEUL (26/10).
+  //
+  // « Dans le jeu Vote, Quiz, Vrai/Faux, il faudrait une nouvelle section avec les
+  // noms des joueurs ayant bien répondu, dans la limite de 20 noms. » Le plus
+  // rapide d'abord : c'est l'ordre dans lequel l'animateur les félicite. Le total
+  // voyage à part — au-delà de vingt, l'écran dit combien il en tait. Envoyée
+  // même vide : « personne n'a trouvé » est une information.
+  if (noté && mod.meta.bonnesReponses) {
+    const bons = [...results.entries()]
+      .filter(([, r]) => r.correct === true)
+      .map(([pid]) => ({ p: room.players.get(pid), at: rt.answers.get(pid)?.at ?? Infinity }))
+      .filter((x) => x.p)
+      .sort((x, y) => x.at - y.at);
+    io.to(room.code + ':host').emit('host:bonnesReponses', {
+      roundId: rt.roundId,
+      total: bons.length,
+      joueurs: bons.slice(0, BONNES_REPONSES_MAX).map((x) => x.p.pseudo),
+    });
+  }
+
+  // « LES VISAGES » : QUI A BUZZÉ SUR QUEL VISAGE — CANAL ANIMATEUR SEUL (26/10).
+  // Dix noms au plus à côté d'un visage, et le compte exact.
+  if (prives && Array.isArray(prives.places) && prives.places.length) {
+    io.to(room.code + ':host').emit('host:visagesVotes', {
+      roundId: rt.roundId,
+      places: prives.places.map(({ pids, ...reste }) => {
+        const noms = pids.map((pid) => room.players.get(pid)?.pseudo).filter(Boolean);
+        return { ...reste, total: noms.length, joueurs: noms.slice(0, VOTANTS_PAR_VISAGE) };
+      }),
     });
   }
 

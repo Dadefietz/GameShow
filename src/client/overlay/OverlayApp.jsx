@@ -1518,6 +1518,19 @@ export function OverlayApp() {
   const g = useGame(token);
   useStreamScale();
   const musiqueLue = useMusiqueDuCamp(g.musique);
+  // LE STREAM AU CODE PÉRIMÉ SE RECHARGE SEUL (26/10) : dans OBS, personne ne
+  // clique. Une seule fois par version servie — si le rechargement ne suffisait
+  // pas (un cache intermédiaire), on ne boucle pas : le mémo de session l'arrête.
+  useEffect(() => {
+    if (!g.perimee) return;
+    try {
+      if (sessionStorage.getItem('stream-recharge-pour') === g.perimee) return;
+      sessionStorage.setItem('stream-recharge-pour', g.perimee);
+    } catch {
+      return;
+    }
+    window.location.reload();
+  }, [g.perimee]);
 
   // La phase est calculée AVANT la sortie anticipée : les crochets ne peuvent pas
   // vivre après un `return`, et la mesure de la pastille doit se refaire à chaque

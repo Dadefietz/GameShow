@@ -2,6 +2,7 @@
 // maintient l'état reçu du serveur (autoritaire), et expose une fonction d'émission.
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { connectSocket } from './net.js';
+import { estPerimee, versionChargee } from './version.js';
 
 export function useGame(token) {
   const socketRef = useRef(null);
@@ -66,6 +67,7 @@ export function useGame(token) {
   // LA MUSIQUE D'AMBIANCE — son réglage, tel que le serveur le tient. Seuls
   // l'animateur et le stream le reçoivent : c'est le canal du staff.
   const [musique, setMusique] = useState(null);           // { active, volume }
+  const [perimee, setPerimee] = useState(false);          // le serveur sert un code plus récent
   // « CUEILLETTE » À LA RÉVÉLATION — RETENU ICI, ET NON DANS LES ÉCRANS (11/10).
   // Les écrans de la révélation n'existent qu'une fois la manche arrivée. Écoutés
   // par eux, ces événements se PERDAIENT au rattachement : le serveur rejoue la
@@ -97,6 +99,9 @@ export function useGame(token) {
         s.close();
       }
     });
+    // UN ÉCRAN AU CODE PÉRIMÉ — mis en ligne depuis son ouverture (26/10).
+    // `perimee` vaut la version servie (vraie) ou `false`.
+    s.on('serveur:version', (v) => setPerimee(estPerimee(v && v.client, versionChargee()) ? v.client : false));
     s.on('room:state', (st) => { setRoom(st); if (st.leaderboard) setLeaderboard(st.leaderboard); });
     s.on('module:started', (m) => {
       // L'INSTANT LOCAL DE LA RÉCEPTION, posé ici et nulle part ailleurs.
@@ -215,7 +220,7 @@ export function useGame(token) {
   const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
   const roomClosed = !!token && fermeDe === token;
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, perimee, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

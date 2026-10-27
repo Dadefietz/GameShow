@@ -484,6 +484,27 @@ export const DUREE_JUSTE_TEMPS = 15;
 // Au-delà, l'animateur ne lit plus : il cherche.
 export const CLASSEMENT_MANCHE = 30;
 
+// LE TABLEAU DE L'ESTIMATION — vingt lignes, et deux bouts (26/10).
+//
+// « Voir jusqu'à 20 personnes avec en colonne : Nom, Écart, Réponse donnée. Si on
+// est moins de 20 joueurs, on affiche tout le monde. Si on est plus de 20 joueurs,
+// on affiche les 10 meilleurs et les 10 pires joueurs. » Les pires comptent autant
+// que les meilleurs : l'animateur commente aussi la réponse la plus folle.
+//
+// LE RANG EST UN RANG DE COMPÉTITION (1 + le nombre de joueurs strictement plus
+// proches) : deux écarts égaux partagent leur place, comme au classement général.
+// Et il voyage avec la ligne, parce qu'au-delà de vingt le premier des pires
+// n'est pas onzième.
+export const TABLEAU_ESTIMATION = 20;
+
+export function tableauEstimation(entrees, max = TABLEAU_ESTIMATION) {
+  const triees = [...entrees].sort((a, b) => a.ecart - b.ecart);
+  const lignes = triees.map((e) => ({ ...e, rang: 1 + triees.filter((x) => x.ecart < e.ecart).length }));
+  if (lignes.length <= max) return { lignes, masques: 0 };
+  const moitie = Math.floor(max / 2);
+  return { lignes: [...lignes.slice(0, moitie), ...lignes.slice(-moitie)], masques: lignes.length - 2 * moitie };
+}
+
 // La fenêtre de réponse dépasse le compte à rebours — voir `buildRound`.
 const MARGE_JUSTE_TEMPS = 1200;
 
@@ -1092,6 +1113,8 @@ export const modules = {
     meta: {
       type: 'quiz', name: 'Quiz', icon: 'help-circle', color: 'primary',
       scored: true, malus: true, vitesse: true,
+      // L'animateur reçoit les noms des bons répondants (26/10) — voir le moteur.
+      bonnesReponses: true,
       dureeS: DUREE_QUESTION_COURTE, dureeFixe: true,
     },
     buildRound(q) {
@@ -1130,6 +1153,7 @@ export const modules = {
     meta: {
       type: 'true_false', name: 'Vrai / Faux', icon: 'check-square', color: 'forest',
       scored: true, malus: true, vitesse: true,
+      bonnesReponses: true,
       dureeS: DUREE_QUESTION_COURTE, dureeFixe: true,
     },
     buildRound(q) {
@@ -1295,8 +1319,20 @@ export const modules = {
       // `prives` : ce qui ne doit JAMAIS partir dans `reveal`, lequel est diffusé
       // à tout le salon, stream compris. Les noms des plus proches en font partie
       // (décision 6.2) — même famille que la file d'attente, décision 8 de
-      // l'action 6 du chantier v1.
-      return { results, reveal: { target: rt.target, text: rt.text, stats }, prives: { plusProches } };
+      // l'action 6 du chantier v1. Le tableau de l'animateur aussi (26/10).
+      //
+      // L'écart est arrondi au milliardième : une soustraction de décimaux laisse
+      // des queues binaires (0,30000000000000004) que l'écran recopierait.
+      const { lignes: classement, masques } = tableauEstimation([...rt.answers.entries()].map(([pid, a]) => ({
+        pid,
+        valeur: a.value,
+        ecart: Math.round(Math.abs(a.value - rt.target) * 1e9) / 1e9,
+      })));
+      return {
+        results,
+        reveal: { target: rt.target, text: rt.text, stats },
+        prives: { plusProches, classement, masques },
+      };
     },
   },
 
@@ -1504,9 +1540,28 @@ export const modules = {
         troppTot: [...results.values()].filter((r) => r.troppTot).length,
       };
 
+      // QUI A BUZZÉ SUR QUEL VISAGE — POUR L'ANIMATEUR SEUL (26/10). « À côté de
+      // chaque visage, les noms des joueurs qui ont voté pour lui. » Le graphique
+      // public dit combien ; ceci dit qui. Les identifiants restent ici, dans
+      // l'ordre du buzz : c'est le moteur qui les change en noms, sur le canal de
+      // l'animateur, et qui borne la liste.
+      const votants = Array.from({ length: REGLES_VISAGES.total }, () => []);
+      for (const [pid, a] of [...rt.answers.entries()].sort((x, y) => x[1].at - y[1].at)) {
+        votants[results.get(pid).place - 1].push(pid);
+      }
+      const places = rt.ordre.map((id, i) => ({
+        place: i + 1,
+        src: srcDeVisage(id),
+        // LE CADRE VERT : la seconde apparition, la seule qui rapporte. La première
+        // montre le même visage, mais y buzzer était trop tôt.
+        bonne: i + 1 === rt.pos2,
+        pids: votants[i],
+      }));
+
       return {
         results,
         reveal: { type: 'visages', text: rt.text, doubleId: rt.doubleId, pos1: rt.pos1, pos2: rt.pos2, stats },
+        prives: { places },
       };
     },
   },
@@ -1963,6 +2018,9 @@ export const modules = {
     meta: {
       type: 'vote', name: 'Vote', icon: 'bar-chart-2', color: 'info',
       scored: true, malus: false, vitesse: false,
+      // Les bons répondants : ceux qui ont lu le cercle au second tour. Un
+      // sondage n'en a pas (la manche n'est pas notée), et n'envoie rien.
+      bonnesReponses: true,
       // Les onglets de la file de l'animateur, et les catégories que le Studio
       // propose. Déclarées ici pour que les deux surfaces lisent la même liste.
       categories: CATEGORIES_VOTE, categorieParDefaut: CATEGORIE_VOTE_PAR_DEFAUT,
