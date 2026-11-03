@@ -420,6 +420,17 @@
     background: var(--c-surface-2);
   }
   .cmod__tete { display: flex; align-items: center; gap: var(--sp-3); }
+  /* LE COMPTEUR DE L'IMAGE, poussé à droite contre la corbeille. Étroit :
+     c'est un nombre à deux ou trois chiffres, pas un champ de saisie. */
+  .cmod__poses { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+  .cmod__poses-label {
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+    white-space: nowrap;
+  }
+  .cmod__poses .input { width: 5rem; }
   .cmod__forme {
     font: 600 var(--fs-200) / 1 var(--f-mono);
     color: var(--c-ink);

@@ -499,7 +499,14 @@ export function StudioApp() {
       const dessins = m.contenuCueillette.dessins || [];
       // Les dessins du DÉPÔT ont leur figure et leur grille côté serveur.
       const duDepot = new Set((catalogueCueillette?.dessins || []).map((d) => d.id));
-      if (!dessins.length) problems.push({ qid: null, tag: null, msg: 'Garde au moins un dessin dans la banque.' });
+      // UNE ENTRÉE QUI NE PORTE QUE DES COMPTEURS N'EST PAS UNE BANQUE VIDE.
+      // Le serveur en crée une à la première manche jouée, avec `dessins`
+      // délibérément vide pour laisser le repli sur le dépôt intact : crier
+      // « garde au moins un dessin » ici accuserait l'animateur d'avoir vidé
+      // une banque qu'il n'a jamais touchée.
+      const queDesCompteurs = !dessins.length
+        && Object.keys(m.contenuCueillette.poses || {}).length > 0;
+      if (!dessins.length && !queDesCompteurs) problems.push({ qid: null, tag: null, msg: 'Garde au moins un dessin dans la banque.' });
       dessins.forEach((d, i) => {
         const tag = `Dessin ${i + 1}`;
         if (!String(d.nom || '').trim()) problems.push({ qid: null, tag, msg: "Le dessin n'a pas de nom." });
@@ -1211,8 +1218,21 @@ function BanqueCueillette({ contenu, catalogue, catalogueRate, moduleId, entetes
   const [filtre, setFiltre] = useState('');
   const [depot, setDepot] = useState(null);   // { id, etat: 'envoi'|'ok'|'erreur', message, durable }
 
-  const poser = (liste) => onChange({ kind: MARQUE_CUEILLETTE, dessins: liste });
+  // LES COMPTEURS SURVIVENT À TOUTE MODIFICATION DE LA BANQUE. `poser`
+  // réécrivait l'entrée en entier : renommer un dessin aurait effacé le
+  // nombre de fois où CHAQUE image a été posée, en silence.
+  const poser = (liste, poses) => onChange({
+    kind: MARQUE_CUEILLETTE,
+    dessins: liste,
+    poses: poses !== undefined ? poses : (contenu?.poses || {}),
+  });
   const maj = (i, patch) => poser(dessins.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+  // Le compteur d'une image, modifiable comme celui d'une question.
+  const posesDe = (d) => Math.max(0, Math.floor(Number(contenu?.poses?.[d.id])) || 0);
+  const majPoses = (d, valeur) => {
+    const n = Math.floor(Number(valeur));
+    poser(dessins, { ...(contenu?.poses || {}), [d.id]: Number.isFinite(n) && n > 0 ? n : 0 });
+  };
 
   const deposer = async (i, fichier) => {
     const d = dessins[i];
@@ -1277,6 +1297,18 @@ function BanqueCueillette({ contenu, catalogue, catalogueRate, moduleId, entetes
               <img className="cmod__vignette" src={d.src || VIGNETTE_VIDE} alt="" loading="lazy" />
               <div className="cmod__tete">
                 <span className="cmod__id" title={d.id}>{d.nom || 'Nouveau dessin'}</span>
+                {/* LE COMPTEUR DE L'IMAGE (02/11). Pour Cueillette, c'est
+                    l'image qui se compte, pas la question : le jeu n'a qu'une
+                    entrée de banque, et elle n'aurait rien dit d'autre que le
+                    nombre de manches jouées. */}
+                <label className="cmod__poses">
+                  <span className="cmod__poses-label">Déjà posée</span>
+                  <input className="input" type="number" min="0" step="1" inputMode="numeric"
+                    data-testid={`cueillette-poses-${d.id}`}
+                    aria-label={`Nombre de fois où ${d.nom || d.id} a été posée`}
+                    value={posesDe(d)}
+                    onChange={(e) => majPoses(d, e.target.value)} />
+                </label>
                 <button className="qrow__btn qrow__btn--danger" type="button"
                   aria-label={`Retirer ${d.nom || d.id}`}
                   onClick={() => poser(dessins.filter((_, j) => j !== i))}>

@@ -503,6 +503,37 @@ function compterUnePose(room, q) {
     .catch((e) => console.warn('compteur de passages non enregistré :', e?.message || e));
 }
 
+// LE COMPTEUR DE « CUEILLETTE » PORTE SUR UNE IMAGE, PAS SUR UNE QUESTION.
+//
+// « pour Cueillette ce n'est pas un compteur pour une question mais pour une
+// image ». Le jeu n'a qu'UNE entrée dans sa banque — celle qui porte la liste
+// des dessins modérés — et choisit sa cible dedans à chaque manche. Compter sur
+// cette entrée unique n'aurait rien dit : elle aurait affiché le nombre total de
+// manches jouées.
+//
+// LES COMPTEURS VONT DONC DANS UNE TABLE `poses`, RANGÉE SUR CETTE ENTRÉE, et
+// indexée par identifiant de dessin. Pas dans `dessins[]`, et c'est délibéré :
+// tant que l'animateur n'a pas modéré sa banque, cette liste est VIDE et le jeu
+// se rabat sur les cinquante dessins du dépôt. Y écrire pour compter aurait figé
+// sa banque sur l'état du jour — un dessin ajouté au dépôt plus tard ne lui
+// serait jamais apparu. Une table à côté ne touche à rien de tout cela.
+function compterUneImage(room, module_, dessinId) {
+  if (!dessinId) return;
+  const questions = Array.isArray(module_.questions) ? module_.questions : [];
+  let entree = questions.find((x) => x && x.kind === MARQUE_CUEILLETTE);
+  if (!entree) {
+    // `dessins` reste VIDE : c'est ce qui laisse le repli sur le dépôt intact.
+    entree = { kind: MARQUE_CUEILLETTE, dessins: [], poses: {} };
+    questions.push(entree);
+    module_.questions = questions;
+  }
+  if (!entree.poses || typeof entree.poses !== 'object') entree.poses = {};
+  entree.poses[dessinId] = (Math.floor(Number(entree.poses[dessinId])) || 0) + 1;
+  Promise.resolve()
+    .then(() => banksStore.enregistrerModules(room.ownerId, banksStore.getModules(room.ownerId)))
+    .catch((e) => console.warn('compteur d\'image non enregistré :', e?.message || e));
+}
+
 function marquerPosee(room, module_, q) {
   const id = typeof q === 'object' && q !== null ? q.id : q;
   compterUnePose(room, typeof q === 'object' ? q : null);
@@ -814,6 +845,9 @@ io.on('connection', (socket) => {
       }
       if (!q) return socket.emit('host:error', { code: 'no-question', moduleName: module_.name });
       engine.startModule(io, r, module_, q);
+      // LA CIBLE N'EST CONNUE QU'APRÈS LE DÉPART : c'est `buildRound` qui la
+      // tire, ou qui retient celle que l'animateur a désignée.
+      if (module_.type === 'cueillette') compterUneImage(r, module_, r.currentModule?.cible?.id);
       // La file suivante part vers l'ANIMATEUR SEUL : c'est la seule donnée de
       // l'application qui révèle les questions À VENIR, et le stream est une
       // source capturée par OBS.
