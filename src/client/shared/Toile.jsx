@@ -85,13 +85,42 @@ export function Toile({
   // que la toile a déjà.
   useEffect(() => { setTraits(valeur || []); }, [valeur]);
 
+  // ============================================================================
+  // LE REPÈRE EST UN CARRÉ, PAS LA BOÎTE — ET C'EST UN CORRECTIF (02/11)
+  // ============================================================================
+  //
+  // CE QUI A ÉTÉ RAPPORTÉ : « il arrive que leur dessin soit "écrasé" et que ce
+  // soit ce dessin "écrasé" qui soit comptabilisé. »
+  //
+  // CHAQUE AXE ÉTAIT DIVISÉ PAR SON PROPRE CÔTÉ : `x / r.width`, `y / r.height`.
+  // Tant que la boîte est carrée, les deux divisions sont la même et tout est
+  // juste. Dès qu'elle ne l'est plus, la forme est étirée — et elle l'est
+  // DEUX FOIS : à l'écran, parce que l'encre était rendue en
+  // `preserveAspectRatio="none"` ; et dans la note, parce que le serveur
+  // rastérise ces coordonnées dans une grille carrée sans pouvoir deviner que le
+  // cadre ne l'était pas.
+  //
+  // ET LA BOÎTE N'EST PAS TOUJOURS CARRÉE. Mesuré sur cinq écrans : carrée sur
+  // deux téléphones courts, étirée sur les trois plus élancés — jusqu'à un
+  // facteur 0,50 sur 360 × 980, où le dessin partait à MOITIÉ de sa largeur.
+  // C'est exactement le « parfois pour des joueurs » du rapport : cela dépend de
+  // la place qui reste sous la cible, donc de la hauteur de l'écran.
+  //
+  // LE REPÈRE EST DONC LE PLUS GRAND CARRÉ INSCRIT DANS LA BOÎTE, centré. Le
+  // même que celui où l'image cible s'affiche (`object-fit: contain`) et que
+  // celui où l'encre est désormais rendue (`xMidYMid meet`) : les trois
+  // coïncident, quelle que soit la forme du cadre. La géométrie du dessin ne
+  // dépend plus de la mise en page.
   const position = useCallback((e) => {
     const r = boite.current.getBoundingClientRect();
-    // BORNÉ À LA BOÎTE : un doigt qui sort continue d'être suivi — c'est le but de
-    // la capture — mais son trait ne sort pas du cadre.
+    const cote = Math.min(r.width, r.height) || 1;
+    const ox = (r.width - cote) / 2;
+    const oy = (r.height - cote) / 2;
+    // BORNÉ AU CARRÉ : un doigt qui sort continue d'être suivi — c'est le but de
+    // la capture — mais son trait ne sort pas du repère.
     return [
-      Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
-      Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+      Math.min(1, Math.max(0, (e.clientX - r.left - ox) / cote)),
+      Math.min(1, Math.max(0, (e.clientY - r.top - oy) / cote)),
     ];
   }, []);
 
@@ -169,7 +198,11 @@ export function Toile({
         onPointerUp={finir} onPointerCancel={finir}>
         {/* LE FOND — la cible, quand on la montre sous le dessin du joueur. */}
         {fond ? <img className="toile__fond" src={fond} alt="" draggable="false" /> : null}
-        <svg className="toile__encre" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+        {/* `meet` ET NON `none` : l'encre se pose dans le carré inscrit, centré,
+            le même repère que `position` ci-dessus et que la cible affichée en
+            `object-fit: contain`. En `none`, un cadre non carré étirait le trait
+            — le joueur voyait son dessin déformé pendant qu'il le traçait. */}
+        <svg className="toile__encre" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           {/* LE TRACÉ SUPERPOSÉ, s'il y en a un — celui du joueur par-dessus la
               cible, en vert clair. Il passe SOUS le trait courant pour qu'un
               dessin en cours reste au premier plan. */}
