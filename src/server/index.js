@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules, categorieDe } from './modules.js';
+import { MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee } from './modules.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
@@ -454,35 +454,65 @@ function fileDe(room, moduleId, pool) {
 
 // Prend la TÊTE de file, de façon atomique : un réordonnancement arrivé entre
 // temps ne s'applique qu'au reste.
-function prendreProchaine(room, moduleId, pool) {
-  const file = fileDe(room, moduleId, pool);
+function prendreProchaine(room, module_, pool) {
+  const file = fileDe(room, module_.id, pool);
   const connues = new Map(pool.map((q) => [q.id, q]));
   while (file.length) {
     const id = file.shift();
     // Une question retirée de la bibliothèque entre-temps, ou déjà posée par un
     // autre jeu, est simplement sautée — jamais servie deux fois.
     if (!connues.has(id) || room.session.used.has(id)) continue;
-    marquerPosee(room, id);
+    marquerPosee(room, module_, connues.get(id));
     return connues.get(id);
   }
   return null;
 }
 
-function marquerPosee(room, questionId) {
-  room.session.used.add(questionId);
-  room.session.lastQuestionId = questionId;
+// CE QUI SE PASSE QUAND UNE QUESTION VIENT D'ÊTRE POSÉE.
+//
+// LA RÈGLE GÉNÉRALE N'A PAS CHANGÉ : une question posée ne revient pas dans le
+// salon. C'est elle qui fait fondre la file sous les yeux de l'animateur, et qui
+// garantit qu'on ne repose pas deux fois la même chose dans la soirée.
+//
+// L'EXCEPTION DU SONDAGE (02/11) : « une question Sondage peut être posée
+// plusieurs fois au cours d'une partie. » Un sondage ne se devine pas, il se
+// redemande — après un retournement de situation, la même question n'a plus la
+// même réponse. Elle RETOURNE DONC EN FIN DE FILE au lieu d'être retirée : elle
+// reste disponible, visible dans l'onglet, mais derrière tout le reste, pour ne
+// pas ressortir coup sur coup.
+//
+// `lastQuestionId` est posé dans les deux cas : c'est lui qui empêche une
+// question d'ouvrir la file qu'elle vient de quitter.
+function marquerPosee(room, module_, q) {
+  const id = typeof q === 'object' && q !== null ? q.id : q;
+  if (peutEtreReposee(module_.type, typeof q === 'object' ? q : null)) {
+    const file = room.session.queues[module_.id];
+    if (Array.isArray(file) && !file.includes(id)) file.push(id);
+  } else {
+    room.session.used.add(id);
+  }
+  room.session.lastQuestionId = id;
 }
 
 // Ce que l'animateur voit de sa file : la suite, dans l'ordre, avec les intitulés.
-function fileVisible(room, moduleId, pool) {
+//
+// ELLE PREND LE MODULE, PLUS SON SEUL IDENTIFIANT : la catégorie d'une question
+// dépend du JEU auquel elle appartient — « Vie / Dilemme / Sondage » au vote,
+// « Culture / Approximation » à l'estimation. Avec le seul identifiant, la file
+// rangeait toute question dans les catégories du vote.
+function fileVisible(room, module_, pool) {
   const connues = new Map(pool.map((q) => [q.id, q]));
-  return fileDe(room, moduleId, pool)
+  return fileDe(room, module_.id, pool)
     .filter((id) => connues.has(id) && !room.session.used.has(id))
     // LA CATÉGORIE VOYAGE AVEC LA LIGNE. L'écran de l'animateur range la file en
     // onglets ; il ne peut pas deviner la catégorie d'une question dont il ne
     // reçoit que l'énoncé. Elle est normalisée ici — une question écrite avant
     // les catégories en reçoit une, plutôt que de tomber dans aucun onglet.
-    .map((id) => ({ id, text: connues.get(id).text, categorie: categorieDe(connues.get(id)) }));
+    .map((id) => ({
+      id,
+      text: connues.get(id).text,
+      categorie: categorieDeQuestion(module_.type, connues.get(id)),
+    }));
 }
 
 
@@ -736,7 +766,12 @@ io.on('connection', (socket) => {
       if (q) {
         // Une question IMPOSÉE compte comme posée : sans ça elle pouvait
         // ressortir plus tard dans la même soirée.
-        marquerPosee(r, q.id);
+        // L'ORDRE COMPTE : on retire d'abord de la file, on marque ensuite.
+        // `marquerPosee` REMET un sondage en fin de file ; filtrer après l'aurait
+        // aussitôt repris, et l'exception n'aurait jamais tenu sur une question
+        // désignée à la main — c'est pourtant le cas le plus courant pour un
+        // sondage, que l'animateur choisit au moment où il tombe bien.
+        //
         // SEULEMENT SI LA FILE EXISTE DÉJÀ. Écrire `[]` pour un jeu dont la file
         // n'a jamais été construite la déclarait VIDE : une question désignée au
         // tout premier lancement d'un jeu épuisait ce jeu pour la soirée, et
@@ -747,15 +782,16 @@ io.on('connection', (socket) => {
         if (Array.isArray(r.session.queues[module_.id])) {
           r.session.queues[module_.id] = r.session.queues[module_.id].filter((id) => id !== q.id);
         }
+        marquerPosee(r, module_, q);
       } else {
-        q = prendreProchaine(r, module_.id, pool);
+        q = prendreProchaine(r, module_, pool);
       }
       if (!q) return socket.emit('host:error', { code: 'no-question', moduleName: module_.name });
       engine.startModule(io, r, module_, q);
       // La file suivante part vers l'ANIMATEUR SEUL : c'est la seule donnée de
       // l'application qui révèle les questions À VENIR, et le stream est une
       // source capturée par OBS.
-      socket.emit('host:queue', { moduleId: module_.id, queue: fileVisible(r, module_.id, pool) });
+      socket.emit('host:queue', { moduleId: module_.id, queue: fileVisible(r, module_, pool) });
     } catch {
       socket.emit('host:error', { code: 'start-failed' });
     }
@@ -768,7 +804,7 @@ io.on('connection', (socket) => {
     const module_ = banksStore.getModule(r.ownerId, moduleId);
     if (!module_) return cb({ queue: [] });
     const pool = await poolFor(r.ownerId, module_);
-    cb({ moduleId, queue: fileVisible(r, moduleId, pool) });
+    cb({ moduleId, queue: fileVisible(r, module_, pool) });
   });
 
   // Réordonnancement : l'animateur renvoie l'ordre voulu. Le serveur ne fait
@@ -786,7 +822,7 @@ io.on('connection', (socket) => {
     // tronquée par un message incomplet ferait disparaître des questions.
     const reste = [...actuelle].filter((id) => !voulu.includes(id));
     r.session.queues[moduleId] = [...voulu, ...reste];
-    if (typeof cb === 'function') cb({ moduleId, queue: fileVisible(r, moduleId, pool) });
+    if (typeof cb === 'function') cb({ moduleId, queue: fileVisible(r, module_, pool) });
   });
 
   // Retrait d'une question de la file — une question qui tombe mal, un sujet qui
@@ -799,7 +835,7 @@ io.on('connection', (socket) => {
     if (!module_) return;
     const pool = await poolFor(r.ownerId, module_);
     r.session.queues[moduleId] = fileDe(r, moduleId, pool).filter((id) => id !== String(questionId));
-    if (typeof cb === 'function') cb({ moduleId, queue: fileVisible(r, moduleId, pool) });
+    if (typeof cb === 'function') cb({ moduleId, queue: fileVisible(r, module_, pool) });
   });
 
   // Bibliothèque de l'animateur : sert à construire son menu de lancement. Envoyée

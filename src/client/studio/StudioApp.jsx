@@ -121,7 +121,10 @@ function serverToStudioQuestion(type, q) {
   const base = { id: String(q.id ?? uid('q')), type, prompt: q.text || '' };
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
-  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
+  // La catégorie d'estimation voyage comme celle du vote. Une question
+  // écrite avant le 02/11 n'en porte pas : elle va en « Culture », le repli
+  // que le serveur applique aussi.
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre', categorie: q.categorie || 'culture' };
   // vote — L'ANCIEN INTERRUPTEUR « Sondage sans points » DEVIENT LA CATÉGORIE
   // « Sondage », exactement comme le serveur le lit (`categorieDe`). Sans cette
   // ligne, le Studio montrerait « Vie » pour une question que la partie joue en
@@ -134,7 +137,7 @@ function studioToServerQuestion(type, q, durationSec) {
   const base = { id: String(q.id), text: q.prompt || '', durationSec: durationSec || undefined };
   if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
   if (type === 'true_false') return { ...base, correct: !!q.answer };
-  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre' };
+  if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre', categorie: q.categorie || 'culture' };
   return { ...base, options: q.options || [], poll: !!q.poll, categorie: q.categorie || 'vie' }; // vote
 }
 
@@ -1683,6 +1686,28 @@ function QuestionFields({ type, question, onPatch, errors, categories, defautCat
               : 'Plages en pourcentage de la cible : 2 %, 10 %, 20 %, 30 %.'}
           </p>
         </div>
+        {/* LA CATÉGORIE (02/11) — même champ que pour le vote, mais elle ne
+            change RIEN aux règles : une estimation rapporte des points dans les
+            deux catégories. Pas de `poll` à écrire ici, donc, et pas de mention
+            de points : elle sert à RANGER, et à laisser l'animateur piocher dans
+            l'une ou l'autre depuis sa file. */}
+        {categories?.length ? (
+          <div className="fgroup">
+            <span className="flabel" id={`cat-${question.id}`}>Catégorie</span>
+            <div className="qtiles" role="radiogroup" aria-labelledby={`cat-${question.id}`}>
+              {categories.map((c) => (
+                <button key={c.cle} className="qtile" type="button" role="radio"
+                  data-testid={`estimation-cat-${c.cle}`}
+                  aria-checked={(question.categorie || defautCategorie) === c.cle}
+                  onClick={() => onPatch({ categorie: c.cle })}>{c.nom}</button>
+              ))}
+            </div>
+            <p className="fhint">
+              « Culture » pour un fait à connaître, « Approximation » pour un ordre
+              de grandeur à estimer.
+            </p>
+          </div>
+        ) : null}
       </>
     );
   }

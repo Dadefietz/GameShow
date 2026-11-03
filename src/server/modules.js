@@ -1083,6 +1083,42 @@ export const CATEGORIES_VOTE = [
 ];
 export const CATEGORIE_VOTE_PAR_DEFAUT = 'vie';
 
+// LES CATÉGORIES D'« ESTIMATION » (02/11) : « il faut rajouter un champ Catégorie
+// pour les questions (à l'image du champ Catégorie pour les questions de Vote).
+// Les questions Estimation peuvent être de catégorie Culture ou de catégorie
+// Approximation. »
+//
+// MÊME FORME QUE POUR LE VOTE, et c'est voulu : le Studio et la file de
+// l'animateur lisent `meta.categories` sans savoir de quel jeu il s'agit. Un
+// troisième jeu à catégories n'aura donc rien à câbler, seulement à déclarer.
+//
+// ELLES NE CHANGENT PAS LES RÈGLES, contrairement à « Sondage » au vote : une
+// estimation rapporte des points dans les deux catégories. Pas de `points` ici —
+// l'absence du champ vaut « oui », comme pour « Vie » et « Dilemme ».
+export const CATEGORIES_ESTIMATION = [
+  { cle: 'culture', nom: 'Culture' },
+  { cle: 'approximation', nom: 'Approximation' },
+];
+// Les questions écrites avant le 02/11 n'en portent pas : elles vont en
+// « Culture ». Aucune ne disparaît d'un onglet, aucune ne devient injouable.
+export const CATEGORIE_ESTIMATION_PAR_DEFAUT = 'culture';
+
+// LA CATÉGORIE D'UNE QUESTION, POUR N'IMPORTE QUEL JEU QUI EN A.
+//
+// `categorieDe` ci-dessous reste le cas du vote, parce qu'il porte une reprise
+// d'historique qui n'appartient qu'à lui (l'ancien interrupteur `poll`). Cette
+// fonction-ci est la générale : elle lit la liste déclarée par le type, et
+// n'invente jamais une clé que la liste ne connaît pas.
+export function categorieDeQuestion(type, q) {
+  const meta = modules[type]?.meta;
+  const liste = meta?.categories;
+  if (!Array.isArray(liste) || !liste.length) return null;
+  if (type === 'vote') return categorieDe(q);
+  const defaut = meta.categorieParDefaut || liste[0].cle;
+  const cle = String(q?.categorie || '').trim().toLowerCase();
+  return liste.some((c) => c.cle === cle) ? cle : defaut;
+}
+
 // LA CATÉGORIE D'UNE QUESTION, TOUJOURS VALIDE.
 //
 // Les questions écrites avant le 15/09 n'en portent pas : elles vont en « Vie »,
@@ -1106,6 +1142,28 @@ export function categorieDe(q) {
 export function voteRapporte(q) {
   const cle = categorieDe(q);
   return CATEGORIES_VOTE.find((c) => c.cle === cle)?.points !== false;
+}
+
+// UNE QUESTION PEUT-ELLE ÊTRE REPOSÉE DANS LA MÊME SOIRÉE ? (02/11)
+//
+// CE QUI A ÉTÉ DEMANDÉ : « lorsque l'on lance un vote sur une question, la
+// question n'apparaît plus et ne peut plus être posée. Ce fonctionnement est
+// très bien pour les questions de catégorie "Vie" et "Dilemme", mais il doit
+// être supprimé pour les questions de catégorie "Sondage". »
+//
+// LA RÈGLE GÉNÉRALE RESTE LA RÈGLE : une question posée ne revient pas. C'est
+// elle qui fait fondre la file sous les yeux de l'animateur et qui évite de
+// reposer deux fois la même chose dans la soirée.
+//
+// LE SONDAGE EN EST LA SEULE EXCEPTION, et pour une raison de fond : un sondage
+// ne se devine pas, il se redemande. La même question n'a pas la même réponse
+// après un retournement de situation — c'est même tout son intérêt à l'antenne.
+// Elle n'est donc pas « épuisée » par un premier passage.
+//
+// ELLE EST DÉCLARÉE ICI, AVEC LES CATÉGORIES, et pas dans la file : c'est une
+// propriété du contenu, pas du tirage.
+export function peutEtreReposee(type, q) {
+  return type === 'vote' && !voteRapporte(q);
 }
 
 export const modules = {
@@ -1194,6 +1252,9 @@ export const modules = {
     meta: {
       type: 'estimation', name: 'Estimation', icon: 'target', color: 'flame',
       scored: true, malus: false, vitesse: false,
+      // Les onglets de la file de l'animateur et les sections du Studio. Mêmes
+      // deux champs que le vote : les deux surfaces lisent la même liste.
+      categories: CATEGORIES_ESTIMATION, categorieParDefaut: CATEGORIE_ESTIMATION_PAR_DEFAUT,
       // La durée vient de la banque : c'est l'un des trois jeux où le réglage agit.
       dureeS: null, dureeFixe: false,
     },

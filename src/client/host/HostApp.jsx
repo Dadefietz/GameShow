@@ -1638,7 +1638,12 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
   // LA FILE VISIBLE EST CELLE DE L'ONGLET. Le glisser, le retrait et le
   // réordonnancement continuent de porter sur la file ENTIÈRE côté serveur —
   // un onglet est une vue, pas une file séparée.
-  const visible = onglet ? file.filter((q) => (q.categorie || 'vie') === onglet) : file;
+  // LE REPLI SUIT LE JEU. Il valait « vie » en dur : une question d'estimation
+  // sans catégorie ne serait tombée dans AUCUN onglet, et aurait disparu de la
+  // file sous les yeux de l'animateur. Le serveur normalise déjà la catégorie,
+  // ce repli ne sert donc qu'à une réponse plus ancienne que le déploiement.
+  const categorieParDefaut = categories?.[0]?.cle || 'vie';
+  const visible = onglet ? file.filter((q) => (q.categorie || categorieParDefaut) === onglet) : file;
   vueCourante.current = visible;
   const deplacer = deplacerDans(visible);
 
@@ -1651,7 +1656,7 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
       {categories?.length ? (
         <div className="seg" role="tablist" aria-label="Catégories de questions" data-testid="file-onglets">
           {categories.map((c) => {
-            const n = file.filter((q) => (q.categorie || 'vie') === c.cle).length;
+            const n = file.filter((q) => (q.categorie || categorieParDefaut) === c.cle).length;
             return (
               <button key={c.cle} type="button" role="tab" aria-selected={onglet === c.cle}
                 className={`button ${onglet === c.cle ? 'button--primary' : 'button--quiet'}`}
@@ -3059,7 +3064,9 @@ export function HostApp() {
     // bouton qui tire dans l'autre onglet.
     setTimeout(() => finir(null), 1200);
     g.emit('host:getQueue', { moduleId: id }, (r) => {
-      const q = ((r && r.queue) || []).find((x) => (x.categorie || 'vie') === categorieFile);
+      // Pas de repli en dur ici : la catégorie vient normalisée du serveur, et
+      // inventer « vie » ferait tirer dans le mauvais onglet sur un autre jeu.
+      const q = ((r && r.queue) || []).find((x) => x.categorie === categorieFile);
       finir(q ? q.id : null);
     });
   }), [g, prepare, categorieFile]);
