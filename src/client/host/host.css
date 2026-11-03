@@ -615,7 +615,30 @@
     background: var(--c-plaque);
     box-shadow: var(--sh-1);
   }
+  .cuchoix__case { position: relative; }
   .cuchoix__case img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+  /* LE COMPTEUR DE L'IMAGE, en pastille sur le coin de la vignette. Il se lit
+     d'un balayage sur toute la grille — c'est ce qu'on vient y chercher. Fond
+     opaque : il se pose sur un dessin clair. */
+  .cuchoix__poses {
+    position: absolute;
+    top: var(--sp-1);
+    right: var(--sp-1);
+    min-width: 2.25ch;
+    padding: 1px var(--sp-1);
+    border-radius: var(--r-xs);
+    background: var(--c-surface-sunk);
+    font: 600 var(--fs-100) / 1.4 var(--f-mono);
+    color: var(--c-ink-2);
+    text-align: center;
+  }
+  /* La barre au-dessus de la grille : compte à gauche, tri à droite. */
+  .cuchoix__barre {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+  }
   .cuchoix__nom {
     font: 500 var(--fs-100) / 1.1 var(--f-ui);
     color: var(--c-ink-on-plaque);

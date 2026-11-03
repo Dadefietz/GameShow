@@ -78,3 +78,43 @@ test.describe('Le compteur de Cueillette', () => {
       + "ne parviendrait plus à cet animateur").toBe(0);
   });
 });
+
+// ============================================================================
+// LE CHOIX DE LA CIBLE PORTE LES COMPTEURS
+// ============================================================================
+//
+// « Dans l'écran de l'animateur […] le compteur doit apparaître […] sur la
+// ligne de chaque question. » Cueillette n'a pas de file de questions : son
+// équivalent est la GRILLE OÙ L'ANIMATEUR CHOISIT SA CIBLE. C'est là que le
+// compteur sert à ce que la demande vise — poser d'abord ce qui a le moins
+// servi — et c'est donc là qu'il doit être.
+test.describe('Le choix de la cible montre les compteurs', () => {
+  let hote = null;
+
+  test.afterEach(async () => {
+    if (hote) { await terminerPartie(hote.page); await hote.ctx.close(); hote = null; }
+  });
+
+  test('chaque vignette porte son compteur, et le tri remonte les moins posées', async ({ browser }) => {
+    hote = await openHost(browser);
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await lancerJeu(hote.page, 'Cueillette', { demarrer: false });
+
+    const pastilles = hote.page.getByTestId('cu-poses');
+    await expect(pastilles.first()).toBeVisible({ timeout: 20_000 });
+    const n = await pastilles.count();
+    expect(n, 'aucune vignette ne porte de compteur').toBeGreaterThan(1);
+
+    const lire = () => pastilles.evaluateAll((els) => els.map((e) => Number(e.textContent.trim())));
+    const avant = await lire();
+    expect(avant.every((x) => Number.isFinite(x)),
+      `une pastille ne porte pas un nombre : ${avant.join(' | ')}`).toBe(true);
+
+    // LE TRI. Croissant, et sans perdre une vignette en chemin.
+    await hote.page.getByTestId('cu-trier').click();
+    const apres = await lire();
+    expect(apres.length, 'le tri a fait disparaître des dessins').toBe(avant.length);
+    const croissant = apres.every((x, i) => i === 0 || apres[i - 1] <= x);
+    expect(croissant, `la grille n'est pas triée par compteur croissant : ${apres.join(' | ')}`).toBe(true);
+  });
+});

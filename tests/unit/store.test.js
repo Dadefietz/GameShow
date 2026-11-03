@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MODULE_TYPES, modules } from '../../src/server/modules.js';
+import { MODULE_TYPES, modules, LOT_ESTIMATION_2026_11 } from '../../src/server/modules.js';
 
 const DATA_DIR = 'tests/.data-unit';
 let store;
@@ -320,5 +320,78 @@ describe('la semence monte AUSSI sur une bibliothèque venue de la base', () => 
     const { etat: second, monte } = store.etatDepuisLaBase(etat.modules);
     expect(monte, 'la montée a rejoué sur une bibliothèque déjà complète').toBe(false);
     expect(second.modules.length).toBe(etat.modules.length);
+  });
+});
+
+// ============================================================================
+// LES LOTS DE QUESTIONS ATTEIGNENT LES BIBLIOTHÈQUES DÉJÀ INSTALLÉES
+// ============================================================================
+//
+// LE DÉFAUT QUE CE BLOC GARDE, ET IL EST DÉJÀ ARRIVÉ UNE FOIS, AVEC UN JEU
+// ENTIER. Les questions d'exemple ne sont posées qu'à la PREMIÈRE ouverture d'un
+// compte. Les 75 estimations du 02/11 auraient donc été écrites, contrôlées,
+// déployées — et introuvables dans la bibliothèque de la seule personne qui s'en
+// sert. Rien, nulle part, ne l'aurait signalé : c'est exactement ce qui s'était
+// passé pour « Cueillette ».
+//
+// LE CHEMIN DE LA BASE EST CELUI DE LA PRODUCTION, et c'est lui qui avait été
+// oublié la dernière fois. Il est donc contrôlé en premier.
+describe('les lots de questions atteignent les comptes déjà installés', () => {
+  const estimationVide = () => [{
+    id: 'm-estimation', type: 'estimation', name: 'Estimation', duration: 20,
+    color: modules.estimation.meta.color, questions: [],
+  }];
+
+  it('LE LOT ARRIVE sur une bibliothèque venue de la base qui ne l\'a pas', () => {
+    const { etat, monte } = store.etatDepuisLaBase(estimationVide());
+    expect(monte, 'le rattrapage ne s\'est pas déclenché sur le chemin de la base').toBe(true);
+    const jeu = etat.modules.find((m) => m.type === 'estimation');
+    for (const q of LOT_ESTIMATION_2026_11) {
+      expect(jeu.questions.some((x) => x.id === q.id),
+        `« ${q.text} » n'a pas été portée à une bibliothèque qui ne l'avait pas`).toBe(true);
+    }
+  });
+
+  it('IL N\'ARRIVE QU\'UNE FOIS : un second passage ne double rien', () => {
+    const { etat } = store.etatDepuisLaBase(estimationVide());
+    const { etat: second } = store.etatDepuisLaBase(etat.modules);
+    const jeu = second.modules.find((m) => m.type === 'estimation');
+    const ids = jeu.questions.map((q) => q.id);
+    expect(ids.length - new Set(ids).size, 'des questions ont été posées deux fois').toBe(0);
+  });
+
+  it('IL NE RESSUSCITE PAS une question supprimée, tant qu\'il en reste une du lot', () => {
+    const { etat } = store.etatDepuisLaBase(estimationVide());
+    const jeu = etat.modules.find((m) => m.type === 'estimation');
+    const supprimee = LOT_ESTIMATION_2026_11[0].id;
+    jeu.questions = jeu.questions.filter((q) => q.id !== supprimee);
+    const { etat: second } = store.etatDepuisLaBase(etat.modules);
+    const apres = second.modules.find((m) => m.type === 'estimation');
+    expect(apres.questions.some((q) => q.id === supprimee),
+      'une question supprimée exprès est revenue').toBe(false);
+  });
+
+  it('IL NE CRÉE PAS un jeu que l\'animateur a supprimé', () => {
+    // Une bibliothèque sans jeu d'estimation : il a été rangé exprès. Lui verser
+    // 75 questions supposerait de recréer le jeu — exactement ce que la semence
+    // se refuse à faire.
+    const sansEstimation = [{
+      id: 'm-quiz', type: 'quiz', name: 'Quiz', duration: 20,
+      color: modules.quiz.meta.color, questions: [{ id: 'q1', text: 'x', options: ['a', 'b'], correctIndex: 0 }],
+    }];
+    const { etat } = store.etatDepuisLaBase(sansEstimation);
+    expect(etat.modules.some((m) => m.type === 'estimation' && m.id === 'm-estimation'),
+      'un jeu supprimé a été recréé pour y verser un lot').toBe(false);
+  });
+
+  it('LES QUESTIONS DU LOT SONT JOUABLES : cible numérique, nature et catégorie déclarées', () => {
+    for (const q of LOT_ESTIMATION_2026_11) {
+      expect(Number.isFinite(q.target), `« ${q.text} » n'a pas de cible numérique`).toBe(true);
+      expect(['nombre', 'annee']).toContain(q.nature);
+      expect(['culture', 'approximation']).toContain(q.categorie);
+      expect(String(q.text).trim().length, 'énoncé vide').toBeGreaterThan(0);
+    }
+    const ids = LOT_ESTIMATION_2026_11.map((q) => q.id);
+    expect(ids.length - new Set(ids).size, 'le lot contient des identifiants en double').toBe(0);
   });
 });

@@ -20,7 +20,7 @@
 //    au redémarrage suivant.
 import fs from 'node:fs';
 import path from 'node:path';
-import { MODULE_TYPES, modules as moduleDefs, demoQuestions } from './modules.js';
+import { MODULE_TYPES, modules as moduleDefs, demoQuestions, LOT_ESTIMATION_2026_11 } from './modules.js';
 import { getServiceClient } from './supabase.js';
 
 const DATA_DIR = process.env.DATA_DIR || 'data';
@@ -219,8 +219,16 @@ export function semenceDeduite(modulesDuCompte) {
 // ne se contrôlait pas sans une base sous la main. Il est désormais pur.
 export function etatDepuisLaBase(modulesEnBase) {
   const etat = { seeded: true, semence: semenceDeduite(modulesEnBase), modules: modulesEnBase };
+  // Les deux rattrapages, et les deux sur ce chemin-là AUSSI : c'est celui que
+  // la production emprunte, et c'est précisément celui qui avait été oublié la
+  // dernière fois (« Cueillette » introuvable pendant des semaines).
+  // DEUX DRAPEAUX DISTINCTS, et non un seul : `monte` dit que la SEMENCE a
+  // ajouté un jeu, `porte` qu'un LOT DE QUESTIONS est arrivé. Les confondre
+  // faisait répondre « la semence a travaillé » à un appelant qui vérifiait
+  // précisément qu'elle n'avait rien à faire.
   const monte = monterLaSemence(etat);
-  return { etat, monte };
+  const porte = porterLesLots(etat);
+  return { etat, monte, porte };
 }
 
 // Les jeux livrés d'office, construits depuis les questions d'exemple.
@@ -321,6 +329,53 @@ function monterLaSemence(etat) {
   return true;
 }
 
+// ============================================================================
+// LES LOTS DE QUESTIONS — CE QUI PORTE DE NOUVELLES QUESTIONS AUX COMPTES DÉJÀ
+// INSTALLÉS
+// ============================================================================
+//
+// LE DÉFAUT QU'ILS CORRIGENT, ET IL EST EXACTEMENT CELUI DE LA SEMENCE. Les
+// questions d'exemple ne sont posées qu'à la PREMIÈRE ouverture d'un compte.
+// Les 75 estimations du 02/11 auraient donc été écrites, contrôlées, déployées —
+// et introuvables dans la bibliothèque de la seule personne qui s'en sert. Le
+// défaut est silencieux : rien, nulle part, ne l'aurait signalé.
+//
+// LA RÈGLE, ET ELLE SE DÉDUIT DU CONTENU. La bibliothèque ne stocke pas de
+// numéro de lot — la table `modules` n'a pas de colonne pour ça, et le disque de
+// l'hébergement est effacé à chaque déploiement. On déduit donc :
+//
+//   SI le jeu contient AU MOINS UNE question du lot, le compte l'a reçu.
+//   Ce qui en manque a été supprimé exprès, et on n'y retouche pas.
+//
+// CE QUE CETTE RÈGLE COÛTE, ET IL FAUT LE DIRE : supprimer les 75 questions
+// d'un lot, toutes, les fait revenir au redémarrage suivant. Le défaut inverse —
+// un lot livré et introuvable pour toujours — est sans commune mesure : l'un se
+// re-supprime, l'autre annule le travail. C'est le même arbitrage que
+// `semenceDeduite`, et pour la même raison.
+//
+// LE LOT VA DANS LE PREMIER JEU DE SON TYPE, et nulle part ailleurs : un
+// animateur qui s'est fait trois jeux d'estimation n'a pas demandé à recevoir
+// 75 questions dans chacun.
+const LOTS = [
+  { type: 'estimation', questions: LOT_ESTIMATION_2026_11 },
+];
+
+function porterLesLots(etat) {
+  let change = false;
+  for (const lot of LOTS) {
+    if (!lot.questions.length) continue;
+    const cible = etat.modules.find((m) => m.type === lot.type);
+    // Pas de jeu de ce type : l'animateur l'a supprimé. On ne le recrée pas
+    // pour y verser des questions — ce serait lui réimposer un jeu qu'il a rangé.
+    if (!cible) continue;
+    const presents = new Set((cible.questions || []).map((q) => q && q.id));
+    if (lot.questions.some((q) => presents.has(q.id))) continue;
+    cible.questions = [...(cible.questions || []), ...lot.questions.map((q) => ({ ...q }))];
+    change = true;
+  }
+  return change;
+}
+
 function charger(ownerId) {
   const cle = String(ownerId || 'dev-host');
   if (cache.has(cle)) return cache.get(cle);
@@ -330,8 +385,13 @@ function charger(ownerId) {
   // La semence est écrite tout de suite : sans ça, le repère « déjà semé » ne
   // survivrait pas au redémarrage et des questions supprimées repousseraient.
   if (!surDisque) { ecrire(cle, etat); return etat; }
-  // Fichier existant : on le monte à la semence courante s'il est en retard.
-  if (monterLaSemence(etat)) ecrire(cle, etat);
+  // Fichier existant : on le monte à la semence courante s'il est en retard,
+  // et on lui porte les lots de questions qu'il n'a pas encore reçus. DEUX
+  // APPELS SÉPARÉS, jamais un `||` : le second doit s'exécuter même quand le
+  // premier a déjà rendu vrai.
+  const monte = monterLaSemence(etat);
+  const porte = porterLesLots(etat);
+  if (monte || porte) ecrire(cle, etat);
   return etat;
 }
 
@@ -389,10 +449,12 @@ export async function rafraichirDepuisLaBase(ownerId) {
   // contenu, faute d'être stockée. Voir `semenceDeduite` : la poser à la valeur
   // courante, comme on le faisait ici, revenait à déclarer la bibliothèque déjà à
   // jour et à ne jamais rien ajouter. « Cueillette » en est resté introuvable.
-  const { etat, monte } = etatDepuisLaBase(enBase);
+  const { etat, monte, porte } = etatDepuisLaBase(enBase);
   cache.set(cle, etat);
   ecrire(cle, etat);
-  if (monte) await sauverEnBase(ownerId, etat.modules).catch(() => {});
+  // L'UN OU L'AUTRE suffit à devoir réécrire la base : un lot de questions
+  // arrivé et non sauvegardé serait reporté à chaque démarrage, indéfiniment.
+  if (monte || porte) await sauverEnBase(ownerId, etat.modules).catch(() => {});
   return etat.modules;
 }
 

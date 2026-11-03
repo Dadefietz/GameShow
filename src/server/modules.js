@@ -1,7 +1,7 @@
 import { idsDuBassin, srcDeVisage } from './visages.js';
 import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
-import { banqueDeCueillette, famillesDe } from './dessins.js';
+import { banqueDeCueillette, famillesDe, MARQUE_CUEILLETTE } from './dessins.js';
 import { GRILLES_DESSINS } from './dessins-grilles.js';
 import {
   ressemblanceContreGrilles, pointsDe as pointsDuDessin, nettoyerDessin,
@@ -2499,10 +2499,21 @@ export const modules = {
     // cinquante dessins du dépôt.
     banqueDe(questions) {
       const dessins = banqueDeCueillette(questions, GRILLES_DESSINS);
+      // LE COMPTEUR DE CHAQUE IMAGE VOYAGE AVEC LA BANQUE. C'est dans cette
+      // grille que l'animateur choisit sa cible : sans le compteur, il ne
+      // pourrait pas y faire ce que la demande vise — poser d'abord ce qui a le
+      // moins servi. Les compteurs sont rangés à part de `dessins[]` (voir
+      // `compterUneImage`), on les recolle ici.
+      const entree = (Array.isArray(questions) ? questions : [])
+        .find((q) => q && q.kind === MARQUE_CUEILLETTE);
+      const poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
       return {
         // SANS LA GRILLE : sept cents caractères par dessin, dont la console n'a
         // aucun usage. Elle ne quitte pas le serveur.
-        dessins: dessins.map(({ grille, ...d }) => d),
+        dessins: dessins.map(({ grille, ...d }) => ({
+          ...d,
+          poses: Math.max(0, Math.floor(Number(poses[d.id])) || 0),
+        })),
         familles: famillesDe(dessins),
       };
     },
@@ -2617,6 +2628,98 @@ export const MODULE_TYPES = Object.keys(modules);
 
 // Banque de questions embarquée (seed) — permet une partie complète sans Studio.
 // 20+ questions par module (retour produit du 2026-08-18).
+// ============================================================================
+// LE LOT D'ESTIMATIONS DU 02/11 — 75 QUESTIONS
+// ============================================================================
+//
+// « Ajout de nouvelles questions Estimations », avec leur nature et leur
+// catégorie. Elles sont ici, et non collées dans `demoQuestions`, parce qu'un
+// LOT NOMMÉ est ce qui permet de les porter aux bibliothèques DÉJÀ EXISTANTES :
+// la semence d'un compte n'est posée qu'à sa première ouverture, si bien qu'une
+// question ajoutée au projet ensuite n'apparaît jamais chez l'animateur déjà
+// installé. C'est le défaut que `store.js` documente pour les jeux ; il vaut
+// pour les questions, et il est silencieux de la même façon.
+//
+// LEURS IDENTIFIANTS SONT STABLES et dérivés de l'énoncé : c'est par eux que le
+// rattrapage sait si un compte a déjà reçu le lot. Ils ne se renomment pas.
+export const LOT_ESTIMATION_2026_11 = [
+  { id: 'es-secondes-journee-24', text: 'Combien de secondes y a-t-il dans une journée de 24 heures ?', target: 86400, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-longueur-loire-kilometres', text: 'Quelle est la longueur de la Loire, en kilomètres, environ ?', target: 1012, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-part-surface-terre', text: 'Quelle part de la surface de la Terre est recouverte d’eau, environ ?', target: 71, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-tour-eiffel', text: 'En quelle année la tour Eiffel a-t-elle été inaugurée ?', target: 1889, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-apollo-11', text: 'En quelle année Apollo 11 a-t-elle posé les premiers humains sur la Lune ?', target: 1969, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-titanic-sombre', text: 'En quelle année le Titanic a-t-il sombré ?', target: 1912, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-revolution-francaise', text: 'En quelle année la Révolution française a-t-elle commencé ?', target: 1789, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premiers-jeux', text: 'En quelle année les premiers Jeux olympiques modernes ont-ils eu lieu ?', target: 1896, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premiere-coupe', text: 'En quelle année la première Coupe du monde de football a-t-elle été organisée ?', target: 1930, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premiere-ligne', text: 'En quelle année la première ligne du métro de Paris a-t-elle été mise en service ?', target: 1900, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-film-blanche', text: 'En quelle année le film Blanche-Neige et les Sept Nains est-il sorti au cinéma ?', target: 1937, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premier-film', text: 'En quelle année le premier film Star Wars est-il sorti au cinéma ?', target: 1977, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premier-e', text: 'En quelle année le premier e-mail envoyé sur un réseau informatique est-il daté ?', target: 1971, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-facebook-ete', text: 'En quelle année Facebook a-t-il été lancé ?', target: 2004, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-wikipedia-ete', text: 'En quelle année Wikipédia a-t-il été lancé ?', target: 2001, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-valentina-terechkova', text: 'En quelle année Valentina Terechkova est-elle devenue la première femme dans l’espace ?', target: 1963, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-longueur-langue-girafe', text: 'Quelle longueur la langue d’une girafe peut-elle atteindre en cm ?', target: 45, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-heures-jour-koala', text: 'Combien d’heures par jour un koala peut-il dormir, environ ?', target: 20, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-longueur-tour-piste', text: 'Quelle est la longueur d’un tour de piste d’athlétisme standard, en mètres ?', target: 400, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-somme-points-six', text: 'Quelle est la somme des points sur les six faces d’un dé classique ?', target: 21, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-cases-compte-plateau', text: 'Combien de cases compte le plateau standard de Scrabble ?', target: 225, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-bandes-rouges-et', text: 'Combien de bandes rouges et blanches le drapeau des États-Unis compte-t-il ?', target: 13, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-yeux-abeille-possede', text: 'Combien d’yeux une abeille possède-t-elle ?', target: 5, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-part-pasteque-composee', text: 'Quelle part d’une pastèque est composée d’eau, en % ?', target: 92, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-vitesse-faucon-pelerin', text: 'À quelle vitesse un faucon pèlerin peut-il plonger, en km/h ?', target: 320, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-chromosomes-cellule-humaine', text: 'Combien de chromosomes une cellule humaine possède-t-elle généralement ?', target: 46, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-blocs-contient-tour', text: 'Combien de blocs contient une tour de Jenga classique au départ ?', target: 54, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-cartes-contient-jeu', text: 'Combien de cartes contient un jeu classique de UNO ?', target: 108, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-petits-carres-colores', text: 'Combien de petits carrés colorés sont visibles sur les six faces d’un Rubik’s Cube classique ?', target: 54, nature: 'nombre', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-coca-cola', text: 'En quelle année le Coca-Cola a-t-il été servi pour la première fois ?', target: 1886, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-youri-gagarine', text: 'En quelle année Youri Gagarine est-il devenu le premier humain dans l’espace ?', target: 1961, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-erno-rubik', text: 'En quelle année Ernő Rubik a-t-il créé le casse-tête qui deviendra le Rubik’s Cube ?', target: 1974, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-jeu-video', text: 'En quelle année le jeu vidéo Pac-Man est-il sorti au Japon ?', target: 1980, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premier-macintosh', text: 'En quelle année le premier Macintosh d’Apple a-t-il été présenté ?', target: 1984, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-film-retour', text: 'En quelle année le film Retour vers le futur est-il sorti ?', target: 1985, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-serie-televisee', text: 'En quelle année la série télévisée Les Simpson a-t-elle commencé ?', target: 1989, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-film-jurassic', text: 'En quelle année le film Jurassic Park est-il sorti au cinéma ?', target: 1993, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-serie-friends', text: 'En quelle année la série Friends a-t-elle été diffusée pour la première fois ?', target: 1994, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-film-toy', text: 'En quelle année le film Toy Story, premier long métrage entièrement réalisé en images de synthèse, est-il sorti ?', target: 1995, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-google-ete', text: 'En quelle année Google a-t-il été fondé ?', target: 1998, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-bob-eponge', text: 'En quelle année Bob l’éponge a-t-il été diffusé pour la première fois ?', target: 1999, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-film-monde', text: 'En quelle année le film Le Monde de Nemo est-il sorti ?', target: 2003, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premiere-video', text: 'En quelle année la première vidéo a-t-elle été mise en ligne sur YouTube ?', target: 2005, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-premier-telephone', text: 'En quelle année le premier téléphone Android commercialisé est-il sorti ?', target: 2008, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-whatsapp-ete', text: 'En quelle année WhatsApp a-t-il été lancé ?', target: 2009, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-instagram-ete', text: 'En quelle année Instagram a-t-il été lancé ?', target: 2010, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-annee-jeu-pokemon', text: 'En quelle année le jeu Pokémon GO est-il sorti ?', target: 2016, nature: 'annee', categorie: 'culture', durationSec: 20 },
+  { id: 'es-tours-eiffel-empilees', text: 'Combien de tours Eiffel empilées faudrait-il pour atteindre le sommet du mont Blanc ?', target: 15, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-autobus-urbains-alignes', text: 'Combien d’autobus urbains alignés feraient un kilomètre ?', target: 80, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-terrains-football-mis', text: 'Combien de terrains de football mis bout à bout couvriraient un kilomètre ?', target: 10, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-longueurs-piscine-olympique', text: 'Combien de longueurs d’une piscine olympique faut-il nager pour parcourir un kilomètre ?', target: 20, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-pas-adulte-traverser', text: 'Combien de pas d’adulte faut-il pour traverser un terrain de football dans sa longueur ?', target: 130, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-baleines-bleues-alignees', text: 'Combien de baleines bleues alignées feraient la longueur d’un terrain de football ?', target: 4, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-elephants-mis-bout', text: 'Combien d’éléphants mis bout à bout faudrait-il pour former une ligne d’un kilomètre ?', target: 170, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-terrains-tennis-alignes', text: 'Combien de terrains de tennis alignés dans leur longueur couvriraient un kilomètre ?', target: 42, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-etages-immeuble-empiler', text: 'Combien d’étages d’immeuble faudrait-il empiler pour atteindre la hauteur de la tour Eiffel ?', target: 110, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-autobus-empiles-atteindraient', text: 'Combien d’autobus empilés atteindraient la hauteur d’une grande roue ?', target: 45, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-boites-chaussures-empilees', text: 'Combien de boîtes à chaussures empilées iraient du sol au plafond d’une pièce ?', target: 16, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-balles-tennis-alignees', text: 'Combien de balles de tennis alignées traverseraient la largeur d’un court de tennis ?', target: 160, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-crayons-alignes-feraient', text: 'Combien de crayons alignés feraient la longueur d’un autobus ?', target: 60, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-baguettes-posees-bout', text: 'Combien de baguettes posées bout à bout couvriraient la longueur d’une piscine de 25 mètres ?', target: 40, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-refrigerateurs-empiles-atteindraient', text: 'Combien de réfrigérateurs empilés atteindraient la hauteur de l\'Arc de triomphe ?', target: 28, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-adultes-allonges-bout', text: 'Combien d’adultes allongés bout à bout feraient la longueur d’un marathon ?', target: 25000, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-bancs-parc-alignes', text: 'Combien de bancs de parc alignés couvriraient une promenade de 100 mètres ?', target: 50, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-burj-khalifa-empiles', text: 'Combien Burj Khalifa empilés approcheraient l’altitude de croisière d’un avion ?', target: 12, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-passagers-rame-metro', text: 'Combien de passagers une rame de métro peut-elle transporter à l’heure de pointe ?', target: 800, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-valises-peuvent-defiler', text: 'Combien de valises peuvent défiler en même temps sur le tapis d’un petit aéroport ?', target: 80, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-eleves-compte-ecole', text: 'Combien d’élèves compte une école primaire de taille moyenne ?', target: 300, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-clients-cafe-quartier', text: 'Combien de clients un café de quartier peut-il servir au cours d’une journée ordinaire ?', target: 150, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-plats-restaurant-quartier', text: 'Combien de plats un restaurant de quartier peut-il servir un soir de week-end ?', target: 120, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-fois-ouvre-refrigerateur', text: 'Combien de fois ouvre-t-on le réfrigérateur dans une journée à la maison ?', target: 30, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-battements-c-ur', text: 'Combien de battements de cœur une personne au repos a-t-elle pendant un film de deux heures ?', target: 12000, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-respirations-personne-pendant', text: 'Combien de respirations une personne prend-elle pendant une nuit de sommeil ?', target: 15000, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-grains-riz-prendre', text: 'Combien de grains de riz peut-on prendre dans une cuillère à soupe ?', target: 200, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+  { id: 'es-raisins-generalement-grappe', text: 'Combien de raisins trouve-t-on généralement sur une grappe ?', target: 30, nature: 'nombre', categorie: 'approximation', durationSec: 20 },
+];
+
 export const demoQuestions = {
   quiz: [
     { id: 'q-ocean', text: 'Quel est le plus grand océan ?', options: ['Atlantique', 'Indien', 'Pacifique', 'Arctique'], correctIndex: 2, durationSec: 15 },
@@ -2666,6 +2769,7 @@ export const demoQuestions = {
     { id: 'tf-manchots', text: "Les manchots vivent principalement dans l'hémisphère Sud.", correct: true, durationSec: 12 },
   ],
   estimation: [
+    ...LOT_ESTIMATION_2026_11,
     { id: 'es-tourEiffel', text: 'Hauteur de la Tour Eiffel en mètres ?', target: 330, durationSec: 20 },
     { id: 'es-communes', text: 'Combien de communes compte la France (environ) ?', target: 35000, durationSec: 20 },
     { id: 'es-gutenberg', text: "En quelle année Gutenberg a-t-il mis au point l'imprimerie (environ) ?", target: 1450, durationSec: 20 },

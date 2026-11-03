@@ -732,7 +732,15 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
   const [famille, setFamille] = useState(familles[0]?.cle || '');
   const [choisi, setChoisi] = useState(null);
   const cible = banque.find((d) => d.id === choisi) || null;
-  const visibles = famille ? banque.filter((d) => d.famille === famille) : banque;
+  const [triPoses, setTriPoses] = useState(false);
+  const dansLaFamille = famille ? banque.filter((d) => d.famille === famille) : banque;
+  // TRI STABLE À COMPTEUR ÉGAL : l'ordre de la banque est conservé, sinon la
+  // grille se réarrangerait sans raison visible entre deux dessins jamais posés.
+  const visibles = triPoses
+    ? dansLaFamille.map((d, i) => [d, i])
+      .sort((a2, b2) => ((a2[0].poses || 0) - (b2[0].poses || 0)) || (a2[1] - b2[1]))
+      .map(([d]) => d)
+    : dansLaFamille;
   return (
     <section className="private lien-saisie" aria-label="Démarrer Cueillette" data-testid="depart-cueillette">
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
@@ -756,6 +764,17 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
           <p className="fhint" data-testid="cu-cible">
             {cible ? `Cible : ${cible.nom}` : 'Aucune cible choisie — le serveur en tirera une.'}
           </p>
+          <div className="cuchoix__barre">
+            <p className="fhint" data-testid="cu-cible-compte">
+              {visibles.length} dessin{visibles.length > 1 ? 's' : ''}
+            </p>
+            {/* MÊME GESTE QUE SUR LA FILE DES AUTRES JEUX : remonter les moins
+                posés. Tri local — la banque n'a pas d'ordre à retenir. */}
+            <button className="button button--quiet" type="button" data-testid="cu-trier"
+              onClick={() => setTriPoses((v) => !v)} aria-pressed={triPoses}>
+              {triPoses ? 'Ordre de la banque' : 'Trier par passages'}
+            </button>
+          </div>
           <div className="cuchoix" role="listbox" aria-label="Les dessins de cette famille">
             {visibles.map((d) => (
               <button key={d.id} type="button" role="option" aria-selected={choisi === d.id}
@@ -763,6 +782,14 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
                 className={`cuchoix__case${choisi === d.id ? ' cuchoix__case--prise' : ''}`}
                 onClick={() => setChoisi(choisi === d.id ? null : d.id)}>
                 <img src={d.src} alt="" draggable="false" />
+                {/* LE COMPTEUR DE L'IMAGE. C'est ici que se fait le choix de la
+                    cible : sans lui, impossible d'y poser d'abord ce qui a le
+                    moins servi — ce que la demande vise. En lecture seule, comme
+                    sur la file des autres jeux. */}
+                <span className="cuchoix__poses" data-testid="cu-poses"
+                  title={`Posée ${d.poses || 0} fois, toutes parties confondues`}>
+                  {d.poses || 0}
+                </span>
                 <span className="cuchoix__nom">{d.nom}</span>
               </button>
             ))}
