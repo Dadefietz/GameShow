@@ -1487,6 +1487,31 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
       (r) => { if (r && r.moduleId === moduleId) setFile(r.queue || []); });
   };
 
+  // TRIER PAR COMPTEUR DE PASSAGES (02/11).
+  //
+  // « Il faut ABSOLUMENT pouvoir faire un tri basé sur le numéro de compteur des
+  // questions afin que les questions ayant le compteur le plus bas remonte en
+  // haut de la liste, cela dans le but de poser les questions qui ont été les
+  // moins posées. »
+  //
+  // IL PASSE PAR LA MÊME RÉINJECTION QUE LE GLISSER : trier l'onglet « Culture »
+  // ne doit pas déplacer d'un rang les questions des autres onglets. Le serveur
+  // ne connaît qu'un ordre, celui du jeu entier.
+  //
+  // TRI STABLE À COMPTEUR ÉGAL : l'ordre tiré au sort est conservé entre deux
+  // questions jamais posées, sinon le même début de soirée reviendrait à chaque
+  // partie — ce qui annulerait l'aléatoire que le produit tient par ailleurs.
+  const trierParPasses = () => {
+    const vue = vueCourante.current || [];
+    if (vue.length < 2) return;
+    const rangInitial = new Map(vue.map((q, i) => [q.id, i]));
+    const triee = vue.slice().sort((a2, b2) => {
+      const d = (a2.poses || 0) - (b2.poses || 0);
+      return d !== 0 ? d : rangInitial.get(a2.id) - rangInitial.get(b2.id);
+    });
+    envoyerOrdre(reinjecter(triee, vue));
+  };
+
   // ---- LE GLISSER ---------------------------------------------------------
   // AVANT : rien ne bougeait. La ligne prise changeait de teinte et restait sur
   // place ; la liste se réordonnait par téléportation ; le seuil valait 28 px
@@ -1653,6 +1678,13 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
         <I.eye s={16} /> À venir dans {nomJeu || 'ce jeu'}
         <span className="private__count">{visible.length}</span>
       </p>
+      {/* TRIER PAR PASSAGES : remonte les questions les moins posées. Hors de la
+          liste des onglets, parce qu'il agit SUR l'onglet ouvert et non à sa
+          place. */}
+      <button className="button button--quiet file__trier" type="button"
+        data-testid="file-trier" onClick={trierParPasses}>
+        Trier par passages
+      </button>
       {categories?.length ? (
         <div className="seg" role="tablist" aria-label="Catégories de questions" data-testid="file-onglets">
           {categories.map((c) => {
@@ -1700,6 +1732,16 @@ function FileAttente({ g, moduleId, nomJeu, enCours, categories, onCategorie }) 
                 onPointerDown={prendre(i)}><I.dots s={16} /></button>
               <span className="file__pos">{i + 1}</span>
               <span className="file__text" title={q.text}>{q.text}</span>
+              {/* LE COMPTEUR DE PASSAGES, juste à gauche de la flèche montante,
+                  comme la capture le demande. NON MODIFIABLE ICI : il se règle
+                  au Studio, à froid. Il porte son unité pour les lecteurs
+                  d'écran — « 3 » seul, entre un énoncé et deux flèches, ne veut
+                  rien dire. */}
+              <span className="file__poses"
+                title={`Posée ${q.poses || 0} fois, toutes parties confondues`}>
+                <span data-testid="file-poses" aria-hidden="true">{q.poses || 0}</span>
+                <span className="visually-hidden">{`posée ${q.poses || 0} fois`}</span>
+              </span>
               <span className="file__actions">
                 <button className="file__btn" type="button" disabled={i === 0}
                   aria-label={`Monter ${q.text}`} onClick={() => deplacer(i, i - 1)}>↑</button>

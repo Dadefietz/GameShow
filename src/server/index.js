@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee } from './modules.js';
+import { MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee, posesDe } from './modules.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
@@ -483,8 +483,29 @@ function prendreProchaine(room, module_, pool) {
 //
 // `lastQuestionId` est posé dans les deux cas : c'est lui qui empêche une
 // question d'ouvrir la file qu'elle vient de quitter.
+// LE COMPTEUR MONTE D'UN CRAN, ET IL EST ÉCRIT.
+//
+// « Le compteur augmente de +1 à chaque fois que la question est utilisée dans
+// une partie. » L'incrément se fait SUR L'OBJET DE LA BIBLIOTHÈQUE — le même que
+// le cache du store tient en mémoire — puis la bibliothèque entière est
+// réenregistrée : disque ET base. C'est ce dernier point qui rend le compteur
+// permanent ; le disque de l'hébergement est effacé à chaque déploiement.
+//
+// L'ÉCRITURE NE BLOQUE PAS LA MANCHE et son échec ne l'interrompt pas. Un
+// compteur qui rate un cran est un détail ; une manche qui ne part pas parce que
+// la base a hoqueté est un direct arrêté. L'échec est tout de même journalisé :
+// un compteur qui n'avance jamais doit pouvoir se diagnostiquer.
+function compterUnePose(room, q) {
+  if (!q || typeof q !== 'object') return;
+  q.poses = posesDe(q) + 1;
+  Promise.resolve()
+    .then(() => banksStore.enregistrerModules(room.ownerId, banksStore.getModules(room.ownerId)))
+    .catch((e) => console.warn('compteur de passages non enregistré :', e?.message || e));
+}
+
 function marquerPosee(room, module_, q) {
   const id = typeof q === 'object' && q !== null ? q.id : q;
+  compterUnePose(room, typeof q === 'object' ? q : null);
   if (peutEtreReposee(module_.type, typeof q === 'object' ? q : null)) {
     const file = room.session.queues[module_.id];
     if (Array.isArray(file) && !file.includes(id)) file.push(id);
@@ -512,6 +533,11 @@ function fileVisible(room, module_, pool) {
       id,
       text: connues.get(id).text,
       categorie: categorieDeQuestion(module_.type, connues.get(id)),
+      // LE COMPTEUR DE PASSAGES VOYAGE AVEC LA LIGNE. L'animateur le lit sur
+      // chaque question à venir, et c'est sur lui qu'il peut trier pour poser
+      // d'abord ce qui a le moins servi. Non modifiable ici : il se règle au
+      // Studio, à froid, jamais en direct.
+      poses: posesDe(connues.get(id)),
     }));
 }
 

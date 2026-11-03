@@ -1166,6 +1166,34 @@ export function peutEtreReposee(type, q) {
   return type === 'vote' && !voteRapporte(q);
 }
 
+// ============================================================================
+// LE COMPTEUR DE PASSAGES — COMBIEN DE FOIS UNE QUESTION A DÉJÀ ÉTÉ POSÉE
+// ============================================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ (02/11) : « Il faudrait mettre en place un compteur pour
+// chaque question […] pas juste sur le salon ou au cours de la partie mais dans
+// toutes parties confondues. […] si son compteur est à 2, le compteur ne doit
+// pas être remis à 0 à la suite d'une déconnexion de l'animateur ou alors d'un
+// nouveau salon, c'est PERMANENT. »
+//
+// IL VIT DONC DANS LA QUESTION, pas dans le salon. Les salons sont en mémoire et
+// meurent avec le serveur ; la bibliothèque, elle, est écrite sur disque ET en
+// base (voir `store.js`). Un compteur rangé dans la question hérite de cette
+// durabilité sans rien ajouter : il traverse la déconnexion, le nouveau salon,
+// le redéploiement.
+//
+// `poses` EST FACULTATIF. Les milliers de questions déjà écrites ne le portent
+// pas : elles valent zéro, et c'est la bonne valeur — on ne sait pas combien de
+// fois elles ont servi avant que le compteur existe, et prétendre le savoir
+// serait pire que de repartir de zéro.
+//
+// IL EST BORNÉ AU POSITIF ET À L'ENTIER : la saisie du Studio est libre, et un
+// « -3 » ou un « 2.5 » remonterait jusqu'au tri de l'animateur.
+export function posesDe(q) {
+  const n = Math.floor(Number(q?.poses));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export const modules = {
   quiz: {
     meta: {

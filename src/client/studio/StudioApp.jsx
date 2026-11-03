@@ -118,7 +118,9 @@ function normalizeModule(row) {
 // Serveur : { id, text, options?, correctIndex?, correct?, target?, durationSec? }
 // Studio  : { id, prompt, options?, correct?(index), answer?(bool), target? }
 function serverToStudioQuestion(type, q) {
-  const base = { id: String(q.id ?? uid('q')), type, prompt: q.text || '' };
+  // `poses` traverse pour TOUS les types : c'est un champ de la question,
+  // pas d'un jeu en particulier.
+  const base = { id: String(q.id ?? uid('q')), type, prompt: q.text || '', poses: Number(q.poses) || 0 };
   if (type === 'quiz') return { ...base, options: q.options || ['', '', '', ''], correct: q.correctIndex ?? 0 };
   if (type === 'true_false') return { ...base, answer: !!q.correct };
   // La catégorie d'estimation voyage comme celle du vote. Une question
@@ -134,7 +136,9 @@ function serverToStudioQuestion(type, q) {
 }
 
 function studioToServerQuestion(type, q, durationSec) {
-  const base = { id: String(q.id), text: q.prompt || '', durationSec: durationSec || undefined };
+  const n = Math.floor(Number(q.poses));
+  const base = { id: String(q.id), text: q.prompt || '', durationSec: durationSec || undefined,
+    poses: Number.isFinite(n) && n > 0 ? n : 0 };
   if (type === 'quiz') return { ...base, options: q.options || [], correctIndex: Number(q.correct) || 0 };
   if (type === 'true_false') return { ...base, correct: !!q.answer };
   if (type === 'estimation') return { ...base, target: Number(q.target) || 0, nature: q.nature === 'annee' ? 'annee' : 'nombre', categorie: q.categorie || 'culture' };
@@ -1595,13 +1599,40 @@ function QuestionRow({ index, module, question, editing, invalid, errors, typeSe
 // Quatre formulaires, un par type de module.
 function QuestionFields({ type, question, onPatch, errors, categories, defautCategorie }) {
   const err = (needle) => (errors || []).find((e) => e.msg.toLowerCase().includes(needle));
+  // L'ÉNONCÉ ET SON COMPTEUR, SUR LA MÊME LIGNE (02/11).
+  //
+  // « Dans le Studio des jeux, le compteur doit apparaître sur chacune des
+  // questions (à côté de "ÉNONCÉ" par exemple). Il est ici modifiable. »
+  //
+  // POURQUOI MODIFIABLE ICI ET NULLE PART AILLEURS : le Studio est le lieu du
+  // travail à froid. On y corrige un compteur faussé par un essai, on remet à
+  // zéro une question qu'on veut reproposer. En direct, l'animateur le LIT pour
+  // choisir — le modifier au milieu d'une partie n'aurait aucun sens, et la file
+  // ne le propose donc pas.
+  //
+  // CHAMP VIDE = ZÉRO, et non « inchangé » : effacer le contenu pour repartir de
+  // zéro est le geste naturel, et il doit marcher.
   const prompt = (
-    <div className="fgroup">
-      <label className="flabel">Énoncé</label>
-      <input className={`input${err('énoncé') ? ' input--invalid' : ''}`} type="text"
-        value={question.prompt || ''} placeholder="Rédige la question…"
-        aria-invalid={err('énoncé') ? true : undefined}
-        onChange={(e) => onPatch({ prompt: e.target.value })} />
+    <div className="frow frow--enonce">
+      <div className="fgroup">
+        <label className="flabel" htmlFor={`p-${question.id}`}>Énoncé</label>
+        <input className={`input${err('énoncé') ? ' input--invalid' : ''}`} type="text"
+          id={`p-${question.id}`}
+          value={question.prompt || ''} placeholder="Rédige la question…"
+          aria-invalid={err('énoncé') ? true : undefined}
+          onChange={(e) => onPatch({ prompt: e.target.value })} />
+      </div>
+      <div className="fgroup fgroup--compteur">
+        <label className="flabel" htmlFor={`poses-${question.id}`}>Déjà posée</label>
+        <input className="input" id={`poses-${question.id}`} type="number" min="0" step="1"
+          inputMode="numeric" data-testid={`question-poses-${question.id}`}
+          value={Number.isFinite(Number(question.poses)) ? Number(question.poses) : 0}
+          onChange={(e) => {
+            const n = Math.floor(Number(e.target.value));
+            onPatch({ poses: Number.isFinite(n) && n > 0 ? n : 0 });
+          }} />
+        <p className="fhint">fois, toutes parties confondues</p>
+      </div>
     </div>
   );
 

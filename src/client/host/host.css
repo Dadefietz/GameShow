@@ -131,7 +131,10 @@
        jusqu'à « Q. ». `minmax(12ch, …)` lui donne un plancher réel — si la place
        venait à manquer, la ligne DÉBORDE, ce qui se voit et se corrige, au lieu
        de se taire (décision 3.3). */
-    grid-template-columns: auto auto minmax(12ch, 1fr) auto;
+    /* CINQ COLONNES depuis le 02/11 : poignée, rang, énoncé, COMPTEUR DE
+       PASSAGES, actions. Le compteur se pose juste à gauche des flèches,
+       comme la maquette de la demande le montre. */
+    grid-template-columns: auto auto minmax(12ch, 1fr) auto auto;
     align-items: center;
     gap: var(--sp-2);
     padding: var(--sp-2) var(--sp-3);
@@ -176,6 +179,21 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* LE COMPTEUR DE PASSAGES. Chiffres en chasse fixe : une colonne de nombres
+     qu'on parcourt du regard pour repérer les moins posées ne doit pas danser
+     d'une ligne à l'autre. Teinte de l'animateur — c'est une donnée de
+     préparation, pas d'antenne. */
+  .file__poses {
+    min-width: 2.75ch;
+    padding: 2px var(--sp-2);
+    border-radius: var(--r-xs);
+    background: var(--c-surface-sunk);
+    font: 600 var(--fs-200) / 1.4 var(--f-mono);
+    color: var(--c-ink-2);
+    text-align: center;
+  }
+  /* TRIER PAR PASSAGES : discret, à droite du titre du panneau. */
+  .file__trier { align-self: flex-start; font-size: var(--fs-200); }
   .file__actions { display: flex; gap: 2px; }
   .file__btn {
     min-width: var(--hit-min);

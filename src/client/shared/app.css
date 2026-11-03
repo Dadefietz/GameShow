@@ -87,6 +87,16 @@ html, body { background-color: var(--c-canvas); }
   .frow { display: flex; gap: var(--sp-4); align-items: flex-end; }
   .fgroup { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
   .fgroup--short { flex: none; width: var(--w-field-s); }
+  /* L'ÉNONCÉ ET SON COMPTEUR DE PASSAGES. Le compteur est étroit et aligné en
+     bas sur le champ : il accompagne l'énoncé sans lui disputer la place.
+     Sous 560 px, la ligne se replie — un champ de saisie écrasé à 40 px ne se
+     remplit pas au doigt. */
+  .frow--enonce { align-items: flex-end; }
+  .fgroup--compteur { flex: none; width: 7.5rem; }
+  @media (max-width: 560px) {
+    .frow--enonce { flex-direction: column; align-items: stretch; }
+    .fgroup--compteur { width: auto; }
+  }
   .flabel {
     font: 500 var(--fs-200) / 1 var(--f-ui);
     letter-spacing: var(--tr-label);
