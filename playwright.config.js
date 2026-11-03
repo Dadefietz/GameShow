@@ -44,6 +44,13 @@ export default defineConfig({
     command: 'rm -rf tests/.data && npm run build && PORT=8788 DATA_DIR=tests/.data node src/server/index.js',
     url: 'http://localhost:8788/api/health',
     reuseExistingServer: false,
-    timeout: 120_000,
+    // DEUX MINUTES NE SUFFISAIENT PLUS, ET LA CAUSE N'EST PAS DANS LE CODE.
+    // Le dépôt vit dans un dossier synchronisé iCloud ; `emptyOutDir` y supprime
+    // `dist/` fichier par fichier, et cette seule étape a mesuré 250 s sur 263 s
+    // de build (95 %, relevé par PLUGIN_TIMINGS). Aucun contrôle ne pouvait donc
+    // plus démarrer : Playwright abandonnait avant la fin du build.
+    // Le vrai remède est hors du code — sortir `dist/` de la synchronisation —
+    // mais la suite de tests ne doit pas rester inexécutable en attendant.
+    timeout: 600_000,
   },
 });
