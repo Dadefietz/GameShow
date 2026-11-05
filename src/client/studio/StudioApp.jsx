@@ -1412,16 +1412,26 @@ function EditorPanel({
               onChange={(e) => onPatchModule({ name: e.target.value })} />
           </div>
 
+          {/* LE TYPE S'AFFICHE, IL NE SE CHOISIT PLUS (05/11).
+              CE QUI S'EST PASSÉ : un animateur a changé le type de son jeu
+              « Estimation » pour « Cueillette ». À l'enregistrement, les
+              questions ont été relues selon le NOUVEAU type — qui ne connaît ni
+              cible ni nature. 128 questions ont perdu leur réponse d'un clic,
+              sans confirmation, sans avertissement, et sans retour en arrière
+              possible depuis l'écran.
+
+              POURQUOI LE RETIRER PLUTÔT QUE LE PROTÉGER PAR UNE CONFIRMATION :
+              ce réglage n'avait plus d'usage. Les jeux se déclarent dans le
+              code, où vivent leur type, leur barème et leurs écrans ; la
+              création d'un module depuis le Studio a été retirée en A15. Il ne
+              restait donc qu'un bouton capable de détruire une banque entière,
+              et aucun capable de rendre un service. Une confirmation aurait
+              gardé le risque en ajoutant une friction à un geste que personne
+              n'a de raison de faire. */}
           <div className="fgroup">
-            <span className="flabel" id={`type-${module.id}`}>Type</span>
-            <div className="seg" role="radiogroup" aria-labelledby={`type-${module.id}`} data-bind="module.type">
-              {TYPE_KEYS.map((k) => (
-                <button key={k} className="seg__btn" type="button" role="radio"
-                  aria-checked={module.type === k} onClick={() => onPatchModule({ type: k })}>
-                  {MODULE_TYPES[k].label}
-                </button>
-              ))}
-            </div>
+            <span className="flabel">Type</span>
+            <p className="finfo" data-bind="module.type">{MODULE_TYPES[module.type]?.label || module.type}</p>
+            <p className="fhint">Le type d'un jeu est fixé par le produit : il décide du barème et des écrans.</p>
           </div>
 
           <div className="frow">

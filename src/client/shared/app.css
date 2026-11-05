@@ -103,6 +103,13 @@ html, body { background-color: var(--c-canvas); }
     text-transform: uppercase;
     color: var(--c-ink-3);
   }
+  /* Une valeur qu'on lit sans pouvoir la changer : même place qu'un champ,
+     mais sans la promesse d'un champ. */
+  .finfo {
+    margin: 0;
+    font: 500 var(--fs-400) / 1.3 var(--f-ui);
+    color: var(--c-ink);
+  }
   .fhint { margin: 0; font: 400 var(--fs-100) / 1.4 var(--f-ui); color: var(--c-ink-3); }
   .input {
     width: 100%;

@@ -20,7 +20,15 @@ test.describe('Studio (E1-E4)', () => {
     const editor = page.getByTestId('studio-editeur');
     await expect(editor).toBeVisible();
     await expect(editor.getByLabel('Nom')).toBeVisible();
-    await expect(editor.getByRole('radiogroup', { name: 'Type' })).toBeVisible();
+    // LE TYPE S'AFFICHE, IL NE SE CHOISIT PLUS (05/11). Le sélecteur a détruit
+    // la banque d'un animateur : changer « Estimation » en « Cueillette » a fait
+    // relire 128 questions selon un type qui ignore la cible et la nature, et
+    // toutes ont perdu leur réponse d'un clic. Il ne servait plus à rien — les
+    // jeux se déclarent dans le code — donc il est parti plutôt que d'être
+    // protégé par une confirmation.
+    await expect(editor.getByRole('radiogroup', { name: 'Type' })).toHaveCount(0);
+    await expect(editor.getByText('Le type d\'un jeu est fixé par le produit', { exact: false }))
+      .toBeVisible();
     await expect(editor.getByLabel('Durée')).toBeVisible();
     await expect(editor.getByRole('radiogroup', { name: "Couleur d'accent" })).toBeVisible();
   });
