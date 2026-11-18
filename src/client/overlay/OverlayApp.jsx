@@ -13,6 +13,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import { lettreDeChoix } from '../shared/lettres.js';
+import { texteDUnIndice } from '../shared/frontieres.js';
 import QRCode from 'qrcode';
 import { Flamme } from '../shared/Flamme.jsx';
 import { useGame } from '../shared/useGame.js';
@@ -26,6 +27,7 @@ import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
 import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
+import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { Coeur } from '../shared/Coeur.jsx';
@@ -220,6 +222,11 @@ function revealText(reveal, current) {
     case 'estimation': return fmt(reveal.target);
     case 'juste_temps': return secondes(reveal.target);
     case 'coupe_buche': return pourcent(reveal.target);
+    // « FRONTIÈRES » N'EST PAS ICI, ET CE N'EST PAS UN OUBLI : sa révélation a
+    // son propre bloc (`st-fr--reveal`), qui reprend la carte et les quatre
+    // indices et porte le nom du pays au milieu. Une entrée ici n'aurait jamais
+    // servi — le bandeau générique est en bout de chaîne, après ce bloc — et une
+    // ligne qui ne peut pas s'exécuter finit par faire croire qu'elle le fait.
     default: return null; // vote : pas de bonne réponse, la répartition parle
   }
 }
@@ -881,6 +888,41 @@ function QuestionStage({ g }) {
                 disabled fond={current.cible?.src} />
             </div>
           ) : null
+        ) : current.type === 'frontieres' ? (
+          /* « FRONTIÈRES », À L'ANTENNE. La carte en grand, et les quatre indices
+             à côté, qui se remplissent aux mêmes secondes que sur les téléphones.
+
+             LES INDICES SONT À L'ANTENNE, ET CE N'EST PAS UNE FUITE. Ce ne sont
+             pas la réponse : ils la rendent trouvable, et c'est tout le jeu.
+             Le public joue avec le cercle, et un stream qui n'en montrerait rien
+             laisserait le spectateur devant une forme muette pendant quarante-cinq
+             secondes. C'est l'inverse du temps cible du « Juste temps », qui est
+             LA réponse et n'apparaît qu'à la révélation.
+
+             LE « ? » DES CASES NON DÉVOILÉES vient du même choix qu'au téléphone :
+             les quatre cases existent dès la première seconde, pour que la mise
+             en page ne saute pas quatre fois pendant la manche. */
+          <div className="st-fr" data-testid="stream-frontieres">
+            <div className="st-fr__carte">
+              <img src={current.carte} alt="" />
+            </div>
+            <ul className="st-fr__indices" data-testid="stream-fr-indices">
+              {(current.emplacements || []).map((e) => {
+                // MÊME GARDE QUE LE VISAGE : un indice attardé de la manche
+                // précédente ne doit pas s'afficher sur la nouvelle.
+                const dit = g.indices && g.indices.roundId === current.roundId
+                  ? texteDUnIndice(g.indices.dits?.[e.cle])
+                  : null;
+                return (
+                  <li className={`st-fr__indice${dit ? ' st-fr__indice--dit' : ''}`} key={e.cle}
+                    data-testid={`stream-fr-indice-${e.cle}`} data-dit={dit ? 'oui' : 'non'}>
+                    <span className="st-fr__indice-nom">{e.nom}</span>
+                    <span className="st-fr__indice-valeur">{dit || '?'}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ) : current.type === 'visages' ? (
           /* LES VISAGES, À L'ANTENNE. Le visage seul, en grand, et rien d'autre :
              c'est le jeu tout entier. Le compteur de réponses et le chrono vivent
@@ -993,7 +1035,50 @@ function QuestionStage({ g }) {
         <div style={mesuresDesChoix(nbRangees, placeStats)}
           className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`}
           data-bind="reveal.stats" data-testid="stats-panel">
-          {stats?.kind === 'cache' ? (
+          {reveal.type === 'frontieres' ? (
+            /* « FRONTIÈRES » À LA RÉVÉLATION, À L'ANTENNE.
+               « Il faut quasiment le même écran que lors de la Diffusion de la
+               Carte cible à un détail : il faut réussir à afficher la réponse —
+               le nom du pays en français. »
+
+               C'EST DONC LE MÊME BLOC, et il l'est VRAIMENT : `.st-fr`, la même
+               carte, les mêmes quatre cases. Le public vient de passer
+               quarante-cinq secondes devant cet écran ; le reconstruire
+               autrement à la seconde où tombe la réponse lui ferait chercher où
+               regarder au moment précis où il doit lire un nom.
+
+               LES QUATRE INDICES SONT TOUS DÉVOILÉS ICI, et c'est ce qui fait la
+               leçon : « 1300 sur 1000 km, frontalière de la Chine » explique la
+               forme que le public regardait sans la reconnaître. Ils ne sont plus
+               un secret — la manche est close.
+
+               LES EMPLACEMENTS VIENNENT DE LA RÉVÉLATION, pas de la manche : un
+               stream rouvert dans OBS après la révélation n'a plus la manche, et
+               afficherait quatre indices sans leurs titres ni leur ordre. */
+            <div className="st-fr st-fr--reveal" data-testid="stream-frontieres-reveal">
+              <div className="st-fr__carte">
+                <img src={reveal.carte} alt="" />
+              </div>
+              <div className="st-fr__bilan">
+                <div className="st-answer" data-testid="reveal-value">
+                  <span className="st-answer__label">C'était</span>
+                  <span className="st-answer__value" data-testid="stream-fr-pays">{reveal.pays}</span>
+                </div>
+                <ul className="st-fr__indices">
+                  {(reveal.emplacements || []).map((e) => {
+                    const dit = texteDUnIndice(reveal.indices?.[e.cle]);
+                    return dit ? (
+                      <li className="st-fr__indice st-fr__indice--dit" key={e.cle}
+                        data-testid={`stream-fr-reveal-${e.cle}`} data-dit="oui">
+                        <span className="st-fr__indice-nom">{e.nom}</span>
+                        <span className="st-fr__indice-valeur">{dit}</span>
+                      </li>
+                    ) : null;
+                  })}
+                </ul>
+              </div>
+            </div>
+          ) : stats?.kind === 'cache' ? (
             /* « LE DERNIER ÉCRAN VISIBLE DU JEU C'EST LA MATRICE DÉVOILÉE
                COMPLÈTEMENT. » Neuf objets, tous montrés — c'est le moment où le
                public revoit d'un coup ce qu'il n'a vu qu'un par un. */
@@ -1214,6 +1299,11 @@ const ANNONCES_STREAM = {
   juste_temps: { emblem: <ChronoBuzzer taille={170} />, regle: "Un chrono s'efface sans s'arrêter. Le cercle doit le stopper au bon moment." },
   cache_cache: { emblem: <EmblemeCache taille={190} />, regle: 'Neuf objets, montrés une fois chacun. Cinq questions ensuite.' },
   cueillette: { emblem: <EmblemeCueillette taille={180} />, regle: 'Un dessin dix secondes, puis trente pour le refaire de mémoire.' },
+  // LA RÈGLE DE L'ANTENNE EST ÉCRITE POUR LE PUBLIC, pas pour le joueur : « le
+  // cercle » et non « tu ». Elle dit aussi le barème, parce que le public juge
+  // ce qu'il voit — sans lui, une réponse donnée à la quarantième seconde
+  // passerait pour aussi bonne qu'une réponse à la cinquième.
+  frontieres: { emblem: <EmblemeFrontieres taille={200} />, regle: 'Une carte, quatre indices. Plus le cercle répond tôt, plus il marque.' },
 };
 
 function AnnonceStage({ nom, type, annonce }) {

@@ -810,6 +810,129 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
   );
 }
 
+// « FRONTIÈRES » — LE CHOIX DE LA CIBLE.
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : « L'animateur doit pouvoir choisir le pays
+// cible par difficulté. Il n'a pas besoin de voir la carte, il doit voir les
+// noms des pays et le nombre de fois où le pays a été joué. »
+//
+// PAS DE CARTES, DONC, ET C'EST UN CHOIX DE FOND : cent soixante-quinze
+// vignettes à charger pour un geste qui se fait sur un nom seraient du poids et
+// du bruit en plein direct. La banque qui arrive ici ne les porte même pas (voir
+// `banqueDe` du module) : l'écran ne peut pas les afficher, même par erreur.
+//
+// LA DIFFICULTÉ PART TOUJOURS, MÊME SANS PAYS CHOISI. C'est tout le sens de
+// « un pays est choisi au hasard dans la Catégorie pré-sélectionnée » : sans
+// elle, le serveur tirerait dans les cent soixante-quinze et l'onglet ouvert ne
+// voudrait rien dire.
+function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
+  const banque = jeu.pays || [];
+  const difficultes = jeu.difficultes || [1, 2, 3, 4];
+  const [difficulte, setDifficulte] = useState(difficultes[0] || 1);
+  const [choisi, setChoisi] = useState(null);
+  const [triPoses, setTriPoses] = useState(false);
+  const [filtre, setFiltre] = useState('');
+  const cible = banque.find((p) => p.id === choisi) || null;
+
+  const q = filtre.trim().toLowerCase();
+  const dansLaDifficulte = banque
+    .filter((p) => Number(p.difficulte) === Number(difficulte))
+    .filter((p) => !q || String(p.nom || '').toLowerCase().includes(q));
+  // TRI STABLE À COMPTEUR ÉGAL, comme la grille de « Cueillette » : sans lui la
+  // liste se réarrangerait sans raison visible entre deux pays jamais joués.
+  const visibles = triPoses
+    ? dansLaDifficulte.map((p, i) => [p, i])
+      .sort((a2, b2) => ((a2[0].poses || 0) - (b2[0].poses || 0)) || (a2[1] - b2[1]))
+      .map(([p]) => p)
+    : dansLaDifficulte;
+
+  // UN PAYS CHOISI DANS UN AUTRE ONGLET RESTE LA CIBLE, et c'est voulu : changer
+  // d'onglet pour vérifier un compteur ne doit pas défaire le choix. C'est aussi
+  // pourquoi la cible retenue est rappelée au-dessus de la liste.
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Frontières" data-testid="depart-frontieres">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        La carte d'un pays paraît quarante-cinq secondes. Quatre indices se dévoilent
+        à 10, 20, 30 et 40 secondes, et chacun coûte un palier de points. Choisis la
+        difficulté — et le pays si tu y tiens, sinon il sera tiré au sort dans cette
+        difficulté, en préférant les moins joués.
+      </p>
+      {banque.length ? (
+        <div className="fgroup">
+          <span className="flabel" id="fr-difficulte">La difficulté</span>
+          <div className="seg" role="radiogroup" aria-labelledby="fr-difficulte">
+            {difficultes.map((d) => {
+              const n = banque.filter((p) => Number(p.difficulte) === d).length;
+              return (
+                <button key={d} type="button" role="radio" aria-checked={Number(difficulte) === d}
+                  className={`button ${Number(difficulte) === d ? 'button--primary' : 'button--quiet'}`}
+                  data-testid={`fr-difficulte-${d}`} onClick={() => setDifficulte(d)}>
+                  {d}<span className="private__count">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="fhint" data-testid="fr-cible">
+            {cible
+              ? `Cible : ${cible.nom} (difficulté ${cible.difficulte})`
+              : `Aucun pays choisi — le serveur en tirera un en difficulté ${difficulte}.`}
+          </p>
+          <div className="cuchoix__barre">
+            <p className="fhint" data-testid="fr-cible-compte">
+              {visibles.length} pays
+            </p>
+            {/* MÊME GESTE QUE PARTOUT AILLEURS : remonter les moins joués. Tri
+                local — la base n'a pas d'ordre à retenir. */}
+            <button className="button button--quiet" type="button" data-testid="fr-trier"
+              onClick={() => setTriPoses((v) => !v)} aria-pressed={triPoses}>
+              {triPoses ? 'Ordre de la base' : 'Trier par passages'}
+            </button>
+          </div>
+          {/* UN FILTRE, PARCE QUE SOIXANTE NOMS NE SE PARCOURENT PAS DU REGARD
+              pendant que le cercle attend. */}
+          <input className="input" type="text" value={filtre} aria-label="Filtrer les pays"
+            placeholder="Filtrer par nom" onChange={(e) => setFiltre(e.target.value)} />
+          <div className="frchoix" role="listbox" aria-label="Les pays de cette difficulté">
+            {visibles.map((p) => (
+              <button key={p.id} type="button" role="option" aria-selected={choisi === p.id}
+                data-testid="fr-pays"
+                className={`frchoix__case${choisi === p.id ? ' frchoix__case--prise' : ''}`}
+                onClick={() => setChoisi(choisi === p.id ? null : p.id)}>
+                <span className="frchoix__nom">{p.nom}</span>
+                {/* LE COMPTEUR DE PASSAGES DU PAYS, demandé explicitement. En
+                    lecture seule ici : il se règle au Studio, à froid. Il porte
+                    son unité pour les lecteurs d'écran — un nombre seul à côté
+                    d'un nom de pays ne veut rien dire. */}
+                <span className="frchoix__poses"
+                  title={`Joué ${p.poses || 0} fois, toutes parties confondues`}>
+                  <span aria-hidden="true" data-testid="fr-poses">{p.poses || 0}</span>
+                  <span className="visually-hidden">{`joué ${p.poses || 0} fois`}</span>
+                </span>
+              </button>
+            ))}
+            {!visibles.length ? (
+              <p className="lb__empty" data-testid="fr-vide">
+                {q ? 'Aucun pays ne correspond à ce filtre.' : 'Aucun pays dans cette difficulté.'}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      <ActionsDepart>
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerFrontieres" data-testid="frontieres-demarrer"
+          onClick={() => onDemarrer(jeu, choisi || undefined, difficulte)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </ActionsDepart>
+    </section>
+  );
+}
+
 function DepartVisages({ jeu, onDemarrer, onAnnuler }) {
   return (
     <section className="private lien-saisie" aria-label="Démarrer Les visages" data-testid="depart-visages">
@@ -1277,6 +1400,66 @@ function GroupesLien({ g, roundId, revealed }) {
               <span className="groupes__n">{fmt(gr.count)}</span>
             </p>
             <p className="groupes__joueurs">{gr.joueurs.join(' · ')}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// LES RÉPONSES DE « FRONTIÈRES », À LA RÉVÉLATION — pour l'animateur seul.
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : « Il doit voir les réponses données triées de
+// la plus donnée à la moins donnée et les noms des joueurs ayant donnés la
+// réponse juste à côté. »
+//
+// LE TRI EST FAIT PAR LE SERVEUR, qui seul voit toutes les réponses — et c'est
+// lui aussi qui change les identifiants de joueurs en pseudonymes. Le stream, de
+// son côté, reçoit les mêmes réponses SANS LES NOMS : même frontière que les
+// groupes du « Lien » et que le nom du plus proche à l'estimation.
+function ReponsesFrontieres({ g, roundId, revealed }) {
+  const [donnee, setDonnee] = useState(null);
+  useEffect(() => {
+    const onReponses = (d) => setDonnee(d && Array.isArray(d.reponses) ? d : null);
+    g.on('host:frontieres', onReponses);
+    return () => g.off('host:frontieres', onReponses);
+  }, [g]);
+  // À LA RÉVÉLATION SEULEMENT, et pour la manche affichée : un souvenir d'une
+  // manche antérieure ferait commenter des réponses qui ne sont plus à l'antenne.
+  if (!revealed || !donnee || donnee.roundId !== roundId) return null;
+  const reponses = donnee.reponses;
+  if (!reponses?.length) return null;
+  return (
+    <section className="private" aria-label="Les pays donnés" data-testid="reponses-frontieres">
+      <p className="private__title">
+        <I.eye s={16} /> Les pays donnés — toi seul
+        <span className="private__count">{fmt(reponses.length)}</span>
+      </p>
+      {/* LE PAYS, EN TÊTE. L'animateur commente à l'antenne : il lui faut la
+          réponse sous les yeux, et le bandeau générique « Bonne réponse » de sa
+          console ne sait pas lire celle de ce jeu — elle n'est ni une option ni
+          un nombre. La chercher dans la liste à la ligne marquée d'un ✓ est
+          exactement la seconde qu'on n'a pas en direct. */}
+      {donnee.pays ? (
+        <p className="file__encours" data-testid="fr-pays-hote">
+          <span className="file__encours-label">C'était</span>
+          <span className="file__encours-texte">{donnee.pays}</span>
+        </p>
+      ) : null}
+      <div className="groupes">
+        {reponses.map((r) => (
+          /* LA BONNE RÉPONSE EST MARQUÉE, et c'est utile à l'antenne : avec cinq
+             pays voisins dans la liste, retrouver lequel était le bon en lisant
+             la carte de mémoire est exactement le genre de seconde qu'on n'a
+             pas en direct. */
+          <div className="groupes__bloc" key={r.nom} data-count={r.n}
+            data-juste={r.juste ? 'oui' : undefined} data-testid="fr-reponse">
+            <p className="groupes__tete">
+              <span className="groupes__mot">{r.nom}</span>
+              {r.juste ? <span className="groupes__juste" title="La bonne réponse">✓</span> : null}
+              <span className="groupes__n">{fmt(r.n)}</span>
+            </p>
+            <p className="groupes__joueurs">{(r.joueurs || []).join(' · ')}</p>
           </div>
         ))}
       </div>
@@ -2492,11 +2675,11 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
 // sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
 // verrait la manche repartir avec les mots de la précédente.
-const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette'];
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette', 'frontieres'];
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onDemarrerFrontieres, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   // L'emplacement des boutons de départ dans le pied — voir `ActionsDepart`.
   const [pied, setPied] = useState(null);
@@ -2640,6 +2823,9 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           {prepare && prepare.type === 'cueillette' ? (
             <DepartCueillette jeu={prepare} onDemarrer={onDemarrerCueillette} onAnnuler={onAnnulerLien} />
           ) : null}
+          {prepare && prepare.type === 'frontieres' ? (
+            <DepartFrontieres jeu={prepare} onDemarrer={onDemarrerFrontieres} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
               onMode={onModeRetour} onFamille={onFamilleRetour}
@@ -2699,6 +2885,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
 
           <PlusProches g={g} roundId={current && current.roundId} revealed={revealed} />
           <GroupesLien g={g} roundId={current && current.roundId} revealed={revealed} />
+          <ReponsesFrontieres g={g} roundId={current && current.roundId} revealed={revealed} />
           {estCache ? <CacheReponses g={g} roundId={current && current.roundId} /> : null}
           {/* LA RÉPARTITION DE « CUEILLETTE » — publique, et la même qu'à l'antenne.
               « Le graphique va de 0 % à 100 % et les résultats sont répartis par
@@ -3226,6 +3413,22 @@ export function HostApp() {
     });
   }, [g]);
 
+  // LE DÉPART DE « FRONTIÈRES ». L'animateur transmet deux choses : la difficulté
+  // qu'il a ouverte — « un pays est choisi au hasard dans la Catégorie
+  // pré-sélectionnée » — et, s'il en a désigné un, l'IDENTIFIANT du pays. Rien
+  // de plus : la base de pays, ses indices et sa carte vivent côté serveur, et
+  // un écran qui pourrait imposer un contenu ferait de sa console une source
+  // pour l'antenne. Un identifiant inconnu retombe sur le tirage.
+  const demarrerFrontieres = useCallback((jeu, paysId, difficulte) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `fr-${Date.now()}`, paysId, difficulte },
+    });
+  }, [g]);
+
   const demarrerVisages = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
@@ -3402,6 +3605,7 @@ export function HostApp() {
           onDemarrerVisages={demarrerVisages}
           onDemarrerCache={demarrerCache}
           onDemarrerCueillette={demarrerCueillette}
+          onDemarrerFrontieres={demarrerFrontieres}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

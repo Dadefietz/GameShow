@@ -82,6 +82,19 @@ export function useGame(token) {
   //   coeur     : le coup de cœur, un nom sans points — console et stream ;
   //   haut      : le haut le cœur, un nom sans points — console et stream.
   const [cueillette, setCueillette] = useState({ dessins: null, coeurHote: null, hautHote: null, partage: null, coeur: null, haut: null });
+  // « FRONTIÈRES » — LES INDICES DÉJÀ DÉVOILÉS, poussés un par un par le
+  // serveur aux secondes 10, 20, 30 et 40.
+  //
+  // MÊME RAISON QUE LE DÉFILÉ DES « VISAGES » : les quatre indices ne partent
+  // JAMAIS avec la manche. Ils sont dans le runtime du serveur, et lui seul
+  // décide quand chacun devient visible — un indice présent dans la charge de
+  // départ se lirait dans l'onglet réseau quarante secondes avant l'heure, et
+  // « Commence par un A » suffit à répondre.
+  //
+  // INDEXÉS PAR MANCHE (`roundId`) : un indice de la manche précédente arrivé en
+  // retard — minuterie déjà partie, réseau lent — remplirait une case de la
+  // nouvelle avec la réponse de l'ancienne.
+  const [indices, setIndices] = useState({ roundId: null, dits: {} });
 
   useEffect(() => {
     if (!token) return;
@@ -140,6 +153,10 @@ export function useGame(token) {
       // NOUVELLE manche les efface ; les tours suivants de la même manche non —
       // sans quoi la deuxième question effacerait la première.
       if (m.tour == null || m.tour <= 1) { setDevoilements([]); setMonCompte(null); }
+      // LES INDICES REPARTENT VIDES À CHAQUE MANCHE. Sans cela, le continent de
+      // la manche précédente resterait affiché pendant les dix premières
+      // secondes de la suivante — et il serait faux.
+      setIndices({ roundId: m.roundId ?? null, dits: {} });
       // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
       // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
       setMonChoix(m.monChoix ?? null);
@@ -160,6 +177,14 @@ export function useGame(token) {
       prev.some((x) => x.n === d.n) ? prev : [...prev, d].sort((a, b) => a.n - b.n)
     )));
     s.on('cache:tonpoint', (d) => setMonCompte(d));
+    // UN INDICE DE « FRONTIÈRES ». On retient la manche avec : la comparaison se
+    // fait à l'affichage, par l'écran qui connaît SA manche.
+    s.on('frontieres:indice', (d) => {
+      if (!d || !d.cle) return;
+      setIndices((prev) => (prev.roundId === d.roundId
+        ? { roundId: d.roundId, dits: { ...prev.dits, [d.cle]: d.valeur } }
+        : { roundId: d.roundId, dits: { [d.cle]: d.valeur } }));
+    });
     s.on('module:tourClos', () => setTourClos(true));
     s.on('host:error', (e) => setServerError({ ...e, at: Date.now() }));
     s.on('module:tick', (t) => setTick(t));
@@ -220,7 +245,7 @@ export function useGame(token) {
   const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
   const roomClosed = !!token && fermeDe === token;
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, perimee, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, perimee, indices, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

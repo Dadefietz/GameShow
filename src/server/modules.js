@@ -3,6 +3,7 @@ import { BASSIN_RETOUR, bassinDe, FAMILLES_RETOUR } from './symboles.js';
 import { COULEURS, srcDObjet } from './objets.js';
 import { banqueDeCueillette, famillesDe, MARQUE_CUEILLETTE } from './dessins.js';
 import { GRILLES_DESSINS } from './dessins-grilles.js';
+import { CARTES_FRONTIERES, DIFFICULTES_FRONTIERES, srcDeCarte } from './pays-frontieres.js';
 import {
   ressemblanceContreGrilles, pointsDe as pointsDuDessin, nettoyerDessin,
   compterPoints, POINTS_MAXIMUM as POINTS_CUEILLETTE, SEUIL_POINTS as SEUIL_CUEILLETTE,
@@ -1095,6 +1096,102 @@ export const CATEGORIE_VOTE_PAR_DEFAUT = 'vie';
 // ELLES NE CHANGENT PAS LES RÈGLES, contrairement à « Sondage » au vote : une
 // estimation rapporte des points dans les deux catégories. Pas de `points` ici —
 // l'absence du champ vaut « oui », comme pour « Vie » et « Dilemme ».
+// ============================================================================
+// « FRONTIÈRES » — LES PALIERS, LE BARÈME, ET LA BANQUE
+// ============================================================================
+//
+// LES QUATRE DÉVOILEMENTS, à dix secondes d'intervalle sur une manche de
+// quarante-cinq. `apres` compte depuis le DÉPART, pas depuis la fin : c'est ce
+// que le moteur programme, et c'est la seule façon de ne pas se tromper de sens
+// en relisant.
+export const MARQUE_FRONTIERES = 'contenu-frontieres';
+const DUREE_FRONTIERES_MS = 45_000;
+const PALIERS_FRONTIERES = [
+  { cle: 'continent', nom: 'Continent', apres: 10_000 },
+  { cle: 'taille', nom: 'Taille', apres: 20_000 },
+  { cle: 'frontaliers', nom: 'Pays frontaliers', apres: 30_000 },
+  { cle: 'initiale', nom: 'Initiale', apres: 40_000 },
+];
+
+// LE BARÈME, LU SUR LE TEMPS QUI RESTE.
+//
+// L'auteur l'a écrit en secondes restantes : « entre 45 et 35 secondes, 1200 ;
+// entre 34 et 25, 1000 ; entre 24 et 15, 800 ; entre 14 et 5, 600 ; entre 5 et
+// 0, 300 ». Ses bornes se chevauchent à 5 secondes — on prend donc le sens, qui
+// est limpide et que le reste du document dit deux fois : CHAQUE INDICE DÉVOILÉ
+// COÛTE UN PALIER. Les seuils sont donc exactement les secondes de dévoilement,
+// et « plus de 35 secondes restantes » veut dire « avant le premier indice ».
+//
+// `resteMin` est une borne STRICTEMENT supérieure : à 35 000 ms pile, le premier
+// indice vient de paraître, et le palier est déjà le second.
+const POINTS_FRONTIERES = [
+  { resteMin: 35_000, points: 1200 },
+  { resteMin: 25_000, points: 1000 },
+  { resteMin: 15_000, points: 800 },
+  { resteMin: 5_000, points: 600 },
+  { resteMin: -1, points: 300 },
+];
+
+// LA BANQUE DE PAYS — celle du module si l'animateur l'a modérée au Studio,
+// celle du dépôt sinon. Même forme et même repli que « Cueillette » : une liste
+// vide vaut « pas encore modérée », et le jeu tourne sur les cent
+// soixante-quinze pays livrés.
+export function banqueDeFrontieres(questions) {
+  const entree = (Array.isArray(questions) ? questions : [])
+    .find((q) => q && q.kind === MARQUE_FRONTIERES);
+  const lus = Array.isArray(entree?.pays) ? entree.pays : [];
+  const propres = [];
+  const vus = new Set();
+  for (const p of lus) {
+    const id = String(p?.id || '').trim();
+    const nom = String(p?.nom || '').trim();
+    if (!id || !nom || vus.has(id)) continue;
+    vus.add(id);
+    propres.push({
+      id,
+      nom,
+      difficulte: DIFFICULTES_FRONTIERES.includes(Number(p.difficulte)) ? Number(p.difficulte) : 1,
+      continent: String(p.continent || '').trim(),
+      longueur: String(p.longueur || '').trim(),
+      largeur: String(p.largeur || '').trim(),
+      frontaliers: String(p.frontaliers || '').trim(),
+      initiale: String(p.initiale || '').trim(),
+      // LA CARTE D'UN PAYS AJOUTÉ AU STUDIO. Les cent soixante-quinze du dépôt
+      // n'en portent pas : leur adresse se déduit de leur identifiant
+      // (`srcDeCarte`). Un pays ajouté à la main, lui, n'a aucun fichier dans le
+      // dépôt — sans ce champ, il afficherait une carte manquante et la manche
+      // serait injouable sans que personne ne sache pourquoi.
+      src: String(p.src || '').trim(),
+    });
+  }
+  return propres.length ? propres : CARTES_FRONTIERES;
+}
+
+// LA COMPARAISON DES NOMS EST CELLE DE « CACHE-CACHE » (`memeNom`), déjà
+// importée ici : accents, casse et ponctuation ignorés, article de tête retiré.
+// On ne lui en écrit pas une seconde — deux définitions de « c'est le même mot »
+// finiraient par diverger, et ce dépôt a déjà payé ce prix ailleurs. Un contrôle
+// vérifie qu'elle ne confond AUCUN des cent soixante-quinze pays entre eux.
+
+// LE TIRAGE AU SORT, AVEC PRÉFÉRENCE AUX MOINS JOUÉS.
+//
+// « un pays est choisi au hasard dans la Catégorie pré-sélectionnée avec une
+// préférence aux pays les moins joués. »
+//
+// PRÉFÉRENCE, ET NON PAS ORDRE : prendre systématiquement le minimum rendrait le
+// tirage prévisible, et la même soirée reviendrait à chaque partie. On tire donc
+// au hasard PARMI LES MOINS JOUÉS — ceux qui portent le compteur le plus bas de
+// la difficulté demandée.
+export function tirerUnPays(banque, difficulte, poses) {
+  const d = Number(difficulte);
+  const dans = DIFFICULTES_FRONTIERES.includes(d) ? banque.filter((p) => p.difficulte === d) : banque;
+  const pool = dans.length ? dans : banque;
+  const compte = (p) => Math.max(0, Math.floor(Number(poses?.[p.id])) || 0);
+  const mini = Math.min(...pool.map(compte));
+  const moinsJoues = pool.filter((p) => compte(p) === mini);
+  return moinsJoues[Math.floor(Math.random() * moinsJoues.length)];
+}
+
 export const CATEGORIES_ESTIMATION = [
   { cle: 'culture', nom: 'Culture' },
   { cle: 'approximation', nom: 'Approximation' },
@@ -2619,6 +2716,217 @@ export const modules = {
         // Les pseudonymes n'ont jamais quitté son canal dans ce projet, et ce n'est
         // pas un jeu de dessin qui va les y faire entrer.
         prives: { dessins },
+      };
+    },
+  },
+
+  // ============================================================
+  // FRONTIÈRES — reconnaître un pays à sa carte, avant les indices
+  // ============================================================
+  //
+  // LE JEU. Une carte muette paraît quarante-cinq secondes. Quatre indices se
+  // dévoilent un par un — continent, taille, pays frontaliers, initiale — et
+  // chacun coûte des points : répondre avant le premier en vaut 1200, après le
+  // dernier 300. Le jeu récompense donc de reconnaître TÔT, pas d'attendre.
+  //
+  // LES INDICES SONT UN SECRET JUSQU'À LEUR SECONDE, et c'est la contrainte qui
+  // commande toute la forme de ce module. Les envoyer avec la manche, en
+  // laissant l'écran les masquer, mettrait les quatre à un clic dans l'onglet
+  // réseau du navigateur — c'est-à-dire la réponse, puisque « commence par un B »
+  // et « Afrique » suffisent à chercher. Le serveur les POUSSE donc à l'heure
+  // dite, un par un (voir `indices` dans le moteur), exactement comme « Les
+  // visages » pousse son défilé et « Cache-cache » sa grille.
+  //
+  // LA CARTE, ELLE, PART TOUT DE SUITE : c'est la question.
+  frontieres: {
+    meta: {
+      type: 'frontieres', name: 'Frontières', icon: 'map', color: 'info',
+      scored: true, malus: false, vitesse: false,
+      // Quarante-cinq secondes, et ce n'est pas réglable : le barème est fait de
+      // paliers accrochés à ces secondes-là. Une durée de trente laisserait deux
+      // indices hors de la manche et un barème dont la moitié ne tomberait jamais.
+      dureeS: DUREE_FRONTIERES_MS / 1000, dureeFixe: true,
+      // La cible se choisit à l'antenne, dans la banque de pays : pas de banque
+      // de questions à écrire au Studio.
+      direct: true,
+      // LA RÉPONSE CHOISIE MAIS NON ENVOYÉE EST GARDÉE.
+      //
+      // « S'il ne l'envoie pas avant la fin du compteur, la réponse est gardée et
+      // si elle est bonne, elle vaudra le minimum de point. »
+      //
+      // C'EST EXACTEMENT LE MÉCANISME DE « CUEILLETTE » (voir `submitBrouillon`
+      // dans le moteur), et il donne le barème demandé SANS RIEN CALCULER DE
+      // PLUS : un brouillon devenu réponse porte l'horodatage `rt.deadline`, donc
+      // un temps restant de zéro, donc le dernier palier — trois cents points.
+      //
+      // ET IL NE GARDE QUE DES PAYS : `submitBrouillon` passe par
+      // `validateAnswer`, qui refuse tout ce qui n'est pas un nom de la banque.
+      // Les lettres tapées au fil de la frappe ne deviennent donc jamais une
+      // réponse ; seul un nom complet est retenu.
+      brouillon: true,
+      // LE MOTEUR LIT CE DRAPEAU, et ne connaît pas ce jeu par son nom.
+      indicesProgressifs: true,
+      indices: PALIERS_FRONTIERES,
+      points: POINTS_FRONTIERES,
+    },
+
+    // LA BANQUE DE PAYS — CANAL ANIMATEUR SEUL, et réduite à ce qu'il lit.
+    //
+    // Même raison que pour « Cueillette » : `meta` part à tout le salon avec
+    // chaque manche, et les cent soixante-quinze pays n'y ont rien à faire. Mais
+    // ici s'ajoute une raison plus forte — cette banque CONTIENT LES RÉPONSES.
+    // Elle ne quitte le serveur que vers la console, jamais vers un téléphone.
+    //
+    // ET ELLE NE PORTE PAS LES CARTES. « Il n'a pas besoin de voir la carte, il
+    // doit voir les noms des pays et le nombre de fois où le pays a été joué. »
+    // L'animateur choisit sur un nom et un compteur ; lui envoyer cent
+    // soixante-quinze adresses d'images serait du poids pour rien.
+    banqueDe(questions) {
+      const pays = banqueDeFrontieres(questions);
+      const entree = (Array.isArray(questions) ? questions : [])
+        .find((q) => q && q.kind === MARQUE_FRONTIERES);
+      const poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
+      return {
+        pays: pays.map((p) => ({
+          id: p.id,
+          nom: p.nom,
+          difficulte: p.difficulte,
+          poses: Math.max(0, Math.floor(Number(poses[p.id])) || 0),
+        })),
+        difficultes: DIFFICULTES_FRONTIERES,
+      };
+    },
+
+    buildRound(q) {
+      // LA BANQUE VOYAGE AVEC LE TOP DE DÉPART, attachée par le serveur — jamais
+      // reçue de l'écran. Même règle que « Cueillette » : une banque venue du
+      // réseau ferait de la console une source de questions pour l'antenne.
+      const banque = Array.isArray(q?.banque) && q.banque.length
+        ? q.banque
+        : banqueDeFrontieres(null);
+      const choisi = banque.find((p) => p.id === q?.paysId);
+      // SANS CHOIX DE L'ANIMATEUR, ON TIRE DANS SA DIFFICULTÉ, EN PRÉFÉRANT LES
+      // MOINS JOUÉS. « un pays est choisi au hasard dans la Catégorie
+      // pré-sélectionnée avec une préférence aux pays les moins joués. »
+      const cible = choisi || tirerUnPays(banque, q?.difficulte, q?.poses);
+      return {
+        type: 'frontieres',
+        questionId: q.id,
+        text: 'Quel est ce pays ?',
+        cible: {
+          id: cible.id,
+          nom: cible.nom,
+          difficulte: cible.difficulte,
+          // LA CARTE DÉPOSÉE L'EMPORTE sur l'adresse déduite : c'est le seul
+          // moyen qu'un pays ajouté au Studio ait une carte.
+          src: cible.src || srcDeCarte(cible.id),
+        },
+        // LES QUATRE INDICES RESTENT SUR LA MANCHE. Ils ne partent qu'un par un,
+        // à leur seconde, et ne figurent dans AUCUNE charge utile avant.
+        indices: {
+          continent: cible.continent,
+          taille: { longueur: cible.longueur, largeur: cible.largeur },
+          frontaliers: cible.frontaliers,
+          initiale: cible.initiale,
+        },
+        // LES NOMS DE TOUS LES PAYS, pour l'aide à la saisie du joueur. Ils ne
+        // révèlent rien — la réponse est l'un des cent soixante-quinze, et le
+        // joueur le sait déjà. Sans eux, pas d'autocomplétion possible.
+        noms: banque.map((p) => p.nom),
+        durationMs: DUREE_FRONTIERES_MS,
+      };
+    },
+
+    publicQuestion(rt) {
+      return {
+        type: 'frontieres',
+        questionId: rt.questionId,
+        text: rt.text,
+        // LA CARTE, ET RIEN D'AUTRE DE LA CIBLE. Ni son nom, ni ses indices.
+        carte: rt.cible.src,
+        // Les quatre emplacements, déclarés vides : l'écran dessine ses quatre
+        // cases avec un « ? » et les remplit à mesure que le serveur les pousse.
+        // C'est le serveur qui dit QUELS emplacements existent, pour qu'un écran
+        // ne puisse pas en inventer un cinquième ni en manquer un.
+        emplacements: PALIERS_FRONTIERES.map((p) => ({ cle: p.cle, nom: p.nom, apresMs: p.apres })),
+        noms: rt.noms,
+        saisie: true,
+      };
+    },
+
+    // UNE RÉPONSE EST UN NOM DE PAYS DE LA BANQUE, et rien d'autre. Un écran qui
+    // enverrait du texte libre ne doit pas pouvoir inscrire ce qu'il veut dans le
+    // tableau de l'animateur ni dans le dépouillement du stream.
+    validateAnswer(rt, value) {
+      const brut = String(value == null ? '' : value).trim();
+      if (!brut || brut.length > 60) return null;
+      const connu = (rt.noms || []).find((n) => memeNom(n, brut));
+      return connu || null;
+    },
+
+    score(rt) {
+      const results = new Map();
+      // LE DÉPOUILLEMENT : chaque réponse donnée, son nombre, et qui l'a donnée.
+      // « Il doit voir les réponses données triées de la plus donnée à la moins
+      // donnée et les noms des joueurs ayant donnés la réponse juste à côté. »
+      const parReponse = new Map();
+
+      for (const [pid, a] of rt.answers) {
+        const juste = memeNom(a.value, rt.cible.nom);
+        // LE BARÈME SE LIT SUR LE TEMPS QU'IL RESTAIT, pas sur le temps écoulé :
+        // c'est le nombre d'indices déjà dévoilés qui décide, et les paliers sont
+        // accrochés aux mêmes secondes que les dévoilements.
+        const reste = Math.max(0, rt.deadline - a.at);
+        const palier = POINTS_FRONTIERES.find((p) => reste > p.resteMin) || POINTS_FRONTIERES[POINTS_FRONTIERES.length - 1];
+        results.set(pid, {
+          base: juste ? palier.points : 0,
+          bonusExact: 0,
+          bonusProche: 0,
+          speed: 0,
+          correct: juste,
+          reponse: a.value,
+          // Les points que valait le palier, même pour une mauvaise réponse :
+          // l'écran du joueur dit « tu aurais gagné tant », ce qui apprend le
+          // barème sans l'énoncer.
+          palierPoints: palier.points,
+          indicesVus: PALIERS_FRONTIERES.filter((p) => reste <= DUREE_FRONTIERES_MS - p.apres).length,
+        });
+        const cle = a.value;
+        if (!parReponse.has(cle)) parReponse.set(cle, { nom: cle, juste, joueurs: [] });
+        parReponse.get(cle).joueurs.push(pid);
+      }
+
+      const reponses = [...parReponse.values()]
+        .map((r) => ({ ...r, n: r.joueurs.length }))
+        .sort((a, b) => b.n - a.n || a.nom.localeCompare(b.nom, 'fr'));
+
+      return {
+        results,
+        // LA RÉVÉLATION PART À TOUT LE SALON, stream compris : le nom du pays, sa
+        // carte, et les quatre indices — qui ne sont plus un secret une fois la
+        // manche close.
+        reveal: {
+          text: rt.text,
+          pays: rt.cible.nom,
+          carte: rt.cible.src,
+          indices: rt.indices,
+          // LES QUATRE EMPLACEMENTS VOYAGENT AVEC LA RÉVÉLATION, et pas
+          // seulement avec la manche.
+          //
+          // SANS EUX, LE BILAN DÉPENDRAIT DE LA MANCHE ENCORE EN MÉMOIRE pour
+          // savoir comment nommer et ordonner les indices. Un joueur qui
+          // recharge son téléphone APRÈS la révélation reçoit la manche et la
+          // révélation, mais un stream rouvert ou un écran remonté plus tard
+          // n'aurait que la seconde : les quatre indices seraient là, sans leurs
+          // titres ni leur ordre. C'est la révélation qui est l'autorité sur ce
+          // qu'elle montre.
+          emplacements: PALIERS_FRONTIERES.map((p) => ({ cle: p.cle, nom: p.nom })),
+          // Le dépouillement SANS les noms des joueurs : le stream l'affiche.
+          repartition: reponses.map(({ nom, juste, n }) => ({ nom, juste, n })),
+        },
+        // `prives` : les noms des joueurs ne quittent pas le canal de l'animateur,
+        // comme partout ailleurs dans ce projet.
+        prives: { reponses },
       };
     },
   },

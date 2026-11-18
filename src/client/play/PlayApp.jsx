@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame, store } from '../shared/useGame.js';
 import { lettreDeChoix } from '../shared/lettres.js';
+import { texteDUnIndice, suggerer } from '../shared/frontieres.js';
 import { joinRoom } from '../shared/net.js';
 import { BrandLoader } from '../shared/BrandLoader.jsx';
 import { usePhraseQuiTourne, usePhraseDeManche } from '../shared/voix-hooks.js';
@@ -21,6 +22,7 @@ import { RetourFlamme } from '../shared/RetourFlamme.jsx';
 import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
 import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
+import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
@@ -398,6 +400,14 @@ const ANNONCES = {
     emblem: <EmblemeCueillette taille={100} />,
     regle: 'Un dessin dix secondes, puis trente pour le refaire de mémoire.',
   },
+  frontieres: {
+    emblem: <EmblemeFrontieres taille={116} />,
+    // LA RÈGLE DIT LE BARÈME, et c'est particulier à ce jeu : répondre VITE
+    // rapporte quatre fois plus que répondre juste à la dernière seconde. Un
+    // joueur qui attendrait les quatre indices par prudence perdrait neuf cents
+    // points sans savoir qu'il les perdait.
+    regle: 'Une carte, quatre indices. Plus tu réponds tôt, plus tu marques.',
+  },
 };
 
 function AnnonceScreen({ nom, type, annonce }) {
@@ -511,10 +521,31 @@ function WaitScreen({ pseudo, code, playerCount }) {
   );
 }
 
+// « FRONTIÈRES » — LA CARTE, LES QUATRE INDICES, ET LA SAISIE.
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : la carte d'un pays paraît quarante-cinq
+// secondes ; quatre indices se dévoilent à 10, 20, 30 et 40 secondes ; « tant
+// qu'un indice n'est pas dévoilé, un "?" prend sa place » ; le joueur écrit le
+// nom du pays, avec une aide à la saisie.
+//
+// LES QUATRE CASES EXISTENT DÈS LA PREMIÈRE SECONDE, avec leur titre et un « ? ».
+// C'est le « ? » qui est demandé, et il porte une information : le joueur SAIT
+// qu'il recevra un continent, une taille, des voisins et une initiale, et dans
+// cet ordre. Des cases qui apparaîtraient une par une feraient sauter la mise en
+// page sous ses doigts, quatre fois, pendant qu'il tape.
+//
+// C'EST LE SERVEUR QUI DIT QUELLES CASES EXISTENT (`current.emplacements`) : un
+// écran qui les écrirait lui-même finirait par en afficher une cinquième que le
+// jeu ne remplit jamais, ou par en manquer une.
+//
+// LA MISE EN FORME ET L'AIDE À LA SAISIE SONT DANS `shared/frontieres.js` : le
+// stream affiche les mêmes quatre indices, et deux exemplaires de la même mise
+// en page auraient fini par diverger.
+
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, onBrouillon, element, buzz, objetCache, tourClos }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, onBrouillon, element, buzz, objetCache, tourClos, indices }) {
   // L'objet de « Cache-cache » n'entre dans la grille qu'une fois son image
   // chargée : la plaque claire et le dessin apparaissent ensemble.
   const objetVisible = useObjetPret(objetCache);
@@ -826,7 +857,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}`} data-bind="module.options" data-testid="answer-zone">
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}${type === 'frontieres' ? ' q-zone--frontieres' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {/* « CUEILLETTE » — DEUX TEMPS, DEUX CARRÉS DE MÊME TAILLE.
               « Le Dessin cible est affiché pendant 10 secondes, il doit prendre le
               maximum de place sur l'écran. Une fois que le Dessin cible disparaît,
@@ -979,6 +1010,85 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
                 )}
               </div>
             )
+          ) : type === 'frontieres' ? (
+            /* LA CARTE EN HAUT, LES QUATRE INDICES AU MILIEU, LA SAISIE EN BAS.
+               Cet ordre est celui de la lecture : on regarde, on s'aide, on
+               répond. La carte garde le plus de place — c'est la question. */
+            <div className="frj">
+              <div className="frj__carte" data-testid="fr-carte" role="img"
+                aria-label="La carte du pays à reconnaître">
+                {/* `contain` ET NON `cover` : une carte recadrée perdrait une
+                    côte ou une pointe, et c'est précisément la forme qu'on
+                    demande de reconnaître. */}
+                <img src={current.carte} alt="" draggable="false" />
+              </div>
+              <ul className="frj__indices" data-testid="fr-indices">
+                {(current.emplacements || []).map((e) => {
+                  // L'INDICE N'EST LU QUE S'IL APPARTIENT À CETTE MANCHE. Un
+                  // indice attardé de la précédente afficherait un continent
+                  // faux — et sur ce jeu, un indice faux est une manche perdue.
+                  const dit = indices && indices.roundId === current.roundId
+                    ? texteDUnIndice(indices.dits?.[e.cle])
+                    : null;
+                  return (
+                    <li className={`frj__indice${dit ? ' frj__indice--dit' : ''}`} key={e.cle}
+                      data-testid={`fr-indice-${e.cle}`} data-dit={dit ? 'oui' : 'non'}>
+                      <span className="frj__indice-nom">{e.nom}</span>
+                      <span className="frj__indice-valeur">
+                        {dit || <span className="frj__indice-attente" aria-label="Pas encore dévoilé">?</span>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* LA SAISIE. La touche de validation du clavier envoie, comme
+                  partout ailleurs dans le projet (A26). */}
+              <form className="frj__saisie" onSubmit={(e) => {
+                e.preventDefault();
+                if (disabled || !mot.trim()) return;
+                onAnswer(mot);
+              }}>
+                <label className="p-label" htmlFor="fr-nom">Le pays</label>
+                <input className="ccsaisie__champ" id="fr-nom" type="text"
+                  inputMode="text" enterKeyHint="send" autoComplete="off" autoCapitalize="words"
+                  autoCorrect="off" spellCheck={false}
+                  maxLength={60} value={mot} disabled={disabled}
+                  data-testid="fr-saisie"
+                  // CHAQUE FRAPPE PART EN BROUILLON — « s'il ne l'envoie pas
+                  // avant la fin du compteur, la réponse est gardée ».
+                  //
+                  // ON N'ESSAIE PAS DE DEVINER ICI CE QUI EST UN PAYS. Le
+                  // serveur le sait, et lui seul : `submitBrouillon` passe par
+                  // `validateAnswer` et jette tout le reste. Un écran qui
+                  // filtrerait de son côté aurait deux idées de « c'est un
+                  // pays » au lieu d'une, et ce dépôt a déjà payé ce prix.
+                  // L'envoi est freiné à un toutes les 250 ms par
+                  // `handleBrouillon`, et le dernier part toujours.
+                  onChange={(e) => {
+                    setMot(e.target.value);
+                    if (!answered) onBrouillon?.(e.target.value);
+                  }} placeholder="Écris le nom du pays" />
+                {/* L'AIDE À LA SAISIE — et un appui sur une proposition ENVOIE.
+                    Deux gestes pour une réponse déjà choisie coûteraient des
+                    points : chaque palier en vaut deux cents. */}
+                {!disabled && !answered ? (
+                  <ul className="frj__suggestions" data-testid="fr-suggestions">
+                    {suggerer(current.noms || [], mot).map((n) => (
+                      <li key={n}>
+                        <button className="frj__suggestion" type="button" data-testid="fr-suggestion"
+                          onClick={() => { setMot(n); onAnswer(n); }}>
+                          {n}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <button className="p-btn p-btn--primary" type="submit" disabled={disabled || !mot.trim()}
+                  data-testid="answer-submit" data-action="play:answer">
+                  {answered ? 'Réponse envoyée' : 'Envoyer'}
+                </button>
+              </form>
+            </div>
           ) : type === 'retour_flamme' ? (
             /* RETOUR DE FLAMME. L'image occupe l'écran, le buzz est dessous — et
                il n'y a rien d'autre : c'est un jeu d'attention, tout ce qui
@@ -1368,6 +1478,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isRetour = (rv.type || current?.type) === 'retour_flamme';
   const isCache = (rv.type || current?.type) === 'cache_cache';
   const isCueillette = (rv.type || current?.type) === 'cueillette';
+  const isFrontieres = (rv.type || current?.type) === 'frontieres';
   // SON PROPRE DESSIN — celui qu'il a envoyé, tel quel. Il n'a pas besoin de
   // revenir du serveur : le téléphone l'a encore, et `myAnswer` est remis à zéro
   // à chaque fenêtre de réponse, donc il ne peut pas s'agir d'une manche passée.
@@ -1404,10 +1515,20 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // dessin que le téléphone a gardé pour lui.
   const aUnDessinNote = isCueillette && monResultat?.pourcent != null;
   const hasData = !!monResultat;
-  // UN DESSIN COMPTÉ À LA FIN DU CHRONO EST UNE PARTICIPATION (26/09). Le joueur
-  // n'a pas appuyé sur « Envoyer », mais le serveur a pris son brouillon et l'a
-  // noté : lui dire « le temps t'a devancé » au-dessus de sa note serait faux.
-  const absent = answered === false && !aUnDessinNote;
+  // UNE RÉPONSE COMPTÉE À LA FIN DU CHRONO EST UNE PARTICIPATION (26/09, repris
+  // le 18/11). Le joueur n'a pas appuyé sur « Envoyer », mais le serveur a pris
+  // son brouillon et l'a compté : lui dire « le temps t'a devancé » au-dessus
+  // des points qu'il vient de gagner serait faux.
+  //
+  // C'EST LE SERVEUR QUI LE DIT (`participe`), ET PLUS L'ÉCRAN QUI LE DÉDUIT.
+  // Cette ligne lisait `aUnDessinNote` — la présence d'une note de ressemblance
+  // —, ce qui ne vaut que pour « Cueillette ». « Frontières » garde lui aussi la
+  // réponse non envoyée, et il est retombé tout entier dans le défaut d'origine :
+  // « Le temps t'a devancé. Rien reçu. » au-dessus de trois cents points, vu à
+  // l'écran. Une déduction par jeu aurait demandé une troisième écriture au jeu
+  // suivant ; `rt.answers.has(joueur)` est le registre de l'arbitre, et il
+  // répond pour tous.
+  const absent = answered === false && monResultat?.participe !== true;
   // DEUX ABSENCES, ET NON UNE.
   //
   // `answered === false` ne dit qu'une chose : aucune réponse enregistrée. Deux
@@ -1515,6 +1636,18 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
       if (p >= 80) return 'cueillette.parfait';
       if (p >= 60) return 'cueillette.bien';
       return monResultat.base > 0 ? 'cueillette.passable' : 'cueillette.rien';
+    }
+    // « FRONTIÈRES ». Quatre issues, et ce qui les sépare n'est pas la justesse
+    // mais le NOMBRE D'INDICES qu'il a fallu attendre — `indicesVus`, compté par
+    // le serveur sur le temps qu'il restait, le même calcul que celui qui a donné
+    // les points. Les seuils suivent le barème au lieu d'être choisis ici : des
+    // nombres écrits de ce côté finiraient par contredire les points affichés
+    // juste à côté, et c'est exactement ce qui est arrivé à l'estimation.
+    if (isFrontieres) {
+      if (correct !== true) return 'frontieres.rate';
+      const vus = monResultat.indicesVus ?? 0;
+      if (vus === 0) return 'frontieres.eclair';
+      return vus <= 2 ? 'frontieres.vite' : 'frontieres.juste';
     }
     if (isCache) {
       const bons = monResultat.bons || 0;
@@ -1734,6 +1867,56 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     ? `${monResultat.pourcent} % de ressemblance`
                     : "Ton dessin n'est pas arrivé à temps."}
                 </p>
+              </div>
+            ) : null}
+
+            {/* LE BILAN DE « FRONTIÈRES ».
+                « La Carte cible, la réponse donnée et le pays réponse (nom en
+                français du pays), les indices, et les points obtenus. »
+
+                LES QUATRE INDICES SONT TOUS LÀ, DÉVOILÉS. Ils n'ont plus rien de
+                secret une fois la manche close, et c'est le moment où le joueur
+                apprend : « 1300 sur 1000 km, frontalière de la Chine » explique
+                la carte qu'il regardait sans la reconnaître. Les cacher ici
+                aurait fait de la révélation une sanction au lieu d'une leçon.
+
+                LA RÉPONSE DONNÉE EST CELLE QUE LE SERVEUR A COMPTÉE, et la
+                nuance a déjà coûté un écran qui se contredisait sur
+                « Cueillette » (voir la note du dessin superposé ci-dessus) :
+                `monResultat.reponse` vient de l'arbitre, `myAnswer` n'est que ce
+                que le téléphone a cru envoyer. Une réponse partie trop tard
+                laisse le second en mémoire et le premier vide — on affiche donc
+                celui de l'arbitre, et « rien » quand il n'y en a pas. */}
+            {isFrontieres && rv.pays ? (
+              <div className="frbilan" data-testid="fr-bilan">
+                <div className="frbilan__carte">
+                  <img src={rv.carte} alt="" draggable="false" />
+                </div>
+                <p className="frbilan__nom">
+                  <span className="p-label">C'était</span>
+                  <strong data-testid="fr-pays-reponse">{rv.pays}</strong>
+                </p>
+                <p className="frbilan__tienne" data-testid="fr-ta-reponse">
+                  {monResultat?.reponse
+                    ? <>Ta réponse : <strong>{monResultat.reponse}</strong></>
+                    : "Tu n'as pas donné de réponse."}
+                </p>
+                {rv.indices ? (
+                  <ul className="frbilan__indices" data-testid="fr-bilan-indices">
+                    {/* LES EMPLACEMENTS VIENNENT DE LA RÉVÉLATION, et de la
+                        manche seulement en repli : voir la note du serveur. Un
+                        écran remonté après la révélation n'a plus la manche. */}
+                    {(rv.emplacements || current?.emplacements || []).map((e) => {
+                      const dit = texteDUnIndice(rv.indices[e.cle]);
+                      return dit ? (
+                        <li key={e.cle} data-testid={`fr-bilan-indice-${e.cle}`}>
+                          <span className="frbilan__indice-nom">{e.nom}</span>
+                          <span className="frbilan__indice-valeur">{dit}</span>
+                        </li>
+                      ) : null;
+                    })}
+                  </ul>
+                ) : null}
               </div>
             ) : null}
 
@@ -2515,7 +2698,11 @@ export function PlayApp() {
     return (
       <>
         <ScoreScreen you={g.you} reveal={g.reveal} current={g.current}
-          myAnswer={myAnswer ?? (g.current?.type === 'cueillette' ? brouillon : null)}
+          /* LE BROUILLON TIENT LIEU DE RÉPONSE quand rien n'a été envoyé, sur les
+             deux jeux qui en gardent un. Pour « Frontières », c'est la demande :
+             l'écran de résultat doit montrer « la réponse donnée », et le serveur
+             a retenu celle-là — il l'a même comptée au dernier palier. */
+          myAnswer={myAnswer ?? (['cueillette', 'frontieres'].includes(g.current?.type) ? brouillon : null)}
           index={room?.progression?.index} total={room?.progression?.total}
           answered={g.answered} presentAuLancement={g.presentAuLancement} />
       </>
@@ -2559,6 +2746,7 @@ export function PlayApp() {
         buzz={g.buzz}
         objetCache={g.objetCache}
         tourClos={g.tourClos}
+        indices={g.indices}
       />
     );
   }

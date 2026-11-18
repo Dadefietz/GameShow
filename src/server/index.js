@@ -11,7 +11,11 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
-import { MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee, posesDe } from './modules.js';
+import {
+  MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee, posesDe,
+  MARQUE_FRONTIERES, banqueDeFrontieres,
+} from './modules.js';
+import { CARTES_FRONTIERES, DIFFICULTES_FRONTIERES, srcDeCarte } from './pays-frontieres.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
@@ -191,13 +195,41 @@ const contenuCueilletteSchema = z.object({
     grille: z.string().max(800).optional(),
   })).max(400),
 }).passthrough();
+// LA BASE DE PAYS DE « FRONTIÈRES » — troisième entrée marquée, même principe
+// que les deux précédentes, et MÊME PIÈGE ÉVITÉ DE JUSTESSE : sans ce schéma,
+// l'enregistrement du Studio tombait sur celui des questions, qui exige un
+// `text`. Le serveur répondait « enregistrement refusé » et la base de pays
+// entière était perdue au clic sur « Enregistrer » — attrapé par le contrôle
+// d'intégration, qui a échoué dès son premier PUT.
+//
+// LE NOM PEUT ÊTRE VIDE ICI, et c'est délibéré. La validité se juge à la LECTURE
+// (`banqueDeFrontieres`), qui écarte une ligne sans nom plutôt que de refuser
+// tout l'enregistrement : un animateur qui ajoute une ligne et va chercher la
+// carte avant de taper le nom ne doit pas voir sa base refusée en bloc. Le
+// Studio, lui, le lui DIT avant qu'il enregistre.
+const contenuFrontieresSchema = z.object({
+  kind: z.literal(MARQUE_FRONTIERES),
+  pays: z.array(z.object({
+    id: z.string().min(1).max(80),
+    nom: z.string().max(80),
+    difficulte: z.number().int().min(1).max(9).optional(),
+    continent: z.string().max(60).optional(),
+    longueur: z.string().max(60).optional(),
+    largeur: z.string().max(60).optional(),
+    frontaliers: z.string().max(400).optional(),
+    initiale: z.string().max(80).optional(),
+    src: z.string().max(600).optional(),
+  })).max(400),
+}).passthrough();
 const moduleSchema = z.object({
   id: z.string().min(1),
   type: z.enum(MODULE_TYPES),
   name: z.string().min(1),
   duration: z.number().positive().optional(),
   color: z.string().optional(),
-  questions: z.array(z.union([contenuCacheSchema, contenuCueilletteSchema, questionSchema])),
+  questions: z.array(z.union([
+    contenuCacheSchema, contenuCueilletteSchema, contenuFrontieresSchema, questionSchema,
+  ])),
 }).passthrough();
 const modulesSchema = z.array(moduleSchema);
 
@@ -350,6 +382,28 @@ app.get('/api/cueillette/catalogue', async (req, reply) => {
   return {
     dessins: BASSIN_DESSINS.map((d) => ({ ...d, src: srcDeDessin(d.id) })),
     familles: FAMILLES,
+  };
+});
+
+// LA BASE DE PAYS DE « FRONTIÈRES », POUR LE STUDIO.
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : « Cette base de données doit être accessible
+// quelque part dans le Studio afin d'être ajustée à tout moment. »
+//
+// CANAL ANIMATEUR SEUL, comme la banque en partie : elle contient les réponses
+// ET les indices. `requireHost` n'est pas une formalité ici — sans lui, une
+// requête anonyme sur cette adresse donnerait le jeu entier.
+//
+// ELLE PORTE LES CARTES, à la différence de celle qui part en partie : au Studio
+// l'animateur relit sa base, et une vignette est le seul moyen de voir qu'un
+// pays a bien la bonne carte. À l'antenne il choisit sur un nom, et les cartes
+// seraient du poids pour rien.
+app.get('/api/frontieres/catalogue', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return {
+    pays: CARTES_FRONTIERES.map((p) => ({ ...p, src: srcDeCarte(p.id) })),
+    difficultes: DIFFICULTES_FRONTIERES,
   };
 });
 
@@ -532,6 +586,29 @@ function compterUneImage(room, module_, dessinId) {
   Promise.resolve()
     .then(() => banksStore.enregistrerModules(room.ownerId, banksStore.getModules(room.ownerId)))
     .catch((e) => console.warn('compteur d\'image non enregistré :', e?.message || e));
+}
+
+// LE COMPTEUR DE « FRONTIÈRES » PORTE SUR UN PAYS.
+//
+// Même forme et mêmes raisons que `compterUneImage` : le jeu n'a qu'UNE entrée
+// de banque, et les compteurs vont dans une table `poses` rangée à côté de
+// `pays[]` — y écrire figerait la banque de l'animateur sur l'état du jour,
+// alors qu'une liste vide vaut « pas encore modérée » et laisse le jeu puiser
+// dans les cent soixante-quinze pays du dépôt.
+function compterUnPays(room, module_, paysId) {
+  if (!paysId) return;
+  const questions = Array.isArray(module_.questions) ? module_.questions : [];
+  let entree = questions.find((x) => x && x.kind === MARQUE_FRONTIERES);
+  if (!entree) {
+    entree = { kind: MARQUE_FRONTIERES, pays: [], poses: {} };
+    questions.push(entree);
+    module_.questions = questions;
+  }
+  if (!entree.poses || typeof entree.poses !== 'object') entree.poses = {};
+  entree.poses[paysId] = (Math.floor(Number(entree.poses[paysId])) || 0) + 1;
+  Promise.resolve()
+    .then(() => banksStore.enregistrerModules(room.ownerId, banksStore.getModules(room.ownerId)))
+    .catch((e) => console.warn('compteur de pays non enregistré :', e?.message || e));
 }
 
 function marquerPosee(room, module_, q) {
@@ -725,6 +802,31 @@ io.on('connection', (socket) => {
         src: cur.type === 'visages' ? srcDeVisage(id) : null,
       });
     }
+    // « FRONTIÈRES » : LES INDICES DÉJÀ DUS, REJOUÉS.
+    //
+    // EXACTEMENT LE MÊME DÉFAUT QUE LE DÉFILÉ CI-DESSUS, et la même raison : les
+    // quatre indices sont poussés un par un et ne figurent pas dans la question —
+    // sans quoi ils seraient lisibles dans la charge utile quarante secondes
+    // avant l'heure. Un joueur qui recharge à la trente-cinquième seconde se
+    // retrouverait donc devant quatre cases vides pour les dix dernières
+    // secondes, alors que trois indices sont tombés : il perdrait justement ce
+    // qui rend la carte trouvable, et personne à l'antenne ne saurait pourquoi
+    // il n'a pas répondu.
+    //
+    // CE QUI EST DÛ SE CALCULE SUR L'HORLOGE DU SERVEUR, la même qui a armé les
+    // minuteries : on ne rejoue que les paliers dont la seconde est passée, pas
+    // un de plus.
+    if (mod.meta.indicesProgressifs && Array.isArray(mod.meta.indices) && cur.indices && !cur.revealed) {
+      const ecoule = Date.now() - cur.startedAt;
+      for (const palier of mod.meta.indices) {
+        if (ecoule < palier.apres) continue;
+        socket.emit('frontieres:indice', {
+          roundId: cur.roundId,
+          cle: palier.cle,
+          valeur: cur.indices[palier.cle],
+        });
+      }
+    }
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur
     // conclut qu'il n'a pas participé — c'est l'origine unique de « manche jouée
@@ -804,6 +906,14 @@ io.on('connection', (socket) => {
       if (module_.type === 'cueillette' && question) {
         question.banque = banqueDeCueillette(module_.questions, GRILLES_DESSINS);
       }
+      // « FRONTIÈRES » EMPORTE SA BANQUE DE PAYS — et le compteur de chacun, dont
+      // le tirage a besoin pour préférer les moins joués. Même règle que les deux
+      // autres : écrite ICI, jamais reprise de ce que l'écran a envoyé.
+      if (module_.type === 'frontieres' && question) {
+        question.banque = banqueDeFrontieres(module_.questions);
+        const entree = (module_.questions || []).find((x) => x && x.kind === MARQUE_FRONTIERES);
+        question.poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
+      }
       const pool = await poolFor(r.ownerId, module_);
 
       // L'ANIMATEUR PEUT DÉSIGNER SA QUESTION, SANS L'ÉCRIRE.
@@ -848,6 +958,7 @@ io.on('connection', (socket) => {
       // LA CIBLE N'EST CONNUE QU'APRÈS LE DÉPART : c'est `buildRound` qui la
       // tire, ou qui retient celle que l'animateur a désignée.
       if (module_.type === 'cueillette') compterUneImage(r, module_, r.currentModule?.cible?.id);
+      if (module_.type === 'frontieres') compterUnPays(r, module_, r.currentModule?.cible?.id);
       // La file suivante part vers l'ANIMATEUR SEUL : c'est la seule donnée de
       // l'application qui révèle les questions À VENIR, et le stream est une
       // source capturée par OBS.

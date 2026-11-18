@@ -34,6 +34,9 @@ const PATHS = {
   'chevron-down': 'm6 9 6 6 6-6',
   'alert-triangle': 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
   hash: 'M4 9h16 M4 15h16 M10 3 8 21 M16 3l-2 18',
+  // « Frontières » (18/11). La carte pliée en trois volets : les deux plis en
+  // font une carte et non une feuille, ce qu'aucun autre tracé de ce jeu ne dit.
+  map: 'M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16',
 };
 
 export function Icon({ name, className = 'icon icon--md', title }) {

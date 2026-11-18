@@ -46,6 +46,10 @@ const MODULE_TYPES = {
   // du dépôt. Il n'y a pas de question à écrire — le joueur ne répond pas, il
   // dessine.
   cueillette: { label: 'Cueillette', subtitle: 'Reproduire un dessin de mémoire', icon: 'pencil', color: 'forest', direct: true },
+  // EN DIRECT lui aussi : le pays cible se choisit à l'antenne, par difficulté,
+  // dans la base de pays. Ce qui se règle ICI, c'est cette base — les noms, les
+  // difficultés, les quatre indices et les cartes.
+  frontieres: { label: 'Frontières', subtitle: 'Reconnaître un pays sur sa carte', icon: 'map', color: 'info', direct: true },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];
@@ -152,6 +156,11 @@ function studioToServerQuestion(type, q, durationSec) {
 // (src/server/dessins.js). Elle est dans une donnée enregistrée : la changer d'un
 // côté seulement ferait disparaître la banque de tous les comptes.
 const MARQUE_CUEILLETTE = 'contenu-cueillette';
+// La marque de la base de pays de « Frontières » — la même que celle du serveur
+// (src/server/modules.js). Même règle que ci-dessus : elle est dans une donnée
+// enregistrée, la changer d'un seul côté ferait disparaître la base modérée de
+// tous les comptes et renverrait tout le monde sur celle du dépôt.
+const MARQUE_FRONTIERES = 'contenu-frontieres';
 
 function serveurVersStudio(m) {
   if (!m || typeof m !== 'object') return null;
@@ -170,8 +179,13 @@ function serveurVersStudio(m) {
     // LA BANQUE DE « CUEILLETTE », même traitement : une entrée marquée, qui n'est
     // pas une question et ne doit jamais en devenir une vide au réenregistrement.
     contenuCueillette: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_CUEILLETTE) || null,
+    // LA BASE DE PAYS DE « FRONTIÈRES », même traitement encore : ce n'est pas
+    // une question, et elle ne doit jamais en devenir une vide au
+    // réenregistrement. Sans ce retrait, l'entrée passerait dans la moulinette
+    // des énoncés et la base entière serait effacée au premier « Enregistrer ».
+    contenuFrontieres: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_FRONTIERES) || null,
     questions: (Array.isArray(m.questions) ? m.questions : [])
-      .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE)
+      .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE && q?.kind !== MARQUE_FRONTIERES)
       .map((q) => serverToStudioQuestion(type, q)),
   };
 }
@@ -186,6 +200,7 @@ function studioVersServeur(m) {
     questions: [
       ...(m.contenuCache ? [m.contenuCache] : []),
       ...(m.contenuCueillette ? [m.contenuCueillette] : []),
+      ...(m.contenuFrontieres ? [m.contenuFrontieres] : []),
       ...(m.questions || [])
         .filter((q) => (q.prompt || '').trim())
         .map((q) => studioToServerQuestion(m.type, q, m.duration)),
@@ -337,6 +352,29 @@ export function StudioApp() {
     })();
     return () => { alive = false; };
   }, [typeOuvert, catalogueCueillette, entetesHote]);
+
+  // LA BASE DE PAYS DE « FRONTIÈRES » — les cent soixante-quinze du dépôt. Même
+  // règle que les deux ci-dessus : chargée seulement quand ce jeu est ouvert, et
+  // AVEC l'en-tête d'animateur, faute de quoi elle répond 403 en production.
+  const [catalogueFrontieres, setCatalogueFrontieres] = useState(null);
+  const [catalogueFrontieresRate, setCatalogueFrontieresRate] = useState(null);
+  useEffect(() => {
+    if (typeOuvert !== 'frontieres' || catalogueFrontieres) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/frontieres/catalogue', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) { setCatalogueFrontieres(await res.json()); setCatalogueFrontieresRate(null); return; }
+        setCatalogueFrontieresRate(res.status === 403
+          ? "Ta session d'animateur ne permet pas de lire la base de pays. Reconnecte-toi."
+          : `La base de pays n'a pas pu être chargée (${res.status}).`);
+      } catch {
+        if (alive) setCatalogueFrontieresRate("La base de pays n'a pas pu être chargée.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [typeOuvert, catalogueFrontieres, entetesHote]);
 
   // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
   //
@@ -518,6 +556,37 @@ export function StudioApp() {
       });
     }
 
+    // LA BASE DE PAYS DE « FRONTIÈRES ». Même raison exactement que la banque de
+    // « Cueillette » juste au-dessus : `banqueDeFrontieres` écarte en silence une
+    // entrée sans nom, et l'animateur ne le découvrirait qu'en cherchant à
+    // l'antenne un pays qui n'y est plus.
+    if (m.type === 'frontieres' && m.contenuFrontieres) {
+      const liste = m.contenuFrontieres.pays || [];
+      // Les pays du DÉPÔT ont leur carte côté serveur, déduite de l'identifiant.
+      const duDepot = new Set((catalogueFrontieres?.pays || []).map((p) => p.id));
+      // UNE ENTRÉE QUI NE PORTE QUE DES COMPTEURS N'EST PAS UNE BASE VIDE : le
+      // serveur en crée une à la première manche jouée (`compterUnPays`), avec
+      // `pays` délibérément vide pour laisser le repli sur le dépôt intact.
+      const queDesCompteurs = !liste.length
+        && Object.keys(m.contenuFrontieres.poses || {}).length > 0;
+      if (!liste.length && !queDesCompteurs) problems.push({ qid: null, tag: null, msg: 'Garde au moins un pays dans la base.' });
+      const vus = new Map();
+      liste.forEach((p, i) => {
+        const tag = `Pays ${i + 1}`;
+        const nom = String(p.nom || '').trim();
+        if (!nom) problems.push({ qid: null, tag, msg: "Le pays n'a pas de nom." });
+        // DEUX PAYS DE MÊME NOM SONT INJOUABLES À DEUX : le serveur accepte la
+        // réponse du premier qu'il trouve, et le second ne serait jamais juste.
+        const cle = nom.toLowerCase();
+        if (cle && vus.has(cle)) {
+          problems.push({ qid: null, tag, msg: `« ${nom} » est déjà dans la base (pays ${vus.get(cle)}) : un seul des deux serait jouable.` });
+        } else if (cle) vus.set(cle, i + 1);
+        if (catalogueFrontieres && !duDepot.has(p.id) && !String(p.src || '').trim()) {
+          problems.push({ qid: null, tag, msg: `« ${nom || 'sans nom'} » n'a pas de carte : dépose-la.` });
+        }
+      });
+    }
+
     // LA MODÉRATION DE « CACHE-CACHE » SE VALIDE ICI, ET C'EST NÉCESSAIRE.
     //
     // Le serveur n'a pas de rattrapage : un tirage impossible LÈVE une erreur, et
@@ -691,6 +760,8 @@ export function StudioApp() {
           catalogueRate={catalogueRate}
           catalogueCueillette={catalogueCueillette}
           catalogueCueilletteRate={catalogueCueilletteRate}
+          catalogueFrontieres={catalogueFrontieres}
+          catalogueFrontieresRate={catalogueFrontieresRate}
           entetesHote={entetesHote}
           editingQuestionId={editingQuestionId}
           invalidQids={invalidQids}
@@ -1354,12 +1425,237 @@ function BanqueCueillette({ contenu, catalogue, catalogueRate, moduleId, entetes
   );
 }
 
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : « Cette base de données doit être accessible
+// quelque part dans le Studio afin d'être ajustée à tout moment. »
+//
+// LA BASE DE PAYS DE « FRONTIÈRES ». Une ligne par pays, et sur cette ligne TOUT
+// ce que le jeu lit de lui : son nom — la réponse —, sa difficulté — l'onglet où
+// l'animateur le trouvera à l'antenne —, les quatre indices dévoilés de dix en
+// dix secondes, son compteur de passages, et sa carte.
+//
+// POURQUOI LES QUATRE INDICES SONT QUATRE CHAMPS SÉPARÉS, et non un bloc de
+// texte : le serveur les pousse un par un, à la seconde, et chacun va dans sa
+// case sur l'écran du joueur. Un seul champ obligerait le serveur à les découper,
+// et une virgule oubliée ferait fuiter la taille au moment du continent.
+//
+// ON NE MONTRE PAS CENT SOIXANTE-QUINZE LIGNES D'UN COUP. Chacune porte sept
+// champs : les afficher toutes ferait mille quatre cents champs dans la page, et
+// chaque frappe au clavier les redessinerait tous. Les onglets de difficulté —
+// les mêmes qu'à l'antenne — et le filtre sont donc la façon normale de
+// naviguer, et le nombre affiché est borné, en le DISANT.
+const PAYS_AFFICHES_MAX = 40;
+
+function BanqueFrontieres({ contenu, catalogue, catalogueRate, entetesHote, onChange }) {
+  // TANT QUE LA BASE N'A PAS ÉTÉ MODÉRÉE, ON MONTRE CELLE QUE LE JEU JOUE : les
+  // cent soixante-quinze du dépôt. La première modification l'écrit en entier
+  // dans le module — ce qui en fait la base de CE jeu, désormais. Même geste que
+  // « Cueillette », pour la même raison : l'animateur doit voir ce qui tourne,
+  // pas une liste vide qui laisserait croire que le jeu n'a pas de contenu.
+  const pays = contenu?.pays?.length ? contenu.pays : (catalogue?.pays || []);
+  const difficultes = catalogue?.difficultes?.length ? catalogue.difficultes : [1, 2, 3, 4];
+  const [onglet, setOnglet] = useState('toutes');
+  const [filtre, setFiltre] = useState('');
+  const [depot, setDepot] = useState(null);   // { id, etat: 'envoi'|'ok'|'erreur', message, durable }
+
+  // LES COMPTEURS SURVIVENT À TOUTE MODIFICATION DE LA BASE, exactement comme
+  // ceux de « Cueillette » : `poser` réécrit la liste en entier, et sans ce
+  // report renommer un pays effacerait en silence le nombre de fois où il a été
+  // joué — donc la préférence aux moins joués, donc le tirage.
+  const poser = (liste, poses) => onChange({
+    kind: MARQUE_FRONTIERES,
+    pays: liste,
+    poses: poses !== undefined ? poses : (contenu?.poses || {}),
+  });
+  const maj = (i, patch) => poser(pays.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const posesDunPays = (p) => Math.max(0, Math.floor(Number(contenu?.poses?.[p.id])) || 0);
+  const majPoses = (p, valeur) => {
+    const n = Math.floor(Number(valeur));
+    poser(pays, { ...(contenu?.poses || {}), [p.id]: Number.isFinite(n) && n > 0 ? n : 0 });
+  };
+
+  // LA CARTE D'UN PAYS. Les cent soixante-quinze du dépôt ont la leur par leur
+  // identifiant ; un pays ajouté à la main n'a que celle qu'on lui dépose.
+  const deposer = async (i, fichier) => {
+    const p = pays[i];
+    setDepot({ id: p.id, etat: 'envoi', message: 'Conversion de la carte…' });
+    try {
+      // `preparerImage` convertit en WebP et détoure par les bords — ce qui, sur
+      // une carte posée sur un fond uni, isole le pays comme les cartes du dépôt.
+      const { dataUrl, octets } = await preparerImage(fichier);
+      // UN FICHIER PAR PAYS, TOUJOURS LE MÊME : redéposer remplace la carte au
+      // lieu d'accumuler des copies orphelines. Le paramètre `v` force l'écran à
+      // relire la nouvelle — l'adresse, elle, n'a pas changé.
+      const fichierId = `frontieres-${String(p.id).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+      const res = await fetch('/api/cache/image', {
+        method: 'POST',
+        // MÊME EN-TÊTE QUE LE RESTE DU STUDIO : sans lui, 403 en production.
+        headers: await entetesHote(),
+        body: JSON.stringify({ id: fichierId, webp: dataUrl }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        if (res.status === 403) throw new Error("Ta session d'animateur a expiré. Reconnecte-toi, puis redépose.");
+        if (res.status === 413) throw new Error('Carte trop lourde pour le serveur. Choisis-en une plus petite.');
+        throw new Error(detail.detail || detail.error || `refus du serveur (${res.status})`);
+      }
+      const recu = await res.json();
+      maj(i, { src: `${recu.src}${recu.src.includes('?') ? '&' : '?'}v=${Date.now().toString(36)}` });
+      setDepot({
+        id: p.id, etat: 'ok', durable: recu.durable,
+        message: `Déposée — ${Math.round(octets / 1024)} ko. N'oublie pas « Enregistrer ».`,
+      });
+    } catch (err) {
+      setDepot({ id: p.id, etat: 'erreur', message: err.message || 'Dépôt impossible.' });
+    }
+  };
+
+  const q = filtre.trim().toLowerCase();
+  const retenus = pays.map((p, i) => [p, i]).filter(([p]) => {
+    if (onglet !== 'toutes' && Number(p.difficulte) !== Number(onglet)) return false;
+    return !q || `${p.nom} ${p.continent} ${p.frontaliers}`.toLowerCase().includes(q);
+  });
+  const lignes = retenus.slice(0, PAYS_AFFICHES_MAX);
+  const compteDe = (d) => pays.filter((p) => Number(p.difficulte) === d).length;
+
+  return (
+    <>
+      {catalogueRate ? (
+        <p className="save-state save-state--failed" role="alert" data-testid="frontieres-catalogue-rate">
+          {catalogueRate}
+        </p>
+      ) : null}
+      <div className="fgroup" data-testid="frontieres-base">
+        <span className="flabel">Base de pays ({pays.length})</span>
+        <p className="fhint">
+          La difficulté range les pays en onglets sur la console, quand tu choisis la
+          cible. Les quatre indices se dévoilent aux joueurs à 10, 20, 30 et 40 secondes,
+          dans cet ordre.
+        </p>
+        {/* LES MÊMES ONGLETS QU'À L'ANTENNE : l'animateur qui prépare sa base la
+            voit rangée comme il la retrouvera en direct. */}
+        <div className="sections" role="tablist" aria-label="Difficultés" data-testid="frontieres-difficultes">
+          <button type="button" role="tab" className="sections__onglet"
+            aria-selected={onglet === 'toutes'} data-testid="frontieres-onglet-toutes"
+            onClick={() => setOnglet('toutes')}>
+            Toutes <span className="sections__compte">{pays.length}</span>
+          </button>
+          {difficultes.map((d) => (
+            <button key={d} type="button" role="tab" className="sections__onglet"
+              aria-selected={Number(onglet) === d} data-testid={`frontieres-onglet-${d}`}
+              onClick={() => setOnglet(d)}>
+              Difficulté {d} <span className="sections__compte">{compteDe(d)}</span>
+            </button>
+          ))}
+        </div>
+        <input className="input" type="text" value={filtre} aria-label="Filtrer la base de pays"
+          placeholder="Filtrer par nom, continent ou pays frontalier"
+          onChange={(e) => setFiltre(e.target.value)} />
+        {/* LE NOMBRE AFFICHÉ EST BORNÉ, ET ON LE DIT. Une liste tronquée en
+            silence ferait croire qu'un pays a disparu de la base. */}
+        <p className="fhint" data-testid="frontieres-compte">
+          {retenus.length > lignes.length
+            ? `${lignes.length} pays affichés sur ${retenus.length} — affine le filtre pour voir les autres.`
+            : `${retenus.length} pays affiché${retenus.length > 1 ? 's' : ''}.`}
+        </p>
+        <div className="cmod cmod--images">
+          {lignes.map(([p, i]) => (
+            <div className="cmod__objet" key={p.id} data-testid="frontieres-ligne">
+              <img className="cmod__vignette" src={p.src || VIGNETTE_VIDE} alt="" loading="lazy" />
+              <div className="cmod__tete">
+                <span className="cmod__id" title={p.id}>{p.nom || 'Nouveau pays'}</span>
+                <label className="cmod__poses">
+                  <span className="cmod__poses-label">Déjà joué</span>
+                  <input className="input" type="number" min="0" step="1" inputMode="numeric"
+                    data-testid={`frontieres-poses-${p.id}`}
+                    aria-label={`Nombre de fois où ${p.nom || p.id} a été joué`}
+                    value={posesDunPays(p)}
+                    onChange={(e) => majPoses(p, e.target.value)} />
+                </label>
+                <button className="qrow__btn qrow__btn--danger" type="button"
+                  aria-label={`Retirer ${p.nom || p.id}`}
+                  onClick={() => poser(pays.filter((_, j) => j !== i))}>
+                  <I.trash s={16} />
+                </button>
+              </div>
+              <input className="input" type="text" value={p.nom || ''} aria-label={`Nom de ${p.nom || p.id}`}
+                placeholder="Nom du pays — c'est la réponse attendue"
+                onChange={(e) => maj(i, { nom: e.target.value })} />
+              {/* LA DIFFICULTÉ EST UN CHOIX FERMÉ, pas un champ libre : le
+                  serveur ne connaît que ces quatre valeurs, et une cinquième
+                  écrite à la main rendrait le pays introuvable à l'antenne. */}
+              <label className="cmod__champ">
+                <span className="cmod__champ-label">Difficulté</span>
+                <select className="input" value={Number(p.difficulte) || 1}
+                  aria-label={`Difficulté de ${p.nom || p.id}`}
+                  onChange={(e) => maj(i, { difficulte: Number(e.target.value) })}>
+                  {difficultes.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </label>
+              <input className="input" type="text" value={p.continent || ''}
+                aria-label={`Continent de ${p.nom || p.id}`} placeholder="Indice 1 — continent (10 s)"
+                onChange={(e) => maj(i, { continent: e.target.value })} />
+              <div className="cmod__paire">
+                <input className="input" type="text" value={p.longueur || ''}
+                  aria-label={`Longueur de ${p.nom || p.id}`} placeholder="Indice 2 — longueur (20 s)"
+                  onChange={(e) => maj(i, { longueur: e.target.value })} />
+                <input className="input" type="text" value={p.largeur || ''}
+                  aria-label={`Largeur de ${p.nom || p.id}`} placeholder="Indice 2 — largeur"
+                  onChange={(e) => maj(i, { largeur: e.target.value })} />
+              </div>
+              <input className="input" type="text" value={p.frontaliers || ''}
+                aria-label={`Pays frontaliers de ${p.nom || p.id}`} placeholder="Indice 3 — pays frontaliers (30 s)"
+                onChange={(e) => maj(i, { frontaliers: e.target.value })} />
+              <input className="input" type="text" value={p.initiale || ''}
+                aria-label={`Initiale de ${p.nom || p.id}`} placeholder="Indice 4 — initiale (40 s)"
+                onChange={(e) => maj(i, { initiale: e.target.value })} />
+              <label className="cmod__depot">
+                <input type="file" accept="image/*" aria-label={`Déposer une carte pour ${p.nom || p.id}`}
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) deposer(i, f); }} />
+                <I.plus s={14} />
+                <span>{p.src ? 'Remplacer la carte' : 'Déposer une carte'}</span>
+              </label>
+              {/* UN PAYS SANS CARTE EST INJOUABLE, et c'est invisible autrement :
+                  les pays du dépôt tirent leur carte de leur identifiant, donc
+                  l'absence de `src` n'est un défaut que pour un pays ajouté. */}
+              {!p.src && !String(p.id || '').match(/^f\d{3}$/) ? (
+                <p className="cmod__etat cmod__etat--erreur">Pas encore de carte : ce pays ne peut pas être joué.</p>
+              ) : null}
+              {depot && depot.id === p.id ? (
+                <p className={`cmod__etat cmod__etat--${depot.etat}`} role="status">
+                  {depot.message}
+                  {depot.etat === 'ok' && depot.durable === false
+                    ? ' Attention : rangée sur le disque local, elle ne survivra pas à un redémarrage du serveur.'
+                    : ''}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          {pays.length && !retenus.length ? <p className="fhint">Aucun pays ne correspond à ce filtre.</p> : null}
+          <button className="qadd" type="button" data-testid="frontieres-ajouter"
+            onClick={() => {
+              setFiltre('');
+              const d = onglet === 'toutes' ? difficultes[0] : Number(onglet);
+              poser([...pays, {
+                id: uid('pays'), nom: '', difficulte: d,
+                continent: '', longueur: '', largeur: '', frontaliers: '', initiale: '', src: '',
+              }]);
+            }}>
+            <I.plus s={16} />
+            <span>Ajouter un pays</span>
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // E3 — Panneau d'édition
 // ---------------------------------------------------------------------------
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
-  typeServeur, catalogueCache, catalogueRate, catalogueCueillette, catalogueCueilletteRate, entetesHote,
+  typeServeur, catalogueCache, catalogueRate, catalogueCueillette, catalogueCueilletteRate,
+  catalogueFrontieres, catalogueFrontieresRate, entetesHote,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
@@ -1475,6 +1771,14 @@ function EditorPanel({
           <BanqueCueillette contenu={module.contenuCueillette} catalogue={catalogueCueillette}
             catalogueRate={catalogueCueilletteRate} moduleId={module.id} entetesHote={entetesHote}
             onChange={(contenuCueillette) => onPatchModule({ contenuCueillette })} />
+        ) : module.type === 'frontieres' ? (
+          /* « FRONTIÈRES » NON PLUS NE SE MODÈRE PAS COMME LES AUTRES : il n'y a
+             pas d'énoncé à écrire. Ce qui se règle ici, c'est la base de pays —
+             la demande du 16/11, « accessible quelque part dans le Studio afin
+             d'être ajustée à tout moment ». */
+          <BanqueFrontieres contenu={module.contenuFrontieres} catalogue={catalogueFrontieres}
+            catalogueRate={catalogueFrontieresRate} entetesHote={entetesHote}
+            onChange={(contenuFrontieres) => onPatchModule({ contenuFrontieres })} />
         ) : (
         <div className="fgroup">
           {categories ? (

@@ -469,6 +469,108 @@
   .ccsaisie__champ::placeholder { color: var(--c-ink-4); font-weight: 400; }
   .ccsaisie__champ:disabled { color: var(--c-ink-3); }
 
+  /* ===================== « FRONTIÈRES » — LA CARTE ET LES INDICES =============
+     TROIS ZONES DANS CET ORDRE : la carte, les quatre indices, la saisie. C'est
+     l'ordre de la lecture — on regarde, on s'aide, on répond.
+
+     LA CARTE PREND CE QUI RESTE (`flex: 1`), les deux autres leur hauteur
+     propre. Une carte à hauteur fixe aurait laissé un vide sur un grand écran
+     et débordé sur un petit ; c'est elle la question, elle doit respirer. */
+  .q-zone--frontieres { margin-top: 0; flex: 1; min-height: 0; }
+  .frj {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+  .frj__carte {
+    flex: 1;
+    min-height: 7rem;
+    display: grid;
+    place-items: center;
+    padding: var(--sp-3);
+    border-radius: var(--r-m);
+    /* LA PLAQUE CLAIRE, comme pour les dessins de « Cueillette » : les cartes
+       sont des silhouettes sombres détourées. Posées sur le fond de nuit, elles
+       disparaîtraient. */
+    background: var(--c-plaque);
+    box-shadow: var(--sh-inset);
+  }
+  /* `contain` ET JAMAIS `cover` : une carte recadrée perdrait une côte ou une
+     pointe — et c'est précisément la forme qu'on demande de reconnaître. */
+  .frj__carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* LES QUATRE CASES, DEUX PAR DEUX. Sur un téléphone, quatre en ligne
+     donneraient des colonnes de six caractères : « Pays frontaliers » y
+     deviendrait illisible, et c'est l'indice le plus long des quatre. */
+  .frj__indices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex: none;
+  }
+  .frj__indice {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+    min-width: 0;
+  }
+  .frj__indice-nom {
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .frj__indice-valeur {
+    font: 500 var(--fs-200) / 1.25 var(--f-ui);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
+  /* UNE CASE DÉVOILÉE SE DISTINGUE D'UNE CASE EN ATTENTE, et pas seulement par
+     son contenu : l'indice tombe pendant que le joueur tape, les yeux sur le
+     clavier. Sans ce changement d'état, il ne verrait pas qu'un indice est
+     arrivé — et il en reste quatre à ne pas manquer en quarante-cinq secondes. */
+  .frj__indice--dit { background: var(--c-surface); box-shadow: var(--sh-1); }
+  .frj__indice-attente { color: var(--c-ink-4); font-family: var(--f-mono); }
+
+  .frj__saisie { display: flex; flex-direction: column; gap: var(--sp-2); flex: none; }
+  /* L'AIDE À LA SAISIE. Elle ne pousse rien : la liste n'existe que pendant la
+     frappe, et six propositions au plus. En rangée défilante plutôt qu'en
+     colonne — une colonne de six aurait recouvert la carte à chaque lettre. */
+  .frj__suggestions {
+    display: flex;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    /* RIEN NE SAUTE QUAND LA LISTE SE VIDE : la rangée garde sa hauteur de
+       bouton, sinon la carte et le champ remonteraient d'un cran à chaque mot
+       complété, sous les doigts du joueur. */
+    min-height: var(--hit);
+    align-items: center;
+  }
+  .frj__suggestion {
+    flex: none;
+    min-height: var(--hit);
+    padding: 0 var(--sp-3);
+    border: 0;
+    border-radius: var(--r-s);
+    background: var(--c-surface);
+    box-shadow: var(--sh-edge);
+    color: var(--c-ink);
+    font: 500 var(--fs-200) / 1 var(--f-ui);
+    white-space: nowrap;
+  }
+
   /* L'ÉCRAN DES RÉPONSES QUI TOMBENT — une à la fois, avec ce qu'elle rapporte. */
   .ccdev { display: flex; align-items: center; gap: var(--sp-5); margin: var(--sp-5) 0; }
   .ccdev__objet {
@@ -578,6 +680,61 @@
   .cuei-bilan__nom { display: grid; gap: var(--sp-1); margin: 0; justify-items: center; }
   .cuei-bilan__nom strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
   .cuei-bilan__verdict { margin: 0; font: 500 var(--fs-400) / 1.35 var(--f-ui); color: var(--c-ink-2); }
+
+  /* LE BILAN DE « FRONTIÈRES » — la carte, le pays, la réponse donnée, et les
+     quatre indices enfin tous lisibles. Même allure que le bilan de
+     « Cueillette » juste au-dessus : les deux jeux finissent par montrer au
+     joueur ce qu'il cherchait, et il n'y a pas de raison que l'un se présente
+     autrement que l'autre.
+     LA CARTE EST BORNÉE EN HAUTEUR DE FENÊTRE (`vh`) et non en largeur : sous
+     elle viennent le nom, la réponse donnée et quatre lignes d'indices, et c'est
+     tout cela qui doit tenir sur un téléphone sans faire défiler. */
+  .frbilan { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); margin: var(--sp-5) 0; }
+  .frbilan__carte {
+    display: grid;
+    place-items: center;
+    width: min(100%, 26vh);
+    aspect-ratio: 4 / 3;
+    padding: var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-plaque);
+    box-shadow: var(--sh-inset);
+  }
+  .frbilan__carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .frbilan__nom { display: grid; gap: var(--sp-1); margin: 0; justify-items: center; }
+  .frbilan__nom strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
+  .frbilan__tienne { margin: 0; font: 400 var(--fs-300) / 1.35 var(--f-ui); color: var(--c-ink-2); text-align: center; }
+  .frbilan__tienne strong { font-weight: 600; color: var(--c-ink); }
+  .frbilan__indices {
+    display: grid;
+    gap: var(--sp-1);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .frbilan__indices li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+  }
+  .frbilan__indice-nom {
+    flex: none;
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .frbilan__indice-valeur {
+    text-align: right;
+    font: 500 var(--fs-200) / 1.3 var(--f-ui);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
 
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {

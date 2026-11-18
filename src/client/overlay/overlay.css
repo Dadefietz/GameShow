@@ -469,6 +469,88 @@
     /* À CETTE TAILLE, CINQ PIXELS SONT UN FIL. Le trait suit la scène. */
     --toile-trait: 10px;
   }
+  /* ==========================================================================
+     « FRONTIÈRES » — L'ANTENNE
+     ==========================================================================
+     LA CARTE À GAUCHE, LES QUATRE INDICES À DROITE. Deux colonnes et non une
+     pile : la scène du stream est en paysage (1920 × 1080), et une carte posée
+     au-dessus de quatre lignes d'indices n'aurait plus que le tiers de la
+     hauteur — alors que c'est elle la question.
+
+     MÊME MESURE QUE « CUEILLETTE » CI-DESSUS, et pour la même raison : pas de
+     `height: 100%` sur un enfant dont la case se dimensionne sur son contenu —
+     le navigateur tranche par zéro, et la carte existe sans se voir. On passe
+     donc par `flex: 1` et `min-height: 0`. */
+  .st-fr {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: center;
+    gap: var(--sp-7);
+  }
+  .st-fr__carte {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    padding: var(--sp-5);
+    border-radius: var(--r-l);
+    /* LA PLAQUE CLAIRE : les cartes sont des silhouettes sombres détourées, qui
+       disparaîtraient sur le fond de nuit de l'antenne. */
+    background: var(--c-plaque);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+  /* `contain` : une carte recadrée perdrait la forme qu'on demande de reconnaître. */
+  .st-fr__carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .st-fr__indices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .st-fr__indice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-4) var(--sp-5);
+    border-radius: var(--r-m);
+    background: var(--c-surface-2);
+  }
+  /* UNE CASE DÉVOILÉE CHANGE D'ÉTAT, et pas seulement de contenu : à l'antenne,
+     le public ne lit pas les quatre cases en boucle — c'est le changement qui
+     attire l'œil au moment où l'indice tombe. */
+  .st-fr__indice--dit { background: var(--c-surface); box-shadow: var(--sh-1); }
+  .st-fr__indice-nom {
+    font: 500 var(--fs-st-200) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  .st-fr__indice-valeur {
+    font: 600 var(--fs-st-300) / 1.2 var(--f-ui);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
+  .st-fr__indice[data-dit="non"] .st-fr__indice-valeur {
+    font-family: var(--f-mono);
+    color: var(--c-ink-4);
+  }
+  /* À LA RÉVÉLATION, la colonne de droite porte la réponse PUIS les quatre
+     indices. Même disposition, même carte, même place : le public vient de
+     passer quarante-cinq secondes sur cet écran, et la seule chose qui change
+     est qu'un nom apparaît là où il attendait. */
+  .st-fr__bilan {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    min-width: 0;
+  }
+  .st-fr__bilan .st-fr__indices { gap: var(--sp-3); }
+  .st-fr__bilan .st-fr__indice { padding: var(--sp-3) var(--sp-4); }
+
   /* LE DESSIN PARTAGÉ, EN GRAND — « à la place de la phrase et du graphique ».
      AVEC LE NOM DE SON AUTEUR ET SANS SA NOTE depuis le 26/09 : « faut pas qu'il
      y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom

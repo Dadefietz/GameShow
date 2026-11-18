@@ -115,6 +115,12 @@ describe('convention de la voix — contrôle bloquant', () => {
       // ceux de « Cache-cache » de cases retrouvées.
       cueillette: ['cueillette.parfait', 'cueillette.bien', 'cueillette.passable', 'cueillette.rien',
         'cueillette.coup-de-coeur', 'cueillette.haut-le-coeur'],
+      // « FRONTIÈRES » AUSSI, et pour une raison qu'aucune famille existante ne
+      // sait dire : la MÊME bonne réponse y vaut 1 200 ou 300 points selon la
+      // seconde où elle part. `juste.simple`, celle du quiz, servirait la même
+      // phrase à celui qui nomme le pays sur sa seule silhouette et à celui qui
+      // le trouve après les quatre indices.
+      frontieres: ['frontieres.eclair', 'frontieres.vite', 'frontieres.juste', 'frontieres.rate'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

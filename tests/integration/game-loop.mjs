@@ -577,6 +577,208 @@ try {
   check('HAUT LE CŒUR aucun téléphone ne reçoit le nom', fuitesHaut === 0, String(fuitesHaut));
   for (const sj of [s1, s2, s3]) sj.off('cueillette:hautLeCoeur', fuiteHaut);
 
+  // ======================================================================
+  // « FRONTIÈRES » — LES CHEMINS, ET CE QUI NE DOIT PAS LES EMPRUNTER
+  // ======================================================================
+  //
+  // POURQUOI ICI ET PAS EN TEST UNITAIRE. `tests/unit/frontieres.test.js` vérifie
+  // déjà que le module calcule juste, et qu'il ne met pas la réponse dans ce
+  // qu'il RETOURNE. Ce qui ne se voit que d'ici, c'est ce que le serveur met dans
+  // une charge utile, SUR QUEL CANAL, et quand :
+  //   1. les quatre indices ne doivent voyager qu'un par un, à leur seconde. S'ils
+  //      partaient avec la manche, « Commence par un A » serait lisible dans
+  //      l'onglet réseau quarante secondes avant l'heure — et le jeu n'aurait
+  //      plus d'objet ;
+  //   2. la base de pays part à la console et JAMAIS à un téléphone : elle
+  //      contient les réponses ;
+  //   3. `indicesVus` doit traverser DEUX recopies écrites à la main
+  //      (`results` → `perPlayer` → `you`) pour atteindre le téléphone. C'est
+  //      exactement le trajet où `pourcent` s'était perdu deux fois, en silence.
+  const JEU_FR = 'mod-frontieres';
+  const putFr = await fetch(`${BASE}/api/modules`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      modules: [{
+        id: JEU_FR, type: 'frontieres', name: 'Frontières', duration: 45, color: 'info',
+        questions: [{
+          kind: 'contenu-frontieres',
+          // DEUX PAYS, ET UNE LIGNE SANS NOM qui doit être écartée plutôt que de
+          // casser la manche — même règle que la ligne sans grille de
+          // « Cueillette » juste au-dessus.
+          pays: [
+            {
+              id: 'f001', nom: 'Sylvanie', difficulte: 2, continent: 'Europe',
+              longueur: '400 km', largeur: '300 km', frontaliers: 'Ruritanie, Latvérie',
+              initiale: 'Commence par un S',
+            },
+            {
+              id: 'f002', nom: 'Ruritanie', difficulte: 2, continent: 'Europe',
+              longueur: '200 km', largeur: '150 km', frontaliers: 'Sylvanie',
+              initiale: 'Commence par un R',
+            },
+            { id: 'f003', nom: '', difficulte: 1 },
+          ],
+          poses: { f001: 4, f002: 1 },
+        }],
+      }],
+    }),
+  });
+  check('FRONTIÈRES bibliothèque acceptée', putFr.ok);
+
+  const menuFr = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_FR);
+  check('FRONTIÈRES la console reçoit la base DU MODULE, sans la ligne injouable',
+    menuFr?.pays?.length === 2 && menuFr.pays.map((p) => p.nom).join(',') === 'Sylvanie,Ruritanie',
+    JSON.stringify(menuFr?.pays?.map((p) => p.nom)));
+  check('FRONTIÈRES la console reçoit les compteurs, pour préférer les moins joués',
+    menuFr?.pays?.[0]?.poses === 4 && menuFr.pays[1].poses === 1,
+    JSON.stringify(menuFr?.pays?.map((p) => p.poses)));
+  // « Il n'a pas besoin de voir la carte. » Ni les indices : l'animateur choisit
+  // sur un nom et un compteur, et tout le reste serait du poids pour rien.
+  check('FRONTIÈRES LA CONSOLE NE REÇOIT NI CARTES NI INDICES',
+    !/Commence par|cartes\/|continent|frontaliers/.test(JSON.stringify(menuFr)),
+    JSON.stringify(menuFr).slice(0, 200));
+
+  // AUCUN TÉLÉPHONE N'A DE BASE DE PAYS. Elle ne circule que sur le canal de
+  // l'animateur : un joueur qui la recevrait aurait les cent soixante-quinze
+  // réponses et leurs indices.
+  const basePourJoueur = await new Promise((res) => {
+    const t = setTimeout(() => res('muet'), 1200);
+    s1.emit('host:modules', {}, (r) => { clearTimeout(t); res(r); });
+  });
+  check('FRONTIÈRES un téléphone ne peut pas demander la base', basePourJoueur === 'muet',
+    JSON.stringify(basePourJoueur).slice(0, 120));
+
+  const frDemarre = waitFor(s1, 'module:started', 12000);
+  const frIndiceOv = waitFor(ov, 'frontieres:indice', 15000).catch(() => null);
+  const frIndice = waitFor(s1, 'frontieres:indice', 15000).catch(() => null);
+  const frHote = waitFor(host, 'host:frontieres', 60000).catch(() => null);
+  // UNE BASE GLISSÉE DANS LE TOP DE DÉPART EST IGNORÉE : c'est le serveur qui
+  // attache celle du module. Sinon la console deviendrait une source de contenu
+  // pour l'antenne.
+  host.emit('host:startModule', {
+    moduleId: JEU_FR,
+    question: {
+      id: 'fr-int', paysId: 'f001', difficulte: 2,
+      banque: [{ id: 'f001', nom: 'INTRUS', continent: 'INTRUS', initiale: 'INTRUS' }],
+    },
+  });
+  const manche = await frDemarre;
+  check('FRONTIÈRES la manche porte la carte, et dure quarante-cinq secondes',
+    typeof manche.carte === 'string' && manche.carte.includes('/cartes/') && manche.durationMs === 45000,
+    JSON.stringify({ carte: manche.carte, d: manche.durationMs }));
+  check('FRONTIÈRES les quatre emplacements sont déclarés par le serveur',
+    Array.isArray(manche.emplacements) && manche.emplacements.length === 4
+      && manche.emplacements.map((e) => e.cle).join(',') === 'continent,taille,frontaliers,initiale',
+    JSON.stringify(manche.emplacements?.map((e) => e.cle)));
+  check('FRONTIÈRES les noms partent pour l’aide à la saisie',
+    Array.isArray(manche.noms) && manche.noms.includes('Sylvanie') && manche.noms.includes('Ruritanie'),
+    JSON.stringify(manche.noms));
+  // LE CŒUR DU CONTRÔLE. Le nom du pays et ses quatre indices NE SONT PAS dans
+  // la charge utile de départ : ni en clair, ni dans un recoin. La base glissée
+  // par la console n'y est pas non plus.
+  check('FRONTIÈRES LA RÉPONSE ET LES INDICES NE PARTENT PAS AVEC LA MANCHE',
+    // `noms` est MIS DE CÔTÉ avant de chercher : il porte légitimement les deux
+    // noms, c'est l'aide à la saisie, et le joueur sait déjà que la réponse est
+    // un pays. Tout « Sylvanie » qui subsiste ailleurs est une fuite.
+    !/Sylvanie/.test(JSON.stringify({ ...manche, noms: [] }))
+      && !/Commence par|Latvérie|400 km|INTRUS/.test(JSON.stringify(manche)),
+    JSON.stringify({ ...manche, noms: '…' }).slice(0, 240));
+
+  // BOB RÉPOND TOUT DE SUITE — avant le premier indice : le haut du barème.
+  const youBob = waitForMatching(s2, 'play:you', (y) => y.roundId === manche.roundId, 60000).catch(() => null);
+  s2.emit('play:answer', { value: 'sylvanie' });
+  // LE PREMIER INDICE TOMBE À DIX SECONDES, poussé par le serveur. C'est la seule
+  // façon de le prouver : l'attendre.
+  const i1 = await frIndice;
+  check('FRONTIÈRES le premier indice arrive au joueur, et c’est le continent',
+    i1 && i1.cle === 'continent' && i1.valeur === 'Europe' && i1.roundId === manche.roundId,
+    JSON.stringify(i1));
+  check('FRONTIÈRES le même indice atteint l’antenne', (await frIndiceOv)?.cle === 'continent');
+
+  // CHLOÉ CHOISIT SANS ENVOYER. « S'il ne l'envoie pas avant la fin du compteur,
+  // la réponse est gardée et si elle est bonne, elle vaudra le minimum de
+  // point. » Son téléphone ne pousse que des BROUILLONS, comme celui d'un
+  // dessinateur de « Cueillette » : des lettres au fil de la frappe, dont seules
+  // celles qui forment un pays de la banque sont retenues.
+  //
+  // CE CONTRÔLE NE PEUT PAS VIVRE AILLEURS : c'est la fermeture de la fenêtre qui
+  // transforme le brouillon en réponse, et elle n'arrive qu'au bout de la manche.
+  const youChloe = waitForMatching(s3, 'play:you', (y) => y.roundId === manche.roundId, 60000).catch(() => null);
+  s3.emit('play:brouillon', { value: 'Ruri' });        // incomplet : rien à garder
+  s3.emit('play:brouillon', { value: 'Ruritanie' });   // un pays : gardé
+
+  // ALICE RÉPOND APRÈS LE PREMIER INDICE : un palier de moins.
+  //
+  // LES QUATRE CENTS MILLISECONDES SONT DÉLIBÉRÉES, et elles évitent un contrôle
+  // instable. Le premier indice tombe à 10 000 ms du départ ; le palier, lui, se
+  // lit sur le temps RESTANT, et bascule à 35 000 ms exactement — soit la même
+  // seconde. Répondre dans la foulée de l'indice, c'est répondre sur la
+  // frontière : selon les quelques millisecondes qui séparent `startedAt` de
+  // `deadline` et selon le réseau, la réponse tomberait tantôt à 1 200 tantôt à
+  // 1 000, et le contrôle accuserait le serveur une fois sur deux. On se place
+  // franchement dans la bande qu'on veut mesurer.
+  await sleep(400);
+  const youAlice = waitForMatching(s1, 'play:you', (y) => y.roundId === manche.roundId, 60000).catch(() => null);
+  s1.emit('play:answer', { value: 'Sylvanie' });
+
+  const revFr = waitForMatching(ov, 'module:reveal', (r) => r.type === 'frontieres', 60000);
+  host.emit('host:reveal');
+  const rFr = await revFr;
+  check('FRONTIÈRES la révélation nomme le pays, et montre sa carte',
+    rFr.pays === 'Sylvanie' && typeof rFr.carte === 'string', JSON.stringify({ p: rFr.pays, c: rFr.carte }));
+  check('FRONTIÈRES la révélation porte le dépouillement, trié du plus donné au moins donné',
+    Array.isArray(rFr.repartition) && rFr.repartition[0].nom === 'Sylvanie' && rFr.repartition[0].n === 2
+      && rFr.repartition[1].nom === 'Ruritanie' && rFr.repartition[1].n === 1,
+    JSON.stringify(rFr.repartition));
+  check('FRONTIÈRES LE STREAM NE REÇOIT AUCUN NOM DE JOUEUR',
+    !['Alice', 'Bob', 'Chloe'].some((n) => JSON.stringify(rFr).includes(n)),
+    JSON.stringify(rFr).slice(0, 200));
+
+  const hFr = await frHote;
+  check('FRONTIÈRES l’animateur reçoit les mêmes réponses, AVEC les noms',
+    hFr && hFr.pays === 'Sylvanie' && hFr.reponses?.[0]?.nom === 'Sylvanie'
+      && hFr.reponses[0].joueurs.length === 2 && hFr.reponses[0].juste === true
+      && hFr.reponses[1].joueurs.includes('Chloe'),
+    JSON.stringify(hFr?.reponses));
+
+  const yBobFr = await youBob;
+  const yAliceFr = await youAlice;
+  const yChloeFr = await youChloe;
+  // LE BROUILLON DE CHLOÉ EST DEVENU SA RÉPONSE, AU DERNIER PALIER.
+  //
+  // C'est aussi lui qui met « Ruritanie » dans le dépouillement ci-dessus : sans
+  // la conversion, cette ligne n'existerait pas du tout — personne n'a envoyé ce
+  // nom. Et son brouillon INCOMPLET (« Ruri ») n'a rien laissé : seul un pays de
+  // la banque est retenu, ce que `validateAnswer` garantit.
+  //
+  // ELLE RÉPOND FAUX, DONC ELLE NE GAGNE RIEN : c'est `palierPoints` — ce que le
+  // palier VALAIT — qui prouve ici « le minimum de point », et `indicesVus` à
+  // quatre qui prouve qu'elle a été comptée à l'échéance et non à la frappe. Que
+  // ce minimum soit bien crédité sur une BONNE réponse est tenu par le contrôle
+  // unitaire « LA RÉPONSE CHOISIE SANS ÊTRE ENVOYÉE EST GARDÉE ».
+  check('FRONTIÈRES LA RÉPONSE CHOISIE SANS ÊTRE ENVOYÉE EST GARDÉE, et comptée au dernier palier',
+    yChloeFr && yChloeFr.reponse === 'Ruritanie' && yChloeFr.palierPoints === 300
+      && yChloeFr.indicesVus === 4 && yChloeFr.base === 0,
+    JSON.stringify(yChloeFr && {
+      r: yChloeFr.reponse, palier: yChloeFr.palierPoints, vus: yChloeFr.indicesVus, base: yChloeFr.base,
+    }));
+  // CE QUI SE PERDAIT EN SILENCE SUR CE TRAJET-LÀ, pour `pourcent`, deux fois.
+  check('FRONTIÈRES LE RELEVÉ PERSONNEL PORTE LE NOMBRE D’INDICES VUS',
+    yBobFr && yBobFr.indicesVus === 0 && yAliceFr && yAliceFr.indicesVus === 1,
+    JSON.stringify({ bob: yBobFr?.indicesVus, alice: yAliceFr?.indicesVus }));
+  check('FRONTIÈRES RÉPONDRE TÔT RAPPORTE PLUS : 1200 avant le premier indice, 1000 après',
+    yBobFr?.base === 1200 && yAliceFr?.base === 1000,
+    JSON.stringify({ bob: yBobFr?.base, alice: yAliceFr?.base }));
+
+  // LE COMPTEUR DU PAYS JOUÉ MONTE, ET IL EST PERMANENT : il était à 4 dans la
+  // bibliothèque, il doit être à 5 — et c'est lui qui fait la préférence aux
+  // moins joués au tirage suivant.
+  const menuFr2 = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_FR);
+  check('FRONTIÈRES le compteur du pays joué monte de un, et reste dans la bibliothèque',
+    menuFr2?.pays?.find((p) => p.nom === 'Sylvanie')?.poses === 5,
+    JSON.stringify(menuFr2?.pays?.map((p) => `${p.nom} ${p.poses}`)));
+
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');
   // On attend LE relevé final, reconnaissable à son drapeau — pas le prochain

@@ -405,6 +405,32 @@ export function startModule(io, room, jeu, question) {
     });
   }
 
+  // LES INDICES DE « FRONTIÈRES », POUSSÉS À LEUR SECONDE.
+  //
+  // POURQUOI LE SERVEUR LES POUSSE PLUTÔT QUE L'ÉCRAN NE LES MASQUE. Les envoyer
+  // avec la manche en laissant le téléphone les cacher mettrait les quatre à un
+  // clic dans l'onglet réseau du navigateur. Or « Afrique » et « commence par un
+  // B » suffisent à chercher la réponse : ce serait donner la solution à qui sait
+  // ouvrir un inspecteur, c'est-à-dire exactement le public d'un jeu diffusé.
+  //
+  // C'est la même règle que le défilé des « Visages » et la grille de
+  // « Cache-cache », et pour la même raison : L'ARBITRE DÉCIDE DE CE QUI EST
+  // VISIBLE, ET QUAND. Le drapeau est dans la META du module ; rien ici ne
+  // connaît ce jeu par son nom.
+  if (room._indices) { for (const t of room._indices) clearTimeout(t); room._indices = null; }
+  if (mod.meta.indicesProgressifs && Array.isArray(mod.meta.indices) && rt.indices) {
+    room._indices = mod.meta.indices.map((palier) => setTimeout(() => {
+      // Une manche changée ou déjà révélée n'a plus d'indice à recevoir : la
+      // minuterie survit au départ suivant si on ne s'en garde pas.
+      if (room.currentModule !== rt || rt.revealed) return;
+      toRoom(io, room).emit('frontieres:indice', {
+        roundId: rt.roundId,
+        cle: palier.cle,
+        valeur: rt.indices[palier.cle],
+      });
+    }, palier.apres));
+  }
+
   // Tick de compte à rebours (1s) pour toutes les surfaces.
   //
   // NE PAS TOUCHER AU DÉFILÉ ICI. Partout ailleurs, arrêter le tick
@@ -649,6 +675,7 @@ export function closeWindow(io, room) {
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
   if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
+  if (room._indices) { for (const t of room._indices) clearTimeout(t); room._indices = null; }
   toRoom(io, room).emit('module:closed', { answers: rt.answers.size });
 }
 
@@ -859,6 +886,32 @@ export function reveal(io, room) {
       // encore en mémoire, et l'afficherait sans ce repère au-dessus de la phrase
       // « ton dessin n'est pas arrivé à temps ».
       pourcent: r ? r.pourcent ?? null : null,
+      // « FRONTIÈRES » : COMBIEN D'INDICES ÉTAIENT DÉVOILÉS quand sa réponse est
+      // partie, et ce que valait le palier atteint.
+      //
+      // DEUX RECOPIES À TENIR, et la note de `you` ci-dessous dit ce qu'il coûte
+      // d'en oublier une : le champ disparaît en silence, et l'écran conclut de
+      // travers sans que rien ne remonte. `indicesVus` décide ici de la phrase du
+      // joueur — « sans le moindre indice » ou « il a fallu les voisins » —, et
+      // sans lui tout le monde lirait la même, y compris celui qui a reconnu le
+      // pays à la deuxième seconde.
+      //
+      // `palierPoints` dit ce que VALAIT le palier, même pour une réponse fausse :
+      // c'est ce qui permet à l'écran d'apprendre le barème sans l'énoncer.
+      indicesVus: r ? r.indicesVus ?? null : null,
+      palierPoints: r ? r.palierPoints ?? null : null,
+      // LA RÉPONSE QUE L'ARBITRE A COMPTÉE, telle qu'il l'a retenue.
+      //
+      // ELLE NE SE DÉDUIT PAS DE CE QUE LE TÉLÉPHONE A GARDÉ, et la nuance a
+      // déjà produit un écran qui se contredisait sur « Cueillette » : un envoi
+      // parti à la dernière seconde et refusé laisse l'écran en possession d'une
+      // réponse que la manche ne compte pas. Ici s'ajoute un second cas, propre
+      // à « Frontières » : une réponse jamais envoyée que le serveur a RETENUE
+      // comme brouillon — le téléphone ne sait pas laquelle il a gardée, le
+      // serveur si. C'est elle que l'écran de résultat doit montrer.
+      //
+      // ELLE NE PART QU'À SON AUTEUR (`io.to(p.socketId)`), comme tout ce relevé.
+      reponse: r ? r.reponse ?? null : null,
       // DÉCISION 4.5 — information, pas points. C'est ce drapeau qui autorise la
       // phrase « le plus rapide du cercle », désormais qu'aucun supplément ne la
       // trahit plus par un seuil.
@@ -980,6 +1033,28 @@ export function reveal(io, room) {
     io.to(room.code + ':host').emit('host:dessins', dessinsPourLHote(room, rt));
   }
 
+  // LE DÉPOUILLEMENT DE « FRONTIÈRES » — CANAL ANIMATEUR SEUL.
+  //
+  // « L'animateur a de son côté un accès total aux réponses données (Réponses
+  // données + Nom des joueurs à côté). » DE SON CÔTÉ : le stream reçoit la même
+  // répartition dans `reveal`, mais SANS les pseudonymes. Aucun nom de joueur
+  // n'a jamais quitté ce canal dans ce projet, et ce jeu ne fera pas l'exception.
+  if (prives && Array.isArray(prives.reponses)) {
+    io.to(room.code + ':host').emit('host:frontieres', {
+      roundId: rt.roundId,
+      pays: rt.cible ? rt.cible.nom : null,
+      reponses: prives.reponses.map((r) => ({
+        nom: r.nom,
+        juste: r.juste,
+        n: r.n,
+        joueurs: r.joueurs
+          .map((pid) => room.players.get(pid))
+          .filter(Boolean)
+          .map((j) => j.pseudo),
+      })),
+    });
+  }
+
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {
     io.to(room.code + ':host').emit('host:closest', {
       roundId: rt.roundId,
@@ -1006,7 +1081,7 @@ export function reveal(io, room) {
   // reconnecte (verrouillage d'écran sur mobile) ne le recevrait jamais et son
   // écran conclurait qu'il n'a pas participé (R12).
   for (const [pid, p] of room.players) {
-    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, bons: null, rates: null, brut: null, pourcent: null, correct: null, troppTot: false };
+    const d = perPlayer.get(pid) || { base: 0, bonusExact: 0, bonusProche: 0, bonusGroupe: 0, speed: 0, delta: 0, streak: p.streak, palier: null, fastest: false, exact: false, rang: null, taille: null, valeur: null, bons: null, rates: null, brut: null, pourcent: null, indicesVus: null, palierPoints: null, reponse: null, correct: null, troppTot: false };
     const placesDelta = (ranksBefore.get(pid) || 0) - (ranksAfter.get(pid) || 0);
     const you = {
       roundId: rt.roundId,
@@ -1039,6 +1114,11 @@ export function reveal(io, room) {
       // choisie ; elle coûte une ligne par champ, et c'est le prix de savoir
       // exactement ce qui sort.
       pourcent: d.pourcent ?? null,
+      // « FRONTIÈRES » — la deuxième des deux recopies dont parle la note
+      // ci-dessus. Voir `perPlayer` pour ce que chacun de ces deux champs porte.
+      indicesVus: d.indicesVus ?? null,
+      palierPoints: d.palierPoints ?? null,
+      reponse: d.reponse ?? null,
       // LES DISTINCTIONS DE L'ANIMATEUR — nulles à la révélation ; voir `distinguer`.
       bonusCoeur: 0,
       coupDeCoeur: false,
@@ -1057,6 +1137,22 @@ export function reveal(io, room) {
       // Le verdict, tel que le SERVEUR l'a établi — voir la note de `perPlayer`.
       correct: d.correct ?? null,
       troppTot: d.troppTot === true,
+      // LE SERVEUR A-T-IL COMPTÉ UNE RÉPONSE DE CE JOUEUR ?
+      //
+      // C'EST LUI QUI LE SAIT, ET LUI SEUL. Le téléphone connaît son propre
+      // envoi, mais pas deux cas où l'arbitre a compté sans qu'il ait appuyé sur
+      // « Envoyer » : le dessin de « Cueillette » repris à la fermeture de la
+      // fenêtre, et la réponse de « Frontières » gardée en brouillon. Dans les
+      // deux cas l'écran du joueur affirmait « le temps t'a devancé — rien
+      // reçu » AU-DESSUS des points qu'il venait de gagner.
+      //
+      // « Cueillette » s'en sortait par un détour : l'écran déduisait la
+      // participation de la présence d'une note (`pourcent`). Ce détour ne vaut
+      // que pour ce jeu-là, et il a donc fallu le réécrire pour le suivant —
+      // c'est le signe qu'il manquait le fait général. Le voici, dit une fois :
+      // `rt.answers` est le registre de l'arbitre, et il est déjà consulté deux
+      // lignes plus bas pour décider qui a un relevé à revoir.
+      participe: rt.answers.has(pid),
       placesDelta,
     };
     // Mémorisé pour les seuls participants : un absent n'a pas de résultat à
@@ -1336,6 +1432,7 @@ export function backToLobby(io, room) {
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
   if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
+  if (room._indices) { for (const t of room._indices) clearTimeout(t); room._indices = null; }
   room.state = RoomState.WAITING;
   room.currentModule = null;
   room.history = [];
@@ -1357,6 +1454,7 @@ export function endGame(io, room) {
   if (room._tick) clearInterval(room._tick);
   if (room._defile) { clearInterval(room._defile); room._defile = null; }
   if (room._grille) { for (const t of room._grille) clearTimeout(t); room._grille = null; }
+  if (room._indices) { for (const t of room._indices) clearTimeout(t); room._indices = null; }
   const podium = roomManager.leaderboard(room, 3);
   // Fin de partie : le classement final devient public + récap des manches (B3,
   // question + révélation — jamais le détail par joueur).

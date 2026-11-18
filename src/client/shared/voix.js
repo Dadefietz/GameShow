@@ -398,6 +398,61 @@ export const MOMENTS = {
       'Pas ton meilleur coup de crayon. Le feu, lui, ne juge pas.',
     ],
   },
+  // « FRONTIÈRES » A SA PROPRE FAMILLE, et elle la mérite : c'est le seul jeu du
+  // projet où la MÊME bonne réponse vaut 1 200 ou 300 points selon la seconde où
+  // elle part. Les paliers de l'estimation parlent de s'approcher d'une cible
+  // chiffrée ; ici il n'y a pas d'approche — on sait ou on ne sait pas, et ce qui
+  // se mesure est le nombre d'indices qu'il a fallu attendre.
+  //
+  // C'EST POURQUOI « juste » NE SUFFISAIT PAS. Le laisser retomber sur
+  // `juste.simple`, comme le quiz, aurait servi la même phrase à celui qui nomme
+  // le pays à la deuxième seconde et à celui qui le trouve après les quatre
+  // indices : deux manches sans rapport, et c'est tout l'intérêt du barème.
+  //
+  // LE BAS DE L'ÉCHELLE NE PUNIT PAS. Reconnaître un pays sur sa seule silhouette
+  // est difficile, et le jeu en compte cent soixante-quinze : ne pas trouver
+  // n'est pas une faute, c'est le jeu. Aucune phrase ne cite de montant — les
+  // points sont affichés juste à côté.
+  'frontieres.eclair': {
+    surface: 'play',
+    quand: 'le pays nommé avant le premier indice — le haut du barème',
+    phrases: [
+      'Reconnu à la forme seule. Sans le moindre indice.',
+      'Tu n’as pas eu besoin qu’on t’aide. Du tout.',
+      'Le contour a suffi. Belle géographie.',
+      'Nommé avant le premier indice. Le plein du barème.',
+    ],
+  },
+  'frontieres.vite': {
+    surface: 'play',
+    quand: 'le pays nommé après un ou deux indices',
+    phrases: [
+      'Un indice t’a mis sur la voie, le reste était à toi.',
+      'Trouvé, et trouvé tôt. Le barème s’en souvient.',
+      'Il t’en a fallu peu. C’est tout ce qui compte.',
+      'La carte a parlé vite. Tu as écouté.',
+    ],
+  },
+  'frontieres.juste': {
+    surface: 'play',
+    quand: 'le pays nommé après trois ou quatre indices — juste, mais tard',
+    phrases: [
+      'Trouvé. Les indices ont fait leur travail.',
+      'Au bout du compte, le bon pays. C’est l’essentiel.',
+      'Il a fallu les voisins et l’initiale — mais tu l’as.',
+      'Juste sur le fil. Ça compte quand même.',
+    ],
+  },
+  'frontieres.rate': {
+    surface: 'play',
+    quand: 'un autre pays, ou aucune réponse',
+    phrases: [
+      'Pas celui-là. Cent soixante-quinze contours, ça se défend.',
+      'Le monde est grand. Ton total est intact.',
+      'Raté — et ça ne coûte rien.',
+      'Cette silhouette gardait son secret. La prochaine parlera.',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',

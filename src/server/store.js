@@ -142,7 +142,7 @@ function uid(prefixe) {
 // LA RÈGLE : chaque fichier porte le NUMÉRO DE SEMENCE avec lequel il a été
 // écrit. Une montée n'ajoute que les types QUI N'EXISTAIENT PAS à ce numéro-là :
 // des jeux que l'animateur n'a pas pu supprimer, puisqu'il ne les a jamais eus.
-const SEMENCE = 6;
+const SEMENCE = 7;
 // LES TYPES QUI EXISTAIENT À LA PREMIÈRE SEMENCE. C'est un fait historique, pas
 // une configuration : un fichier écrit avant l'existence des numéros de semence
 // contient ceux-là, et rien d'autre. Cette liste NE SE MODIFIE PLUS — un jeu
@@ -156,6 +156,7 @@ const APPORTS = {
   4: ['coupe_buche'],
   5: ['cache_cache'],
   6: ['cueillette'],
+  7: ['frontieres'],
 };
 
 // LA SEMENCE D'UNE BIBLIOTHÈQUE QUI VIENT DE LA BASE — DÉDUITE DE SON CONTENU.

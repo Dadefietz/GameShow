@@ -431,6 +431,28 @@
     white-space: nowrap;
   }
   .cmod__poses .input { width: 5rem; }
+  /* ====================== LA BASE DE PAYS DE « FRONTIÈRES » ==================
+     Elle emprunte les mêmes cartes que la banque de « Cueillette » (`.cmod`,
+     `.cmod__objet`) : une ligne par entrée, sa vignette, son nom, son compteur.
+     Deux choses lui sont propres.
+
+     UN CHAMP À CHOIX FERMÉ — la difficulté. Elle porte son étiquette au-dessus
+     parce qu'un « 3 » seul, entre un nom de pays et un continent, ne dit pas de
+     quoi il est le 3. */
+  .cmod__champ { display: flex; flex-direction: column; gap: var(--sp-1); }
+  .cmod__champ-label {
+    font: 500 var(--fs-100) / 1 var(--f-ui);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--c-ink-3);
+  }
+  /* DEUX CHAMPS SUR UNE LIGNE — longueur et largeur, qui forment UN indice.
+     Les séparer sur deux lignes les ferait lire comme deux indices distincts,
+     alors que le joueur les reçoit joints : « 1300 km × 1000 km ».
+     ILS PASSENT L'UN SOUS L'AUTRE SOUS 320 px de panneau : deux champs de
+     nombre côte à côte y deviennent trop étroits pour qu'on lise ce qu'on tape. */
+  .cmod__paire { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .cmod__paire .input { flex: 1 1 8rem; min-width: 0; }
   .cmod__forme {
     font: 600 var(--fs-200) / 1 var(--f-mono);
     color: var(--c-ink);

@@ -1613,6 +1613,73 @@
     color: var(--c-ink-2);
     overflow-wrap: anywhere;
   }
+  /* LE DÉPOUILLEMENT DE « FRONTIÈRES » reprend ces blocs, à deux choses près.
+
+     PAS DE COLONNE DE RANG : les réponses sont déjà triées de la plus donnée à
+     la moins donnée, et un rang chiffré n'ajouterait rien à un ordre qui se lit.
+     Les noms des joueurs reviennent donc au bord — l'indentation des groupes du
+     « Lien » existe pour s'aligner sous le mot, après le rang. */
+  [data-testid="fr-reponse"] .groupes__joueurs { padding-left: 0; }
+  /* LA BONNE RÉPONSE SE VOIT SANS LIRE. Avec cinq pays voisins dans la liste,
+     retrouver lequel était le bon en se remémorant la carte est exactement la
+     seconde qu'on n'a pas en direct. */
+  [data-testid="fr-reponse"][data-juste="oui"] {
+    box-shadow: inset 0 0 0 var(--bw-strong) var(--c-pine);
+  }
+  .groupes__juste {
+    font: 600 var(--fs-200) / 1 var(--f-ui);
+    color: var(--c-pine);
+  }
+
+  /* « FRONTIÈRES » — LE CHOIX DE LA CIBLE, UNE LISTE DE NOMS ET DE COMPTEURS.
+     PAS UNE GRILLE DE VIGNETTES comme « Cueillette » : « il n'a pas besoin de
+     voir la carte, il doit voir les noms des pays et le nombre de fois où le
+     pays a été joué ». Des noms se parcourent en colonne, pas en damier — et la
+     banque qui arrive sur cette console ne porte même pas les cartes.
+     HAUTEUR BORNÉE ET DÉFILANTE : soixante-deux pays en difficulté 3 pousseraient
+     le bouton « Démarrer le jeu » hors de l'écran, en plein direct. */
+  .frchoix {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 18rem;
+    overflow-y: auto;
+    padding: var(--sp-2);
+    border-radius: var(--r-m);
+    background: var(--c-canvas-2);
+    box-shadow: var(--sh-inset);
+  }
+  .frchoix__case {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    border: 0;
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+    text-align: left;
+  }
+  .frchoix__nom {
+    flex: 1;
+    min-width: 0;
+    font: 500 var(--fs-200) / 1.2 var(--f-ui);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
+  .frchoix__poses {
+    min-width: 2.25ch;
+    padding: 1px var(--sp-1);
+    border-radius: var(--r-xs);
+    background: var(--c-surface-sunk);
+    font: 600 var(--fs-100) / 1.4 var(--f-mono);
+    color: var(--c-ink-2);
+    text-align: center;
+  }
+  /* MÊME MARQUE QUE LA CIBLE DE « CUEILLETTE » : un contour de braise, pas
+     seulement la phrase au-dessus de la liste. L'animateur change d'onglet de
+     difficulté en direct, et son choix doit survivre au regard. */
+  .frchoix__case--prise { box-shadow: var(--sh-2), inset 0 0 0 var(--bw-strong) var(--c-ember); }
 
   /* Bandeau d'alerte en tête de scène */
   .alert-banner {
