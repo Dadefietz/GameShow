@@ -52,12 +52,31 @@
 // précédents. Elle l'est ici EXACTEMENT, et c'est le bénéfice des segments
 // droits : les sommets SONT l'étendue, il n'y a pas de point de contrôle dont il
 // faudrait évaluer la courbe. Le contour va de 10 à 118 en largeur et de 24 à 90
-// en hauteur ; demi-trait compris (3), l'encre va de 7 à 121 et de 21 à 93.
+// en hauteur ; demi-trait du contour compris (2, depuis le quatrième dessin),
+// l'encre va de 8 à 120 et de 22 à 92.
 //
 // Le « ? » tient tout entier dans ce cadre — vérifié sommet par sommet ci-dessous
 // — si bien que l'encre de l'emblème est celle du contour, et d'elle seule.
+// QUATRIÈME DESSIN (19/11), DEMANDÉ : « refaites le logo de "Frontière" avec
+// des contours évoquant la forme d'un pays ». Le troisième dessin avait la
+// silhouette d'un territoire, mais ses côtes étaient des segments longs et nets :
+// un polygone, pas une frontière. Une vraie frontière sur une carte est faite
+// de petits accidents — rivières, crêtes, tracés négociés. Chaque côté de la
+// silhouette est donc découpé en pas de cinq unités, chacun décalé de part et
+// d'autre de deux unités et demie au plus, tirés une fois pour toutes (graine
+// fixe : le dessin ne change jamais d'un rendu à l'autre).
+//
+// LE CONTOUR PASSE AU TRAIT DE QUATRE, le point d'interrogation garde six. Au
+// trait de six, les accidents se refermaient en un boudin lisse à cent pixels —
+// on retombait sur le polygone. Regardé rendu à 64, 116, 200 et 300 pixels, sur
+// fond sombre et sur fond clair.
+//
+// L'ÉTENDUE NE CHANGE PAS : la grande silhouette est la même (10 à 118, 24 à
+// 90) ; seul le demi-trait du contour (deux unités au lieu de trois) déplace
+// l'encre — de 8 à 120 et de 22 à 92.
 export const TRAIT = 6;
-export const ENCRE = { g: 7, d: 121, h: 21, b: 93 };
+export const TRAIT_TERRE = 4;
+export const ENCRE = { g: 8, d: 120, h: 22, b: 92 };
 export const MARGE = 9;
 export const VUE = {
   x: ENCRE.g - MARGE,
@@ -67,7 +86,9 @@ export const VUE = {
 };
 export const GRILLE = { largeur: VUE.largeur, hauteur: VUE.hauteur };
 
-// LE LITTORAL — quatorze sommets, en coordonnées ABSOLUES.
+// LA FRONTIÈRE — soixante sommets (la grande silhouette du troisième dessin,
+// découpée en petits accidents ; voir la note du quatrième dessin plus haut),
+// en coordonnées ABSOLUES.
 //
 // Absolues et non relatives, délibérément : c'est ce qui rend l'étendue lisible
 // à l'œil nu dans le tracé lui-même. La moitié des emblèmes du dépôt ont été
@@ -92,20 +113,14 @@ export const GRILLE = { largeur: VUE.largeur, hauteur: VUE.hauteur };
 //     sud est une longue ligne lâche. C'est la silhouette d'un continent vu d'en
 //     haut, et aucune bulle n'est faite ainsi.
 export const COTE = [
-  [10, 64],   // la pointe ouest
-  [22, 42],
-  [38, 32],   // le cap nord-ouest
-  [50, 48],   // LE GOLFE — le fond de l'entaille
-  [60, 28],   // et sa rive est
-  [78, 24],   // la longue côte nord
-  [92, 34],
-  [104, 24],  // le cap nord-est
-  [118, 46],  // la pointe est
-  [110, 68],
-  [92, 82],
-  [68, 90],   // la longue côte sud, calme
-  [42, 88],
-  [22, 78],
+  [10, 64], [10, 58.5], [16.5, 56], [16.5, 50.5], [18.5, 45.5], [22, 42], [26.5, 40.5], [30, 37],
+  [33.5, 34], [38, 32], [40, 37], [43, 41], [47, 44], [50, 48], [53.5, 43.5], [55.5, 38.5],
+  [59, 33.5], [60, 28], [64, 25.5], [69, 25.5], [73.5, 26], [78, 24], [82, 28], [88.5, 29],
+  [92, 34], [96.5, 31.5], [100, 27], [104, 24], [105, 29.5], [108.5, 33.5], [114, 36], [115, 41.5],
+  [118, 46], [114.5, 49.5], [114, 54.5], [112.5, 59], [111, 63.5], [110, 68], [105, 69], [101.5, 72],
+  [99.5, 77], [96, 80], [92, 82], [86.5, 82], [82.5, 86], [78, 88.5], [73, 89.5], [68, 90],
+  [63, 90], [57.5, 90], [52.5, 86.5], [47, 88], [42, 88], [37.5, 84.5], [33, 81.5], [26, 82.5],
+  [22, 78], [18, 75], [16, 71], [13, 67.5],
 ];
 export const TERRE = `M${COTE[0][0]} ${COTE[0][1]}${COTE.slice(1).map(([x, y]) => `L${x} ${y}`).join('')}Z`;
 
@@ -149,6 +164,7 @@ export const EMBLEME_FRONTIERES = {
   viewBox: `${VUE.x} ${VUE.y} ${VUE.largeur} ${VUE.hauteur}`,
   rapport: GRILLE.hauteur / GRILLE.largeur,
   trait: TRAIT,
+  traitTerre: TRAIT_TERRE,
   terre: TERRE,
   crochet: CROCHET,
   point: POINT,

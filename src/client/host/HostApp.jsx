@@ -52,9 +52,24 @@ function useBibliotheque(g) {
   useEffect(() => {
     if (!g.connected) return undefined;
     let vivant = true;
-    g.emit('host:modules', {}, (liste) => { if (vivant && Array.isArray(liste)) setJeux(liste); });
-    return () => { vivant = false; };
-  }, [g.connected, g.emit]);
+    const charger = () => g.emit('host:modules', {}, (liste) => { if (vivant && Array.isArray(liste)) setJeux(liste); });
+    charger();
+    // LA BIBLIOTHÈQUE SE RELIT À CHAQUE DÉPART DE MANCHE (19/11) — « mettez à
+    // jour le compteur d'un pays dès qu'il est joué au cours de la partie,
+    // plutôt qu'à la sortie du jeu ».
+    //
+    // Le serveur comptait bien le pays au départ de la manche ; c'est la console
+    // qui montrait une COPIE prise à la connexion. Le panneau de relance de
+    // « Frontières » affichait donc « joué 0 fois » pour le pays qu'on venait de
+    // jouer, jusqu'à ce que l'animateur sorte du jeu et y revienne. Même chose
+    // pour les villes de « Campement » et les dessins de « Cueillette ».
+    //
+    // La demande part APRÈS réception de `module:started`. Côté serveur, le
+    // compteur est incrémenté dans le même tour de traitement que cet envoi : la
+    // demande ne peut être lue qu'après, et la liste relue porte le nouveau chiffre.
+    g.on('module:started', charger);
+    return () => { vivant = false; g.off('module:started', charger); };
+  }, [g.connected, g.emit, g.on, g.off]);
   return jeux && jeux.length ? jeux : TYPES_DE_REPLI;
 }
 

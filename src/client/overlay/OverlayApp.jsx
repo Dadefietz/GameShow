@@ -782,11 +782,17 @@ function QuestionStage({ g }) {
           Le cache-cache est terminé ! Voici la grille
         </p>
       ) : current.type === 'etoiles' ? (
-        /* « CHASSE AUX ÉTOILES » : le mode et le niveau, sur une ligne courte.
-           La scène appartient au ciel et au tableau des dix meilleurs. */
-        <p className="st-question st-question--etoiles" data-testid="question-text">
-          {current.nomMode} · {current.nomNiveau}
-        </p>
+        /* « CHASSE AUX ÉTOILES » : PAS DE TITRE PENDANT LE JEU (19/11) — « l'image
+           représentant la zone de jeu des étoiles doit être plus grande ». Le ciel
+           est en portrait sur une scène en paysage : c'est la HAUTEUR qui le borne,
+           et le titre lui en prenait une centaine de pixels. Le mode et le niveau
+           passent en tête de la colonne de droite, au-dessus des dix meilleurs. À
+           la révélation, il n'y a plus de ciel : le titre revient. */
+        revealed ? (
+          <p className="st-question st-question--etoiles" data-testid="question-text">
+            {current.nomMode} · {current.nomNiveau}
+          </p>
+        ) : null
       ) : current.type === 'campement' ? (
         /* « CAMPEMENT », L'ÉNONCÉ À L'ANTENNE — la phrase du document, mot pour
            mot : « Le Cercle essaie de retrouver le campement : France – Paris ».
@@ -794,7 +800,7 @@ function QuestionStage({ g }) {
            au public.
            À LA RÉVÉLATION, la phrase passe au passé : la manche est jouée, et
            « essaie de retrouver » au-dessus de la réponse se contredirait. */
-        <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
+        <p className={`st-question st-question--carte${revealed ? ' st-question--revealed' : ''}`}
           data-bind="module.text" data-testid="question-text">
           {revealed ? 'Le campement était ici : ' : 'Le Cercle essaie de retrouver le campement : '}
           <strong>{current.pays} – {current.ville}</strong>
@@ -831,7 +837,7 @@ function QuestionStage({ g }) {
            une périmée, et le public lisait la mauvaise. */
         null
       ) : (
-        <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
+        <p className={`st-question${revealed ? ' st-question--revealed' : ''}${current.type === 'frontieres' ? ' st-question--carte' : ''}`}
           data-bind="module.text" data-testid="question-text">
           {current.text || ''}
         </p>
@@ -933,8 +939,11 @@ function QuestionStage({ g }) {
                 </div>
               ) : null}
             </div>
-            <ClassementEtoiles donnee={g.etoilesDirect} roundId={current.roundId} bloc="st-ettop"
-              testid="stream-etoiles-top" fmt={fmt} />
+            <div className="st-et__colonne">
+              <p className="st-et__mode" data-testid="question-text">{current.nomMode} · {current.nomNiveau}</p>
+              <ClassementEtoiles donnee={g.etoilesDirect} roundId={current.roundId} bloc="st-ettop"
+                testid="stream-etoiles-top" fmt={fmt} />
+            </div>
           </div>
         ) : current.type === 'campement' ? (
           /* « CAMPEMENT », À L'ANTENNE : la carte du pays, en grand, et rien

@@ -353,6 +353,87 @@ test.describe('Frontières', () => {
     await expect(j.getByTestId('points-gained')).toContainText(/\+300/, { timeout: 15_000 });
   });
 
+  // LES RETOURS DU 19/11 — « privilégier que le contenu soit visible plutôt que la
+  // taille des éléments ». Chaque phrase de la demande est ici une mesure.
+  test('UN PETIT TÉLÉPHONE VOIT TOUT SANS DÉFILER, ET LE STREAM MONTRE LA CARTE ENTIÈRE, SANS CARRÉ', async ({ browser }) => {
+    hote = await openHost(browser);
+    // Un iPhone SE : 375 × 667, le plus petit écran courant.
+    joueurs.push(await joinAsPlayer(browser, hote.code, 'Carto',
+      { viewport: { width: 375, height: 667 }, hasTouch: true, isMobile: true }));
+    stream = await hote.ctx.newPage();
+    await stream.setViewportSize({ width: 1920, height: 1080 });
+    const token = await hote.page.evaluate(() => JSON.parse(localStorage.getItem('host')).overlayToken);
+    await stream.goto(`/overlay?token=${token}`);
+    await hote.page.getByRole('button', { name: 'Lancer la partie' }).click();
+    await lancerJeu(hote.page, JEU, { demarrer: false });
+    await hote.page.getByTestId('fr-difficulte-2').click();
+    await hote.page.getByTestId('fr-pays').first().click();
+    await hote.page.getByTestId('frontieres-demarrer').click();
+
+    const j = joueurs[0].page;
+    await expect(j.getByTestId('fr-saisie')).toBeVisible({ timeout: 20_000 });
+    // « Assurez-vous que la zone d'écriture apparaisse sans que le joueur ait
+    // besoin de défiler. »
+    const mesure = await j.evaluate(() => {
+      const b = (sel) => document.querySelector(sel).getBoundingClientRect();
+      return {
+        hauteur: innerHeight,
+        page: document.scrollingElement.scrollHeight,
+        saisie: b('[data-testid="fr-saisie"]').bottom,
+        indices: b('[data-testid="fr-indices"]').bottom,
+        carte: b('[data-testid="fr-carte"]').height,
+      };
+    });
+    expect(mesure.page, 'la page défile').toBeLessThanOrEqual(mesure.hauteur + 1);
+    expect(mesure.saisie, 'le champ de saisie est sous le bord').toBeLessThanOrEqual(mesure.hauteur);
+    expect(mesure.indices).toBeLessThanOrEqual(mesure.hauteur);
+    expect(mesure.carte, 'la carte a disparu').toBeGreaterThan(100);
+
+    // LE STREAM : la carte entière dans la scène, et aucun carré derrière.
+    const verifierCarte = async () => {
+      const img = await stream.locator('.st-fr__carte img').boundingBox();
+      expect(img.y, 'la carte sort par le haut').toBeGreaterThanOrEqual(0);
+      expect(img.y + img.height, 'la carte sort par le bas de la scène').toBeLessThanOrEqual(1080);
+      expect(img.height, 'la carte est trop petite').toBeGreaterThan(450);
+      const style = await stream.locator('.st-fr__carte').evaluate((el) => {
+        const c = getComputedStyle(el); const i = getComputedStyle(el.querySelector('img'));
+        return { fond: c.backgroundColor, ombre: c.boxShadow, filtre: i.filter, fusion: i.mixBlendMode };
+      });
+      expect(style.fond, 'une plaque est revenue derrière la carte').toBe('rgba(0, 0, 0, 0)');
+      expect(style.ombre).toBe('none');
+      // Le fond blanc de l'image elle-même s'efface : inversée, fondue.
+      expect(style.filtre).toContain('invert');
+      expect(style.fusion).toBe('screen');
+    };
+    await expect(stream.getByTestId('stream-frontieres')).toBeVisible({ timeout: 10_000 });
+    await verifierCarte();
+    // Le titre a perdu sa taille de 116 pixels.
+    const titre = await stream.getByTestId('question-text').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(titre).toBeLessThan(80);
+
+    await j.getByTestId('fr-saisie').fill('sylv');
+    await j.getByTestId('fr-suggestion').first().click();
+    await hote.page.getByRole('button', { name: 'Révéler maintenant' }).click();
+    await expect(stream.getByTestId('stream-frontieres-reveal')).toBeVisible({ timeout: 20_000 });
+    await verifierCarte();
+    // LE NOM TIENT DANS SON BANDEAU (vu à l'écran : « Sylvanie » en sortait).
+    const nom = await stream.getByTestId('stream-fr-pays').evaluate((el) => {
+      const b = el.getBoundingClientRect(); const c = el.closest('.st-answer').getBoundingClientRect();
+      return { droite: b.right, cadre: c.right };
+    });
+    expect(nom.droite).toBeLessThanOrEqual(nom.cadre + 1);
+    // Les quatre indices et le nom, dans la scène.
+    const bilan = await stream.locator('.st-fr__bilan').boundingBox();
+    expect(bilan.y + bilan.height).toBeLessThanOrEqual(1080);
+
+    // LE COMPTEUR SE MET À JOUR PENDANT LA PARTIE (19/11) — et non à la sortie du
+    // jeu. La Sylvanie était à 7 ; on vient de la jouer : la relance doit dire 8.
+    await hote.page.getByTestId('host-suivant').click();
+    await expect(hote.page.getByTestId('depart-frontieres')).toBeVisible({ timeout: 10_000 });
+    await hote.page.getByTestId('fr-difficulte-2').click();
+    await expect(hote.page.getByTestId('fr-pays').filter({ hasText: 'Sylvanie' }).getByTestId('fr-poses')).toHaveText('8', { timeout: 10_000 });
+  });
+
   test('LA BASE DE PAYS SE RÈGLE AU STUDIO', async ({ browser }) => {
     // « Cette base de données doit être accessible quelque part dans le Studio
     // afin d'être ajustée à tout moment. » Un jeu dont la base ne serait

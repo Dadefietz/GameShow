@@ -486,23 +486,30 @@
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    /* LA RANGÉE PREND LA HAUTEUR DE LA SCÈNE, ET PAS PLUS (19/11) — « veillez à
+       ce que l'image reste entièrement visible ». Sans elle, la rangée se
+       dimensionnait sur l'image (sa taille propre, 2048 pixels) : mesurée, la
+       boîte de la carte descendait à 1 183 pixels sur une scène de 1 080. Un pays
+       en hauteur — le Chili — aurait eu les pieds coupés. */
+    grid-template-rows: minmax(0, 1fr);
     align-items: center;
     gap: var(--sp-7);
   }
+  /* PLUS DE CARRÉ DERRIÈRE LA CARTE (19/11) — « il faut enlever le carré
+     derrière l'image sur les écrans de stream ». Le carré était DOUBLE : la
+     plaque claire posée autour, et surtout le fond blanc de l'image elle-même.
+     Retirer la plaque n'aurait rien changé à l'œil. Voir `.st-carte-nue` : la
+     carte est affichée inversée, son blanc devient transparent et son tracé clair
+     sur la nuit de l'antenne. */
   .st-fr__carte {
+    position: relative;
     min-height: 0;
     height: 100%;
-    display: grid;
-    place-items: center;
-    padding: var(--sp-5);
-    border-radius: var(--r-l);
-    /* LA PLAQUE CLAIRE : les cartes sont des silhouettes sombres détourées, qui
-       disparaîtraient sur le fond de nuit de l'antenne. */
-    background: var(--c-plaque);
-    box-shadow: var(--sh-2), var(--sh-edge);
   }
-  /* `contain` : une carte recadrée perdrait la forme qu'on demande de reconnaître. */
-  .st-fr__carte img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* `contain` : une carte recadrée perdrait la forme qu'on demande de reconnaître.
+     L'IMAGE EST POSÉE EN ABSOLU dans sa case : c'est la case qui décide de la
+     taille, jamais les 2048 pixels de l'image. */
+  .st-fr__carte img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .st-fr__indices {
     display: flex;
     flex-direction: column;
@@ -550,6 +557,18 @@
   }
   .st-fr__bilan .st-fr__indices { gap: var(--sp-3); }
   .st-fr__bilan .st-fr__indice { padding: var(--sp-3) var(--sp-4); }
+  /* LES INDICES PLUS PETITS (19/11) — « réduisez au besoin la police de la
+     question et des indices afin que tous ces éléments restent visibles ». Les
+     pays frontaliers font parfois cinq ou six noms : à 46 pixels, la case
+     prenait trois lignes et poussait la dernière sous le bord de la scène. */
+  /* LE NOM DU PAYS TIENT DANS SON BANDEAU — vu à l'écran, « Sylvanie » sortait du
+     cadre vert à la police de la réponse générique. Plus petit, et il passe à la
+     ligne plutôt que de déborder. */
+  .st-fr__bilan .st-answer__value { font-size: var(--fs-st-400); overflow-wrap: anywhere; min-width: 0; }
+  .st-fr .st-fr__indice-nom { font-size: var(--fs-st-100); }
+  .st-fr .st-fr__indice-valeur { font-size: var(--fs-st-200); }
+  .st-fr .st-fr__indices { gap: var(--sp-3); }
+  .st-fr .st-fr__indice { padding: var(--sp-3) var(--sp-4); }
 
   /* ===================== « CAMPEMENT » À L'ANTENNE ==========================
      PENDANT LA MANCHE, LA CARTE SEULE, aussi grande que la scène le permet —
@@ -573,9 +592,26 @@
   }
   .st-cpcarte {
     width: min(100cqw, 100cqh);
-    border-radius: var(--r-l);
-    box-shadow: var(--sh-2), var(--sh-edge);
+    background: none;
+    box-shadow: none;
   }
+  /* LA CARTE NUE, À L'ANTENNE — pour « Frontières » et « Campement ».
+     Les cartes fournies sont un tracé noir sur fond blanc, sans transparence :
+     posées telles quelles sur la nuit du stream, elles font un carré blanc. On
+     les AFFICHE inversées (le fichier, lui, n'est pas touché) : le blanc devient
+     noir, le tracé devient clair, et le mode de fusion `screen` rend le noir
+     transparent — il ne reste que le contour, clair, sur le fond de l'antenne.
+     La rotation de teinte d'un demi-tour rend au point rouge de la ville sa
+     couleur, que l'inversion seule aurait changée en cyan. */
+  .st-fr__carte img, .st-cpcarte .cpcarte__image {
+    filter: invert(1) hue-rotate(180deg);
+    mix-blend-mode: screen;
+  }
+  /* LE TITRE DES DEUX JEUX DE CARTE, PLUS PETIT (19/11) — « réduire la taille de
+     la police ». À 116 px, la phrase de « Campement » tenait sur deux lignes et
+     prenait à la carte le tiers de la hauteur de la scène. La règle doit
+     l'emporter sur `.st-question`, posée plus bas dans la feuille. */
+  .st-question.st-question--carte { font-size: var(--fs-st-400); }
   /* Les points sont plus gros à l'antenne : à deux mètres d'un écran, un point
      de neuf pixels ne se voit plus. */
   .st-cpcarte .cpcarte__point { min-width: 18px; border-width: 3px; }
@@ -609,10 +645,21 @@
     min-height: 0;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
-    gap: var(--sp-7);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+    gap: var(--sp-6);
     align-items: stretch;
+    margin-top: var(--sp-4);
   }
+  .st-et__colonne { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+  .st-et__mode { margin: 0; font: 600 var(--fs-st-400) / 1.05 var(--f-display); color: var(--c-ink); }
+  /* LES ÉTOILES À L'ÉCHELLE DE LA SCÈNE (19/11). Le ciel a grandi : les points et
+     les étoiles grandissent avec lui, faute de quoi un ciel de neuf cents pixels
+     montrerait des têtes d'épingle. Les proportions restent celles du téléphone :
+     le point éteint reste petit, l'étoile allumée quatre fois plus grande. */
+  .st-et .ciel__etoile { width: 88px; height: 88px; }
+  .st-et .ciel__point { width: 14px; height: 14px; }
+  .st-et .ciel__halo { width: 72px; height: 72px; }
+  .st-et .ciel__eclat { width: 64px; height: 64px; }
   .st-et__ciel { position: relative; display: flex; min-height: 0; }
   .st-et__boite { min-height: 0; }
   .st-et__compte { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }

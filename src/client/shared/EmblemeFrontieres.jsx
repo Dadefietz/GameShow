@@ -16,7 +16,9 @@ export function EmblemeFrontieres({ taille = 140, className = '' }) {
     <svg className={className} width={taille} height={Math.round(taille * e.rapport)}
       viewBox={e.viewBox} fill="none" stroke="currentColor" strokeWidth={e.trait}
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={e.terre} />
+      {/* LE CONTOUR AU TRAIT DE QUATRE : ses petits accidents de frontière se
+          refermeraient au trait de six — voir `TRAIT_TERRE`. */}
+      <path d={e.terre} strokeWidth={e.traitTerre} />
       <path d={e.crochet} />
       {/* LE POINT EST PLEIN — voir la note de `POINT` : à cette échelle, un
           disque de trois unités et demie tracé au trait du système se remplit

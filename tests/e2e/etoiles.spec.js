@@ -92,7 +92,11 @@ test.describe('Chasse aux étoiles', () => {
     expect(ciel.width, 'le ciel est trop petit sur le téléphone').toBeGreaterThan(280);
     expect(ciel.height, 'le ciel n’a pas de hauteur').toBeGreaterThan(370);
     const grand = await stream.getByTestId('stream-ciel').boundingBox();
-    expect(grand.height, 'le ciel est trop petit à l’antenne').toBeGreaterThan(500);
+    // LE CIEL DU STREAM A GRANDI (19/11) — « la zone de jeu des étoiles doit être
+    // plus grande ». 630 pixels de haut avant ; plus de 680 maintenant, et dans
+    // la scène.
+    expect(grand.height, 'le ciel est trop petit à l’antenne').toBeGreaterThan(680);
+    expect(grand.y + grand.height).toBeLessThanOrEqual(1080);
     // LE MÊME CIEL À L'ANTENNE : chaque point au même endroit, en proportion.
     const positions = async (page, id) => page.locator(`[data-testid="${id}"]`).evaluateAll(
       (els) => els.map((e) => `${e.style.left}|${e.style.top}`));

@@ -255,7 +255,17 @@ test.describe('Campement', () => {
     await expect(stream.getByTestId('stream-cp-tranches-hors')).toHaveAttribute('data-n', '1');
     await expect(stream.getByTestId('voix-plateau')).not.toBeEmpty();
     await expect(stream.getByTestId('question-text')).toHaveText('Le campement était ici : Gaule – Lutèce');
+    // PAS DE CARRÉ DERRIÈRE LA CARTE À L'ANTENNE (19/11) : ni plaque, ni le fond
+    // blanc de l'image — inversée et fondue dans la nuit du stream.
+    const style = await stream.getByTestId('stream-cp-reponse').evaluate((el) => {
+      const c = getComputedStyle(el); const i = getComputedStyle(el.querySelector('img'));
+      return { fond: c.backgroundColor, filtre: i.filter, fusion: i.mixBlendMode };
+    });
+    expect(style.fond).toBe('rgba(0, 0, 0, 0)');
+    expect(style.filtre).toContain('invert');
+    expect(style.fusion).toBe('screen');
     const carteRev = await stream.getByTestId('stream-cp-reponse').boundingBox();
+    expect(carteRev.y + carteRev.height, 'la carte sort de la scène').toBeLessThanOrEqual(1080);
     expect(carteRev.height, 'la carte a rétréci à la révélation').toBeGreaterThan(400);
     // AUCUN NOM DE JOUEUR À L'ANTENNE.
     await expect(stream.locator('body')).not.toContainText('Carto');

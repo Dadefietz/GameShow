@@ -771,7 +771,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
   }
 
   return (
-    <main className="screen" data-state={state}
+    <main className="screen" data-state={state} data-jeu={type}
       aria-labelledby={type === 'lien' ? 'lien-mots' : type === 'cueillette' ? undefined : 'q-text'}
       aria-label={type === 'cueillette' ? 'Cueillette' : undefined}>
       <div className="screen__main">
