@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import { io } from 'socket.io-client';
 import { GRILLES_DESSINS } from '../../src/server/dessins-grilles.js';
+import { VILLES_CAMPEMENT } from '../../src/server/villes-campement.js';
 import { copisteDe } from '../outils/copiste.js';
 
 // UN PORT LIBRE, DEMANDÉ AU SYSTÈME — et non un port fixe (11/10). Le 8793 était
@@ -778,6 +779,142 @@ try {
   check('FRONTIÈRES le compteur du pays joué monte de un, et reste dans la bibliothèque',
     menuFr2?.pays?.find((p) => p.nom === 'Sylvanie')?.poses === 5,
     JSON.stringify(menuFr2?.pays?.map((p) => `${p.nom} ${p.poses}`)));
+
+  // ======================================================================
+  // « CAMPEMENT » — LES CHEMINS, ET CE QUI NE DOIT PAS LES EMPRUNTER
+  // ======================================================================
+  //
+  // Ce qui ne se voit que d'ici :
+  //   1. la POSITION DE LA VILLE et l'adresse de la CARTE RÉPONSE ne partent pas
+  //      avec la manche — un joueur pourrait les lire dans l'onglet réseau ;
+  //   2. la base de villes ne part qu'à la console, sans cartes ni positions ;
+  //   3. `exact` — le point rouge touché — traverse les deux recopies du moteur
+  //      jusqu'au téléphone. Il n'y arrivait PAS, pour personne, depuis
+  //      l'origine : l'estimation pile juste ne recevait jamais sa phrase ;
+  //   4. le point posé sans être envoyé est compté à la fin du chrono ;
+  //   5. le stream reçoit tous les points SANS les noms, la console les noms.
+  //
+  // LES CARTES ET LES POSITIONS SONT CELLES DU DÉPÔT (celle de `c054`), les noms
+  // sont inventés : un contrôle qui attendrait « Paris » écrirait une réponse de
+  // la vraie banque dans le dépôt.
+  const JEU_CP = 'mod-campement';
+  const vraie = VILLES_CAMPEMENT.find((v) => v.id === 'c054');
+  const autre = VILLES_CAMPEMENT.find((v) => v.id === 'c002');
+  const putCp = await fetch(`${BASE}/api/modules`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      modules: [{
+        id: JEU_CP, type: 'campement', name: 'Campement', duration: 20, color: 'forest',
+        questions: [{
+          kind: 'contenu-campement',
+          villes: [
+            { ...vraie, ville: 'Lutèce', pays: 'Gaule', difficulte: 2 },
+            { ...autre, ville: 'Cap-Rouge', pays: 'Australe', difficulte: 2 },
+            // UNE LIGNE SANS CARTE RÉPONSE, donc sans position : injouable, elle
+            // doit être écartée plutôt que de casser la manche.
+            { id: 'ville-incomplete', ville: 'Nulle-Part', pays: 'Néant', difficulte: 2, carte: '/cartes/f003.webp' },
+          ],
+          poses: { c054: 2 },
+        }],
+      }],
+    }),
+  });
+  check('CAMPEMENT bibliothèque acceptée (la base de villes a son schéma)', putCp.ok, String(putCp.status));
+
+  const menuCp = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_CP);
+  check('CAMPEMENT la console reçoit la base DU MODULE, sans la ligne injouable',
+    menuCp?.villes?.length === 2 && menuCp.villes.map((v) => `${v.ville}/${v.pays}`).join(',') === 'Lutèce/Gaule,Cap-Rouge/Australe',
+    JSON.stringify(menuCp?.villes));
+  check('CAMPEMENT la console reçoit les compteurs', menuCp?.villes?.[0]?.poses === 2 && menuCp.villes[1].poses === 0,
+    JSON.stringify(menuCp?.villes?.map((v) => v.poses)));
+  check('CAMPEMENT LA CONSOLE NE REÇOIT NI CARTES NI POSITIONS',
+    !/cartes\/|"x"|"y"|reponse/.test(JSON.stringify(menuCp)), JSON.stringify(menuCp).slice(0, 200));
+
+  const cpDemarre = waitFor(s1, 'module:started', 12000);
+  const cpClassement = waitForMatching(host, 'host:classement', (d) => d.type === 'campement', 60000).catch(() => null);
+  host.emit('host:startModule', {
+    moduleId: JEU_CP,
+    question: {
+      id: 'cp-int', villeId: 'c054', difficulte: 2,
+      // Une base glissée dans le top de départ est ignorée.
+      banque: [{ id: 'c054', ville: 'INTRUS', pays: 'INTRUS', carte: '/x', reponse: '/x', x: 0.1, y: 0.1 }],
+    },
+  });
+  const mCp = await cpDemarre;
+  check('CAMPEMENT la manche porte la carte SANS ville, le pays et la ville, et dure vingt secondes',
+    mCp.carte === vraie.carte && mCp.pays === 'Gaule' && mCp.ville === 'Lutèce' && mCp.durationMs === 20000
+      && mCp.text === 'Retrouve le campement : Gaule – Lutèce',
+    JSON.stringify({ c: mCp.carte, p: mCp.pays, v: mCp.ville, d: mCp.durationMs, t: mCp.text }));
+  check('CAMPEMENT LA POSITION ET LA CARTE RÉPONSE NE PARTENT PAS AVEC LA MANCHE',
+    !JSON.stringify(mCp).includes(vraie.reponse) && !JSON.stringify(mCp).includes(String(vraie.x))
+      && !JSON.stringify(mCp).includes(String(vraie.y)) && !/INTRUS/.test(JSON.stringify(mCp)),
+    JSON.stringify(mCp).slice(0, 240));
+
+  // BOB POSE SON POINT PILE SUR LA VILLE ; ALICE À CINQ POUR CENT DE CARTE.
+  const youBobCp = waitForMatching(s2, 'play:you', (y) => y.roundId === mCp.roundId, 60000).catch(() => null);
+  const youAliceCp = waitForMatching(s1, 'play:you', (y) => y.roundId === mCp.roundId, 60000).catch(() => null);
+  const youChloeCp = waitForMatching(s3, 'play:you', (y) => y.roundId === mCp.roundId, 60000).catch(() => null);
+  s2.emit('play:answer', { value: { x: vraie.x, y: vraie.y } });
+  s1.emit('play:answer', { value: { x: vraie.x + 0.05, y: vraie.y } });
+  // CHLOÉ POSE UN POINT, LOIN, ET NE L'ENVOIE PAS. Une chaîne et une position
+  // hors de la carte ne sont pas des positions : elles n'effacent rien.
+  s3.emit('play:brouillon', { value: { x: 0.02, y: 0.98 } });
+  s3.emit('play:brouillon', { value: '0.5,0.5' });
+  s3.emit('play:brouillon', { value: { x: 1.4, y: 0.5 } });
+  await sleep(300);
+
+  const revCp = waitForMatching(ov, 'module:reveal', (r) => r.type === 'campement', 60000);
+  host.emit('host:reveal');
+  const rCp = await revCp;
+  check('CAMPEMENT la révélation montre la carte RÉPONSE et la ville',
+    rCp.carte === vraie.reponse && rCp.ville === 'Lutèce' && rCp.pays === 'Gaule'
+      && rCp.cible?.x === vraie.x && rCp.cible?.y === vraie.y && rCp.rayonPoint > 0,
+    JSON.stringify({ c: rCp.carte, v: rCp.ville, cible: rCp.cible, r: rCp.rayonPoint }));
+  check('CAMPEMENT la révélation porte TOUS les points — le brouillon de Chloé compris',
+    Array.isArray(rCp.points) && rCp.points.length === 3
+      && rCp.points.some((p) => p.x === 0.02 && p.y === 0.98),
+    JSON.stringify(rCp.points));
+  check('CAMPEMENT la répartition : un pile, un tout près, un dehors',
+    rCp.stats?.kind === 'campement' && rCp.stats.total === 3 && rCp.stats.pile === 1 && rCp.stats.dansLeCercle === 2
+      && rCp.stats.tranches.map((t) => `${t.cle}:${t.n}`).join(',') === 'pile:1,proche:1,cercle:0,hors:1',
+    JSON.stringify(rCp.stats));
+  check('CAMPEMENT LE STREAM NE REÇOIT AUCUN NOM DE JOUEUR',
+    !['Alice', 'Bob', 'Chloe'].some((n) => JSON.stringify(rCp).includes(n)), JSON.stringify(rCp).slice(0, 200));
+  check('CAMPEMENT LE CERCLE DU BARÈME N’EST ENVOYÉ À PERSONNE',
+    !/rayonCercle|0\.262/.test(JSON.stringify(rCp)), JSON.stringify(rCp).slice(0, 200));
+
+  // « Il voit la liste des 10 joueurs les plus proches et les 10 plus éloignés
+  // (moins de 20 joueurs : tous). » Trois joueurs : les trois, du plus proche au
+  // plus loin, avec leur nom.
+  const clCp = await cpClassement;
+  check('CAMPEMENT la console reçoit le classement, du plus proche au plus loin, AVEC les noms',
+    clCp && clCp.lignes.map((l) => l.pseudo).join(',') === 'Bob,Alice,Chloe'
+      && clCp.lignes[0].points === 1200 && clCp.lignes[0].ecart === 0 && clCp.lignes[1].ecart === 5
+      && clCp.masques === 0,
+    JSON.stringify(clCp?.lignes));
+
+  const yBobCp = await youBobCp;
+  const yAliceCp = await youAliceCp;
+  const yChloeCp = await youChloeCp;
+  check('CAMPEMENT TOUCHER LE POINT ROUGE : 1100 de base, 100 d’exactitude, et le drapeau arrive au téléphone',
+    yBobCp && yBobCp.base === 1100 && yBobCp.bonusExact === 100 && yBobCp.delta === 1200 && yBobCp.exact === true,
+    JSON.stringify(yBobCp && { b: yBobCp.base, e: yBobCp.bonusExact, d: yBobCp.delta, x: yBobCp.exact }));
+  check('CAMPEMENT plus près, plus de points : 960 à cinq pour cent de carte, sans exactitude',
+    yAliceCp && yAliceCp.base === 960 && yAliceCp.bonusExact === 0 && yAliceCp.exact === false && yAliceCp.correct === true,
+    JSON.stringify(yAliceCp && { b: yAliceCp.base, x: yAliceCp.exact, c: yAliceCp.correct }));
+  check('CAMPEMENT LE RELEVÉ PERSONNEL PORTE LE POINT QUE L’ARBITRE A COMPTÉ',
+    yAliceCp?.reponse?.x === Math.round((vraie.x + 0.05) * 1e5) / 1e5 && yAliceCp?.reponse?.y === vraie.y,
+    JSON.stringify(yAliceCp?.reponse));
+  check('CAMPEMENT LE POINT POSÉ SANS ÊTRE ENVOYÉ EST COMPTÉ — hors du cercle, donc zéro, mais compté',
+    yChloeCp && yChloeCp.participe === true && yChloeCp.reponse?.x === 0.02 && yChloeCp.reponse?.y === 0.98
+      && yChloeCp.base === 0 && yChloeCp.correct === false,
+    JSON.stringify(yChloeCp && { p: yChloeCp.participe, r: yChloeCp.reponse, b: yChloeCp.base }));
+
+  const menuCp2 = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_CP);
+  check('CAMPEMENT le compteur de la ville jouée monte de un, et reste dans la bibliothèque',
+    menuCp2?.villes?.find((v) => v.id === 'c054')?.poses === 3,
+    JSON.stringify(menuCp2?.villes?.map((v) => `${v.ville} ${v.poses}`)));
 
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');

@@ -267,4 +267,87 @@ html, body { background-color: var(--c-canvas); }
      coloré en vert clair (ne reprendre que les traits réalisés par le joueur, pas
      de fond) ». Les traits seuls : un tracé n'a pas de fond à retirer. */
   .toile__trait--sien { stroke: var(--c-trace-joueur); }
+
+  /* ==========================================================================
+     LES CARTES DE « CAMPEMENT » — PARTAGÉES PAR LES TROIS SURFACES
+     ==========================================================================
+
+     Même raison que la toile ci-dessus : la carte réponse et ses points
+     paraissent sur le téléphone, la console et le stream, et l'énoncé les veut
+     pareils trois fois — « orange avec un contour noir ». Chaque surface ne
+     règle que la taille du cadre.
+
+     LA CARTE N'EST JAMAIS RECADRÉE (`contain`) : la position d'un point est une
+     fraction de l'IMAGE ENTIÈRE, et un recadrage la décalerait. Le rapport du
+     cadre est celui de l'image (posé par le composant), si bien que l'image
+     remplit exactement le cadre et que 50 % du cadre est 50 % de la carte. */
+  .cpcarte {
+    position: relative;
+    width: 100%;
+    border-radius: var(--r-m);
+    background: var(--c-plaque);
+    box-shadow: var(--sh-1);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .cpcarte__image {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+  /* LE POINT D'UN JOUEUR. Sa largeur est posée par le composant, en pour cent de
+     la carte : la taille du point rouge, pour que « toucher » se voie comme il se
+     compte. Le plancher le garde visible sur une carte de téléphone, où le point
+     rouge ne fait que quelques pixels. */
+  .cpcarte__point {
+    position: absolute;
+    aspect-ratio: 1;
+    min-width: 9px;
+    border-radius: 50%;
+    background: var(--c-point-joueur);
+    border: 2px solid var(--c-point-joueur-contour);
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .cpcarte__point--moi { min-width: 14px; z-index: 1; }
+  /* LA VILLE, PAR-DESSUS TOUT — voir la note de `CarteReponse`. Plus petite que
+     les points des joueurs : un point pile reste visible tout autour. */
+  .cpcarte__ville {
+    position: absolute;
+    aspect-ratio: 1;
+    min-width: 7px;
+    border-radius: 50%;
+    background: var(--c-ville-cible);
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* LA RÉPARTITION EN QUATRE TRANCHES — un nom, une barre, un nombre. La barre
+     de la tranche « pile » prend la couleur du point rouge touché, celle du
+     dehors le gris des filets : le public lit la forme avant les nombres. */
+  .cptr {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; gap: var(--sp-2);
+    width: 100%;
+  }
+  .cptr__ligne {
+    display: grid;
+    grid-template-columns: minmax(7.5em, auto) 1fr 3ch;
+    align-items: center;
+    gap: var(--sp-3);
+    color: var(--c-ink-2);
+  }
+  .cptr__barre {
+    height: 0.7em;
+    border-radius: var(--r-xs);
+    background: var(--c-surface-sunk);
+    overflow: hidden;
+  }
+  .cptr__plein { display: block; height: 100%; background: var(--c-fern); border-radius: inherit; }
+  .cptr__ligne--pile .cptr__plein { background: var(--c-point-joueur); }
+  .cptr__ligne--hors .cptr__plein { background: var(--c-ink-4); }
+  .cptr__n { text-align: right; font-variant-numeric: tabular-nums; color: var(--c-ink); }
 }

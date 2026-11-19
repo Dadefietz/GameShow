@@ -736,6 +736,112 @@
     overflow-wrap: anywhere;
   }
 
+  /* ===================== « CAMPEMENT » — LA CARTE OÙ L'ON POSE SON POINT =====
+     LA CARTE PREND TOUT CE QUI RESTE, et reste CARRÉE (ou au rapport de son
+     image). C'est un jeu de précision : chaque pixel de carte gagné est de la
+     précision rendue au joueur. La plus petite des deux dimensions décide, et
+     l'aide puis le bouton gardent leur hauteur propre dessous. */
+  .q-zone--campement { margin-top: 0; flex: 1; min-height: 0; }
+  .cpjeu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+  .cpjeu .p-btn { width: 100%; }
+  /* LA BOÎTE DONNE LA PLACE, LE COMPOSANT LA MESURE et pose la largeur de la
+     carte en pixels — voir la note de `CarteAPointer` : la même chose écrite en
+     unités de conteneur donnait une carte de largeur nulle sur le téléphone.
+     `overflow: hidden` garantit qu'une mesure en retard d'une image ne pousse
+     jamais le bouton d'envoi hors de l'écran. */
+  .cpj {
+    flex: 1;
+    min-height: 10rem;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .cpj__cadre {
+    position: relative;
+    max-width: 100%;
+    border-radius: var(--r-m);
+    background: var(--c-plaque);
+    box-shadow: var(--sh-inset);
+    overflow: hidden;
+    /* LE NAVIGATEUR NE ZOOME PAS LA PAGE NI NE LA FAIT DÉFILER : le pincement
+       et le glissé appartiennent à la carte. Sans cette ligne, pincer agrandirait
+       l'écran entier — chrono et bouton compris. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    cursor: crosshair;
+  }
+  .cpj__cadre--fige { cursor: default; }
+  .cpj__plan {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+  .cpj__image {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+  /* LE POINT DU JOUEUR — orange, contour noir, comme sur la carte réponse. Il
+     garde sa taille à l'écran quel que soit le zoom (contre-échelle posée par le
+     composant) : grossi avec la carte, il masquerait la région visée. */
+  .cpj__point {
+    position: absolute;
+    width: 16px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--c-point-joueur);
+    border: 3px solid var(--c-point-joueur-contour);
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+  .cpj__zoom {
+    position: absolute;
+    right: var(--sp-2);
+    bottom: var(--sp-2);
+    display: grid;
+    gap: var(--sp-1);
+  }
+  /* QUARANTE-QUATRE PIXELS : la cible tactile minimale. Le fond est celui des
+     cartes du système, et non la plaque : les boutons doivent se distinguer de
+     la carte qu'ils survolent. */
+  .cpj__zoom-btn {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--c-line-strong);
+    border-radius: var(--r-s);
+    background: var(--c-surface-2);
+    color: var(--c-ink);
+    font: 600 var(--fs-600) / 1 var(--f-ui);
+    touch-action: manipulation;
+  }
+  .cpj__zoom-btn:disabled { opacity: 0.4; }
+  .cpj__titre strong { color: var(--c-ink); font-weight: 700; }
+
+  /* LE BILAN : le campement nommé, puis la carte réponse avec le point du
+     joueur. La carte est bornée en hauteur de fenêtre, comme celle de
+     « Frontières » : sous elle viennent les points gagnés et leur détail, qui
+     doivent tenir sans faire défiler. */
+  .cpbilan { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); margin: var(--sp-5) 0; }
+  .cpbilan .cpcarte { width: min(100%, 34vh); }
+  .cpbilan__nom { display: grid; gap: var(--sp-1); margin: 0; justify-items: center; }
+  .cpbilan__nom strong { font: 500 var(--fs-600) / 1.1 var(--f-display); color: var(--c-ink); }
+  .cpbilan__pays { font: 400 var(--fs-300) / 1.3 var(--f-ui); color: var(--c-ink-2); }
+  .cpbilan__tienne { margin: 0; font: 400 var(--fs-300) / 1.35 var(--f-ui); color: var(--c-ink-2); text-align: center; }
+
   /* Option : la pièce du système. Cinq états, chacun change fond + forme + poids. */
   .opt {
     min-height: var(--hit-lg);

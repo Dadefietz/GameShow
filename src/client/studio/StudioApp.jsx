@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabase } from '../shared/supabaseClient.js';
 import { preparerImage, identifiantDObjet } from './imageObjet.js';
 import { preparerDessin } from './imageDessin.js';
+import { trouverPointRouge } from '../shared/campement.js';
 import './studio.css';
 
 // --- Référentiel des types de module (icône + variante couleur du mockup) ---
@@ -50,6 +51,9 @@ const MODULE_TYPES = {
   // dans la base de pays. Ce qui se règle ICI, c'est cette base — les noms, les
   // difficultés, les quatre indices et les cartes.
   frontieres: { label: 'Frontières', subtitle: 'Reconnaître un pays sur sa carte', icon: 'map', color: 'info', direct: true },
+  // EN DIRECT aussi : la ville cible se choisit à l'antenne, par difficulté.
+  // Ce qui se règle ICI, c'est la base de villes — et ses deux cartes par ville.
+  campement: { label: 'Campement', subtitle: 'Retrouver une ville sur la carte', icon: 'tent', color: 'forest', direct: true },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];
@@ -161,6 +165,8 @@ const MARQUE_CUEILLETTE = 'contenu-cueillette';
 // enregistrée, la changer d'un seul côté ferait disparaître la base modérée de
 // tous les comptes et renverrait tout le monde sur celle du dépôt.
 const MARQUE_FRONTIERES = 'contenu-frontieres';
+// La marque de la base de villes de « Campement » — même règle encore.
+const MARQUE_CAMPEMENT = 'contenu-campement';
 
 function serveurVersStudio(m) {
   if (!m || typeof m !== 'object') return null;
@@ -184,8 +190,13 @@ function serveurVersStudio(m) {
     // réenregistrement. Sans ce retrait, l'entrée passerait dans la moulinette
     // des énoncés et la base entière serait effacée au premier « Enregistrer ».
     contenuFrontieres: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_FRONTIERES) || null,
+    // LA BASE DE VILLES DE « CAMPEMENT » — même traitement, pour la même raison :
+    // passée dans la moulinette des énoncés, elle serait effacée au premier
+    // « Enregistrer ».
+    contenuCampement: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_CAMPEMENT) || null,
     questions: (Array.isArray(m.questions) ? m.questions : [])
-      .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE && q?.kind !== MARQUE_FRONTIERES)
+      .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE
+        && q?.kind !== MARQUE_FRONTIERES && q?.kind !== MARQUE_CAMPEMENT)
       .map((q) => serverToStudioQuestion(type, q)),
   };
 }
@@ -201,6 +212,7 @@ function studioVersServeur(m) {
       ...(m.contenuCache ? [m.contenuCache] : []),
       ...(m.contenuCueillette ? [m.contenuCueillette] : []),
       ...(m.contenuFrontieres ? [m.contenuFrontieres] : []),
+      ...(m.contenuCampement ? [m.contenuCampement] : []),
       ...(m.questions || [])
         .filter((q) => (q.prompt || '').trim())
         .map((q) => studioToServerQuestion(m.type, q, m.duration)),
@@ -375,6 +387,29 @@ export function StudioApp() {
     })();
     return () => { alive = false; };
   }, [typeOuvert, catalogueFrontieres, entetesHote]);
+
+  // LA BASE DE VILLES DE « CAMPEMENT » — les cent soixante-quinze du dépôt.
+  // Même règle encore : chargée à l'ouverture de ce jeu, avec l'en-tête
+  // d'animateur (403 en production sans lui — c'est arrivé trois fois).
+  const [catalogueCampement, setCatalogueCampement] = useState(null);
+  const [catalogueCampementRate, setCatalogueCampementRate] = useState(null);
+  useEffect(() => {
+    if (typeOuvert !== 'campement' || catalogueCampement) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/campement/catalogue', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) { setCatalogueCampement(await res.json()); setCatalogueCampementRate(null); return; }
+        setCatalogueCampementRate(res.status === 403
+          ? "Ta session d'animateur ne permet pas de lire la base de villes. Reconnecte-toi."
+          : `La base de villes n'a pas pu être chargée (${res.status}).`);
+      } catch {
+        if (alive) setCatalogueCampementRate("La base de villes n'a pas pu être chargée.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [typeOuvert, catalogueCampement, entetesHote]);
 
   // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
   //
@@ -587,6 +622,39 @@ export function StudioApp() {
       });
     }
 
+    // LA BASE DE VILLES DE « CAMPEMENT ». `banqueDeCampement` écarte en silence
+    // une ligne qui ne peut pas se jouer — sans ville, sans pays, sans l'une des
+    // deux cartes, ou sans position — : l'animateur doit l'apprendre ICI, pas en
+    // cherchant à l'antenne une ville qui n'y est plus.
+    if (m.type === 'campement' && m.contenuCampement) {
+      const liste = m.contenuCampement.villes || [];
+      // Une entrée qui ne porte que des compteurs n'est pas une base vide (voir
+      // « Frontières » juste au-dessus).
+      const queDesCompteurs = !liste.length
+        && Object.keys(m.contenuCampement.poses || {}).length > 0;
+      if (!liste.length && !queDesCompteurs) problems.push({ qid: null, tag: null, msg: 'Garde au moins une ville dans la base.' });
+      const vues = new Map();
+      liste.forEach((v, i) => {
+        const tag = `Ville ${i + 1}`;
+        const ville = String(v.ville || '').trim();
+        const pays = String(v.pays || '').trim();
+        const nom = ville || 'sans nom';
+        if (!ville) problems.push({ qid: null, tag, msg: "La ville n'a pas de nom." });
+        if (!pays) problems.push({ qid: null, tag, msg: `« ${nom} » n'a pas de pays.` });
+        // DEUX FOIS LA MÊME VILLE DU MÊME PAYS : deux lignes à l'antenne que rien
+        // ne distingue, et deux compteurs qui se partageraient ses passages.
+        const cle = `${ville.toLowerCase()}|${pays.toLowerCase()}`;
+        if (ville && vues.has(cle)) {
+          problems.push({ qid: null, tag, msg: `« ${ville} (${pays}) » est déjà dans la base (ville ${vues.get(cle)}).` });
+        } else if (ville) vues.set(cle, i + 1);
+        if (!String(v.carte || '').trim()) problems.push({ qid: null, tag, msg: `« ${nom} » n'a pas de carte sans ville : dépose-la.` });
+        if (!String(v.reponse || '').trim()) problems.push({ qid: null, tag, msg: `« ${nom} » n'a pas de carte avec ville : dépose-la.` });
+        else if (!(Number(v.x) >= 0 && Number(v.x) <= 1 && Number(v.y) >= 0 && Number(v.y) <= 1)) {
+          problems.push({ qid: null, tag, msg: `« ${nom} » : la ville n'a pas été repérée sur la carte avec ville.` });
+        }
+      });
+    }
+
     // LA MODÉRATION DE « CACHE-CACHE » SE VALIDE ICI, ET C'EST NÉCESSAIRE.
     //
     // Le serveur n'a pas de rattrapage : un tirage impossible LÈVE une erreur, et
@@ -762,6 +830,8 @@ export function StudioApp() {
           catalogueCueilletteRate={catalogueCueilletteRate}
           catalogueFrontieres={catalogueFrontieres}
           catalogueFrontieresRate={catalogueFrontieresRate}
+          catalogueCampement={catalogueCampement}
+          catalogueCampementRate={catalogueCampementRate}
           entetesHote={entetesHote}
           editingQuestionId={editingQuestionId}
           invalidQids={invalidQids}
@@ -1649,13 +1719,246 @@ function BanqueFrontieres({ contenu, catalogue, catalogueRate, entetesHote, onCh
   );
 }
 
+// LA BASE DE VILLES DE « CAMPEMENT ».
+//
+// « Cette base de données doit être accessible quelque part dans le Studio afin
+// d'être ajustée à tout moment ; dans le Studio il doit être possible de créer de
+// nouvelles lignes dans lesquelles on peut insérer une image d'une carte sans
+// capitale et une image d'une carte avec capitale. »
+//
+// UNE LIGNE PAR VILLE : la ville, son pays, sa difficulté, son compteur, et ses
+// deux cartes. LA POSITION NE SE SAISIT PAS : elle est lue sur la carte avec
+// ville, au dépôt, là où le point rouge est dessiné (`trouverPointRouge`). La
+// demander à la main ferait deux vérités qui pourraient diverger — la carte
+// réponse montrerait un endroit, le barème en noterait un autre.
+//
+// LES CARTES SONT DÉPOSÉES TELLES QUELLES : ni réduites, ni recompressées avec
+// perte, ni détourées (voir `preparerImage`, mode `telleQuelle`).
+//
+// LA CARTE AVEC VILLE N'A PAS UNE ADRESSE DÉDUCTIBLE de celle sans ville : elle
+// est la réponse, et un joueur qui devinerait son nom pourrait l'ouvrir pendant
+// la manche. Son nom de fichier porte un tirage au hasard, refait à chaque dépôt.
+const VILLES_AFFICHEES_MAX = 40;
+
+function BanqueCampement({ contenu, catalogue, catalogueRate, entetesHote, onChange }) {
+  const villes = contenu?.villes?.length ? contenu.villes : (catalogue?.villes || []);
+  const difficultes = catalogue?.difficultes?.length ? catalogue.difficultes : [1, 2, 3, 4];
+  const [onglet, setOnglet] = useState('toutes');
+  const [filtre, setFiltre] = useState('');
+  const [depot, setDepot] = useState(null);   // { id, quoi, etat, message, durable }
+
+  // LES COMPTEURS SURVIVENT À TOUTE MODIFICATION DE LA BASE (même raison que
+  // « Frontières » : sans ce report, renommer une ville effacerait ses passages).
+  const poser = (liste, poses) => onChange({
+    kind: MARQUE_CAMPEMENT,
+    villes: liste,
+    poses: poses !== undefined ? poses : (contenu?.poses || {}),
+  });
+  // LA MISE À JOUR SE FAIT PAR IDENTIFIANT, pas par position : un dépôt de carte
+  // prend une seconde, et l'animateur peut avoir filtré ou supprimé une ligne
+  // entre-temps.
+  const majParId = (id, patch) => poser(villes.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+  const posesDe = (v) => Math.max(0, Math.floor(Number(contenu?.poses?.[v.id])) || 0);
+  const majPoses = (v, valeur) => {
+    const n = Math.floor(Number(valeur));
+    poser(villes, { ...(contenu?.poses || {}), [v.id]: Number.isFinite(n) && n > 0 ? n : 0 });
+  };
+
+  const deposer = async (v, quoi, fichier) => {
+    const avecVille = quoi === 'reponse';
+    setDepot({ id: v.id, quoi, etat: 'envoi', message: 'Préparation de la carte…' });
+    try {
+      const { dataUrl, octets, largeur, hauteur, analyse } = await preparerImage(fichier, {
+        telleQuelle: true,
+        analyser: avecVille ? trouverPointRouge : null,
+      });
+      if (avecVille && !analyse) {
+        throw new Error("Aucun point rouge sur cette carte : c'est lui qui marque la ville. Vérifie que c'est bien la carte AVEC ville.");
+      }
+      if (avecVille && analyse.etale) {
+        throw new Error('Le rouge de cette carte est éparpillé : il faut un seul point rouge, sur la ville.');
+      }
+      const base = `campement-${String(v.id).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+      const hasard = Math.random().toString(36).slice(2, 10);
+      const fichierId = avecVille ? `${base}-${hasard}` : `${base}-carte`;
+      const res = await fetch('/api/cache/image', {
+        method: 'POST',
+        // MÊME EN-TÊTE QUE LE RESTE DU STUDIO : sans lui, 403 en production.
+        headers: await entetesHote(),
+        body: JSON.stringify({ id: fichierId, webp: dataUrl }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        if (res.status === 403) throw new Error("Ta session d'animateur a expiré. Reconnecte-toi, puis redépose.");
+        if (res.status === 413) throw new Error('Carte trop lourde pour le serveur. Choisis-en une plus petite.');
+        throw new Error(detail.detail || detail.error || `refus du serveur (${res.status})`);
+      }
+      const recu = await res.json();
+      const src = `${recu.src}${recu.src.includes('?') ? '&' : '?'}v=${Date.now().toString(36)}`;
+      const rapport = Math.round((hauteur / largeur) * 1e4) / 1e4;
+      majParId(v.id, avecVille
+        ? { reponse: src, x: analyse.x, y: analyse.y, rapport }
+        : { carte: src, rapport });
+      setDepot({
+        id: v.id, quoi, etat: 'ok', durable: recu.durable,
+        message: avecVille
+          ? `Ville repérée sur la carte — ${Math.round(octets / 1024)} ko. N'oublie pas « Enregistrer ».`
+          : `Déposée — ${Math.round(octets / 1024)} ko. N'oublie pas « Enregistrer ».`,
+      });
+    } catch (err) {
+      setDepot({ id: v.id, quoi, etat: 'erreur', message: err.message || 'Dépôt impossible.' });
+    }
+  };
+
+  const q = filtre.trim().toLowerCase();
+  const retenues = villes.filter((v) => {
+    if (onglet !== 'toutes' && Number(v.difficulte) !== Number(onglet)) return false;
+    return !q || `${v.ville} ${v.pays}`.toLowerCase().includes(q);
+  });
+  const lignes = retenues.slice(0, VILLES_AFFICHEES_MAX);
+  const compteDe = (d) => villes.filter((v) => Number(v.difficulte) === d).length;
+  const positionOk = (v) => Number(v.x) >= 0 && Number(v.x) <= 1 && Number(v.y) >= 0 && Number(v.y) <= 1;
+
+  return (
+    <>
+      {catalogueRate ? (
+        <p className="save-state save-state--failed" role="alert" data-testid="campement-catalogue-rate">
+          {catalogueRate}
+        </p>
+      ) : null}
+      <div className="fgroup" data-testid="campement-base">
+        <span className="flabel">Base de villes ({villes.length})</span>
+        <p className="fhint">
+          La difficulté range les villes en onglets sur la console, quand tu choisis la
+          cible. Chaque ville a deux cartes : sans ville, que voient les joueurs, et avec
+          ville, la réponse — son point rouge marque l'endroit, et il est repéré tout seul
+          au dépôt.
+        </p>
+        <div className="sections" role="tablist" aria-label="Difficultés" data-testid="campement-difficultes">
+          <button type="button" role="tab" className="sections__onglet"
+            aria-selected={onglet === 'toutes'} data-testid="campement-onglet-toutes"
+            onClick={() => setOnglet('toutes')}>
+            Toutes <span className="sections__compte">{villes.length}</span>
+          </button>
+          {difficultes.map((d) => (
+            <button key={d} type="button" role="tab" className="sections__onglet"
+              aria-selected={Number(onglet) === d} data-testid={`campement-onglet-${d}`}
+              onClick={() => setOnglet(d)}>
+              Difficulté {d} <span className="sections__compte">{compteDe(d)}</span>
+            </button>
+          ))}
+        </div>
+        <input className="input" type="text" value={filtre} aria-label="Filtrer la base de villes"
+          placeholder="Filtrer par ville ou par pays"
+          onChange={(e) => setFiltre(e.target.value)} />
+        {/* LE NOMBRE AFFICHÉ EST BORNÉ, ET ON LE DIT. */}
+        <p className="fhint" data-testid="campement-compte">
+          {retenues.length > lignes.length
+            ? `${lignes.length} villes affichées sur ${retenues.length} — affine le filtre pour voir les autres.`
+            : `${retenues.length} ville${retenues.length > 1 ? 's' : ''} affichée${retenues.length > 1 ? 's' : ''}.`}
+        </p>
+        <div className="cmod cmod--images">
+          {lignes.map((v) => (
+            <div className="cmod__objet" key={v.id} data-testid="campement-ligne">
+              {/* LA VIGNETTE EST LA CARTE AVEC VILLE quand elle existe : c'est
+                  elle qui permet de vérifier d'un coup d'œil que le point rouge
+                  est au bon endroit. Le Studio est la console de l'animateur,
+                  pas un écran de joueur. */}
+              <img className="cmod__vignette" src={v.reponse || v.carte || VIGNETTE_VIDE} alt="" loading="lazy" />
+              <div className="cmod__tete">
+                <span className="cmod__id" title={v.id}>
+                  {v.ville || 'Nouvelle ville'}{v.pays ? ` — ${v.pays}` : ''}
+                </span>
+                <label className="cmod__poses">
+                  <span className="cmod__poses-label">Déjà jouée</span>
+                  <input className="input" type="number" min="0" step="1" inputMode="numeric"
+                    data-testid={`campement-poses-${v.id}`}
+                    aria-label={`Nombre de fois où ${v.ville || v.id} a été jouée`}
+                    value={posesDe(v)}
+                    onChange={(e) => majPoses(v, e.target.value)} />
+                </label>
+                <button className="qrow__btn qrow__btn--danger" type="button"
+                  aria-label={`Retirer ${v.ville || v.id}`}
+                  onClick={() => poser(villes.filter((x) => x.id !== v.id))}>
+                  <I.trash s={16} />
+                </button>
+              </div>
+              <div className="cmod__paire">
+                <input className="input" type="text" value={v.ville || ''} aria-label={`Ville de la ligne ${v.id}`}
+                  placeholder="La ville — ce que le joueur cherche"
+                  onChange={(e) => majParId(v.id, { ville: e.target.value })} />
+                <input className="input" type="text" value={v.pays || ''} aria-label={`Pays de ${v.ville || v.id}`}
+                  placeholder="Le pays, en français"
+                  onChange={(e) => majParId(v.id, { pays: e.target.value })} />
+              </div>
+              <label className="cmod__champ">
+                <span className="cmod__champ-label">Difficulté</span>
+                <select className="input" value={Number(v.difficulte) || 1}
+                  aria-label={`Difficulté de ${v.ville || v.id}`}
+                  onChange={(e) => majParId(v.id, { difficulte: Number(e.target.value) })}>
+                  {difficultes.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </label>
+              <div className="cmod__paire">
+                <label className="cmod__depot">
+                  <input type="file" accept="image/*" aria-label={`Déposer la carte sans ville de ${v.ville || v.id}`}
+                    data-testid={`campement-depot-carte-${v.id}`}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) deposer(v, 'carte', f); }} />
+                  <I.plus s={14} />
+                  <span>{v.carte ? 'Remplacer la carte sans ville' : 'Carte sans ville'}</span>
+                </label>
+                <label className="cmod__depot">
+                  <input type="file" accept="image/*" aria-label={`Déposer la carte avec ville de ${v.ville || v.id}`}
+                    data-testid={`campement-depot-reponse-${v.id}`}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) deposer(v, 'reponse', f); }} />
+                  <I.plus s={14} />
+                  <span>{v.reponse ? 'Remplacer la carte avec ville' : 'Carte avec ville'}</span>
+                </label>
+              </div>
+              {/* CE QUI MANQUE POUR JOUER, DIT SUR LA LIGNE. Une ville sans l'une
+                  de ses cartes, ou dont le point rouge n'a pas été trouvé, est
+                  écartée à l'antenne ; l'animateur doit le voir ici. */}
+              {!v.carte || !v.reponse || !positionOk(v) ? (
+                <p className="cmod__etat cmod__etat--erreur" data-testid="campement-incomplete">
+                  {!v.carte && !v.reponse ? 'Pas encore de cartes : cette ville ne peut pas être jouée.'
+                    : !v.carte ? 'Il manque la carte sans ville : cette ville ne peut pas être jouée.'
+                      : !v.reponse ? 'Il manque la carte avec ville : cette ville ne peut pas être jouée.'
+                        : "La ville n'a pas été repérée sur la carte avec ville : redépose-la."}
+                </p>
+              ) : null}
+              {depot && depot.id === v.id ? (
+                <p className={`cmod__etat cmod__etat--${depot.etat}`} role="status" data-testid="campement-depot-etat">
+                  {depot.message}
+                  {depot.etat === 'ok' && depot.durable === false
+                    ? ' Attention : rangée sur le disque local, elle ne survivra pas à un redémarrage du serveur.'
+                    : ''}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          {villes.length && !retenues.length ? <p className="fhint">Aucune ville ne correspond à ce filtre.</p> : null}
+          <button className="qadd" type="button" data-testid="campement-ajouter"
+            onClick={() => {
+              setFiltre('');
+              const d = onglet === 'toutes' ? difficultes[0] : Number(onglet);
+              poser([...villes, { id: uid('ville'), ville: '', pays: '', difficulte: d, carte: '', reponse: '' }]);
+            }}>
+            <I.plus s={16} />
+            <span>Ajouter une ville</span>
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // E3 — Panneau d'édition
 // ---------------------------------------------------------------------------
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
   typeServeur, catalogueCache, catalogueRate, catalogueCueillette, catalogueCueilletteRate,
-  catalogueFrontieres, catalogueFrontieresRate, entetesHote,
+  catalogueFrontieres, catalogueFrontieresRate, catalogueCampement, catalogueCampementRate, entetesHote,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
@@ -1779,6 +2082,13 @@ function EditorPanel({
           <BanqueFrontieres contenu={module.contenuFrontieres} catalogue={catalogueFrontieres}
             catalogueRate={catalogueFrontieresRate} entetesHote={entetesHote}
             onChange={(contenuFrontieres) => onPatchModule({ contenuFrontieres })} />
+        ) : module.type === 'campement' ? (
+          /* « CAMPEMENT » : la base de villes, « accessible dans le Studio afin
+             d'être ajustée à tout moment », et où l'on peut « créer de nouvelles
+             lignes » avec leurs deux cartes. */
+          <BanqueCampement contenu={module.contenuCampement} catalogue={catalogueCampement}
+            catalogueRate={catalogueCampementRate} entetesHote={entetesHote}
+            onChange={(contenuCampement) => onPatchModule({ contenuCampement })} />
         ) : (
         <div className="fgroup">
           {categories ? (

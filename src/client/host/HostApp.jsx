@@ -9,6 +9,7 @@
 //   2. les actions destructives (terminer, fermer) passent toujours par une
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { CarteReponse, TranchesCampement } from '../shared/CarteCampement.jsx';
 import { createPortal } from 'react-dom';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import { lettreDeChoix } from '../shared/lettres.js';
@@ -825,8 +826,19 @@ function DepartCueillette({ jeu, onDemarrer, onAnnuler }) {
 // « un pays est choisi au hasard dans la Catégorie pré-sélectionnée » : sans
 // elle, le serveur tirerait dans les cent soixante-quinze et l'onglet ouvert ne
 // voudrait rien dire.
-function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
-  const banque = jeu.pays || [];
+// UN SEUL PANNEAU POUR LES DEUX JEUX QUI CHOISISSENT LEUR CIBLE PAR DIFFICULTÉ.
+//
+// « Campement » a reçu la même consigne que « Frontières », presque au mot près :
+// choisir la cible par difficulté, voir « les noms des villes et du pays dans
+// lequel elle est, et le nombre de fois où la ville a été jouée », et tirer au
+// sort parmi les moins jouées sans choix. Deux panneaux recopiés auraient fini
+// par ne plus trier, ni filtrer, ni tirer pareil. Ce qui change d'un jeu à
+// l'autre — les mots, la ligne d'une cible, les repères de contrôle — est passé
+// en paramètre ; les repères de « Frontières » restent ceux d'avant, à
+// l'identique.
+function DepartParDifficulte({ jeu, onDemarrer, onAnnuler, liste, prefixe, testidPanneau, testidDemarrer,
+  actionDemarrer, aide, unite, sansChoix, videFiltre, videDifficulte, filtrePlaceholder, filtreLabel, nomDe, sousNomDe, texteDe, cibleDe }) {
+  const banque = liste || [];
   const difficultes = jeu.difficultes || [1, 2, 3, 4];
   const [difficulte, setDifficulte] = useState(difficultes[0] || 1);
   const [choisi, setChoisi] = useState(null);
@@ -837,83 +849,81 @@ function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
   const q = filtre.trim().toLowerCase();
   const dansLaDifficulte = banque
     .filter((p) => Number(p.difficulte) === Number(difficulte))
-    .filter((p) => !q || String(p.nom || '').toLowerCase().includes(q));
+    .filter((p) => !q || texteDe(p).toLowerCase().includes(q));
   // TRI STABLE À COMPTEUR ÉGAL, comme la grille de « Cueillette » : sans lui la
-  // liste se réarrangerait sans raison visible entre deux pays jamais joués.
+  // liste se réarrangerait sans raison visible entre deux cibles jamais jouées.
   const visibles = triPoses
     ? dansLaDifficulte.map((p, i) => [p, i])
       .sort((a2, b2) => ((a2[0].poses || 0) - (b2[0].poses || 0)) || (a2[1] - b2[1]))
       .map(([p]) => p)
     : dansLaDifficulte;
 
-  // UN PAYS CHOISI DANS UN AUTRE ONGLET RESTE LA CIBLE, et c'est voulu : changer
-  // d'onglet pour vérifier un compteur ne doit pas défaire le choix. C'est aussi
-  // pourquoi la cible retenue est rappelée au-dessus de la liste.
+  // UNE CIBLE CHOISIE DANS UN AUTRE ONGLET RESTE LA CIBLE, et c'est voulu :
+  // changer d'onglet pour vérifier un compteur ne doit pas défaire le choix.
+  // C'est aussi pourquoi la cible retenue est rappelée au-dessus de la liste.
   return (
-    <section className="private lien-saisie" aria-label="Démarrer Frontières" data-testid="depart-frontieres">
+    <section className="private lien-saisie" aria-label={`Démarrer ${jeu.name}`} data-testid={testidPanneau}>
       <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
-      <p className="lien-saisie__aide">
-        La carte d'un pays paraît quarante-cinq secondes. Quatre indices se dévoilent
-        à 10, 20, 30 et 40 secondes, et chacun coûte un palier de points. Choisis la
-        difficulté — et le pays si tu y tiens, sinon il sera tiré au sort dans cette
-        difficulté, en préférant les moins joués.
-      </p>
+      <p className="lien-saisie__aide">{aide}</p>
       {banque.length ? (
         <div className="fgroup">
-          <span className="flabel" id="fr-difficulte">La difficulté</span>
-          <div className="seg" role="radiogroup" aria-labelledby="fr-difficulte">
+          <span className="flabel" id={`${prefixe}-difficulte`}>La difficulté</span>
+          <div className="seg" role="radiogroup" aria-labelledby={`${prefixe}-difficulte`}>
             {difficultes.map((d) => {
               const n = banque.filter((p) => Number(p.difficulte) === d).length;
               return (
                 <button key={d} type="button" role="radio" aria-checked={Number(difficulte) === d}
                   className={`button ${Number(difficulte) === d ? 'button--primary' : 'button--quiet'}`}
-                  data-testid={`fr-difficulte-${d}`} onClick={() => setDifficulte(d)}>
+                  data-testid={`${prefixe}-difficulte-${d}`} onClick={() => setDifficulte(d)}>
                   {d}<span className="private__count">{n}</span>
                 </button>
               );
             })}
           </div>
-          <p className="fhint" data-testid="fr-cible">
+          <p className="fhint" data-testid={`${prefixe}-cible`}>
             {cible
-              ? `Cible : ${cible.nom} (difficulté ${cible.difficulte})`
-              : `Aucun pays choisi — le serveur en tirera un en difficulté ${difficulte}.`}
+              ? `Cible : ${cibleDe(cible)} (difficulté ${cible.difficulte})`
+              : sansChoix(difficulte)}
           </p>
           <div className="cuchoix__barre">
-            <p className="fhint" data-testid="fr-cible-compte">
-              {visibles.length} pays
+            <p className="fhint" data-testid={`${prefixe}-cible-compte`}>
+              {visibles.length} {unite}
             </p>
             {/* MÊME GESTE QUE PARTOUT AILLEURS : remonter les moins joués. Tri
                 local — la base n'a pas d'ordre à retenir. */}
-            <button className="button button--quiet" type="button" data-testid="fr-trier"
+            <button className="button button--quiet" type="button" data-testid={`${prefixe}-trier`}
               onClick={() => setTriPoses((v) => !v)} aria-pressed={triPoses}>
               {triPoses ? 'Ordre de la base' : 'Trier par passages'}
             </button>
           </div>
           {/* UN FILTRE, PARCE QUE SOIXANTE NOMS NE SE PARCOURENT PAS DU REGARD
               pendant que le cercle attend. */}
-          <input className="input" type="text" value={filtre} aria-label="Filtrer les pays"
-            placeholder="Filtrer par nom" onChange={(e) => setFiltre(e.target.value)} />
-          <div className="frchoix" role="listbox" aria-label="Les pays de cette difficulté">
+          <input className="input" type="text" value={filtre} aria-label={filtreLabel}
+            placeholder={filtrePlaceholder} onChange={(e) => setFiltre(e.target.value)} />
+          <div className="frchoix" role="listbox" aria-label={`Les ${unite} de cette difficulté`}>
             {visibles.map((p) => (
               <button key={p.id} type="button" role="option" aria-selected={choisi === p.id}
-                data-testid="fr-pays"
+                data-testid={`${prefixe}-pays`}
                 className={`frchoix__case${choisi === p.id ? ' frchoix__case--prise' : ''}`}
                 onClick={() => setChoisi(choisi === p.id ? null : p.id)}>
-                <span className="frchoix__nom">{p.nom}</span>
-                {/* LE COMPTEUR DE PASSAGES DU PAYS, demandé explicitement. En
-                    lecture seule ici : il se règle au Studio, à froid. Il porte
-                    son unité pour les lecteurs d'écran — un nombre seul à côté
-                    d'un nom de pays ne veut rien dire. */}
+                <span className="frchoix__nom">
+                  {nomDe(p)}
+                  {sousNomDe ? <span className="frchoix__sous">{sousNomDe(p)}</span> : null}
+                </span>
+                {/* LE COMPTEUR DE PASSAGES, demandé explicitement. En lecture
+                    seule ici : il se règle au Studio, à froid. Il porte son unité
+                    pour les lecteurs d'écran — un nombre seul à côté d'un nom ne
+                    veut rien dire. */}
                 <span className="frchoix__poses"
                   title={`Joué ${p.poses || 0} fois, toutes parties confondues`}>
-                  <span aria-hidden="true" data-testid="fr-poses">{p.poses || 0}</span>
+                  <span aria-hidden="true" data-testid={`${prefixe}-poses`}>{p.poses || 0}</span>
                   <span className="visually-hidden">{`joué ${p.poses || 0} fois`}</span>
                 </span>
               </button>
             ))}
             {!visibles.length ? (
-              <p className="lb__empty" data-testid="fr-vide">
-                {q ? 'Aucun pays ne correspond à ce filtre.' : 'Aucun pays dans cette difficulté.'}
+              <p className="lb__empty" data-testid={`${prefixe}-vide`}>
+                {q ? videFiltre : videDifficulte}
               </p>
             ) : null}
           </div>
@@ -921,7 +931,7 @@ function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
       ) : null}
       <ActionsDepart>
         <button className="button button--primary" type="button"
-          data-action="host:demarrerFrontieres" data-testid="frontieres-demarrer"
+          data-action={actionDemarrer} data-testid={testidDemarrer}
           onClick={() => onDemarrer(jeu, choisi || undefined, difficulte)}>
           Démarrer le jeu
         </button>
@@ -930,6 +940,40 @@ function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
         ) : null}
       </ActionsDepart>
     </section>
+  );
+}
+
+function DepartFrontieres({ jeu, onDemarrer, onAnnuler }) {
+  return (
+    <DepartParDifficulte jeu={jeu} onDemarrer={onDemarrer} onAnnuler={onAnnuler}
+      liste={jeu.pays} prefixe="fr" testidPanneau="depart-frontieres" testidDemarrer="frontieres-demarrer"
+      actionDemarrer="host:demarrerFrontieres"
+      aide={"La carte d'un pays paraît quarante-cinq secondes. Quatre indices se dévoilent à 10, 20, 30 et 40 secondes, et chacun coûte un palier de points. Choisis la difficulté — et le pays si tu y tiens, sinon il sera tiré au sort dans cette difficulté, en préférant les moins joués."}
+      unite="pays" sansChoix={(d) => `Aucun pays choisi — le serveur en tirera un en difficulté ${d}.`}
+      videFiltre="Aucun pays ne correspond à ce filtre." videDifficulte="Aucun pays dans cette difficulté."
+      filtrePlaceholder="Filtrer par nom" filtreLabel="Filtrer les pays"
+      nomDe={(p) => p.nom} texteDe={(p) => String(p.nom || '')} cibleDe={(p) => p.nom} />
+  );
+}
+
+// « CAMPEMENT » — LE CHOIX DE LA VILLE CIBLE.
+//
+// « Il n'a pas besoin de voir la carte, il doit voir les noms des villes et du
+// pays dans lequel elle est, et le nombre de fois où la ville a été jouée. » La
+// ville en premier, le pays dessous : c'est la ville qu'on cherche sur la carte,
+// le pays ne fait que la situer. Le filtre lit les deux — « Japon » doit trouver
+// Tokyo.
+function DepartCampement({ jeu, onDemarrer, onAnnuler }) {
+  return (
+    <DepartParDifficulte jeu={jeu} onDemarrer={onDemarrer} onAnnuler={onAnnuler}
+      liste={jeu.villes} prefixe="cp" testidPanneau="depart-campement" testidDemarrer="campement-demarrer"
+      actionDemarrer="host:demarrerCampement"
+      aide={"La carte d'un pays paraît vingt secondes, et le cercle pose un point là où il croit la ville. Plus il est près, plus il marque. Choisis la difficulté — et la ville si tu y tiens, sinon elle sera tirée au sort dans cette difficulté, en préférant les moins jouées."}
+      unite="villes" sansChoix={(d) => `Aucune ville choisie — le serveur en tirera une en difficulté ${d}.`}
+      videFiltre="Aucune ville ne correspond à ce filtre." videDifficulte="Aucune ville dans cette difficulté."
+      filtrePlaceholder="Filtrer par ville ou par pays" filtreLabel="Filtrer les villes"
+      nomDe={(v) => v.ville} sousNomDe={(v) => v.pays}
+      texteDe={(v) => `${v.ville} ${v.pays}`} cibleDe={(v) => `${v.ville} (${v.pays})`} />
   );
 }
 
@@ -1035,6 +1079,14 @@ const COLONNES_CLASSEMENT = {
   estimation: [
     ['Écart', (l, nature) => nombreEstime(l.ecart, nature)],
     ['Réponse donnée', (l, nature) => nombreEstime(l.valeur, nature)],
+  ],
+  // « CAMPEMENT » — les points de la manche, et l'écart à la ville en pour cent
+  // de la carte. Pas en kilomètres : voir la note du serveur. Au-delà du cercle
+  // tout le monde est à zéro point ; c'est l'écart qui dit alors qui s'est le
+  // plus perdu — et « les dix plus éloignés » sont demandés expressément.
+  campement: [
+    ['Points', (l) => fmt(l.points)],
+    ['Écart', (l) => `${String(l.ecart).replace('.', ',')} %`],
   ],
 };
 // L'en-tête de la colonne des noms, quand un jeu l'a nommée autrement.
@@ -1402,6 +1454,42 @@ function GroupesLien({ g, roundId, revealed }) {
             <p className="groupes__joueurs">{gr.joueurs.join(' · ')}</p>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+// « CAMPEMENT » À LA RÉVÉLATION — CE QUE VOIT L'ANIMATEUR.
+//
+// « Il doit voir la carte Réponse. Sur cette carte, il doit voir également TOUS
+// les points des réponses de chaque joueur (orange avec un contour noir). En
+// dessous de la carte, il voit la liste des 10 joueurs les plus proches et les
+// 10 les plus éloignés. » La liste est le classement de manche, juste en
+// dessous ; ici, la carte et la répartition.
+//
+// LES POINTS VIENNENT DE LA RÉVÉLATION PUBLIQUE, pas d'un canal réservé : ce sont
+// les mêmes qu'à l'antenne, SANS les noms. Les noms ne sont que dans le tableau,
+// qui part sur le canal de l'animateur seul.
+function CarteCampementHote({ reveal, revealed }) {
+  if (!revealed || reveal?.type !== 'campement' || !reveal.carte) return null;
+  const st = reveal.stats || {};
+  return (
+    <section className="private private--public" aria-label="La carte réponse" data-testid="campement-hote">
+      <p className="private__title">
+        <I.eye s={16} /> Le campement — public
+        <span className="private__count" data-testid="cp-hote-cercle">
+          {fmt(st.dansLeCercle || 0)} / {fmt(st.total || 0)} dans le cercle
+        </span>
+      </p>
+      <p className="file__encours" data-testid="cp-hote-ville">
+        <span className="file__encours-label">C'était</span>
+        <span className="file__encours-texte">{reveal.ville} — {reveal.pays}</span>
+      </p>
+      <div className="cphote">
+        <CarteReponse src={reveal.carte} rapport={reveal.rapport} rayon={reveal.rayonPoint}
+          points={reveal.points || []} cible={reveal.cible} bloc="cphote__carte" testid="cp-hote-carte"
+          etiquette={`La carte réponse : ${reveal.ville}, et les points du cercle`} />
+        <TranchesCampement tranches={st.tranches || []} testid="cp-hote-tranches" />
       </div>
     </section>
   );
@@ -2675,11 +2763,11 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
 // sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
 // verrait la manche repartir avec les mots de la précédente.
-const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette', 'frontieres'];
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette', 'frontieres', 'campement'];
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onDemarrerFrontieres, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onDemarrerFrontieres, onDemarrerCampement, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   // L'emplacement des boutons de départ dans le pied — voir `ActionsDepart`.
   const [pied, setPied] = useState(null);
@@ -2709,6 +2797,11 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
   // l'animateur. `devoilements` compte celles qui sont déjà tombées.
   const estCache = current?.type === 'cache_cache';
   const estCueillette = current?.type === 'cueillette';
+  // « CAMPEMENT » N'A PAS DE « RÉPARTITION EN DIRECT » non plus : une réponse y
+  // est un point sur une carte, ni une option ni un nombre, et le panneau
+  // s'afficherait vide. Ce qui s'y compare — la carte et ses tranches — arrive
+  // à la révélation, juste en dessous.
+  const estCampement = current?.type === 'campement';
   const devoilees = g.devoilements.length;
   // On est « aux réponses » dès que la dernière question est close.
   const cacheAuxReponses = estCache && !revealed
@@ -2826,6 +2919,9 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           {prepare && prepare.type === 'frontieres' ? (
             <DepartFrontieres jeu={prepare} onDemarrer={onDemarrerFrontieres} onAnnuler={onAnnulerLien} />
           ) : null}
+          {prepare && prepare.type === 'campement' ? (
+            <DepartCampement jeu={prepare} onDemarrer={onDemarrerCampement} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
               onMode={onModeRetour} onFamille={onFamilleRetour}
@@ -2864,7 +2960,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
               creuse au milieu de la console, en direct. Ce que ce jeu a de
               comparable est son graphique de ressemblance, qui vient juste
               au-dessous et qui, lui, dit quelque chose. */}
-          {cacheAuxReponses || estCueillette ? null : (
+          {cacheAuxReponses || estCueillette || estCampement ? null : (
           <section className={`private${revealed ? ' private--public' : ''}`} data-testid="stats-panel"
             data-bind="module.distribution" aria-label="Répartition des réponses">
             <p className="private__title">
@@ -2901,6 +2997,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
             </section>
           ) : null}
           <DessinsCueillette g={g} roundId={current && current.roundId} revealed={revealed} />
+          <CarteCampementHote reveal={reveal} revealed={revealed} />
           <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed}
             nature={reveal?.stats?.nature} />
           <BonnesReponses g={g} roundId={current && current.roundId} revealed={revealed} />
@@ -3429,6 +3526,20 @@ export function HostApp() {
     });
   }, [g]);
 
+  // LE DÉPART DE « CAMPEMENT » — exactement celui de « Frontières » : la
+  // difficulté ouverte, et l'IDENTIFIANT de la ville si l'animateur en a désigné
+  // une. Jamais un contenu : la base, les cartes et les positions vivent côté
+  // serveur.
+  const demarrerCampement = useCallback((jeu, villeId, difficulte) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `cp-${Date.now()}`, villeId, difficulte },
+    });
+  }, [g]);
+
   const demarrerVisages = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
@@ -3606,6 +3717,7 @@ export function HostApp() {
           onDemarrerCache={demarrerCache}
           onDemarrerCueillette={demarrerCueillette}
           onDemarrerFrontieres={demarrerFrontieres}
+          onDemarrerCampement={demarrerCampement}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

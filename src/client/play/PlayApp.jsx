@@ -23,6 +23,8 @@ import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
 import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
+import { EmblemeCampement } from '../shared/EmblemeCampement.jsx';
+import { CarteAPointer, CarteReponse } from '../shared/CarteCampement.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
@@ -408,6 +410,13 @@ const ANNONCES = {
     // points sans savoir qu'il les perdait.
     regle: 'Une carte, quatre indices. Plus tu réponds tôt, plus tu marques.',
   },
+  campement: {
+    emblem: <EmblemeCampement taille={120} />,
+    // LA RÈGLE DIT LE GESTE ET LE BARÈME EN UNE PHRASE : on pose un point, et la
+    // distance seule compte. Le zoom n'y est pas — il se découvre sur la carte,
+    // où une ligne d'aide le rappelle.
+    regle: 'Une carte, une ville. Pose ton point au plus près du campement.',
+  },
 };
 
 function AnnonceScreen({ nom, type, annonce }) {
@@ -643,7 +652,11 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
   // sans cette remise à zéro, la réponse de la question précédente attendrait déjà
   // dans le champ de la suivante — prête à partir d'une touche, sur un jeu où le
   // joueur a dix secondes et regarde ailleurs.
-  useEffect(() => { setMot(''); setDessin([]); }, [current?.roundId, current?.tour]);
+  // « CAMPEMENT » : LE POINT POSÉ, pas encore envoyé. Remis à zéro à chaque
+  // manche, comme le mot et le dessin — sans quoi le point de la carte
+  // précédente attendrait, prêt à partir, sur le pays suivant.
+  const [pointCp, setPointCp] = useState(null);
+  useEffect(() => { setMot(''); setDessin([]); setPointCp(null); }, [current?.roundId, current?.tour]);
   const isVote = type === 'vote';
   // LES DEUX TOURS DU VOTE. Le premier demande ce que le joueur pense, le second
   // ce qu'il croit que le cercle a répondu. Un sondage n'a qu'un tour et se tait.
@@ -823,6 +836,15 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
              d'énoncé non plus, et que « Coupe ta bûche », dont la consigne EST
              l'énoncé. */
           null
+        ) : type === 'campement' ? (
+          /* « CAMPEMENT » : « Retrouve le campement : France – Paris », mot pour
+             mot. Le pays et la ville sont en gras : c'est tout ce qu'il y a à
+             lire avant de chercher, et la phrase d'introduction est la même à
+             chaque manche. */
+          <p className={`q-text cpj__titre${disabled ? ' q-text--frozen' : ''}`} id="q-text"
+            data-bind="module.text" data-testid="question-text">
+            Retrouve le campement : <strong>{current.pays} – {current.ville}</strong>
+          </p>
         ) : type === 'cache_cache' && current.phase === 'grille' ? (
           /* PENDANT LE DÉVOILEMENT, pas d'énoncé : il n'y a rien à répondre, et
              tout ce qui n'est pas la grille détourne l'œil de ce qu'il faut
@@ -857,7 +879,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}${type === 'frontieres' ? ' q-zone--frontieres' : ''}`} data-bind="module.options" data-testid="answer-zone">
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}${type === 'frontieres' ? ' q-zone--frontieres' : ''}${type === 'campement' ? ' q-zone--campement' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {/* « CUEILLETTE » — DEUX TEMPS, DEUX CARRÉS DE MÊME TAILLE.
               « Le Dessin cible est affiché pendant 10 secondes, il doit prendre le
               maximum de place sur l'écran. Une fois que le Dessin cible disparaît,
@@ -1010,6 +1032,33 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
                 )}
               </div>
             )
+          ) : type === 'campement' ? (
+            /* « CAMPEMENT » — LA CARTE, PUIS L'ENVOI.
+
+               CHAQUE POINT POSÉ PART AUSSI EN BROUILLON : « s'il place le point
+               et ne l'envoie pas, la réponse est envoyée automatiquement à la
+               fin du compteur ». Voir `submitBrouillon` — l'envoi ne peut pas
+               partir du téléphone à zéro, il arriverait trop tard.
+
+               LE POINT AFFICHÉ APRÈS UN RECHARGEMENT est celui que le serveur a
+               rejoué (`myAnswer`) : sans lui, un joueur qui a déjà envoyé
+               reverrait une carte vierge et croirait devoir recommencer. */
+            <div className="cpjeu">
+              <CarteAPointer src={current.carte} rapport={current.rapport}
+                point={pointCp || (myAnswer && typeof myAnswer === 'object' && !Array.isArray(myAnswer) ? myAnswer : null)}
+                disabled={disabled}
+                onPoser={(p) => { setPointCp(p); if (!answered) onBrouillon?.(p); }} />
+              <p className="q-aide" data-testid="cp-aide">
+                {answered ? 'Ton point est planté. Rendez-vous à la révélation.'
+                  : 'Touche la carte pour planter ta tente. Pince pour zoomer.'}
+              </p>
+              <button className="p-btn p-btn--primary" type="button"
+                data-testid="answer-submit" data-action="play:answer"
+                disabled={disabled || !pointCp}
+                onClick={() => onAnswer(pointCp)}>
+                {answered ? 'Point envoyé' : 'Envoyer mon point'}
+              </button>
+            </div>
           ) : type === 'frontieres' ? (
             /* LA CARTE EN HAUT, LES QUATRE INDICES AU MILIEU, LA SAISIE EN BAS.
                Cet ordre est celui de la lecture : on regarde, on s'aide, on
@@ -1479,6 +1528,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isCache = (rv.type || current?.type) === 'cache_cache';
   const isCueillette = (rv.type || current?.type) === 'cueillette';
   const isFrontieres = (rv.type || current?.type) === 'frontieres';
+  const isCampement = (rv.type || current?.type) === 'campement';
   // SON PROPRE DESSIN — celui qu'il a envoyé, tel quel. Il n'a pas besoin de
   // revenir du serveur : le téléphone l'a encore, et `myAnswer` est remis à zéro
   // à chaque fenêtre de réponse, donc il ne peut pas s'agir d'une manche passée.
@@ -1649,6 +1699,15 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
       if (vus === 0) return 'frontieres.eclair';
       return vus <= 2 ? 'frontieres.vite' : 'frontieres.juste';
     }
+    // « CAMPEMENT ». Quatre issues, sur les quatre tranches que le stream
+    // affiche — et que le serveur a comptées, lui : la tranche se lit sur les
+    // points de l'arbitre, jamais sur une distance refaite ici.
+    if (isCampement) {
+      if (monResultat.exact === true) return 'campement.pile';
+      const pts = pointsDeLaManche(monResultat);
+      if (pts >= 800) return 'campement.proche';
+      return pts > 0 ? 'campement.cercle' : 'campement.loin';
+    }
     if (isCache) {
       const bons = monResultat.bons || 0;
       if (bons >= 5) return 'cache.parfait';
@@ -1803,6 +1862,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     // n'a rien reconnu.
                     ? (monResultat?.bons >= 5 ? 'Sans faute'
                       : monResultat?.bons > 0 ? `${monResultat.bons} sur 5` : 'La grille a gagné')
+                  : isCampement
+                    // LA TRANCHE, ET NON « BIEN JOUÉ » : un point à 150 points et
+                    // un point pile sur la ville ne sont pas la même manche.
+                    ? (monResultat?.exact === true ? 'Pile au campement'
+                      : correct === true ? (pointsDeLaManche(monResultat) >= 800 ? 'Tout près' : 'Dans le cercle')
+                      : 'Hors du cercle')
                   : coupDeCoeur ? 'Coup de cœur'
                   : hautLeCoeur ? 'Haut le cœur'
                     : correct === true ? 'Bien joué' : correct === false ? 'Raté' : 'Manche close'}
@@ -1917,6 +1982,33 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     })}
                   </ul>
                 ) : null}
+              </div>
+            ) : null}
+
+            {/* LE BILAN DE « CAMPEMENT ».
+                « La carte Réponse de la Ville cible s'affiche. Sur cette carte,
+                le joueur doit voir son point qu'il a posé (orange avec un
+                contour noir). En dessous, il faut le nombre de points gagnés :
+                Base + Bonus. »
+
+                LE POINT MONTRÉ EST CELUI QUE L'ARBITRE A COMPTÉ
+                (`monResultat.reponse`), pas celui que le téléphone a cru
+                envoyer — même règle que la réponse de « Frontières ». Un point
+                retenu en brouillon n'a jamais été « envoyé » par le téléphone ;
+                le serveur, lui, l'a compté. */}
+            {isCampement && rv.carte ? (
+              <div className="cpbilan" data-testid="cp-bilan">
+                <p className="cpbilan__nom">
+                  <span className="p-label">Le campement</span>
+                  <strong data-testid="cp-ville">{rv.ville}</strong>
+                  <span className="cpbilan__pays">{rv.pays}</span>
+                </p>
+                <CarteReponse src={rv.carte} rapport={rv.rapport} rayon={rv.rayonPoint}
+                  moi={monResultat?.reponse || null} cible={rv.cible} testid="cp-bilan-carte"
+                  etiquette={monResultat?.reponse ? 'La carte réponse, avec ton point' : 'La carte réponse'} />
+                {monResultat?.reponse ? null : (
+                  <p className="cpbilan__tienne" data-testid="cp-sans-point">Tu n'as pas posé de point.</p>
+                )}
               </div>
             ) : null}
 
@@ -2624,7 +2716,13 @@ export function PlayApp() {
     if (b.minuterie) return;
     b.minuterie = setTimeout(() => {
       b.minuterie = null;
-      if (b.valeur && b.valeur.length) emitBrouillon('play:brouillon', { value: b.valeur });
+      // UN BROUILLON VIDE NE PART PAS — un dessin sans trait, un champ sans
+      // lettre. Le point de « Campement » est un OBJET, sans longueur : le test
+      // d'origine (`.length`) le jugeait vide, et aucun point posé ne serait
+      // jamais parti — donc jamais compté à la fin du chrono.
+      const v = b.valeur;
+      const vide = v == null || ((typeof v === 'string' || Array.isArray(v)) && !v.length);
+      if (!vide) emitBrouillon('play:brouillon', { value: v });
     }, 250);
   }, [emitBrouillon]);
   const manchePourBrouillon = g.current ? `${g.current.roundId}:${g.current.tour}` : null;
@@ -2702,7 +2800,7 @@ export function PlayApp() {
              deux jeux qui en gardent un. Pour « Frontières », c'est la demande :
              l'écran de résultat doit montrer « la réponse donnée », et le serveur
              a retenu celle-là — il l'a même comptée au dernier palier. */
-          myAnswer={myAnswer ?? (['cueillette', 'frontieres'].includes(g.current?.type) ? brouillon : null)}
+          myAnswer={myAnswer ?? (['cueillette', 'frontieres', 'campement'].includes(g.current?.type) ? brouillon : null)}
           index={room?.progression?.index} total={room?.progression?.total}
           answered={g.answered} presentAuLancement={g.presentAuLancement} />
       </>

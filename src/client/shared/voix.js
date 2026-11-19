@@ -453,6 +453,55 @@ export const MOMENTS = {
       'Cette silhouette gardait son secret. La prochaine parlera.',
     ],
   },
+  // « CAMPEMENT » A SA PROPRE FAMILLE : c'est le seul jeu où la réponse est un
+  // ENDROIT. Les paliers de l'estimation parlent d'un nombre approché, ceux de
+  // « Frontières » d'indices attendus ; ici on mesure une distance sur une carte,
+  // et la phrase doit parler de terrain — un campement trouvé, manqué, approché.
+  //
+  // QUATRE ISSUES, LES QUATRE TRANCHES DE LA RÉVÉLATION : pile sur le point
+  // rouge, tout près (800 points et plus), dans le cercle, dehors. Le bas de
+  // l'échelle ne punit pas — situer une ville sur une carte nue est difficile,
+  // et « hors du cercle » ne coûte rien.
+  'campement.pile': {
+    surface: 'play',
+    quand: 'le point du joueur touche le point rouge de la ville — 1 200 points',
+    phrases: [
+      'Pile sur le campement. Tu aurais pu y planter ta tente les yeux fermés.',
+      'Au mètre près, ou presque. Tu connais ta carte.',
+      'Tu es tombé(e) pile dessus. Le feu de camp t’attendait.',
+      'Exactement là. Personne n’a eu besoin de boussole.',
+    ],
+  },
+  'campement.proche': {
+    surface: 'play',
+    quand: 'le point est tout près de la ville sans la toucher — 800 points ou plus',
+    phrases: [
+      'Tu as vu la fumée du campement. Encore un pas et tu y étais.',
+      'Tout près. La tente était juste derrière la colline.',
+      'À quelques foulées du feu. Très belle lecture de la carte.',
+      'Le bon coin de pays, presque le bon endroit.',
+    ],
+  },
+  'campement.cercle': {
+    surface: 'play',
+    quand: 'le point est dans le cercle qui rapporte des points, sans être tout près',
+    phrases: [
+      'Bonne région. Le campement était un peu plus loin.',
+      'Tu étais sur la bonne piste, pas encore au feu.',
+      'Dans les environs. Ça compte quand même.',
+      'Tu as trouvé la région. La ville t’a échappé de peu.',
+    ],
+  },
+  'campement.loin': {
+    surface: 'play',
+    quand: 'le point est hors du cercle, ou aucun point posé',
+    phrases: [
+      'Le campement était ailleurs. Ton total est intact.',
+      'Tu as planté ta tente dans un autre coin du pays.',
+      'Perdu en route. Ça arrive aux meilleurs randonneurs.',
+      'Pas cette fois. La carte gardait bien son secret.',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',
@@ -937,6 +986,59 @@ export const MOMENTS = {
       'Il va falloir regarder un peu mieux la prochaine fois.',
     ],
   },
+  // « CAMPEMENT » — LE PLATEAU PARLE À CHAQUE MANCHE, et c'est une exception
+  // assumée à la règle « le stream se tait sauf remarquable ».
+  //
+  // L'énoncé la demande en toutes lettres : « Écran stream : comme les autres
+  // écrans de résultat. Il faut une phrase en fonction de la réussite du
+  // Cercle. » Pas une phrase quand c'est remarquable — une phrase. Les quatre
+  // moments couvrent donc TOUTES les issues, du plus rare au plus ordinaire :
+  // quelqu'un a touché le point rouge ; la moitié du cercle au moins est dans
+  // le cercle ; quelques-uns y sont ; personne n'y est.
+  //
+  // ET ILS PARLENT MÊME À MOINS DE CINQ RÉPONSES, pour la même raison. Ce qui
+  // rend un pourcentage ridicule sur trois joueurs, c'est de le CITER ; aucune
+  // de ces phrases ne cite de proportion, elles disent ce qui s'est passé.
+  'stream.campement-pile': {
+    surface: 'overlay',
+    quand: 'campement : au moins un joueur a touché le point rouge de la ville',
+    phrases: [
+      'Quelqu’un a planté sa tente pile au campement !',
+      'Le campement a été trouvé au mètre près. Chapeau.',
+      'Au moins un éclaireur connaissait le chemin par cœur.',
+      'Pile sur la ville. Le cercle a un cartographe dans ses rangs.',
+    ],
+  },
+  'stream.campement-majorite': {
+    surface: 'overlay',
+    quand: 'campement : personne pile, mais la moitié des réponses au moins sont dans le cercle',
+    phrases: [
+      'Le cercle a bien lu la carte : la plupart ont trouvé la région.',
+      'La majorité a campé dans les parages. Belle orientation.',
+      'Le cercle savait à peu près où planter les tentes.',
+      'Pas de tir parfait, mais une troupe bien orientée.',
+    ],
+  },
+  'stream.campement-quelques': {
+    surface: 'overlay',
+    quand: 'campement : quelques réponses dans le cercle, moins de la moitié',
+    phrases: [
+      'Quelques éclaireurs ont trouvé la région. Les autres cherchent encore.',
+      'Le campement n’a été approché que par une poignée.',
+      'Une partie du cercle a trouvé la piste. Le reste s’est dispersé.',
+      'Quelques tentes près du feu, beaucoup dans la nature.',
+    ],
+  },
+  'stream.campement-personne': {
+    surface: 'overlay',
+    quand: 'campement : aucune réponse dans le cercle — ou aucune réponse du tout',
+    phrases: [
+      'Le campement est resté introuvable. Le cercle dormira à la belle étoile.',
+      'Personne n’a trouvé la région. Cette ville se cachait bien.',
+      'Le cercle s’est perdu en route. Ça arrive aux meilleurs.',
+      'Pas une tente dans les parages. La carte a gagné cette manche.',
+    ],
+  },
   // RETOUR DE FLAMME. Deux extrêmes seulement, comme partout : la série qui passe
   // sans que personne ne voie rien, et le cercle qui la démonte. Entre les deux,
   // une manche ordinaire — et le plateau se tait.
@@ -1058,6 +1160,13 @@ export const PRIORITE_PLATEAU = [
   // relève ; la moyenne du groupe ne passe qu'après, tout en bas.
   'stream.cueil-chef-oeuvre',
   'stream.cueil-personne',
+  // « CAMPEMENT » : un seul de ses moments peut se déclencher à la fois — ils se
+  // partagent toutes les issues. Leur rang ici ne départage donc rien ; il les
+  // déclare au plateau, qui sans cela ne les servirait pas.
+  'stream.campement-pile',
+  'stream.campement-majorite',
+  'stream.campement-quelques',
+  'stream.campement-personne',
   'stream.vote-egalite',
   // Le cercle qui se trompe sur lui-même passe avant celui qui se devine :
   // l'échec collectif est plus remarquable, comme partout ailleurs.
@@ -1148,6 +1257,15 @@ export function dire(momentId, valeurs = {}) {
 // Choisit le moment de plateau à commenter, ou rien. `stats` est la répartition
 // publiée par le serveur à la révélation.
 export function momentDePlateau(type, stats, reveal) {
+  // « CAMPEMENT » AVANT LE SEUIL DE CINQ RÉPONSES — voir la note de ses moments :
+  // l'énoncé demande une phrase à chaque manche, et aucune de celles-ci ne cite
+  // de proportion. Une issue, et une seule, pour chaque manche.
+  if (stats && stats.kind === 'campement') {
+    const total = stats.total || 0;
+    if (stats.pile > 0) return 'stream.campement-pile';
+    if (!total || !stats.dansLeCercle) return 'stream.campement-personne';
+    return stats.dansLeCercle / total >= 0.5 ? 'stream.campement-majorite' : 'stream.campement-quelques';
+  }
   if (!stats || (stats.total || 0) < SEUILS.reponsesMin) return null;
   const total = stats.total;
   const candidats = new Set();

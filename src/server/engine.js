@@ -865,6 +865,19 @@ export function reveal(io, room) {
       // réussite ni une erreur ordinaire, et l'écran comme la voix le disent
       // autrement.
       troppTot: r ? r.troppTot === true : false,
+      // LA RÉPONSE EXACTE — L'ESTIMATION PILE JUSTE, LE POINT ROUGE TOUCHÉ.
+      //
+      // CE CHAMP MANQUAIT ICI, ET DEPUIS L'ORIGINE. `you` le lisait plus bas
+      // (`exact: d.exact === true`), mais cette recopie ne le portait pas : il
+      // valait donc `false` pour tout le monde, toujours. L'estimation tombée pile
+      // ne recevait jamais sa phrase (`estimation.exact`), seulement celle du
+      // palier des deux pour cent — sans que rien ne le signale, puisque les
+      // points, eux, voyagent à part et étaient justes.
+      //
+      // Trouvé en écrivant « Campement », qui en a besoin pour dire « pile au
+      // campement » : c'est exactement le défaut que la note de `you` décrit pour
+      // `pourcent`, une recopie oubliée sur deux.
+      exact: r ? r.exact === true : false,
       // Le rang du groupe et sa taille : l'écran les nomme, la voix les cite.
       rang: r ? r.rang ?? null : null, taille: r ? r.taille ?? null : null,
       // « LE JUSTE TEMPS » : le temps que l'arbitre a retenu. Le téléphone du

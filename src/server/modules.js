@@ -4,6 +4,7 @@ import { COULEURS, srcDObjet } from './objets.js';
 import { banqueDeCueillette, famillesDe, MARQUE_CUEILLETTE } from './dessins.js';
 import { GRILLES_DESSINS } from './dessins-grilles.js';
 import { CARTES_FRONTIERES, DIFFICULTES_FRONTIERES, srcDeCarte } from './pays-frontieres.js';
+import { VILLES_CAMPEMENT, DIFFICULTES_CAMPEMENT } from './villes-campement.js';
 import {
   ressemblanceContreGrilles, pointsDe as pointsDuDessin, nettoyerDessin,
   compterPoints, POINTS_MAXIMUM as POINTS_CUEILLETTE, SEUIL_POINTS as SEUIL_CUEILLETTE,
@@ -1183,13 +1184,168 @@ export function banqueDeFrontieres(questions) {
 // au hasard PARMI LES MOINS JOUÉS — ceux qui portent le compteur le plus bas de
 // la difficulté demandée.
 export function tirerUnPays(banque, difficulte, poses) {
+  return tirerParDifficulte(banque, difficulte, poses, DIFFICULTES_FRONTIERES);
+}
+
+// LE MÊME TIRAGE SERT À « CAMPEMENT », qui a reçu la même consigne mot pour mot
+// — « une ville est choisie au hasard dans la Catégorie (la difficulté)
+// pré-sélectionnée avec une préférence aux villes les moins jouées ». Une seule
+// écriture : deux tirages « qui préfèrent les moins joués » finiraient par ne
+// plus préférer la même chose.
+export function tirerParDifficulte(banque, difficulte, poses, difficultes) {
   const d = Number(difficulte);
-  const dans = DIFFICULTES_FRONTIERES.includes(d) ? banque.filter((p) => p.difficulte === d) : banque;
+  const dans = difficultes.includes(d) ? banque.filter((p) => p.difficulte === d) : banque;
   const pool = dans.length ? dans : banque;
   const compte = (p) => Math.max(0, Math.floor(Number(poses?.[p.id])) || 0);
   const mini = Math.min(...pool.map(compte));
   const moinsJoues = pool.filter((p) => compte(p) === mini);
   return moinsJoues[Math.floor(Math.random() * moinsJoues.length)];
+}
+
+// ============================================================================
+// « CAMPEMENT » — LE CERCLE, LE POINT ROUGE, ET LA BANQUE DE VILLES
+// ============================================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ (16/11) : la carte d'un pays paraît vingt secondes ; le
+// joueur pose un point là où il croit que la ville se trouve ; il marque selon
+// sa distance au point rouge de la carte réponse.
+//
+//   « Si le joueur touche le point rouge, il gagne 1200 pts (1100 de base, 100
+//   de bonus d'exactitude). Autrement, plus le joueur est proche du point rouge,
+//   plus il se rapproche des 1100 pts ; plus il se rapproche des bords du
+//   cercle, moins il en gagne, avec un minimum de 150 pts. Si un joueur est en
+//   dehors du cercle, il ne gagne pas de point. »
+export const MARQUE_CAMPEMENT = 'contenu-campement';
+export const DUREE_CAMPEMENT_MS = 20_000;
+
+// TOUTES LES DISTANCES SE COMPTENT EN FRACTION DU PLUS GRAND CÔTÉ DE LA CARTE.
+// Les cent soixante-quinze cartes livrées sont carrées (2048 × 2048) et le pays
+// y occupe exactement la même place — 1743 pixels sur sa plus grande dimension,
+// mesuré sur chacune. Une même fraction de carte vaut donc la même fraction de
+// pays partout : le Luxembourg et la Russie ont le même cercle À L'ÉCRAN, et
+// c'est ce qui rend le jeu également jouable sur les deux.
+//
+// LE RAYON DU CERCLE A ÉTÉ MESURÉ SUR L'EXEMPLE DU DOCUMENT, pas choisi. Le
+// document montre la Bulgarie avec le cercle « qu'il faudrait avoir » autour de
+// Sofia. Recalée sur la carte de la Bulgarie du dépôt — le tracé noir de
+// l'exemple et celui de la carte se superposent avec un facteur 2,94, et le
+// point rouge tombe au même endroit à un pixel près —, la ligne médiane du cercle
+// a un rayon de 536 pixels sur 2048 : 0,262 de la carte, soit à peu près trente
+// pour cent de la taille du pays. Le document précise que ce cercle est une
+// représentation : il ne s'affiche nulle part, et ce nombre n'est envoyé à aucun
+// écran.
+export const RAYON_CERCLE_CAMPEMENT = 0.262;
+
+// LE POINT ROUGE MESURE QUATORZE PIXELS DE RAYON SUR 2048, sur les cent
+// soixante-quinze cartes sans exception.
+//
+// « TOUCHER LE POINT ROUGE », C'EST CE QUE LE JOUEUR VOIT SUR LA CARTE RÉPONSE :
+// son point orange dessiné à la même taille que le point rouge, et les deux qui
+// se touchent. D'où la zone : deux rayons. Une règle qui se lirait autrement
+// qu'elle ne se voit ferait dire « pile ! » à un écran sur lequel les deux points
+// sont visiblement disjoints — ou l'inverse. Le rayon voyage avec la révélation
+// (`rayonPoint`) pour que chaque écran dessine les points à cette taille-là.
+//
+// En vrai, sur la France : à peu près seize kilomètres autour de Paris.
+export const RAYON_POINT_CAMPEMENT = 14 / 2048;
+export const ZONE_PILE_CAMPEMENT = 2 * RAYON_POINT_CAMPEMENT;
+
+export const POINTS_CAMPEMENT = { base: 1100, bonusPile: 100, plancher: 150 };
+
+// LES QUATRE TRANCHES DE LA RÉVÉLATION, du meilleur au pire. « Tout près » est
+// le premier tiers du barème au-dessus du plancher : huit cents points et plus.
+export const TRANCHES_CAMPEMENT = [
+  { cle: 'pile', nom: 'Pile au campement' },
+  { cle: 'proche', nom: 'Tout près' },
+  { cle: 'cercle', nom: 'Dans le cercle' },
+  { cle: 'hors', nom: 'Hors du cercle' },
+];
+const SEUIL_PROCHE_CAMPEMENT = 800;
+
+// LA DISTANCE ENTRE DEUX POINTS DE LA CARTE, en fraction de son plus grand côté.
+//
+// Les positions sont des fractions de la LARGEUR (x) et de la HAUTEUR (y) de
+// l'image. Sur une carte carrée, les deux se valent ; sur une carte déposée au
+// Studio qui ne le serait pas, une fraction de hauteur n'est pas une fraction de
+// largeur, et un cercle deviendrait une ellipse. `rapport` (hauteur / largeur)
+// ramène les deux axes à la même unité.
+export function distanceCampement(a, b, rapport = 1) {
+  const r = Number(rapport) > 0 ? Number(rapport) : 1;
+  const sx = r > 1 ? 1 / r : 1;
+  const sy = r < 1 ? r : 1;
+  return Math.hypot((a.x - b.x) * sx, (a.y - b.y) * sy);
+}
+
+// LE BARÈME. Linéaire entre le bord de la zone « pile » (1100) et le bord du
+// cercle (150) : le document ne demande rien d'autre que « plus près, plus de
+// points », et une droite est la seule forme qu'un joueur peut deviner sans
+// qu'on la lui explique. Arrondi à la dizaine, comme les montants affichés
+// partout ailleurs — « 1 087 points » ne dirait rien de plus que « 1 090 ».
+export function pointsCampement(d) {
+  const { base, bonusPile, plancher } = POINTS_CAMPEMENT;
+  if (!Number.isFinite(d)) return { base: 0, bonusExact: 0, pile: false, dansLeCercle: false };
+  if (d <= ZONE_PILE_CAMPEMENT) return { base, bonusExact: bonusPile, pile: true, dansLeCercle: true };
+  // LE BORD DU CERCLE EST DEHORS. « S'il est en dehors du cercle, il ne gagne
+  // pas de point » ; sur le trait lui-même, on ne peut pas être dedans.
+  if (d >= RAYON_CERCLE_CAMPEMENT) return { base: 0, bonusExact: 0, pile: false, dansLeCercle: false };
+  const part = (RAYON_CERCLE_CAMPEMENT - d) / (RAYON_CERCLE_CAMPEMENT - ZONE_PILE_CAMPEMENT);
+  const brut = plancher + (base - plancher) * part;
+  // L'ARRONDI NE PEUT NI ATTEINDRE 1100 NI TOMBER SOUS 150 : 1100 est la
+  // récompense de la zone pile, et un point posé juste à côté n'est pas pile.
+  const arrondi = Math.min(base - 10, Math.max(plancher, Math.round(brut / 10) * 10));
+  return { base: arrondi, bonusExact: 0, pile: false, dansLeCercle: true };
+}
+
+export function trancheCampement(points, pile) {
+  if (pile) return 'pile';
+  if (points >= SEUIL_PROCHE_CAMPEMENT) return 'proche';
+  return points > 0 ? 'cercle' : 'hors';
+}
+
+// UNE POSITION EST DEUX NOMBRES ENTRE 0 ET 1. Tout le reste est refusé — y
+// compris une chaîne qui « contiendrait » un nombre : le téléphone envoie un
+// objet, et un écran qui enverrait autre chose n'est pas le nôtre.
+const fraction = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? v : null);
+export function positionCampement(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const x = fraction(value.x);
+  const y = fraction(value.y);
+  if (x === null || y === null) return null;
+  // Cinq décimales : un cent-millième de carte, soit deux centièmes de pixel
+  // sur l'image d'origine. Au-delà, ce serait du bruit de virgule flottante.
+  return { x: Math.round(x * 1e5) / 1e5, y: Math.round(y * 1e5) / 1e5 };
+}
+
+// LA BANQUE DE VILLES — celle du module si l'animateur l'a modérée au Studio,
+// celle du dépôt sinon. Même forme et même repli que « Frontières ».
+//
+// UNE LIGNE INJOUABLE EST ÉCARTÉE, PAS REFUSÉE : sans ville, sans pays, sans les
+// deux cartes ou sans position, la manche ne pourrait ni s'afficher ni se
+// noter. Le Studio le dit à l'animateur avant qu'il enregistre ; ici on ne
+// laisse simplement pas une telle ligne arriver à l'antenne.
+export function banqueDeCampement(questions) {
+  const entree = (Array.isArray(questions) ? questions : [])
+    .find((q) => q && q.kind === MARQUE_CAMPEMENT);
+  const lues = Array.isArray(entree?.villes) ? entree.villes : [];
+  const propres = [];
+  const vus = new Set();
+  for (const v of lues) {
+    const id = String(v?.id || '').trim();
+    const ville = String(v?.ville || '').trim();
+    const pays = String(v?.pays || '').trim();
+    const carte = String(v?.carte || '').trim();
+    const reponse = String(v?.reponse || '').trim();
+    const pos = positionCampement({ x: v?.x, y: v?.y });
+    if (!id || !ville || !pays || !carte || !reponse || !pos || vus.has(id)) continue;
+    vus.add(id);
+    const rapport = Number(v.rapport);
+    propres.push({
+      id, ville, pays, carte, reponse, x: pos.x, y: pos.y,
+      difficulte: DIFFICULTES_CAMPEMENT.includes(Number(v.difficulte)) ? Number(v.difficulte) : 1,
+      ...(Number.isFinite(rapport) && rapport > 0 && rapport !== 1 ? { rapport } : {}),
+    });
+  }
+  return propres.length ? propres : VILLES_CAMPEMENT;
 }
 
 export const CATEGORIES_ESTIMATION = [
@@ -2927,6 +3083,196 @@ export const modules = {
         // `prives` : les noms des joueurs ne quittent pas le canal de l'animateur,
         // comme partout ailleurs dans ce projet.
         prives: { reponses },
+      };
+    },
+  },
+
+  // ==========================================================================
+  // « CAMPEMENT » — retrouver une ville sur la carte de son pays
+  // ==========================================================================
+  //
+  // VINGT SECONDES, UNE CARTE, UN POINT. Le joueur pose un point orange là où il
+  // croit que la ville se trouve ; à la révélation, la carte réponse montre le
+  // point rouge et tous les points du cercle.
+  //
+  // LA POSITION DE LA VILLE EST UN SECRET JUSQU'À LA RÉVÉLATION, comme le nom du
+  // pays de « Frontières ». Elle ne figure dans aucune charge utile de la manche
+  // — ni ses coordonnées, ni l'adresse de la carte réponse, qui porte le point
+  // rouge dessiné. Le joueur reçoit la carte SANS ville et le nom de la ville :
+  // c'est la question, et rien de plus.
+  campement: {
+    meta: {
+      type: 'campement', name: 'Campement', icon: 'tent', color: 'forest',
+      scored: true, malus: false, vitesse: false,
+      // « La Carte du pays de la Ville cible est affichée pendant 20 secondes. »
+      // Pas de réglage : rien dans ce jeu ne dépend du temps sinon la fenêtre.
+      dureeS: DUREE_CAMPEMENT_MS / 1000, dureeFixe: true,
+      // La cible se choisit à l'antenne, dans la banque de villes : pas de
+      // banque de questions à écrire au Studio.
+      direct: true,
+      // LE POINT POSÉ MAIS NON ENVOYÉ EST ENVOYÉ À LA FIN DU COMPTEUR.
+      //
+      // « Il peut envoyer sa réponse, ou bien s'il place le point et ne l'envoie
+      // pas, la réponse est envoyée automatiquement à la fin du compteur. »
+      //
+      // C'EST LE BROUILLON DE « CUEILLETTE » ET DE « FRONTIÈRES », et il ne peut
+      // pas être autre chose : un envoi parti du téléphone à zéro arriverait
+      // après la fermeture de la fenêtre et serait refusé. Le téléphone envoie
+      // donc chaque point posé en brouillon, et le serveur retient le dernier.
+      // Le barème ne dépend pas de l'heure : un point retenu vaut exactement ce
+      // qu'il aurait valu envoyé.
+      brouillon: true,
+    },
+
+    // LA BANQUE DE VILLES — CANAL ANIMATEUR SEUL, et réduite à ce qu'il lit :
+    // « il n'a pas besoin de voir la carte, il doit voir les noms des villes et
+    // du pays dans lequel elle est, et le nombre de fois où la ville a été
+    // jouée ». Ni carte, ni position : la banque contient les réponses.
+    banqueDe(questions) {
+      const villes = banqueDeCampement(questions);
+      const entree = (Array.isArray(questions) ? questions : [])
+        .find((q) => q && q.kind === MARQUE_CAMPEMENT);
+      const poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
+      return {
+        villes: villes.map((v) => ({
+          id: v.id,
+          ville: v.ville,
+          pays: v.pays,
+          difficulte: v.difficulte,
+          poses: Math.max(0, Math.floor(Number(poses[v.id])) || 0),
+        })),
+        difficultes: DIFFICULTES_CAMPEMENT,
+      };
+    },
+
+    buildRound(q) {
+      // LA BANQUE VOYAGE AVEC LE TOP DE DÉPART, attachée par le serveur — jamais
+      // reçue de l'écran (même règle que « Frontières »).
+      const banque = Array.isArray(q?.banque) && q.banque.length
+        ? q.banque
+        : banqueDeCampement(null);
+      const choisie = banque.find((v) => v.id === q?.villeId);
+      const cible = choisie || tirerParDifficulte(banque, q?.difficulte, q?.poses, DIFFICULTES_CAMPEMENT);
+      return {
+        type: 'campement',
+        questionId: q.id,
+        // « Il y a écrit au-dessus "Retrouve le campement :" et le nom du pays en
+        // français et la Ville cible. Par exemple : "Retrouve le campement :
+        // France – Paris". » Le tiret est demi-cadratin, comme dans l'exemple.
+        text: `Retrouve le campement : ${cible.pays} – ${cible.ville}`,
+        cible: {
+          id: cible.id,
+          ville: cible.ville,
+          pays: cible.pays,
+          difficulte: cible.difficulte,
+          carte: cible.carte,
+          reponse: cible.reponse,
+          x: cible.x,
+          y: cible.y,
+          rapport: Number(cible.rapport) > 0 ? Number(cible.rapport) : 1,
+        },
+        durationMs: DUREE_CAMPEMENT_MS,
+      };
+    },
+
+    publicQuestion(rt) {
+      return {
+        type: 'campement',
+        questionId: rt.questionId,
+        text: rt.text,
+        // Le pays et la ville séparés : le stream compose sa propre phrase (« Le
+        // Cercle essaie de retrouver le campement : … ») et n'a pas à découper
+        // celle du téléphone.
+        pays: rt.cible.pays,
+        ville: rt.cible.ville,
+        // LA CARTE SANS VILLE, ET RIEN D'AUTRE DE LA CIBLE. Ni sa position, ni
+        // l'adresse de la carte réponse.
+        carte: rt.cible.carte,
+        rapport: rt.cible.rapport,
+      };
+    },
+
+    validateAnswer(rt, value) {
+      return positionCampement(value);
+    },
+
+    score(rt) {
+      const results = new Map();
+      const cible = { x: rt.cible.x, y: rt.cible.y };
+      const compte = { pile: 0, proche: 0, cercle: 0, hors: 0 };
+      const points = [];
+      const entrees = [];
+      let meilleur = 0;
+      let somme = 0;
+
+      for (const [pid, a] of rt.answers) {
+        const d = distanceCampement(a.value, cible, rt.cible.rapport);
+        const p = pointsCampement(d);
+        const total = p.base + p.bonusExact;
+        compte[trancheCampement(total, p.pile)] += 1;
+        meilleur = Math.max(meilleur, total);
+        somme += total;
+        results.set(pid, {
+          base: p.base,
+          bonusExact: p.bonusExact,
+          bonusProche: 0,
+          speed: 0,
+          // « Les gagnants sont ceux qui auront réussi à replacer correctement la
+          // ville » : être dans le cercle, c'est marquer — c'est la réussite que
+          // la série compte.
+          correct: p.dansLeCercle,
+          // TOUCHER LE POINT ROUGE. Le moteur porte ce drapeau jusqu'au téléphone :
+          // c'est lui qui choisit « Pile au campement ! » plutôt que « Tout près ».
+          exact: p.pile,
+          // LE POINT QUE L'ARBITRE A COMPTÉ — celui que l'écran de résultat doit
+          // montrer sur la carte réponse, et non celui que le téléphone a cru
+          // envoyer (voir la note de `reponse` dans le moteur).
+          reponse: a.value,
+        });
+        points.push({ x: a.value.x, y: a.value.y });
+        // L'ÉCART EN POUR CENT DE LA CARTE, arrondi au dixième. Pas en
+        // kilomètres : les tailles de pays du fichier de « Frontières » ne
+        // correspondent pas au cadrage des cartes pour un pays sur dix (Chili,
+        // Indonésie, Maldives — des territoires que la carte montre et que la
+        // mesure ignore). Un kilométrage faux à l'antenne serait pire qu'aucun.
+        entrees.push({ pid, ecart: Math.round(d * 1000) / 10, points: total });
+      }
+
+      const n = rt.answers.size;
+      const { lignes: classement, masques } = tableauEstimation(entrees);
+      return {
+        results,
+        reveal: {
+          text: rt.text,
+          pays: rt.cible.pays,
+          ville: rt.cible.ville,
+          // LA CARTE RÉPONSE — celle qui porte le point rouge, dessiné. Elle ne
+          // quitte le serveur qu'ici.
+          carte: rt.cible.reponse,
+          rapport: rt.cible.rapport,
+          cible,
+          rayonPoint: RAYON_POINT_CAMPEMENT,
+          // TOUS LES POINTS DU CERCLE, SANS LES NOMS. « Sur cette carte, on doit
+          // voir également TOUS les points des réponses de chaque joueur » — le
+          // stream et l'animateur les dessinent de la même façon. Les noms ne
+          // partent que vers la console (`prives`).
+          points,
+          stats: {
+            kind: 'campement',
+            total: n,
+            tranches: TRANCHES_CAMPEMENT.map((t) => ({ ...t, n: compte[t.cle] })),
+            dansLeCercle: compte.pile + compte.proche + compte.cercle,
+            pile: compte.pile,
+            meilleur,
+            moyenne: n ? Math.round(somme / n / 10) * 10 : 0,
+          },
+        },
+        // « Il voit la liste des 10 joueurs les plus proches de la Ville cible et
+        // les 10 joueurs les plus éloignés (s'il y a moins de 20 joueurs, alors
+        // montrer la totalité des joueurs). » C'est mot pour mot le tableau de
+        // l'estimation, déjà écrit : on le réemploie, et la console le montre
+        // avec ses propres colonnes.
+        prives: { classement, masques },
       };
     },
   },

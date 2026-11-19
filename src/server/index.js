@@ -13,9 +13,10 @@ import { roomManager, RoomState } from './rooms.js';
 import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, makeOverlayToken } from './auth.js';
 import {
   MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee, posesDe,
-  MARQUE_FRONTIERES, banqueDeFrontieres,
+  MARQUE_FRONTIERES, banqueDeFrontieres, MARQUE_CAMPEMENT, banqueDeCampement,
 } from './modules.js';
 import { CARTES_FRONTIERES, DIFFICULTES_FRONTIERES, srcDeCarte } from './pays-frontieres.js';
+import { VILLES_CAMPEMENT, DIFFICULTES_CAMPEMENT } from './villes-campement.js';
 import {
   contenuDeLaBanque, GABARITS_PAR_DEFAUT, VARIABLES_PAR_FORME, LIBELLES_PAR_FORME,
 } from './cache-cache.js';
@@ -221,6 +222,29 @@ const contenuFrontieresSchema = z.object({
     src: z.string().max(600).optional(),
   })).max(400),
 }).passthrough();
+// LA BASE DE VILLES DE « CAMPEMENT » — quatrième entrée marquée. Sans ce schéma,
+// elle tomberait sur celui des questions, qui exige un `text`, et l'enregistrement
+// entier serait refusé : c'est le défaut attrapé de justesse sur « Frontières »,
+// et on ne le refait pas.
+//
+// MÊME TOLÉRANCE QUE « FRONTIÈRES » : ville, pays, cartes et position peuvent
+// manquer ici. Une ligne en cours de saisie — déposée, pas encore nommée — ne
+// doit pas faire refuser toute la base. `banqueDeCampement` écarte à la lecture
+// ce qui n'est pas jouable, et le Studio le dit avant l'enregistrement.
+const contenuCampementSchema = z.object({
+  kind: z.literal(MARQUE_CAMPEMENT),
+  villes: z.array(z.object({
+    id: z.string().min(1).max(80),
+    ville: z.string().max(80),
+    pays: z.string().max(80),
+    difficulte: z.number().int().min(1).max(9).optional(),
+    carte: z.string().max(600).optional(),
+    reponse: z.string().max(600).optional(),
+    x: z.number().min(0).max(1).optional(),
+    y: z.number().min(0).max(1).optional(),
+    rapport: z.number().positive().max(20).optional(),
+  })).max(400),
+}).passthrough();
 const moduleSchema = z.object({
   id: z.string().min(1),
   type: z.enum(MODULE_TYPES),
@@ -228,7 +252,7 @@ const moduleSchema = z.object({
   duration: z.number().positive().optional(),
   color: z.string().optional(),
   questions: z.array(z.union([
-    contenuCacheSchema, contenuCueilletteSchema, contenuFrontieresSchema, questionSchema,
+    contenuCacheSchema, contenuCueilletteSchema, contenuFrontieresSchema, contenuCampementSchema, questionSchema,
   ])),
 }).passthrough();
 const modulesSchema = z.array(moduleSchema);
@@ -405,6 +429,18 @@ app.get('/api/frontieres/catalogue', async (req, reply) => {
     pays: CARTES_FRONTIERES.map((p) => ({ ...p, src: srcDeCarte(p.id) })),
     difficultes: DIFFICULTES_FRONTIERES,
   };
+});
+
+// LA BASE DE VILLES DE « CAMPEMENT », POUR LE STUDIO.
+//
+// « Cette base de données doit être accessible quelque part dans le Studio afin
+// d'être ajustée à tout moment. » Canal animateur seul, comme celle de
+// « Frontières » : elle porte la position de chaque ville et l'adresse de chaque
+// carte réponse — c'est-à-dire toutes les réponses du jeu.
+app.get('/api/campement/catalogue', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return { villes: VILLES_CAMPEMENT, difficultes: DIFFICULTES_CAMPEMENT };
 });
 
 // LES DURÉES RÉELLES, DÉCLARÉES PAR LES MODULES.
@@ -596,19 +632,35 @@ function compterUneImage(room, module_, dessinId) {
 // alors qu'une liste vide vaut « pas encore modérée » et laisse le jeu puiser
 // dans les cent soixante-quinze pays du dépôt.
 function compterUnPays(room, module_, paysId) {
-  if (!paysId) return;
+  compterDansLaBase(room, module_, paysId, MARQUE_FRONTIERES, 'pays');
+}
+
+// LE COMPTEUR DE « CAMPEMENT » PORTE SUR UNE VILLE — « le nombre de fois où la
+// ville a été jouée ». Même table `poses`, rangée à côté de `villes[]`, pour la
+// même raison : écrire dans la liste figerait la base de l'animateur, alors
+// qu'une liste vide vaut « pas encore modérée » et puise dans le dépôt.
+function compterUneVille(room, module_, villeId) {
+  compterDansLaBase(room, module_, villeId, MARQUE_CAMPEMENT, 'villes');
+}
+
+// LA MÉCANIQUE COMMUNE, écrite une fois : deux compteurs recopiés finiraient par
+// ne plus compter pareil — et c'est sur eux que repose la préférence aux moins
+// joués.
+function compterDansLaBase(room, module_, id, marque, liste) {
+  if (!id) return;
   const questions = Array.isArray(module_.questions) ? module_.questions : [];
-  let entree = questions.find((x) => x && x.kind === MARQUE_FRONTIERES);
+  let entree = questions.find((x) => x && x.kind === marque);
   if (!entree) {
-    entree = { kind: MARQUE_FRONTIERES, pays: [], poses: {} };
+    // La liste reste VIDE : c'est ce qui laisse le repli sur le dépôt intact.
+    entree = { kind: marque, [liste]: [], poses: {} };
     questions.push(entree);
     module_.questions = questions;
   }
   if (!entree.poses || typeof entree.poses !== 'object') entree.poses = {};
-  entree.poses[paysId] = (Math.floor(Number(entree.poses[paysId])) || 0) + 1;
+  entree.poses[id] = (Math.floor(Number(entree.poses[id])) || 0) + 1;
   Promise.resolve()
     .then(() => banksStore.enregistrerModules(room.ownerId, banksStore.getModules(room.ownerId)))
-    .catch((e) => console.warn('compteur de pays non enregistré :', e?.message || e));
+    .catch((e) => console.warn(`compteur (${liste}) non enregistré :`, e?.message || e));
 }
 
 function marquerPosee(room, module_, q) {
@@ -914,6 +966,13 @@ io.on('connection', (socket) => {
         const entree = (module_.questions || []).find((x) => x && x.kind === MARQUE_FRONTIERES);
         question.poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
       }
+      // « CAMPEMENT » EMPORTE SA BANQUE DE VILLES ET SES COMPTEURS — même règle :
+      // écrite ICI, jamais reprise de ce que l'écran a envoyé.
+      if (module_.type === 'campement' && question) {
+        question.banque = banqueDeCampement(module_.questions);
+        const entree = (module_.questions || []).find((x) => x && x.kind === MARQUE_CAMPEMENT);
+        question.poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
+      }
       const pool = await poolFor(r.ownerId, module_);
 
       // L'ANIMATEUR PEUT DÉSIGNER SA QUESTION, SANS L'ÉCRIRE.
@@ -959,6 +1018,7 @@ io.on('connection', (socket) => {
       // tire, ou qui retient celle que l'animateur a désignée.
       if (module_.type === 'cueillette') compterUneImage(r, module_, r.currentModule?.cible?.id);
       if (module_.type === 'frontieres') compterUnPays(r, module_, r.currentModule?.cible?.id);
+      if (module_.type === 'campement') compterUneVille(r, module_, r.currentModule?.cible?.id);
       // La file suivante part vers l'ANIMATEUR SEUL : c'est la seule donnée de
       // l'application qui révèle les questions À VENIR, et le stream est une
       // source capturée par OBS.

@@ -28,6 +28,8 @@ import { EmblemeJeu } from '../shared/EmblemeJeu.jsx';
 import { EmblemeCache } from '../shared/EmblemeCache.jsx';
 import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
+import { EmblemeCampement } from '../shared/EmblemeCampement.jsx';
+import { CarteReponse, TranchesCampement } from '../shared/CarteCampement.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { Coeur } from '../shared/Coeur.jsx';
@@ -770,6 +772,18 @@ function QuestionStage({ g }) {
         <p className="st-question st-question--revealed" data-testid="question-text">
           Le cache-cache est terminé ! Voici la grille
         </p>
+      ) : current.type === 'campement' ? (
+        /* « CAMPEMENT », L'ÉNONCÉ À L'ANTENNE — la phrase du document, mot pour
+           mot : « Le Cercle essaie de retrouver le campement : France – Paris ».
+           Le téléphone dit « Retrouve… » au joueur ; l'antenne parle du cercle
+           au public.
+           À LA RÉVÉLATION, la phrase passe au passé : la manche est jouée, et
+           « essaie de retrouver » au-dessus de la réponse se contredirait. */
+        <p className={`st-question${revealed ? ' st-question--revealed' : ''}`}
+          data-bind="module.text" data-testid="question-text">
+          {revealed ? 'Le campement était ici : ' : 'Le Cercle essaie de retrouver le campement : '}
+          <strong>{current.pays} – {current.ville}</strong>
+        </p>
       ) : current.type === 'cueillette' ? (
         /* « CUEILLETTE », L'ÉNONCÉ À L'ANTENNE.
            Trois temps, et aucun ne porte la phrase du téléphone. « Regarde
@@ -888,6 +902,14 @@ function QuestionStage({ g }) {
                 disabled fond={current.cible?.src} />
             </div>
           ) : null
+        ) : current.type === 'campement' ? (
+          /* « CAMPEMENT », À L'ANTENNE : la carte du pays, en grand, et rien
+             d'autre. Pas de points en direct — ils diraient au cercle où les
+             autres cherchent, sur un stream que les joueurs regardent aussi. */
+          <div className="st-cp" data-testid="stream-campement">
+            <CarteReponse src={current.carte} rapport={current.rapport} bloc="st-cpcarte"
+              testid="stream-cp-carte" etiquette={`La carte : ${current.pays || ''}`} />
+          </div>
         ) : current.type === 'frontieres' ? (
           /* « FRONTIÈRES », À L'ANTENNE. La carte en grand, et les quatre indices
              à côté, qui se remplissent aux mêmes secondes que sur les téléphones.
@@ -1035,7 +1057,47 @@ function QuestionStage({ g }) {
         <div style={mesuresDesChoix(nbRangees, placeStats)}
           className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`}
           data-bind="reveal.stats" data-testid="stats-panel">
-          {reveal.type === 'frontieres' ? (
+          {reveal.type === 'campement' ? (
+            /* « CAMPEMENT » À LA RÉVÉLATION, À L'ANTENNE.
+               « La carte Réponse s'affiche. Sur cette carte, on doit voir
+               également TOUS les points des réponses de chaque joueur (orange
+               avec un contour noir). Cela donnera une carte avec la Ville cible
+               en rouge et tous les points placés par les joueurs. »
+
+               LE MÊME CADRE QUE PENDANT LA MANCHE, à la même place : le public
+               vient de regarder cette carte vingt secondes, et c'est elle qui
+               se remplit — la ville en rouge, le cercle en orange. À droite, la
+               répartition par tranches et deux chiffres, comme l'estimation.
+
+               LE CERCLE DU BARÈME N'EST PAS DESSINÉ : « il ne doit en aucun cas
+               apparaître sur les écrans de résultats ». */
+            <div className="st-cp st-cp--reveal" data-testid="stream-campement-reveal">
+              <CarteReponse src={reveal.carte} rapport={reveal.rapport} rayon={reveal.rayonPoint}
+                points={reveal.points || []} cible={reveal.cible} bloc="st-cpcarte" testid="stream-cp-reponse"
+                etiquette={`La carte réponse : ${reveal.ville}, et les points du cercle`} />
+              {stats?.kind === 'campement' ? (
+                <div className="st-cp__bilan">
+                  <div className="st-answer" data-testid="reveal-value">
+                    <span className="st-answer__label">Le campement</span>
+                    <span className="st-answer__value" data-testid="stream-cp-ville">{reveal.ville}</span>
+                  </div>
+                  <TranchesCampement tranches={stats.tranches} bloc="st-cptr" testid="stream-cp-tranches" />
+                  <div className="st-facts st-facts--deux">
+                    <div className="st-fact">
+                      <span className="st-fact__label">Dans le cercle</span>
+                      <span className="st-fact__value st-fact__value--good" data-testid="stream-cp-cercle">
+                        {fmt(stats.dansLeCercle)}<span className="st-fact__sur"> / {fmt(stats.total)}</span>
+                      </span>
+                    </div>
+                    <div className="st-fact">
+                      <span className="st-fact__label">Points en moyenne</span>
+                      <span className="st-fact__value" data-testid="stream-cp-moyenne">{fmt(stats.moyenne)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : reveal.type === 'frontieres' ? (
             /* « FRONTIÈRES » À LA RÉVÉLATION, À L'ANTENNE.
                « Il faut quasiment le même écran que lors de la Diffusion de la
                Carte cible à un détail : il faut réussir à afficher la réponse —
@@ -1304,6 +1366,7 @@ const ANNONCES_STREAM = {
   // ce qu'il voit — sans lui, une réponse donnée à la quarantième seconde
   // passerait pour aussi bonne qu'une réponse à la cinquième.
   frontieres: { emblem: <EmblemeFrontieres taille={200} />, regle: 'Une carte, quatre indices. Plus le cercle répond tôt, plus il marque.' },
+  campement: { emblem: <EmblemeCampement taille={210} />, regle: 'Une carte, une ville. Le cercle plante sa tente au plus près du campement.' },
 };
 
 function AnnonceStage({ nom, type, annonce }) {

@@ -298,6 +298,20 @@
      trait noir de la cible — car les deux tracés doivent aussi se distinguer
      L'UN DE L'AUTRE, ce qui est tout l'objet de la superposition.          */
   --c-trace-joueur:  oklch(0.600 0.150 150);
+  /* LES POINTS DES JOUEURS SUR LA CARTE DE « CAMPEMENT ».
+     L'énoncé les veut « orange avec un contour noir », trois fois, sur les
+     trois écrans. L'orange est la braise du système ; le contour est le noir
+     des cartes — celui de leur tracé, --c-ink-on-plaque, 14,8:1 sur la plaque.
+     C'EST LE CONTOUR QUI PORTE LE CONTRASTE : l'orange seul sur une carte
+     blanche resterait sous 3:1, et le point rouge de la ville, voisin de
+     teinte, se confondrait avec lui. Cerclé de noir, chaque point se détache
+     de la carte ET du point rouge.                                           */
+  --c-point-joueur:         var(--c-ember);
+  --c-point-joueur-contour: var(--c-ink-on-plaque);
+  /* LE ROUGE DE LA VILLE — celui des cartes réponse fournies, mesuré dans leurs
+     pixels (rouge pur). Le repère redessiné par-dessus les points doit être LE
+     MÊME rouge que celui de l'image, sans quoi la carte montrerait deux villes. */
+  --c-ville-cible:          oklch(0.628 0.258 29.2);
 
   /* --- 6. SÉMANTIQUE ----------------------------------------------------- */
   --c-good:          var(--c-pine);

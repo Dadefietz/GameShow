@@ -23,6 +23,9 @@
 export const COTE = 512;
 export const QUALITE = 0.82;
 export const POIDS_MAX = 2 * 1024 * 1024;
+// Le côté des cartes livrées : une carte plus grande est ramenée à cette taille,
+// jamais agrandie.
+export const COTE_CARTE = 2048;
 
 // Tolérance du « blanc ». Un fond exporté par un outil de dessin n'est jamais
 // exactement 255,255,255 : compression, profil colorimétrique, anticrénelage.
@@ -75,12 +78,21 @@ export function detourer(img) {
 // LE FICHIER DÉPOSÉ DEVIENT UN WEBP DÉTOURÉ. Rend `{ dataUrl, octets, largeur,
 // hauteur }` ; lève avec un message en clair si le fichier n'est pas une image
 // ou si le navigateur refuse d'encoder en WebP.
-export async function preparerImage(fichier) {
+//
+// LE MODE « TELLE QUELLE » (`{ telleQuelle: true }`) — pour les cartes de
+// « Campement ». Aucune retouche : ni détourage, ni réduction (jusqu'à 2048 de
+// côté, la taille des cartes livrées), ni perte — un WebP de qualité 1, que le
+// navigateur encode SANS PERTE. Une carte réduite ou recompressée n'est plus
+// tout à fait celle qu'on a déposée, et sur ce jeu la position d'une ville se
+// lit au pixel. `analyser` reçoit les pixels tels qu'ils seront servis : c'est
+// là que le point rouge est cherché.
+export async function preparerImage(fichier, { telleQuelle = false, analyser = null } = {}) {
   if (!fichier || !String(fichier.type || '').startsWith('image/')) {
     throw new Error("Ce fichier n'est pas une image.");
   }
   const bitmap = await creerBitmap(fichier);
-  const echelle = Math.min(1, COTE / Math.max(bitmap.width, bitmap.height));
+  const cote = telleQuelle ? COTE_CARTE : COTE;
+  const echelle = Math.min(1, cote / Math.max(bitmap.width, bitmap.height));
   const largeur = Math.max(1, Math.round(bitmap.width * echelle));
   const hauteur = Math.max(1, Math.round(bitmap.height * echelle));
 
@@ -90,9 +102,10 @@ export async function preparerImage(fichier) {
   const ctx = toile.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(bitmap, 0, 0, largeur, hauteur);
   const img = ctx.getImageData(0, 0, largeur, hauteur);
-  ctx.putImageData(detourer(img), 0, 0);
+  const analyse = analyser ? analyser(img) : undefined;
+  if (!telleQuelle) ctx.putImageData(detourer(img), 0, 0);
 
-  const dataUrl = toile.toDataURL('image/webp', QUALITE);
+  const dataUrl = toile.toDataURL('image/webp', telleQuelle ? 1 : QUALITE);
   // UN NAVIGATEUR QUI NE SAIT PAS ENCODER EN WEBP rend silencieusement un PNG.
   // Le laisser passer ferait grossir la banque d'un facteur dix sans que rien ne
   // le dise, et le serveur refuserait l'envoi sans qu'on sache pourquoi.
@@ -101,7 +114,7 @@ export async function preparerImage(fichier) {
   }
   const octets = Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4);
   if (octets > POIDS_MAX) throw new Error(`Image trop lourde une fois convertie (${Math.round(octets / 1024)} ko).`);
-  return { dataUrl, octets, largeur, hauteur };
+  return { dataUrl, octets, largeur, hauteur, analyse };
 }
 
 function creerBitmap(fichier) {

@@ -121,6 +121,9 @@ describe('convention de la voix — contrôle bloquant', () => {
       // phrase à celui qui nomme le pays sur sa seule silhouette et à celui qui
       // le trouve après les quatre indices.
       frontieres: ['frontieres.eclair', 'frontieres.vite', 'frontieres.juste', 'frontieres.rate'],
+      // « CAMPEMENT » : la réponse est un ENDROIT, et aucune famille existante ne
+      // sait dire « tu as trouvé la région, pas la ville ».
+      campement: ['campement.pile', 'campement.proche', 'campement.cercle', 'campement.loin'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

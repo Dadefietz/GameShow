@@ -99,7 +99,12 @@ export function useVoixDePlateau(reveal, stats, roundId) {
 
   useEffect(() => {
     if (!reveal || !stats || roundId == null) { setDit(null); return; }
-    if (dernierCommente.current != null && roundId === dernierCommente.current + 1) { setDit(null); return; }
+    // « CAMPEMENT » PARLE À CHAQUE MANCHE, même juste après une autre : l'énoncé
+    // demande « une phrase en fonction de la réussite du Cercle » sur son écran
+    // de résultat, sans condition. Le silence d'une manche sur deux le
+    // contredirait une fois sur deux.
+    const toujours = stats.kind === 'campement';
+    if (!toujours && dernierCommente.current != null && roundId === dernierCommente.current + 1) { setDit(null); return; }
     const moment = momentDePlateau(reveal.type, stats, reveal);
     if (!moment) { setDit(null); return; }
     dernierCommente.current = roundId;

@@ -551,6 +551,53 @@
   .st-fr__bilan .st-fr__indices { gap: var(--sp-3); }
   .st-fr__bilan .st-fr__indice { padding: var(--sp-3) var(--sp-4); }
 
+  /* ===================== « CAMPEMENT » À L'ANTENNE ==========================
+     PENDANT LA MANCHE, LA CARTE SEULE, aussi grande que la scène le permet —
+     carrée, donc bornée par la hauteur sur une toile en paysage.
+     À LA RÉVÉLATION, LA MÊME CARTE À LA MÊME PLACE, à gauche, et la colonne de
+     droite pour le campement nommé, les quatre tranches et deux chiffres. Le
+     public vient de regarder cette carte vingt secondes : c'est elle qui se
+     remplit de points, elle ne doit pas changer de place.
+
+     LA TAILLE SE MESURE SUR LA PLACE DISPONIBLE (`container-type: size`), et la
+     plus petite dimension décide : une carte posée en `height: 100%` dans une
+     case qui se dimensionne sur son contenu n'existerait pas (voir la note de
+     « Frontières » juste au-dessus). */
+  .st-cp {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    container-type: size;
+    display: grid;
+    place-items: center;
+  }
+  .st-cpcarte {
+    width: min(100cqw, 100cqh);
+    border-radius: var(--r-l);
+    box-shadow: var(--sh-2), var(--sh-edge);
+  }
+  /* Les points sont plus gros à l'antenne : à deux mètres d'un écran, un point
+     de neuf pixels ne se voit plus. */
+  .st-cpcarte .cpcarte__point { min-width: 18px; border-width: 3px; }
+  .st-cpcarte .cpcarte__ville { min-width: 11px; }
+  .st-cp--reveal {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--sp-7);
+    justify-items: start;
+  }
+  .st-cp--reveal .st-cpcarte { width: min(58cqw, 100cqh); }
+  .st-cp__bilan {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    min-width: 0;
+    width: 100%;
+  }
+  .st-cptr { gap: var(--sp-3); font: 500 var(--fs-st-200) / 1.1 var(--f-ui); }
+  .st-cptr .cptr__ligne { grid-template-columns: minmax(8em, auto) 1fr 3ch; }
+  .st-cptr .cptr__barre { height: 0.9em; }
+  .st-fact__sur { color: var(--c-ink-3); font-size: 0.6em; }
+
   /* LE DESSIN PARTAGÉ, EN GRAND — « à la place de la phrase et du graphique ».
      AVEC LE NOM DE SON AUTEUR ET SANS SA NOTE depuis le 26/09 : « faut pas qu'il
      y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom
