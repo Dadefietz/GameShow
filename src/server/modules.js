@@ -1348,6 +1348,289 @@ export function banqueDeCampement(questions) {
   return propres.length ? propres : VILLES_CAMPEMENT;
 }
 
+// ============================================================================
+// « CHASSE AUX ÉTOILES » — LES RÉGLAGES, LE CIEL, LA SÉQUENCE, L'ARBITRE
+// ============================================================================
+//
+// CE QUI A ÉTÉ DEMANDÉ (19/11) : un tape-taupe dans un ciel de nuit. Une
+// vingtaine de points blancs ; certains s'illuminent brièvement ; on les touche
+// à temps pour marquer, on perd en touchant un point éteint. Vingt secondes, deux
+// modes, deux niveaux, la même séquence pour tout le monde.
+export const MARQUE_ETOILES = 'contenu-etoiles';
+export const COMPTE_A_REBOURS_ETOILES_MS = 3000;
+export const DUREE_JEU_ETOILES_MS = 20_000;
+// LE TEMPS QUE LE RÉSEAU A LE DROIT DE COÛTER. Une touche partie à 19,95 s doit
+// pouvoir arriver ; la fenêtre du serveur déborde donc le jeu de cette marge —
+// le chrono affiché, lui, est celui du jeu. Même raison que « Le juste temps ».
+const MARGE_ETOILES_MS = 800;
+// La tolérance du réseau, en millisecondes — celle du « Juste temps ».
+const TOLERANCE_ETOILES_MS = TOLERANCE_RESEAU * 1000;
+export const NOMBRE_ETOILES = 20;
+
+export const MODES_ETOILES = [
+  { cle: 'ciel', nom: 'Ciel étoilé' },
+  { cle: 'chasse', nom: 'Chasse' },
+];
+export const NIVEAUX_ETOILES = [
+  { cle: 'facile', nom: 'Facile' },
+  { cle: 'difficile', nom: 'Difficile' },
+];
+
+// LES RÉGLAGES PAR DÉFAUT — et ce qui a dû être tranché.
+//
+// « Les paramètres doivent être centralisés et faciles à ajuster dans le
+// studio. » Ils le sont : ce tableau est la valeur de départ, le Studio le
+// remplace champ par champ (`reglagesEtoiles`).
+//
+// LE CIEL ÉTOILÉ ÉTAIT IMPOSSIBLE TEL QU'ÉCRIT, et c'est de l'arithmétique, pas
+// une affaire de goût. Le document demande, en Facile, cinquante étoiles qui
+// restent chacune 1,5 s, jamais plus de trois à la fois, en vingt secondes —
+// avec des moments où aucune n'est allumée. Cinquante fois 1,5 s font 75
+// secondes-étoile ; trois étoiles pendant vingt secondes n'en offrent que 60. En
+// Difficile, 60 fois 1 s remplissent exactement les 60 : trois étoiles allumées
+// à chaque instant, sans un seul trou — l'inverse de « il est possible
+// qu'aucune étoile soit illuminée ».
+//
+// CE QUI EST GARDÉ : tout ce qui se VOIT et tout ce qui se COMPTE — trois
+// étoiles au plus, cinquante et soixante étoiles, vingt et vingt-cinq points,
+// donc les maximums annoncés de 1 000 et 1 500 points. CE QUI CÈDE : la durée
+// d'allumage, ramenée à la plus longue qui laisse des trous — 1,0 s en Facile
+// (50 secondes-étoile sur 57 possibles), 0,8 s en Difficile (48 sur 57). Le
+// Facile reste plus lent que le Difficile, et l'animateur peut tout changer au
+// Studio, qui lui dit quand une combinaison ne tient pas.
+//
+// LA FENÊTRE DU CIEL VA DE 0,5 À 19,5 S : une étoile allumée à la dernière
+// fraction de seconde ne pourrait pas être touchée. Celle de la CHASSE est
+// donnée par le document : « de la seconde 1 à la seconde 19 ».
+//
+// LE MAXIMUM DE LA CHASSE EST LE COMPTE EXACT : 15 × 60 = 900, 20 × 60 = 1 200.
+export const REGLAGES_ETOILES = {
+  ciel: {
+    facile: { duree: 1.0, nombre: 50, simultanees: 3, points: 20, debut: 0.5, fin: 19.5 },
+    difficile: { duree: 0.8, nombre: 60, simultanees: 3, points: 25, debut: 0.5, fin: 19.5 },
+  },
+  chasse: {
+    facile: { duree: 0.9, nombre: 15, pauseMin: 0.1, pauseMax: 2, points: 60, debut: 1, fin: 19 },
+    difficile: { duree: 0.6, nombre: 20, pauseMin: 0.1, pauseMax: 2, points: 60, debut: 1, fin: 19 },
+  },
+};
+
+const borneNb = (v, min, max, defaut) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : defaut;
+};
+
+// LES RÉGLAGES DU MODULE — ceux du Studio s'il y en a, champ par champ, bornés.
+// Un champ absent ou illisible reprend sa valeur par défaut : un réglage abîmé ne
+// doit jamais rendre le jeu injouable à l'antenne.
+export function reglagesEtoiles(questions) {
+  const entree = (Array.isArray(questions) ? questions : []).find((q) => q && q.kind === MARQUE_ETOILES);
+  const lus = (entree && typeof entree.reglages === 'object' && entree.reglages) || {};
+  const sortie = {};
+  for (const { cle: mode } of MODES_ETOILES) {
+    sortie[mode] = {};
+    for (const { cle: niveau } of NIVEAUX_ETOILES) {
+      const d = REGLAGES_ETOILES[mode][niveau];
+      const l = lus?.[mode]?.[niveau] || {};
+      const r = {
+        duree: borneNb(l.duree, 0.2, 5, d.duree),
+        nombre: Math.round(borneNb(l.nombre, 1, 200, d.nombre)),
+        points: Math.round(borneNb(l.points, 0, 1000, d.points)),
+        debut: borneNb(l.debut, 0, 19, d.debut),
+        fin: borneNb(l.fin, 1, 20, d.fin),
+      };
+      if (r.fin <= r.debut + r.duree) { r.debut = d.debut; r.fin = d.fin; }
+      if (mode === 'ciel') r.simultanees = Math.round(borneNb(l.simultanees, 1, 10, d.simultanees));
+      else {
+        r.pauseMin = borneNb(l.pauseMin, 0, 5, d.pauseMin);
+        r.pauseMax = borneNb(l.pauseMax, r.pauseMin, 10, d.pauseMax);
+      }
+      sortie[mode][niveau] = r;
+    }
+  }
+  return sortie;
+}
+
+// CE QU'UN RÉGLAGE PERMET VRAIMENT — combien d'étoiles tiennent dans la fenêtre.
+// Le Studio s'en sert pour prévenir l'animateur ; le générateur, pour ne jamais
+// promettre ce qu'il ne peut pas tenir.
+export function capaciteEtoiles(mode, r) {
+  const fenetre = (r.fin - r.debut) * 1000;
+  const duree = r.duree * 1000;
+  if (!(duree > 0)) return 0;
+  if (mode === 'ciel') return Math.max(0, r.simultanees * Math.floor(fenetre / duree));
+  // Une à la fois, avec au moins `pauseMin` entre deux.
+  return Math.max(0, Math.floor((fenetre + r.pauseMin * 1000) / (duree + r.pauseMin * 1000)));
+}
+
+// LE CIEL — une vingtaine de points, « avec des emplacements un peu aléatoires
+// (sans être trop proches les uns des autres) ».
+//
+// LE CIEL A UN FORMAT FIXE, TROIS DE LARGE POUR QUATRE DE HAUT, et c'est ce qui
+// permet « la même disposition pour chacun des joueurs et pour l'écran de
+// stream » : le téléphone en portrait et la scène en paysage dessinent le même
+// rectangle, à des tailles différentes. Les positions sont des fractions de ce
+// rectangle.
+//
+// L'ÉCART MINIMAL vaut un sixième de la largeur : sur un téléphone de 350 pixels,
+// soixante pixels de centre à centre — plus que la zone de touche d'un doigt
+// (44). Deux étoiles plus proches se toucheraient l'une pour l'autre.
+export const FORMAT_CIEL = { largeur: 3, hauteur: 4 };
+const ECART_MIN_CIEL = 0.5;   // en unités du format (1/6 de la largeur)
+export function genererCiel(n = NOMBRE_ETOILES, alea = Math.random) {
+  const { largeur: L, hauteur: H } = FORMAT_CIEL;
+  for (let essai = 0; essai < 300; essai += 1) {
+    const pts = [];
+    for (let tir = 0; tir < 4000 && pts.length < n; tir += 1) {
+      const p = { x: 0.08 + alea() * 0.84, y: 0.06 + alea() * 0.88 };
+      if (pts.every((q) => Math.hypot((p.x - q.x) * L, (p.y - q.y) * H) >= ECART_MIN_CIEL)) pts.push(p);
+    }
+    if (pts.length === n) return pts.map((p) => ({ x: Math.round(p.x * 1e4) / 1e4, y: Math.round(p.y * 1e4) / 1e4 }));
+  }
+  throw new Error('ciel impossible à composer');
+}
+
+// N parts positives qui somment à `total`, tirées au hasard.
+function partsAleatoires(n, total, alea) {
+  if (n <= 0) return [];
+  const w = Array.from({ length: n }, () => -Math.log(1 - alea() * 0.999999));
+  const s = w.reduce((a, b) => a + b, 0);
+  return w.map((x) => (x / s) * total);
+}
+
+// LA SÉQUENCE D'ALLUMAGES — la même pour tout le monde, tirée une fois par le
+// serveur. Chaque allumage : un numéro `k`, l'étoile, et ses instants de début et
+// de fin en millisecondes DEPUIS LE DÉBUT DU JEU (compte à rebours non compris).
+//
+// LE CIEL ÉTOILÉ SE CONSTRUIT EN « COULOIRS ». Trois couloirs au plus — le
+// maximum d'étoiles allumées ensemble —, et dans chaque couloir des allumages
+// qui ne se chevauchent jamais, séparés de pauses tirées au hasard. Le plafond
+// est ainsi tenu PAR CONSTRUCTION : trois couloirs ne peuvent pas porter quatre
+// étoiles à la fois. Et quand les trois couloirs sont en pause ensemble, le ciel
+// est éteint — « il est possible qu'aucune étoile soit illuminée ».
+//
+// LA CHASSE EST UN SEUL COULOIR, avec des pauses « entre 0,1 et 2 secondes ».
+//
+// UNE ÉTOILE NE SE RALLUME PAS AUSSITÔT ÉTEINTE : il faut un tiers de seconde de
+// repos. Sans cela, l'étoile qu'on vient de toucher se rallumerait sous le doigt,
+// et la seconde touche — un rebond — compterait.
+const REPOS_ETOILE_MS = 350;
+export function genererSequence(mode, r, alea = Math.random, n = NOMBRE_ETOILES) {
+  const debut = r.debut * 1000;
+  const fin = r.fin * 1000;
+  const duree = Math.round(r.duree * 1000);
+  const nombre = Math.min(r.nombre, capaciteEtoiles(mode, r));
+  const intervalles = [];
+  if (mode === 'ciel') {
+    const couloirs = Math.max(1, r.simultanees);
+    const parCouloir = Array.from({ length: couloirs }, (_, i) => Math.floor(nombre / couloirs) + (i < nombre % couloirs ? 1 : 0));
+    for (const nb of parCouloir) {
+      const jeu = (fin - debut) - nb * duree;
+      const pauses = partsAleatoires(nb + 1, jeu, alea);
+      let t = debut;
+      for (let i = 0; i < nb; i += 1) {
+        t += pauses[i];
+        intervalles.push({ debut: Math.round(t), fin: Math.round(t) + duree });
+        t += duree;
+      }
+    }
+  } else {
+    const pMin = r.pauseMin * 1000;
+    const pMax = r.pauseMax * 1000;
+    const libre = (fin - debut) - nombre * duree;               // à répartir en pauses
+    const internes = Math.max(0, nombre - 1);
+    // Les pauses internes reçoivent tout ce qu'elles peuvent porter ; le reste,
+    // s'il y en a (pauses toutes au maximum), va avant la première et après la
+    // dernière.
+    const pourInternes = Math.min(libre, internes * pMax);
+    const parts = partsAleatoires(internes, Math.max(0, pourInternes - internes * pMin), alea);
+    // Une part qui dépasserait le maximum rend son excédent aux autres.
+    let pauses = parts.map((x) => pMin + x);
+    for (let tour = 0; tour < 20; tour += 1) {
+      const exces = pauses.reduce((s, p) => s + Math.max(0, p - pMax), 0);
+      if (exces < 1) break;
+      const sous = pauses.filter((p) => p < pMax).length || 1;
+      pauses = pauses.map((p) => (p > pMax ? pMax : p + exces / sous));
+    }
+    const reste = Math.max(0, libre - pauses.reduce((s, p) => s + p, 0));
+    let t = debut + reste * alea();
+    for (let i = 0; i < nombre; i += 1) {
+      intervalles.push({ debut: Math.round(t), fin: Math.round(t) + duree });
+      t += duree + (pauses[i] || 0);
+    }
+  }
+  intervalles.sort((a, b) => a.debut - b.debut);
+  // LES ÉTOILES, DANS L'ORDRE DU TEMPS : une étoile qui n'est ni allumée, ni
+  // au repos — et, en Chasse, jamais deux fois de suite la même.
+  const libreA = new Array(n).fill(-Infinity);
+  let precedente = -1;
+  return intervalles.map((iv, k) => {
+    let candidates = [];
+    for (let e = 0; e < n; e += 1) if (libreA[e] <= iv.debut && e !== precedente) candidates.push(e);
+    if (!candidates.length) candidates = [...Array(n).keys()].filter((e) => libreA[e] <= iv.debut);
+    const etoile = candidates[Math.floor(alea() * candidates.length)];
+    libreA[etoile] = iv.fin + REPOS_ETOILE_MS;
+    if (mode === 'chasse') precedente = etoile;
+    return { k, etoile, debut: iv.debut, fin: iv.fin };
+  });
+}
+
+// L'ARBITRE D'UNE TOUCHE.
+//
+// LE TÉLÉPHONE ANNONCE L'INSTANT DE SA TOUCHE, et le serveur le borne — la
+// doctrine du « Juste temps », et pour la même raison. Une étoile de la Chasse
+// difficile reste allumée six dixièmes de seconde ; jugée sur l'heure d'ARRIVÉE,
+// une touche parfaite partie d'un téléphone en 4G arriverait après l'extinction
+// une fois sur deux. L'annonce est bornée entre l'heure d'arrivée et trois
+// quarts de seconde plus tôt : un téléphone ne peut pas se prétendre plus
+// rapide que le réseau ne l'explique.
+//
+// CE QUI EST ASSUMÉ. La séquence part avec la manche — il faut bien que chaque
+// écran sache quand allumer quoi —, si bien qu'un client MODIFIÉ pourrait toucher
+// chaque étoile à coup sûr. Il faut du code pour cela, pas un réglage ; et
+// l'animateur voit le classement, où un sans-faute à chaque manche ne passe pas
+// inaperçu. Un tape-taupe en ligne n'a pas d'autre défense honnête.
+//
+// RÉSULTATS POSSIBLES :
+//   — `bon` : l'étoile était allumée à cet instant, et pas encore comptée pour
+//     ce joueur ;
+//   — `deja` : l'allumage a déjà été compté — un rebond du doigt, ou une
+//     seconde touche sur une étoile que son écran a déjà éteinte. Ni gagné ni
+//     perdu : « empêcher qu'une touche soit comptée deux fois » ;
+//   — `rate` : l'étoile n'était pas allumée ;
+//   — `hors` : avant le départ ou après la fin — sans effet, « les entrées reçues
+//     après la fin de la manche ne doivent pas modifier le score ».
+const GRACE_ETOILE_MS = 60;   // un allumage se juge à soixante millièmes près
+export function arbitrerTouche(rt, etat, value, ecouleServeurMs) {
+  const etoile = Number(value?.etoile);
+  if (!Number.isInteger(etoile) || etoile < 0 || etoile >= (rt.ciel?.length || 0)) return { verdict: 'invalide' };
+  const annonce = Number(value?.t);
+  const t = Math.min(ecouleServeurMs, Math.max(ecouleServeurMs - TOLERANCE_ETOILES_MS,
+    Number.isFinite(annonce) ? annonce : ecouleServeurMs));
+  if (t < 0 || t > DUREE_JEU_ETOILES_MS) return { verdict: 'hors' };
+  const allumage = rt.allumages.find((a) => a.etoile === etoile
+    && t >= a.debut - GRACE_ETOILE_MS && t <= a.fin + GRACE_ETOILE_MS);
+  if (allumage) {
+    if (etat.bons.includes(allumage.k)) return { verdict: 'deja', k: allumage.k };
+    etat.bons.push(allumage.k);
+    return { verdict: 'bon', k: allumage.k };
+  }
+  // UN REBOND JUSTE APRÈS UNE TOUCHE RÉUSSIE N'EST PAS UNE FAUTE. L'étoile vient
+  // de s'éteindre sous le doigt (son écran l'a éteinte au premier contact) ;
+  // pénaliser le second contact ferait perdre des points pour un tremblement.
+  const recent = rt.allumages.find((a) => a.etoile === etoile && etat.bons.includes(a.k)
+    && t > a.fin && t <= a.fin + REPOS_ETOILE_MS);
+  if (recent) return { verdict: 'deja', k: recent.k };
+  etat.rates += 1;
+  return { verdict: 'rate' };
+}
+
+export function pointsEtoiles(etat, points) {
+  const gagnes = etat.bons.length * points;
+  const perdus = etat.rates * points;
+  return { gagnes, perdus, total: gagnes - perdus };
+}
+
 export const CATEGORIES_ESTIMATION = [
   { cle: 'culture', nom: 'Culture' },
   { cle: 'approximation', nom: 'Approximation' },
@@ -3273,6 +3556,168 @@ export const modules = {
         // l'estimation, déjà écrit : on le réemploie, et la console le montre
         // avec ses propres colonnes.
         prives: { classement, masques },
+      };
+    },
+  },
+
+  // ==========================================================================
+  // « CHASSE AUX ÉTOILES » — un tape-taupe dans un ciel de nuit
+  // ==========================================================================
+  //
+  // UNE MANCHE = TROIS SECONDES DE COMPTE À REBOURS, PUIS VINGT DE JEU. « Les
+  // joueurs voient un compte à rebours commun de 3 secondes au lancement. » Il
+  // fait partie de la manche et non d'un écran à part : tous les téléphones et
+  // le stream le reçoivent du même message, donc partent ensemble.
+  //
+  // ON TOUCHE PLUSIEURS FOIS — c'est tout le jeu. Le moteur ne lui applique pas
+  // la règle « une réponse par joueur » : chaque touche passe par `toucher`,
+  // qui arbitre et tient le compte (voir `arbitrerTouche`).
+  etoiles: {
+    meta: {
+      type: 'etoiles', name: 'Chasse aux étoiles', icon: 'sparkles', color: 'flame',
+      scored: true, malus: false, vitesse: false,
+      // Vingt secondes, et ce n'est pas réglable : « la partie dure 20 secondes
+      // à tous les niveaux ».
+      dureeS: DUREE_JEU_ETOILES_MS / 1000, dureeFixe: true,
+      direct: true,
+      touches: true,
+      modes: MODES_ETOILES,
+      niveaux: NIVEAUX_ETOILES,
+    },
+
+    // CE QUE LA CONSOLE REÇOIT POUR PRÉPARER LA MANCHE : les modes, les niveaux,
+    // et ce que chaque combinaison donnera — le nombre d'étoiles et leurs points.
+    banqueDe(questions) {
+      const r = reglagesEtoiles(questions);
+      return {
+        modesEtoiles: MODES_ETOILES,
+        niveauxEtoiles: NIVEAUX_ETOILES,
+        apercuEtoiles: Object.fromEntries(MODES_ETOILES.map(({ cle: m }) => [m, Object.fromEntries(
+          NIVEAUX_ETOILES.map(({ cle: n }) => [n, {
+            nombre: Math.min(r[m][n].nombre, capaciteEtoiles(m, r[m][n])),
+            duree: r[m][n].duree,
+            points: r[m][n].points,
+          }]),
+        )])),
+      };
+    },
+
+    buildRound(q) {
+      const mode = MODES_ETOILES.some((m) => m.cle === q?.mode) ? q.mode : 'ciel';
+      const niveau = NIVEAUX_ETOILES.some((n) => n.cle === q?.niveau) ? q.niveau : 'facile';
+      // LES RÉGLAGES VOYAGENT AVEC LE TOP DE DÉPART, attachés par le serveur —
+      // jamais reçus de l'écran (même règle que les banques des autres jeux).
+      const r = (q?.reglages && q.reglages[mode]?.[niveau]) || REGLAGES_ETOILES[mode][niveau];
+      const ciel = genererCiel();
+      const allumages = genererSequence(mode, r, Math.random, ciel.length);
+      const nomMode = MODES_ETOILES.find((m) => m.cle === mode).nom;
+      const nomNiveau = NIVEAUX_ETOILES.find((n) => n.cle === niveau).nom;
+      return {
+        type: 'etoiles',
+        questionId: q?.id || `etoiles-${Date.now()}`,
+        text: `${nomMode} — ${nomNiveau}`,
+        mode, niveau, nomMode, nomNiveau,
+        points: r.points,
+        ciel,
+        allumages,
+        touches: new Map(),
+        durationMs: COMPTE_A_REBOURS_ETOILES_MS + DUREE_JEU_ETOILES_MS + MARGE_ETOILES_MS,
+      };
+    },
+
+    // LA SÉQUENCE PART ENTIÈRE AVEC LA MANCHE — voir la note de l'arbitre : il
+    // faut que chaque écran sache quand allumer quoi, et que tous le fassent au
+    // même instant. Elle n'est pas une « réponse » au sens des autres jeux : la
+    // connaître ne dispense pas de toucher à temps.
+    publicQuestion(rt) {
+      return {
+        type: 'etoiles',
+        questionId: rt.questionId,
+        text: rt.text,
+        mode: rt.mode,
+        niveau: rt.niveau,
+        nomMode: rt.nomMode,
+        nomNiveau: rt.nomNiveau,
+        points: rt.points,
+        ciel: rt.ciel,
+        format: FORMAT_CIEL,
+        allumages: rt.allumages,
+        compteAReboursMs: COMPTE_A_REBOURS_ETOILES_MS,
+        dureeJeuMs: DUREE_JEU_ETOILES_MS,
+      };
+    },
+
+    // Les touches passent par `toucher` ; il n'y a pas de « réponse » unique.
+    validateAnswer() { return null; },
+
+    // UNE TOUCHE. Le moteur lui donne le temps écoulé sur SON horloge depuis le
+    // départ de la manche ; on le ramène au début du JEU.
+    toucher(rt, playerId, value, ecouleManche) {
+      if (!rt.touches) rt.touches = new Map();
+      let etat = rt.touches.get(playerId);
+      if (!etat) { etat = { bons: [], rates: 0 }; rt.touches.set(playerId, etat); }
+      const res = arbitrerTouche(rt, etat, value, ecouleManche - COMPTE_A_REBOURS_ETOILES_MS);
+      const p = pointsEtoiles(etat, rt.points);
+      return { ...res, etat, score: p.total, bons: etat.bons.length, rates: etat.rates };
+    },
+
+    score(rt) {
+      const results = new Map();
+      const lignes = [];
+      let totalBons = 0;
+      let totalRates = 0;
+      let somme = 0;
+      for (const [pid, a] of rt.answers) {
+        const etat = a.value || { bons: [], rates: 0 };
+        const p = pointsEtoiles(etat, rt.points);
+        totalBons += etat.bons.length;
+        totalRates += etat.rates;
+        somme += p.total;
+        results.set(pid, {
+          // LE SOLDE DE LA MANCHE, NÉGATIF COMPRIS : « en perdre en touchant des
+          // étoiles éteintes ». Le moteur l'ajoute au total, qu'il garde à zéro au
+          // plus bas.
+          base: p.total,
+          bonusExact: 0, bonusProche: 0, speed: 0,
+          correct: p.total > 0,
+          // `bons`, `rates` et `brut` traversent déjà les deux recopies du moteur
+          // (ils servent à « Retour de flamme ») : l'écran du joueur peut montrer
+          // le calcul sans rien ajouter au trajet.
+          bons: etat.bons.length,
+          rates: etat.rates,
+          brut: p.total,
+        });
+        lignes.push({ pid, score: p.total, bons: etat.bons.length, rates: etat.rates });
+      }
+      const n = rt.answers.size;
+      // « 10 meilleurs et 10 pires, tous sous vingt joueurs » — le tableau de
+      // l'estimation, trié ici sur le score (le plus haut en premier).
+      const { lignes: classement, masques } = tableauEstimation(lignes.map((l) => ({ ...l, ecart: -l.score })));
+      return {
+        results,
+        reveal: {
+          text: rt.text,
+          mode: rt.mode,
+          niveau: rt.niveau,
+          nomMode: rt.nomMode,
+          nomNiveau: rt.nomNiveau,
+          points: rt.points,
+          ciel: rt.ciel,
+          stats: {
+            kind: 'etoiles',
+            total: n,
+            allumages: rt.allumages.length,
+            totalBons,
+            totalRates,
+            // LA PART DES ÉTOILES ATTRAPÉES PAR LE JOUEUR MOYEN — la mesure de
+            // la réussite du cercle que le plateau commente.
+            reussite: n && rt.allumages.length ? Math.round((totalBons / (n * rt.allumages.length)) * 100) : 0,
+            moyenne: n ? Math.round(somme / n) : 0,
+            meilleur: lignes.length ? Math.max(...lignes.map((l) => l.score)) : 0,
+            maximum: rt.allumages.length * rt.points,
+          },
+        },
+        prives: { classement: classement.map(({ ecart, ...l }) => l), masques, etoilesDirect: lignes },
       };
     },
   },

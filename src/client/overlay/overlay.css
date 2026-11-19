@@ -598,6 +598,37 @@
   .st-cptr .cptr__barre { height: 0.9em; }
   .st-fact__sur { color: var(--c-ink-3); font-size: 0.6em; }
 
+  /* ===================== « CHASSE AUX ÉTOILES » À L'ANTENNE ==================
+     « On voit le chrono de la manche et, sur toute la longueur droite de
+     l'écran, les scores en direct des 10 meilleurs joueurs. » Deux colonnes : le
+     ciel à gauche, aussi grand que la hauteur le permet ; le tableau à droite,
+     sur toute la hauteur. À la révélation, les chiffres prennent la place du
+     ciel et le tableau reste où il était. */
+  .st-et {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
+    gap: var(--sp-7);
+    align-items: stretch;
+  }
+  .st-et__ciel { position: relative; display: flex; min-height: 0; }
+  .st-et__boite { min-height: 0; }
+  .st-et__compte { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .st-et__compte-chiffre { font: 700 var(--fs-st-700) / 1 var(--f-display); color: var(--c-ink); }
+  .st-ettop { font: 500 var(--fs-st-200) / 1.1 var(--f-ui); }
+  .st-ettop .ettop__titre { font-size: var(--fs-st-100); }
+  .st-ettop .ettop__ligne { padding: var(--sp-3) var(--sp-4); grid-template-columns: 2ch minmax(0, 1fr) auto 5ch; }
+  /* La règle doit l'emporter sur `.st-question`, posée plus bas dans la feuille :
+     à 116 px, le titre prenait au ciel un tiers de sa hauteur (vu à l'écran). */
+  .st-question.st-question--etoiles { font-size: var(--fs-st-400); }
+  .st-et--reveal { align-items: center; }
+  /* Deux colonnes, et la règle doit l'emporter sur celle de `.st-facts`, posée
+     plus bas dans la feuille : trois colonnes cassaient les intitulés en trois
+     lignes (vu à l'écran). */
+  .st-facts.st-et__faits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   /* LE DESSIN PARTAGÉ, EN GRAND — « à la place de la phrase et du graphique ».
      AVEC LE NOM DE SON AUTEUR ET SANS SA NOTE depuis le 26/09 : « faut pas qu'il
      y ait le pourcentage de ressemblance. Il faut qu'il y ait le nom

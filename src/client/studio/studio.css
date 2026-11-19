@@ -453,6 +453,21 @@
      nombre côte à côte y deviennent trop étroits pour qu'on lise ce qu'on tape. */
   .cmod__paire { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
   .cmod__paire .input { flex: 1 1 8rem; min-width: 0; }
+
+  /* « CHASSE AUX ÉTOILES » — LES QUATRE COMBINAISONS, en deux colonnes sur un
+     écran large. Chaque bloc dit, sous ses champs, ce que ses réglages
+     permettent vraiment. */
+  .etreg { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--sp-4); }
+  .etreg__bloc {
+    margin: 0;
+    padding: var(--sp-4);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-m);
+    display: grid;
+    gap: var(--sp-3);
+  }
+  .etreg__titre { padding: 0 var(--sp-2); font: 600 var(--fs-300) / 1.2 var(--f-ui); color: var(--c-ink); }
+  .etreg__champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
   .cmod__forme {
     font: 600 var(--fs-200) / 1 var(--f-mono);
     color: var(--c-ink);

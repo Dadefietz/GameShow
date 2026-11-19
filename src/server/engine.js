@@ -659,10 +659,46 @@ export function devoilerReponse(io, room) {
   roomManager.touch(room);
 }
 
+// « CHASSE AUX ÉTOILES » — LES DIX MEILLEURS EN DIRECT, À L'ANTENNE.
+//
+// « Sur toute la longueur droite de l'écran, on voit les scores en direct des 10
+// meilleurs joueurs qui évoluent en fonction de leurs points gagnés et perdus. »
+//
+// CANAL DU STAFF — l'animateur et le stream —, jamais les téléphones : un joueur
+// ne voit pas son rang en cours de partie (règle absolue du projet). Les
+// pseudonymes y sont, comme dans le classement que le stream affiche déjà.
+//
+// UN ENVOI AU PLUS TOUS LES QUART DE SECONDE : trente joueurs qui touchent trois
+// étoiles par seconde, c'est cent messages par seconde vers l'antenne pour un
+// tableau qui ne peut pas bouger plus vite que l'œil.
+const DIRECT_ETOILES_MS = 250;
+export const DIRECT_ETOILES_MAX = 10;
+export function directEtoiles(room, rt, final = false) {
+  const lignes = [...(rt.touches || new Map()).entries()]
+    .map(([pid, e]) => {
+      const p = room.players.get(pid);
+      if (!p) return null;
+      const bons = e.bons.length;
+      return { pseudo: p.pseudo, score: (bons - e.rates) * rt.points, bons, rates: e.rates };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || b.bons - a.bons || a.pseudo.localeCompare(b.pseudo, 'fr'));
+  return { roundId: rt.roundId, final, joueurs: lignes.length, lignes: lignes.slice(0, DIRECT_ETOILES_MAX) };
+}
+function programmerDirectEtoiles(io, room) {
+  if (room._directEtoiles) return;
+  room._directEtoiles = setTimeout(() => {
+    room._directEtoiles = null;
+    const rt = room.currentModule;
+    if (rt && rt.type === 'etoiles') toStaff(io, room).emit('etoiles:direct', directEtoiles(room, rt));
+  }, DIRECT_ETOILES_MS);
+}
+
 export function closeWindow(io, room) {
   const rt = room.currentModule;
   if (!rt || rt.closed) return;
   rt.closed = true;
+  if (room._directEtoiles) { clearTimeout(room._directEtoiles); room._directEtoiles = null; }
   // LES BROUILLONS DEVIENNENT DES RÉPONSES — voir `submitBrouillon`. Seulement
   // pour qui n'a PAS envoyé : un envoi volontaire reste celui qui compte, même
   // si le joueur a retouché son dessin ensuite.
@@ -721,6 +757,27 @@ export function submitAnswer(io, room, playerId, rawValue) {
   const player = room.players.get(playerId);
   if (!player) return { ok: false, reason: 'unknown-player' };
   const mod = modules[rt.type];
+
+  // ---- « CHASSE AUX ÉTOILES » : DES TOUCHES, PAS UNE RÉPONSE ----
+  //
+  // Le module arbitre chaque touche (`toucher`) et tient le compte ; le moteur ne
+  // fait que le ranger là où tout le reste le cherche — `rt.answers`, qui dit
+  // qui a participé et combien ont joué — et prévenir les écrans.
+  if (mod.meta.touches && typeof mod.toucher === 'function') {
+    const res = mod.toucher(rt, playerId, rawValue, Date.now() - rt.startedAt);
+    if (res.verdict === 'invalide' || res.verdict === 'hors') return { ok: false, reason: res.verdict };
+    const premiere = !rt.answers.has(playerId);
+    rt.answers.set(playerId, { value: res.etat, at: Date.now() });
+    roomManager.touch(room);
+    if (premiere) toRoom(io, room).emit('module:answersCount', { count: rt.answers.size });
+    // LE CLASSEMENT EN DIRECT, pour l'antenne — une touche ne change rien à
+    // l'écran des autres joueurs, seulement au tableau du stream.
+    if (res.verdict !== 'deja') programmerDirectEtoiles(io, room);
+    return {
+      ok: true,
+      etoiles: { roundId: rt.roundId, verdict: res.verdict, k: res.k ?? null, score: res.score, bons: res.bons, rates: res.rates },
+    };
+  }
 
   // ---- LES JEUX OÙ L'ON BUZZE PLUSIEURS FOIS ----
   //
@@ -1066,6 +1123,13 @@ export function reveal(io, room) {
           .map((j) => j.pseudo),
       })),
     });
+  }
+
+  // « CHASSE AUX ÉTOILES » : LE TABLEAU FINAL, À L'ANTENNE ET À LA CONSOLE —
+  // « tu peux ajouter le classement des 10 meilleurs joueurs avec le détail de
+  // leurs bons et mauvais clics ». Même canal que le direct : le staff.
+  if (rt.type === 'etoiles') {
+    toStaff(io, room).emit('etoiles:direct', directEtoiles(room, rt, true));
   }
 
   if (prives && Array.isArray(prives.plusProches) && prives.plusProches.length) {

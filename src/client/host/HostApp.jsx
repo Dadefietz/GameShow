@@ -10,6 +10,7 @@
 //      confirmation en deux temps, jamais par un clic direct.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CarteReponse, TranchesCampement } from '../shared/CarteCampement.jsx';
+import { ClassementEtoiles } from '../shared/CielEtoiles.jsx';
 import { createPortal } from 'react-dom';
 import { plagesVisibles, bornes, barres, repereCible } from '../shared/echelle-estimation.js';
 import { lettreDeChoix } from '../shared/lettres.js';
@@ -650,6 +651,87 @@ function DepartRetour({ jeu, ecart, famille, onMode, onFamille, onDemarrer, onAn
   );
 }
 
+// « CHASSE AUX ÉTOILES » — LE MODE, PUIS LE NIVEAU, PUIS LE DÉPART.
+//
+// « L'animateur peut sélectionner le mode "Ciel étoilé" ou "Chasse", une fois
+// sélectionné il doit choisir le niveau de difficulté "Facile" ou "Difficile". »
+// D'où l'ordre : le niveau n'apparaît qu'une fois le mode choisi, et le départ
+// attend les deux — une manche partie sur un niveau par défaut que personne n'a
+// choisi serait exactement ce que cet écran doit empêcher.
+//
+// CE QUE DONNERA CHAQUE CHOIX EST ÉCRIT SOUS LE BOUTON — le nombre d'étoiles,
+// leur durée, ce que vaut chacune —, tiré des réglages du Studio que le serveur
+// envoie avec le jeu. L'animateur annonce la manche à l'antenne : il doit savoir
+// ce qu'il lance.
+function DepartEtoiles({ jeu, onDemarrer, onAnnuler }) {
+  const [mode, setMode] = useState(null);
+  const [niveau, setNiveau] = useState(null);
+  const modes = jeu.modesEtoiles || [{ cle: 'ciel', nom: 'Ciel étoilé' }, { cle: 'chasse', nom: 'Chasse' }];
+  const niveaux = jeu.niveauxEtoiles || [{ cle: 'facile', nom: 'Facile' }, { cle: 'difficile', nom: 'Difficile' }];
+  const apercu = (m, n) => jeu.apercuEtoiles?.[m]?.[n];
+  const virgule = (v) => String(v).replace('.', ',');
+  return (
+    <section className="private lien-saisie" aria-label="Démarrer Chasse aux étoiles" data-testid="depart-etoiles">
+      <p className="private__title"><I.eye s={16} /> {jeu.name} — toi seul</p>
+      <p className="lien-saisie__aide">
+        Une vingtaine de points dans un ciel de nuit ; certains s'allument, le cercle les
+        touche avant qu'ils s'éteignent. Un point éteint touché coûte autant qu'une étoile
+        rapporte. Trois secondes de compte à rebours, puis vingt de jeu.
+      </p>
+      <div className="fields">
+        <div className="fgroup">
+          <span className="flabel">Mode</span>
+          <div className="frow" role="radiogroup" aria-label="Mode de jeu">
+            {modes.map((m) => (
+              <button key={m.cle} type="button" role="radio" aria-checked={mode === m.cle}
+                className={`button ${mode === m.cle ? 'button--primary' : 'button--quiet'}`}
+                data-testid={`etoiles-mode-${m.cle}`} onClick={() => setMode(m.cle)}>
+                {m.nom}
+              </button>
+            ))}
+          </div>
+          <p className="fhint">
+            {mode === 'ciel' ? 'Toutes les étoiles peuvent s’allumer, trois au plus en même temps.'
+              : mode === 'chasse' ? 'Une seule étoile à la fois, l’une après l’autre.'
+                : 'Choisis d’abord le mode.'}
+          </p>
+        </div>
+        {mode ? (
+          <div className="fgroup">
+            <span className="flabel">Niveau</span>
+            <div className="frow" role="radiogroup" aria-label="Niveau de difficulté">
+              {niveaux.map((n) => (
+                <button key={n.cle} type="button" role="radio" aria-checked={niveau === n.cle}
+                  className={`button ${niveau === n.cle ? 'button--primary' : 'button--quiet'}`}
+                  data-testid={`etoiles-niveau-${n.cle}`} onClick={() => setNiveau(n.cle)}>
+                  {n.nom}
+                </button>
+              ))}
+            </div>
+            {niveau && apercu(mode, niveau) ? (
+              <p className="fhint" data-testid="etoiles-apercu">
+                {apercu(mode, niveau).nombre} étoiles, allumées {virgule(apercu(mode, niveau).duree)} s chacune —
+                {' '}{apercu(mode, niveau).points} points par étoile, {apercu(mode, niveau).nombre * apercu(mode, niveau).points} au plus.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <ActionsDepart>
+        <button className="button button--primary" type="button"
+          data-action="host:demarrerEtoiles" data-testid="etoiles-demarrer"
+          disabled={!mode || !niveau}
+          onClick={() => onDemarrer(jeu, mode, niveau)}>
+          Démarrer le jeu
+        </button>
+        {onAnnuler ? (
+          <button className="button button--quiet" type="button" onClick={onAnnuler}>Annuler</button>
+        ) : null}
+      </ActionsDepart>
+    </section>
+  );
+}
+
 // LE DÉPART DE « LES VISAGES » — l'animateur choisit son moment.
 //
 // Il n'a RIEN à saisir : la série est tirée par le serveur, qui seul la connaît.
@@ -1084,6 +1166,13 @@ const COLONNES_CLASSEMENT = {
   // de la carte. Pas en kilomètres : voir la note du serveur. Au-delà du cercle
   // tout le monde est à zéro point ; c'est l'écart qui dit alors qui s'est le
   // plus perdu — et « les dix plus éloignés » sont demandés expressément.
+  // « CHASSE AUX ÉTOILES » — « à l'image du module Retour de flamme : le
+  // classement du meilleur au pire, avec le nombre de bons clics et de mauvais ».
+  etoiles: [
+    ['Score', (l) => fmt(l.score)],
+    ['Bons', (l) => fmt(l.bons)],
+    ['Ratés', (l) => fmt(l.rates)],
+  ],
   campement: [
     ['Points', (l) => fmt(l.points)],
     ['Écart', (l) => `${String(l.ecart).replace('.', ',')} %`],
@@ -2763,11 +2852,11 @@ function AnswerDistribution({ current, distribution, answersCount, revealed, rev
 // l'écran, et « Question suivante », qui rouvre la saisie plutôt que de repartir
 // sur l'ancienne. Écrite deux fois, elle finirait par diverger — et l'animateur
 // verrait la manche repartir avec les mots de la précédente.
-const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette', 'frontieres', 'campement'];
+const JEUX_A_PREPARER = ['lien', 'juste_temps', 'visages', 'retour_flamme', 'coupe_buche', 'cache_cache', 'cueillette', 'frontieres', 'campement', 'etoiles'];
 
 // A5 — Pilotage en direct
 // ============================================================
-function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onDemarrerFrontieres, onDemarrerCampement, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
+function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorieFile, onDemarrerSimple, onDiffuserBuche, ecartRetour, familleRetour, onModeRetour, onFamilleRetour, onDemarrerRetour, onDiffuserLien, onDiffuserJusteTemps, onDemarrerVisages, onDemarrerCache, onDemarrerCueillette, onDemarrerFrontieres, onDemarrerCampement, onDemarrerEtoiles, onAnnulerLien, onShowResults, onLogout, onCloseRoom, onEndGame, onNextQuestion, onChangeModule, connLost, hostError, onDismissError }) {
   const jeux = useBibliotheque(g);
   // L'emplacement des boutons de départ dans le pied — voir `ActionsDepart`.
   const [pied, setPied] = useState(null);
@@ -2802,6 +2891,9 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
   // s'afficherait vide. Ce qui s'y compare — la carte et ses tranches — arrive
   // à la révélation, juste en dessous.
   const estCampement = current?.type === 'campement';
+  // Ni pour « Chasse aux étoiles » : une touche n'est ni une option ni un
+  // nombre. Ce qui s'y compare — le tableau des dix meilleurs — est juste dessous.
+  const estEtoiles = current?.type === 'etoiles';
   const devoilees = g.devoilements.length;
   // On est « aux réponses » dès que la dernière question est close.
   const cacheAuxReponses = estCache && !revealed
@@ -2922,6 +3014,9 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           {prepare && prepare.type === 'campement' ? (
             <DepartCampement jeu={prepare} onDemarrer={onDemarrerCampement} onAnnuler={onAnnulerLien} />
           ) : null}
+          {prepare && prepare.type === 'etoiles' ? (
+            <DepartEtoiles jeu={prepare} onDemarrer={onDemarrerEtoiles} onAnnuler={onAnnulerLien} />
+          ) : null}
           {prepare && prepare.type === 'retour_flamme' ? (
             <DepartRetour jeu={prepare} ecart={ecartRetour} famille={familleRetour}
               onMode={onModeRetour} onFamille={onFamilleRetour}
@@ -2960,7 +3055,7 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
               creuse au milieu de la console, en direct. Ce que ce jeu a de
               comparable est son graphique de ressemblance, qui vient juste
               au-dessous et qui, lui, dit quelque chose. */}
-          {cacheAuxReponses || estCueillette || estCampement ? null : (
+          {cacheAuxReponses || estCueillette || estCampement || estEtoiles ? null : (
           <section className={`private${revealed ? ' private--public' : ''}`} data-testid="stats-panel"
             data-bind="module.distribution" aria-label="Répartition des réponses">
             <p className="private__title">
@@ -2998,6 +3093,16 @@ function LiveScreen({ g, code, overlayToken, prepare, categorieFile, onCategorie
           ) : null}
           <DessinsCueillette g={g} roundId={current && current.roundId} revealed={revealed} />
           <CarteCampementHote reveal={reveal} revealed={revealed} />
+          {/* « CHASSE AUX ÉTOILES » — LES DIX MEILLEURS EN DIRECT, comme à l'antenne,
+              pendant la manche. À la révélation, le classement complet de la
+              manche (dix meilleurs, dix pires) prend le relais juste dessous. */}
+          {estEtoiles && !revealed ? (
+            <section className="private" aria-label="Les meilleurs en direct" data-testid="etoiles-hote-direct">
+              <p className="private__title"><I.eye s={16} /> Les dix meilleurs — en direct</p>
+              <ClassementEtoiles donnee={g.etoilesDirect} roundId={current && current.roundId} bloc="ettop--hote"
+                testid="etoiles-hote-top" fmt={fmt} />
+            </section>
+          ) : null}
           <ClassementManche g={g} roundId={current && current.roundId} revealed={revealed}
             nature={reveal?.stats?.nature} />
           <BonnesReponses g={g} roundId={current && current.roundId} revealed={revealed} />
@@ -3540,6 +3645,19 @@ export function HostApp() {
     });
   }, [g]);
 
+  // LE DÉPART DE « CHASSE AUX ÉTOILES » — le mode et le niveau, et rien d'autre :
+  // les durées, les nombres et les points viennent des réglages du Studio, que
+  // le serveur attache lui-même.
+  const demarrerEtoiles = useCallback((jeu, mode, niveau) => {
+    if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
+    setHostError(null);
+    setPrepare(null);
+    g.emit('host:startModule', {
+      moduleId: jeu.id,
+      question: { id: `et-${Date.now()}`, mode, niveau },
+    });
+  }, [g]);
+
   const demarrerVisages = useCallback((jeu) => {
     if (!g.connected) { setToast('Connexion au salon en cours — réessaie dans une seconde.'); return; }
     setHostError(null);
@@ -3718,6 +3836,7 @@ export function HostApp() {
           onDemarrerCueillette={demarrerCueillette}
           onDemarrerFrontieres={demarrerFrontieres}
           onDemarrerCampement={demarrerCampement}
+          onDemarrerEtoiles={demarrerEtoiles}
           onAnnulerLien={() => setPrepare(null)}
           onShowResults={() => setShowResults(true)}
           onLogout={logout}

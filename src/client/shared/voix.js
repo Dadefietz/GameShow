@@ -502,6 +502,51 @@ export const MOMENTS = {
       'Pas cette fois. La carte gardait bien son secret.',
     ],
   },
+  // « CHASSE AUX ÉTOILES » A SA PROPRE FAMILLE : c'est le seul jeu où l'on
+  // marque et l'on perd PAR LE MÊME GESTE, vingt fois en vingt secondes. Quatre
+  // issues : presque tout attrapé ; un solde positif ; des étoiles prises mais
+  // trop de points éteints touchés ; rien. Le bas de l'échelle ne punit pas — un
+  // ciel qui va trop vite n'est la faute de personne.
+  'etoiles.parfait': {
+    surface: 'play',
+    quand: 'au moins quatre étoiles sur cinq attrapées, et un solde positif',
+    phrases: [
+      'Pas une étoile ne t’a échappé, ou presque. Quel réflexe.',
+      'Le ciel entier dans ta main. Chasseur d’étoiles.',
+      'Elles s’allumaient, tu étais déjà là.',
+      'Une chasse de haute volée. Les étoiles s’en souviendront.',
+    ],
+  },
+  'etoiles.bien': {
+    surface: 'play',
+    quand: 'un solde positif, sans avoir tout attrapé',
+    phrases: [
+      'Belle chasse. Ton panier est plein d’étoiles.',
+      'Tu as attrapé ce qui brillait. Bien vu.',
+      'Le ciel t’a souri. Ton score aussi.',
+      'De bons réflexes, et quelques étoiles en poche.',
+    ],
+  },
+  'etoiles.presse': {
+    surface: 'play',
+    quand: 'des étoiles attrapées, mais un solde nul ou négatif — trop de points éteints touchés',
+    phrases: [
+      'Tu as attrapé des étoiles, mais tapé un peu partout.',
+      'Le doigt plus vite que les étoiles. Vise celles qui brillent.',
+      'Quelques étoiles prises, quelques points éteints touchés.',
+      'Un peu trop pressé. Les étoiles éteintes coûtent cher.',
+    ],
+  },
+  'etoiles.rien': {
+    surface: 'play',
+    quand: 'aucune étoile attrapée',
+    phrases: [
+      'Les étoiles ont filé trop vite cette fois.',
+      'Le ciel a gardé ses étoiles. La prochaine sera la bonne.',
+      'Pas une étoile en poche. Ça arrive aux meilleurs astronomes.',
+      'Elles brillaient, elles sont parties. On remet ça ?',
+    ],
+  },
   'cache.parfait': {
     surface: 'play',
     quand: 'les cinq questions trouvées — le maximum du jeu',
@@ -1039,6 +1084,49 @@ export const MOMENTS = {
       'Pas une tente dans les parages. La carte a gagné cette manche.',
     ],
   },
+  // « CHASSE AUX ÉTOILES » — UNE PHRASE À CHAQUE MANCHE, comme « Campement » et
+  // pour la même raison : « Il faut une phrase en fonction de la réussite du
+  // Cercle. » Quatre issues sur la part d'étoiles attrapées par le joueur moyen.
+  'stream.etoiles-conquis': {
+    surface: 'overlay',
+    quand: 'étoiles : le joueur moyen a attrapé au moins 60 % des étoiles',
+    phrases: [
+      'Le Cercle a décroché le ciel. Presque rien ne lui a échappé.',
+      'Des réflexes d’astronome : le ciel est conquis.',
+      'Les étoiles n’avaient aucune chance ce soir.',
+      'Le Cercle a fait le plein d’étoiles.',
+    ],
+  },
+  'stream.etoiles-belle': {
+    surface: 'overlay',
+    quand: 'étoiles : le joueur moyen a attrapé entre 30 et 60 % des étoiles',
+    phrases: [
+      'Belle chasse : le Cercle a attrapé une bonne part du ciel.',
+      'Pas toutes, mais beaucoup. Le ciel a été bien visité.',
+      'Le Cercle a de bons réflexes. Les étoiles le savent.',
+      'Une chasse honorable — le ciel se défendait bien.',
+    ],
+  },
+  'stream.etoiles-filantes': {
+    surface: 'overlay',
+    quand: 'étoiles : le joueur moyen a attrapé moins de 30 % des étoiles, mais pas zéro',
+    phrases: [
+      'Les étoiles ont filé plus vite que le Cercle.',
+      'Quelques étoiles attrapées, beaucoup envolées.',
+      'Le ciel était rapide ce soir. Le Cercle s’entraîne.',
+      'Des étoiles filantes, au sens propre.',
+    ],
+  },
+  'stream.etoiles-personne': {
+    surface: 'overlay',
+    quand: 'étoiles : aucune étoile attrapée par le Cercle — ou aucun joueur',
+    phrases: [
+      'Le ciel a gardé toutes ses étoiles.',
+      'Pas une étoile attrapée. La nuit a gagné.',
+      'Le Cercle a regardé le ciel… sans le toucher.',
+      'Les étoiles ont filé sans un témoin.',
+    ],
+  },
   // RETOUR DE FLAMME. Deux extrêmes seulement, comme partout : la série qui passe
   // sans que personne ne voie rien, et le cercle qui la démonte. Entre les deux,
   // une manche ordinaire — et le plateau se tait.
@@ -1167,6 +1255,12 @@ export const PRIORITE_PLATEAU = [
   'stream.campement-majorite',
   'stream.campement-quelques',
   'stream.campement-personne',
+  // « CHASSE AUX ÉTOILES » : même principe que « Campement » — une issue par
+  // manche, qui se partagent toutes les situations.
+  'stream.etoiles-conquis',
+  'stream.etoiles-belle',
+  'stream.etoiles-filantes',
+  'stream.etoiles-personne',
   'stream.vote-egalite',
   // Le cercle qui se trompe sur lui-même passe avant celui qui se devine :
   // l'échec collectif est plus remarquable, comme partout ailleurs.
@@ -1265,6 +1359,14 @@ export function momentDePlateau(type, stats, reveal) {
     if (stats.pile > 0) return 'stream.campement-pile';
     if (!total || !stats.dansLeCercle) return 'stream.campement-personne';
     return stats.dansLeCercle / total >= 0.5 ? 'stream.campement-majorite' : 'stream.campement-quelques';
+  }
+  // « CHASSE AUX ÉTOILES » — même exception que « Campement » : une phrase à
+  // chaque manche, sur la part d'étoiles attrapées par le joueur moyen.
+  if (stats && stats.kind === 'etoiles') {
+    const r = stats.reussite || 0;
+    if (!stats.total || !stats.totalBons) return 'stream.etoiles-personne';
+    if (r >= 60) return 'stream.etoiles-conquis';
+    return r >= 30 ? 'stream.etoiles-belle' : 'stream.etoiles-filantes';
   }
   if (!stats || (stats.total || 0) < SEUILS.reponsesMin) return null;
   const total = stats.total;

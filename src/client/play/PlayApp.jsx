@@ -25,6 +25,8 @@ import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
 import { EmblemeCampement } from '../shared/EmblemeCampement.jsx';
 import { CarteAPointer, CarteReponse } from '../shared/CarteCampement.jsx';
+import { EmblemeEtoiles } from '../shared/EmblemeEtoiles.jsx';
+import { Ciel, useJeuEtoiles, instantDuJeu } from '../shared/CielEtoiles.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { BucheHache } from '../shared/BucheHache.jsx';
@@ -417,6 +419,12 @@ const ANNONCES = {
     // où une ligne d'aide le rappelle.
     regle: 'Une carte, une ville. Pose ton point au plus près du campement.',
   },
+  etoiles: {
+    emblem: <EmblemeEtoiles taille={110} />,
+    // LA RÈGLE DIT LES DEUX SENS DU BARÈME : une étoile éteinte touchée COÛTE.
+    // Le joueur qui l'ignorerait taperait partout, et perdrait sans comprendre.
+    regle: 'Touche les étoiles qui s’allument. Un point éteint te coûte des points.',
+  },
 };
 
 function AnnonceScreen({ nom, type, annonce }) {
@@ -554,7 +562,7 @@ function WaitScreen({ pseudo, code, playerCount }) {
 // ============================================================
 // J3 — Question : 4 modules × 3 états
 // ============================================================
-function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, onBrouillon, element, buzz, objetCache, tourClos, indices }) {
+function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, onBrouillon, element, buzz, objetCache, tourClos, indices, etoiles }) {
   // L'objet de « Cache-cache » n'entre dans la grille qu'une fois son image
   // chargée : la plaque claire et le dessin apparaissent ensemble.
   const objetVisible = useObjetPret(objetCache);
@@ -599,6 +607,19 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
   // c'est de lui que le compte à rebours affiché se déduit, et une constante ne
   // peut pas se lire avant sa déclaration.
   const estBuche = type === 'coupe_buche';
+  // « CHASSE AUX ÉTOILES » — L'HORLOGE DU JEU, et les étoiles que CE joueur a
+  // déjà touchées : celles que l'arbitre a comptées, plus celles que l'écran a
+  // éteintes à l'instant du doigt, sans attendre la réponse du serveur. « Après
+  // une touche, l'étoile arrête de s'illuminer sur l'écran du joueur » — tout de
+  // suite, pas un aller-retour réseau plus tard.
+  const estEtoiles = type === 'etoiles';
+  const [eteintesLocales, setEteintesLocales] = useState([]);
+  const [retours, setRetours] = useState([]);
+  useEffect(() => { setEteintesLocales([]); setRetours([]); }, [current?.roundId]);
+  const eteintes = estEtoiles
+    ? [...new Set([...(etoiles?.roundId === current.roundId ? etoiles.eteintes : []), ...eteintesLocales])]
+    : [];
+  const jeuEtoiles = useJeuEtoiles(estEtoiles ? current : null, eteintes);
   // LA COUPE, UNE FOIS FRAPPÉE — l'instant local du geste, gardé ici.
   //
   // « Lorsque le joueur clique sur le bouton COUPE !, le curseur doit s'arrêter
@@ -619,12 +640,16 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
     : 0;
   // Le chrono du JEU pour la bûche — dix secondes, décomptées du même balayage
   // que le curseur, donc parfaitement d'accord avec lui.
+  // LES ÉTOILES AUSSI ONT LEUR CHRONO DE JEU : vingt secondes, décomptées après
+  // le compte à rebours, et non la fenêtre du serveur, qui déborde d'une marge
+  // pour le réseau. Afficher celle-ci donnerait au joueur 23 s à l'écran pour un
+  // jeu qui en dure 20 — et ses bips tomberaient après la fin.
   const timeLeft = estBuche && current.dureeCoupeMs != null
     ? Math.max(0, Math.ceil((current.dureeCoupeMs - (coupeMs != null ? coupeMs : ecouleBuche)) / 1000))
-    : timeLeftBrut;
+    : estEtoiles ? jeuEtoiles.reste : timeLeftBrut;
   // La durée de référence de la jauge suit le même principe : celle du JEU.
   const totalSec = Math.max(1, Math.round(
-    ((estBuche ? current.dureeCoupeMs : current.durationMs) || 0) / 1000));
+    ((estBuche ? current.dureeCoupeMs : estEtoiles ? current.dureeJeuMs : current.durationMs) || 0) / 1000));
   const frac = timeLeft != null ? Math.max(0, Math.min(1, timeLeft / totalSec)) : 1;
   const urgent = timeLeft != null && timeLeft > 0 && timeLeft <= 5;
   // Verrouillage à 0 : plus aucune réponse possible (le serveur refuse de toute
@@ -715,7 +740,11 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
   // Le bandeau ne s'affiche pas dans un jeu à buzz multiple : « Réponse envoyée »
   // y annoncerait une manche finie alors qu'il en reste cinquante secondes. C'est
   // le compteur de buzz, sous le bouton, qui accuse réception.
-  const status = answered && !buzzMultiple
+  // « CHASSE AUX ÉTOILES » : PAS DE « RÉPONSE ENVOYÉE » — on touche jusqu'à la
+  // fin. Et à la fin, ni « tu n'as pas répondu » : on a joué.
+  const status = estEtoiles
+    ? (timeUp ? { closed: true, text: 'Fin de la chasse — résultats dans un instant' } : null)
+    : answered && !buzzMultiple
     ? {
       closed: false,
       // Sur le premier tour d'un vote, « ta voix est enregistrée » laisserait
@@ -836,6 +865,20 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
              d'énoncé non plus, et que « Coupe ta bûche », dont la consigne EST
              l'énoncé. */
           null
+        ) : type === 'etoiles' ? (
+          /* « CHASSE AUX ÉTOILES » : le mode et le niveau, en une ligne, et le
+             score de la manche à côté — « il voit le chrono de la manche qui
+             descend ainsi que son score au fur et à mesure ». Le reste de
+             l'écran est au ciel. */
+          <div className="etj__tete">
+            <p className="q-text etj__mode" id="q-text" data-testid="question-text">{current.nomMode} · {current.nomNiveau}</p>
+            <p className="etj__score" data-testid="etoiles-score" aria-live="off">
+              <span className="p-label p-label--tiny">Cette manche</span>
+              <span className={`etj__score-valeur${(etoiles?.score || 0) < 0 ? ' etj__score-valeur--neg' : ''}`}>
+                {fmtNum(etoiles?.roundId === current.roundId ? etoiles.score : 0)}
+              </span>
+            </p>
+          </div>
         ) : type === 'campement' ? (
           /* « CAMPEMENT » : « Retrouve le campement : France – Paris », mot pour
              mot. Le pays et la ville sont en gras : c'est tout ce qu'il y a à
@@ -879,7 +922,7 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
           </p>
         ) : null}
 
-        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}${type === 'frontieres' ? ' q-zone--frontieres' : ''}${type === 'campement' ? ' q-zone--campement' : ''}`} data-bind="module.options" data-testid="answer-zone">
+        <div className={`q-zone${type === 'true_false' ? ' q-zone--tiles' : ''}${type === 'coupe_buche' ? ' q-zone--buche' : ''}${type === 'cache_cache' && current.phase === 'grille' ? ' q-zone--cache' : ''}${type === 'cueillette' ? ' q-zone--cueillette' : ''}${type === 'frontieres' ? ' q-zone--frontieres' : ''}${type === 'campement' ? ' q-zone--campement' : ''}${type === 'etoiles' ? ' q-zone--etoiles' : ''}`} data-bind="module.options" data-testid="answer-zone">
           {/* « CUEILLETTE » — DEUX TEMPS, DEUX CARRÉS DE MÊME TAILLE.
               « Le Dessin cible est affiché pendant 10 secondes, il doit prendre le
               maximum de place sur l'écran. Une fois que le Dessin cible disparaît,
@@ -1032,6 +1075,32 @@ function QuestionScreen({ current, tick, score, answered, myAnswer, onAnswer, on
                 )}
               </div>
             )
+          ) : type === 'etoiles' ? (
+            /* « CHASSE AUX ÉTOILES » — LE CIEL, et le compte à rebours par-dessus
+               pendant les trois premières secondes. Les étoiles ne sont pas
+               touchables avant le départ : une touche « hors manche » ne compte
+               de toute façon pas, mais un point qu'on peut toucher sans effet
+               laisserait croire qu'il n'a pas été vu. */
+            <div className="etj">
+              <Ciel ciel={current.ciel} format={current.format} allumees={jeuEtoiles.allumees}
+                actif={jeuEtoiles.phase === 'jeu' && !disabled} retours={retours} testid="ciel"
+                onToucher={(i, k) => {
+                  const t = instantDuJeu(current);
+                  if (t == null) return;
+                  // L'ÉTOILE S'ÉTEINT TOUT DE SUITE sur cet écran — la règle.
+                  if (k != null) setEteintesLocales((x) => (x.includes(k) ? x : [...x, k]));
+                  const id = `${Date.now()}-${i}-${Math.random()}`;
+                  const pts = current.points || 0;
+                  setRetours((x) => [...x.slice(-6), { id, etoile: i, bon: k != null, texte: k != null ? `+${pts}` : `−${pts}` }]);
+                  setTimeout(() => setRetours((x) => x.filter((r) => r.id !== id)), 650);
+                  onAnswer({ etoile: i, t: Math.round(t) });
+                }} />
+              {jeuEtoiles.phase === 'compte' ? (
+                <div className="etj__compte" role="timer" aria-live="assertive" data-testid="etoiles-compte">
+                  <span className="etj__compte-chiffre" key={jeuEtoiles.compte}>{jeuEtoiles.compte}</span>
+                </div>
+              ) : null}
+            </div>
           ) : type === 'campement' ? (
             /* « CAMPEMENT » — LA CARTE, PUIS L'ENVOI.
 
@@ -1529,6 +1598,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   const isCueillette = (rv.type || current?.type) === 'cueillette';
   const isFrontieres = (rv.type || current?.type) === 'frontieres';
   const isCampement = (rv.type || current?.type) === 'campement';
+  const isEtoiles = (rv.type || current?.type) === 'etoiles';
   // SON PROPRE DESSIN — celui qu'il a envoyé, tel quel. Il n'a pas besoin de
   // revenir du serveur : le téléphone l'a encore, et `myAnswer` est remis à zéro
   // à chaque fenêtre de réponse, donc il ne peut pas s'agir d'une manche passée.
@@ -1547,6 +1617,12 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
   // l'identité de la manche affichée — sinon c'est un souvenir d'une manche
   // précédente, qui affichait jusqu'ici des bonus et malus fantômes.
   const monResultat = you && current?.roundId != null && you.roundId === current.roundId ? you : null;
+  // « CHASSE AUX ÉTOILES » — la part des étoiles attrapées : c'est elle, et non
+  // le solde seul, qui distingue le chasseur qui a tout pris de celui qui a eu
+  // de la chance. ELLE SE CALCULE ICI, APRÈS `monResultat` : écrite plus haut,
+  // elle lisait une constante pas encore déclarée, et l'écran de résultat
+  // entier tombait en panne — un écran noir, vu en contrôle.
+  const partEtoiles = isEtoiles && rv.stats?.allumages ? (monResultat?.bons || 0) / rv.stats.allumages : 0;
   // Le total d'une manche, recomposé : `base` ne porte plus que le palier depuis
   // que les bonus voyagent à part pour être MONTRÉS au joueur.
   const pointsDeLaManche = (r) => (r?.base || 0) + (r?.bonusExact || 0) + (r?.bonusProche || 0)
@@ -1702,6 +1778,14 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
     // « CAMPEMENT ». Quatre issues, sur les quatre tranches que le stream
     // affiche — et que le serveur a comptées, lui : la tranche se lit sur les
     // points de l'arbitre, jamais sur une distance refaite ici.
+    // « CHASSE AUX ÉTOILES ». Quatre issues : presque tout attrapé ; un solde
+    // positif ; des étoiles attrapées mais trop de points éteints touchés ; rien.
+    if (isEtoiles) {
+      const net = monResultat.brut ?? monResultat.base ?? 0;
+      if (partEtoiles >= 0.8 && net > 0) return 'etoiles.parfait';
+      if (net > 0) return 'etoiles.bien';
+      return (monResultat.bons || 0) > 0 ? 'etoiles.presse' : 'etoiles.rien';
+    }
     if (isCampement) {
       if (monResultat.exact === true) return 'campement.pile';
       const pts = pointsDeLaManche(monResultat);
@@ -1862,6 +1946,10 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                     // n'a rien reconnu.
                     ? (monResultat?.bons >= 5 ? 'Sans faute'
                       : monResultat?.bons > 0 ? `${monResultat.bons} sur 5` : 'La grille a gagné')
+                  : isEtoiles
+                    ? (partEtoiles >= 0.8 && (monResultat?.brut || 0) > 0 ? 'Chasseur d’étoiles'
+                      : (monResultat?.brut || 0) > 0 ? 'Belle chasse'
+                        : (monResultat?.bons || 0) > 0 ? 'Trop pressé' : 'Les étoiles ont filé')
                   : isCampement
                     // LA TRANCHE, ET NON « BIEN JOUÉ » : un point à 150 points et
                     // un point pile sur la ville ne sont pas la même manche.
@@ -2056,6 +2144,35 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
                 −600, parce que son score total ne baisse pas. Sans le détail, ce
                 zéro serait incompréhensible, et le barème qu'on vient de lui
                 expliquer invérifiable. */}
+            {/* « CHASSE AUX ÉTOILES » — LE CALCUL, EN CLAIR. « Il faut aussi le
+                nombre de bons et mauvais clics et donc le total de points gagnés
+                et de points perdus. » Les deux comptes, ce que chacun rapporte
+                ou coûte, et le solde : le joueur refait l'addition d'un coup
+                d'œil. Le prix d'une touche vient de la révélation, jamais d'une
+                valeur recopiée ici. */}
+            {isEtoiles && monResultat?.bons != null ? (
+              <div className="rfbil" data-testid="etoiles-bilan">
+                <div className="rfbil__cell">
+                  <span className="p-label p-label--tiny">Étoiles touchées</span>
+                  <span className="rfbil__value rfbil__value--bon" data-testid="etoiles-bons">
+                    {monResultat.bons}<span className="rfbil__sur">/{rv.stats?.allumages ?? '—'}</span>
+                  </span>
+                </div>
+                <div className="rfbil__cell">
+                  <span className="p-label p-label--tiny">Points éteints touchés</span>
+                  <span className={`rfbil__value${monResultat.rates ? ' rfbil__value--rate' : ''}`} data-testid="etoiles-rates">{monResultat.rates}</span>
+                </div>
+                <div className="rfbil__cell rfbil__cell--unite">
+                  <span className="p-label p-label--tiny">Gagnés</span>
+                  <span className="rfbil__value rfbil__value--bon" data-testid="etoiles-gagnes">+{fmtNum(monResultat.bons * (rv.points || 0))}</span>
+                </div>
+                <div className="rfbil__cell rfbil__cell--unite">
+                  <span className="p-label p-label--tiny">Perdus</span>
+                  <span className="rfbil__value rfbil__value--rate" data-testid="etoiles-perdus">−{fmtNum(monResultat.rates * (rv.points || 0))}</span>
+                </div>
+              </div>
+            ) : null}
+
             {isRetour && monResultat?.bons != null ? (
               <div className="rfbil" data-testid="retour-bilan">
                 <div className="rfbil__cell">
@@ -2153,7 +2270,7 @@ function ScoreScreen({ you, reveal, myAnswer, current, index, total, answered, p
               </div>
             ) : null}
 
-            {!isVote && !isRetour && (monResultat.base || monResultat.speed
+            {!isVote && !isRetour && !isEtoiles && (monResultat.base || monResultat.speed
               || monResultat.bonusExact || monResultat.bonusProche || monResultat.bonusGroupe
               || monResultat.bonusCoeur || monResultat.malusHaut) ? (
               <div className="breakdown">
@@ -2845,6 +2962,7 @@ export function PlayApp() {
         objetCache={g.objetCache}
         tourClos={g.tourClos}
         indices={g.indices}
+        etoiles={g.etoiles}
       />
     );
   }

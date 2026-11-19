@@ -14,6 +14,7 @@ import { verifyHostSession, verifyGameToken, makePlayerToken, makeHostToken, mak
 import {
   MODULE_TYPES, modules, categorieDeQuestion, peutEtreReposee, posesDe,
   MARQUE_FRONTIERES, banqueDeFrontieres, MARQUE_CAMPEMENT, banqueDeCampement,
+  MARQUE_ETOILES, reglagesEtoiles, REGLAGES_ETOILES, MODES_ETOILES, NIVEAUX_ETOILES,
 } from './modules.js';
 import { CARTES_FRONTIERES, DIFFICULTES_FRONTIERES, srcDeCarte } from './pays-frontieres.js';
 import { VILLES_CAMPEMENT, DIFFICULTES_CAMPEMENT } from './villes-campement.js';
@@ -245,6 +246,13 @@ const contenuCampementSchema = z.object({
     rapport: z.number().positive().max(20).optional(),
   })).max(400),
 }).passthrough();
+// LES RÉGLAGES DE « CHASSE AUX ÉTOILES » — cinquième entrée marquée. Ils ne
+// sont validés ici qu'en forme : `reglagesEtoiles` borne chaque champ à la
+// lecture, et un champ illisible y reprend sa valeur par défaut.
+const contenuEtoilesSchema = z.object({
+  kind: z.literal(MARQUE_ETOILES),
+  reglages: z.record(z.string(), z.record(z.string(), z.record(z.string(), z.number()))).optional(),
+}).passthrough();
 const moduleSchema = z.object({
   id: z.string().min(1),
   type: z.enum(MODULE_TYPES),
@@ -252,7 +260,8 @@ const moduleSchema = z.object({
   duration: z.number().positive().optional(),
   color: z.string().optional(),
   questions: z.array(z.union([
-    contenuCacheSchema, contenuCueilletteSchema, contenuFrontieresSchema, contenuCampementSchema, questionSchema,
+    contenuCacheSchema, contenuCueilletteSchema, contenuFrontieresSchema, contenuCampementSchema, contenuEtoilesSchema,
+    questionSchema,
   ])),
 }).passthrough();
 const modulesSchema = z.array(moduleSchema);
@@ -429,6 +438,14 @@ app.get('/api/frontieres/catalogue', async (req, reply) => {
     pays: CARTES_FRONTIERES.map((p) => ({ ...p, src: srcDeCarte(p.id) })),
     difficultes: DIFFICULTES_FRONTIERES,
   };
+});
+
+// LES RÉGLAGES DE « CHASSE AUX ÉTOILES », POUR LE STUDIO — les valeurs par
+// défaut, d'où partent ceux que l'animateur ajuste.
+app.get('/api/etoiles/reglages', async (req, reply) => {
+  const host = await requireHost(req, reply);
+  if (!host) return;
+  return { reglages: REGLAGES_ETOILES, modes: MODES_ETOILES, niveaux: NIVEAUX_ETOILES };
 });
 
 // LA BASE DE VILLES DE « CAMPEMENT », POUR LE STUDIO.
@@ -879,6 +896,23 @@ io.on('connection', (socket) => {
         });
       }
     }
+    // « CHASSE AUX ÉTOILES » : CE QUE CE JOUEUR A DÉJÀ FAIT, REJOUÉ — son score,
+    // et les étoiles qu'il a déjà touchées, qui doivent rester éteintes sur son
+    // écran. Sans cela, un téléphone rechargé en pleine manche repartirait à
+    // zéro à l'affichage, et rallumerait des étoiles déjà comptées.
+    // Et à l'antenne, le tableau des dix meilleurs tel qu'il est.
+    if (cur.type === 'etoiles' && cur.touches) {
+      if (socket.data.role === 'player' && socket.data.sub && cur.touches.has(socket.data.sub)) {
+        const e = cur.touches.get(socket.data.sub);
+        socket.emit('etoiles:etat', {
+          roundId: cur.roundId, bons: e.bons.length, rates: e.rates, eteintes: [...e.bons],
+          score: (e.bons.length - e.rates) * cur.points,
+        });
+      }
+      if (socket.data.role === 'host' || socket.data.role === 'overlay') {
+        socket.emit('etoiles:direct', engine.directEtoiles(room, cur, !!cur.revealed));
+      }
+    }
     if (cur.revealed && cur.revealPayload) socket.emit('module:reveal', cur.revealPayload);
     // Résultat PERSONNEL de la manche affichée. Sans lui, l'écran du joueur
     // conclut qu'il n'a pas participé — c'est l'origine unique de « manche jouée
@@ -972,6 +1006,11 @@ io.on('connection', (socket) => {
         question.banque = banqueDeCampement(module_.questions);
         const entree = (module_.questions || []).find((x) => x && x.kind === MARQUE_CAMPEMENT);
         question.poses = (entree && typeof entree.poses === 'object' && entree.poses) || {};
+      }
+      // « CHASSE AUX ÉTOILES » EMPORTE SES RÉGLAGES — ceux du Studio, bornés.
+      // L'écran n'envoie que le mode et le niveau ; jamais une durée ni un nombre.
+      if (module_.type === 'etoiles' && question) {
+        question.reglages = reglagesEtoiles(module_.questions);
       }
       const pool = await poolFor(r.ownerId, module_);
 

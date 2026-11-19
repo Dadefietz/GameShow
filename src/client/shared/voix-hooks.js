@@ -103,7 +103,7 @@ export function useVoixDePlateau(reveal, stats, roundId) {
     // demande « une phrase en fonction de la réussite du Cercle » sur son écran
     // de résultat, sans condition. Le silence d'une manche sur deux le
     // contredirait une fois sur deux.
-    const toujours = stats.kind === 'campement';
+    const toujours = stats.kind === 'campement' || stats.kind === 'etoiles';
     if (!toujours && dernierCommente.current != null && roundId === dernierCommente.current + 1) { setDit(null); return; }
     const moment = momentDePlateau(reveal.type, stats, reveal);
     if (!moment) { setDit(null); return; }

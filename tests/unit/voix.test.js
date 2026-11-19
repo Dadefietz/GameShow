@@ -124,6 +124,9 @@ describe('convention de la voix — contrôle bloquant', () => {
       // « CAMPEMENT » : la réponse est un ENDROIT, et aucune famille existante ne
       // sait dire « tu as trouvé la région, pas la ville ».
       campement: ['campement.pile', 'campement.proche', 'campement.cercle', 'campement.loin'],
+      // « CHASSE AUX ÉTOILES » : on marque et on perd par le même geste —
+      // aucune famille existante ne sait dire « trop pressé ».
+      etoiles: ['etoiles.parfait', 'etoiles.bien', 'etoiles.presse', 'etoiles.rien'],
     };
     for (const type of MODULE_TYPES) {
       expect(parType[type], `le type de jeu « ${type} » n'a aucun moment de voix déclaré`).toBeDefined();

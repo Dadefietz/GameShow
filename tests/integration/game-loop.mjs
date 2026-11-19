@@ -916,6 +916,125 @@ try {
     menuCp2?.villes?.find((v) => v.id === 'c054')?.poses === 3,
     JSON.stringify(menuCp2?.villes?.map((v) => `${v.ville} ${v.poses}`)));
 
+  // ======================================================================
+  // « CHASSE AUX ÉTOILES » — LES TOUCHES, ET LE DIRECT QUI NE VA QU'À L'ANTENNE
+  // ======================================================================
+  //
+  // Ce qui ne se voit que d'ici :
+  //   1. les réglages du Studio voyagent jusqu'à la manche (et non ceux de l'écran) ;
+  //   2. chaque touche revient au téléphone avec son verdict et le score tenu par
+  //      l'arbitre ; un rebond ne compte pas deux fois ;
+  //   3. le tableau des dix meilleurs part en direct à l'animateur et au stream,
+  //      AVEC les noms — et à aucun téléphone : un joueur ne voit jamais son rang
+  //      en cours de partie ;
+  //   4. le relevé personnel porte les bons, les ratés et le solde, négatif compris.
+  const JEU_ET = 'mod-etoiles';
+  const putEt = await fetch(`${BASE}/api/modules`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      modules: [{
+        id: JEU_ET, type: 'etoiles', name: 'Chasse aux étoiles', duration: 20, color: 'flame',
+        questions: [{ kind: 'contenu-etoiles', reglages: { chasse: { facile: { nombre: 8, debut: 0.4, fin: 19 } } } }],
+      }],
+    }),
+  });
+  check('ÉTOILES bibliothèque acceptée (les réglages ont leur schéma)', putEt.ok, String(putEt.status));
+  const menuEt = (await new Promise((res) => host.emit('host:modules', {}, res))).find((j) => j.id === JEU_ET);
+  check('ÉTOILES la console reçoit les modes, les niveaux, et ce que donnera chaque combinaison — réglages du Studio compris',
+    menuEt?.modesEtoiles?.length === 2 && menuEt?.niveauxEtoiles?.length === 2
+      && menuEt.apercuEtoiles?.chasse?.facile?.nombre === 8 && menuEt.apercuEtoiles?.ciel?.difficile?.nombre === 60,
+    JSON.stringify(menuEt?.apercuEtoiles));
+
+  // LES TÉLÉPHONES NE DOIVENT JAMAIS RECEVOIR LE DIRECT.
+  let directJoueurs = 0;
+  const fuiteDirect = () => { directJoueurs += 1; };
+  for (const sj of [s1, s2, s3]) sj.on('etoiles:direct', fuiteDirect);
+  const directsOv = [];
+  const surDirectOv = (d) => directsOv.push(d);
+  ov.on('etoiles:direct', surDirectOv);
+  const directHote = waitForMatching(host, 'etoiles:direct', (d) => d.lignes?.length > 0, 30000).catch(() => null);
+
+  const etDemarre = waitFor(s1, 'module:started', 12000);
+  host.emit('host:startModule', {
+    moduleId: JEU_ET,
+    // Une durée ou un nombre glissés dans le top de départ sont ignorés : seuls
+    // le mode et le niveau viennent de l'écran.
+    question: { id: 'et-int', mode: 'chasse', niveau: 'facile', reglages: { chasse: { facile: { nombre: 99, points: 9999 } } } },
+  });
+  const mEt = await etDemarre;
+  const recuEt = Date.now();
+  check('ÉTOILES la manche : vingt points, la séquence des réglages du Studio, trois secondes de compte à rebours',
+    mEt.type === 'etoiles' && mEt.ciel?.length === 20 && mEt.allumages?.length === 8 && mEt.points === 60
+      && mEt.compteAReboursMs === 3000 && mEt.dureeJeuMs === 20000 && mEt.durationMs > 23000,
+    JSON.stringify({ c: mEt.ciel?.length, a: mEt.allumages?.length, p: mEt.points, d: mEt.durationMs }));
+
+  // ON ATTEND QUE LA PREMIÈRE ÉTOILE SOIT ALLUMÉE — trois secondes de compte à
+  // rebours, puis son début — et on la touche.
+  const etA0 = mEt.allumages[0];
+  await sleep(Math.max(0, 3000 + etA0.debut + 120 - (Date.now() - recuEt)));
+  const etTA = etA0.debut + 100;
+  const ackBob = waitFor(s2, 'play:accepted', 5000);
+  s2.emit('play:answer', { value: { etoile: etA0.etoile, t: etTA } });
+  const etR1 = await ackBob;
+  check('ÉTOILES UNE ÉTOILE ALLUMÉE TOUCHÉE : « bon », et le score de l’arbitre revient au téléphone',
+    etR1?.etoiles?.verdict === 'bon' && etR1.etoiles.score === 60 && etR1.etoiles.bons === 1 && etR1.etoiles.k === 0,
+    JSON.stringify(etR1));
+  const ackBob2 = waitFor(s2, 'play:accepted', 5000);
+  s2.emit('play:answer', { value: { etoile: etA0.etoile, t: etTA + 40 } });
+  const etR2 = await ackBob2;
+  check('ÉTOILES LE REBOND NE COMPTE PAS DEUX FOIS', etR2?.etoiles?.verdict === 'deja' && etR2.etoiles.score === 60,
+    JSON.stringify(etR2));
+  const ackAlice = waitFor(s1, 'play:accepted', 5000);
+  s1.emit('play:answer', { value: { etoile: (etA0.etoile + 1) % 20, t: etTA } });
+  const etR3 = await ackAlice;
+  check('ÉTOILES UN POINT ÉTEINT TOUCHÉ COÛTE', etR3?.etoiles?.verdict === 'rate' && etR3.etoiles.score === -60,
+    JSON.stringify(etR3));
+
+  const etDH = await directHote;
+  check('ÉTOILES LE DIRECT ARRIVE À LA CONSOLE, avec les noms, du meilleur au pire',
+    etDH && etDH.lignes[0]?.pseudo === 'Bob' && etDH.lignes[0].score === 60 && etDH.lignes.some((l) => l.pseudo === 'Alice' && l.score === -60),
+    JSON.stringify(etDH?.lignes));
+  await sleep(400);
+  check('ÉTOILES LE DIRECT ARRIVE AU STREAM', directsOv.some((d) => d.lignes?.[0]?.pseudo === 'Bob'), JSON.stringify(directsOv.at(-1)));
+
+  const youBobEt = waitForMatching(s2, 'play:you', (y) => y.roundId === mEt.roundId, 60000).catch(() => null);
+  const youAliceEt = waitForMatching(s1, 'play:you', (y) => y.roundId === mEt.roundId, 60000).catch(() => null);
+  const youChloeEt = waitForMatching(s3, 'play:you', (y) => y.roundId === mEt.roundId, 60000).catch(() => null);
+  const clEt = waitForMatching(host, 'host:classement', (d) => d.type === 'etoiles', 60000).catch(() => null);
+  const revEt = waitForMatching(ov, 'module:reveal', (r) => r.type === 'etoiles', 60000);
+  host.emit('host:reveal');
+  const etRev = await revEt;
+  check('ÉTOILES la révélation porte les statistiques du cercle, sans aucun nom',
+    etRev.stats?.kind === 'etoiles' && etRev.stats.total === 2 && etRev.stats.totalBons === 1 && etRev.stats.totalRates === 1
+      && etRev.stats.allumages === 8 && etRev.stats.maximum === 480 && !/Alice|Bob|Chloe/.test(JSON.stringify(etRev)),
+    JSON.stringify(etRev.stats));
+  // UNE TOUCHE APRÈS LA FIN NE CHANGE RIEN : « les entrées reçues après la fin de
+  // la manche ne doivent pas modifier le score ».
+  const ackTard = waitFor(s2, 'play:accepted', 5000).catch(() => null);
+  s2.emit('play:answer', { value: { etoile: etA0.etoile, t: etTA } });
+  const etTard = await ackTard;
+  check('ÉTOILES une touche après la fin est refusée', etTard && etTard.ok === false, JSON.stringify(etTard));
+
+  const etYB = await youBobEt;
+  const etYA = await youAliceEt;
+  const etYC = await youChloeEt;
+  check('ÉTOILES LE RELEVÉ PERSONNEL : bons, ratés, solde',
+    etYB?.base === 60 && etYB.bons === 1 && etYB.rates === 0 && etYB.brut === 60 && etYB.correct === true
+      && etYA?.bons === 0 && etYA.rates === 1 && etYA.brut === -60 && etYA.delta === -60,
+    JSON.stringify({ bob: etYB && [etYB.base, etYB.bons, etYB.rates, etYB.brut], alice: etYA && [etYA.bons, etYA.rates, etYA.brut, etYA.delta] }));
+  check('ÉTOILES qui n’a rien touché n’a pas participé', etYC && etYC.participe === false, JSON.stringify(etYC?.participe));
+  const etCl = await clEt;
+  check('ÉTOILES la console reçoit le classement de la manche, du meilleur au pire, avec bons et ratés',
+    etCl && etCl.lignes.map((l) => l.pseudo).join(',') === 'Bob,Alice' && etCl.lignes[0].score === 60 && etCl.lignes[1].rates === 1,
+    JSON.stringify(etCl?.lignes));
+  await sleep(300);
+  check('ÉTOILES le tableau final part à l’antenne', directsOv.some((d) => d.final === true && d.lignes?.[0]?.pseudo === 'Bob'),
+    JSON.stringify(directsOv.at(-1)));
+  check('ÉTOILES AUCUN TÉLÉPHONE NE REÇOIT LE DIRECT', directJoueurs === 0, String(directJoueurs));
+  for (const sj of [s1, s2, s3]) sj.off('etoiles:direct', fuiteDirect);
+  ov.off('etoiles:direct', surDirectOv);
+
   // ---- Fin de partie : podium public + rang final ----
   const ended = waitFor(s1, 'game:ended');
   // On attend LE relevé final, reconnaissable à son drapeau — pas le prochain

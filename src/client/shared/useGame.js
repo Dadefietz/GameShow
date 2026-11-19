@@ -95,6 +95,12 @@ export function useGame(token) {
   // retard — minuterie déjà partie, réseau lent — remplirait une case de la
   // nouvelle avec la réponse de l'ancienne.
   const [indices, setIndices] = useState({ roundId: null, dits: {} });
+  // « CHASSE AUX ÉTOILES » — le compte de CE joueur, tel que l'arbitre le tient
+  // (score, bons, ratés, et les allumages déjà touchés, qui restent éteints sur
+  // son écran), et le tableau des dix meilleurs en direct pour l'animateur et le
+  // stream. Chacun est remis à zéro à chaque manche.
+  const [etoiles, setEtoiles] = useState({ roundId: null, score: 0, bons: 0, rates: 0, eteintes: [] });
+  const [etoilesDirect, setEtoilesDirect] = useState(null);
 
   useEffect(() => {
     if (!token) return;
@@ -157,6 +163,8 @@ export function useGame(token) {
       // la manche précédente resterait affiché pendant les dix premières
       // secondes de la suivante — et il serait faux.
       setIndices({ roundId: m.roundId ?? null, dits: {} });
+      setEtoiles({ roundId: m.roundId ?? null, score: 0, bons: 0, rates: 0, eteintes: [] });
+      setEtoilesDirect(null);
       // Le choix du joueur, rejoué par le serveur à la reconnexion : sans lui,
       // l'écran de résultat ne peut pas conclure (voir src/server/index.js).
       setMonChoix(m.monChoix ?? null);
@@ -179,6 +187,11 @@ export function useGame(token) {
     s.on('cache:tonpoint', (d) => setMonCompte(d));
     // UN INDICE DE « FRONTIÈRES ». On retient la manche avec : la comparaison se
     // fait à l'affichage, par l'écran qui connaît SA manche.
+    s.on('etoiles:etat', (d) => {
+      if (!d) return;
+      setEtoiles({ roundId: d.roundId, score: d.score, bons: d.bons, rates: d.rates, eteintes: d.eteintes || [] });
+    });
+    s.on('etoiles:direct', (d) => setEtoilesDirect(d && Array.isArray(d.lignes) ? d : null));
     s.on('frontieres:indice', (d) => {
       if (!d || !d.cle) return;
       setIndices((prev) => (prev.roundId === d.roundId
@@ -201,6 +214,18 @@ export function useGame(token) {
     // s'il se verrouille, pas ce compteur.
     s.on('play:accepted', (res) => {
       if (!res) return;
+      // UNE TOUCHE D'ÉTOILE ne « répond » pas à la manche : elle met à jour le
+      // compte, et le joueur continue de jouer.
+      if (res.etoiles) {
+        const e = res.etoiles;
+        setEtoiles((prev) => (prev.roundId !== e.roundId ? prev : {
+          roundId: e.roundId,
+          score: e.score, bons: e.bons, rates: e.rates,
+          eteintes: e.verdict === 'bon' && e.k != null && !prev.eteintes.includes(e.k) ? [...prev.eteintes, e.k] : prev.eteintes,
+          dernier: { verdict: e.verdict, k: e.k, n: (prev.dernier?.n || 0) + 1 },
+        }));
+        return;
+      }
       if (typeof res.buzz === 'number') setBuzz(res.buzz);
       if (res.ok || res.reason === 'already') setAnswered(true);
     });
@@ -245,7 +270,7 @@ export function useGame(token) {
   const fatal = fatalDe && token && fatalDe.token === token ? fatalDe.msg : null;
   const roomClosed = !!token && fermeDe === token;
 
-  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, perimee, indices, emit, on, off };
+  return { connected, room, current, tick, reveal, leaderboard, you, podium, annonce, answered, monChoix, presentAuLancement, roomClosed, distribution, element, buzz, history, fatal, serverError, musique, cueillette, objetCache, devoilements, monCompte, tourClos, perimee, indices, etoiles, etoilesDirect, emit, on, off };
 }
 
 // Persistance légère (reconnexion sans perte).

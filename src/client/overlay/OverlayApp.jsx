@@ -30,6 +30,8 @@ import { EmblemeCueillette } from '../shared/EmblemeCueillette.jsx';
 import { EmblemeFrontieres } from '../shared/EmblemeFrontieres.jsx';
 import { EmblemeCampement } from '../shared/EmblemeCampement.jsx';
 import { CarteReponse, TranchesCampement } from '../shared/CarteCampement.jsx';
+import { EmblemeEtoiles } from '../shared/EmblemeEtoiles.jsx';
+import { Ciel, ClassementEtoiles, useJeuEtoiles } from '../shared/CielEtoiles.jsx';
 import { GrilleCache, useObjetPret } from '../shared/GrilleCache.jsx';
 import { Toile } from '../shared/Toile.jsx';
 import { Coeur } from '../shared/Coeur.jsx';
@@ -469,7 +471,13 @@ function QuestionStage({ g }) {
   const current = g.current || {};
   const reveal = g.reveal;
   const revealed = !!reveal;
-  const timeLeft = g.tick?.timeLeft;
+  // « CHASSE AUX ÉTOILES » : LE CHRONO DE L'ANTENNE EST CELUI DU JEU — vingt
+  // secondes après le compte à rebours, et non la fenêtre du serveur, qui
+  // déborde pour le réseau. Le même calcul que sur les téléphones : le public et
+  // le cercle voient la même seconde.
+  const estEtoiles = current.type === 'etoiles';
+  const jeuEtoiles = useJeuEtoiles(estEtoiles && !revealed ? current : null, []);
+  const timeLeft = estEtoiles && !revealed ? jeuEtoiles.reste : g.tick?.timeLeft;
   const answers = revealed ? (reveal.stats?.total ?? 0) : (g.tick?.answers ?? 0);
   const prog = g.room?.progression;
   const meta = current.meta;
@@ -612,7 +620,8 @@ function QuestionStage({ g }) {
 
   // Jauge du chrono : le temps restant se lit à la forme de l'anneau, pas
   // seulement au chiffre — un état doit rester lisible sans la couleur.
-  const dureeSec = current.durationMs ? current.durationMs / 1000 : null;
+  const dureeSec = estEtoiles && current.dureeJeuMs ? current.dureeJeuMs / 1000
+    : current.durationMs ? current.durationMs / 1000 : null;
   const ringPct = dureeSec && typeof timeLeft === 'number'
     ? Math.max(0, Math.min(100, Math.round((timeLeft / dureeSec) * 100)))
     : null;
@@ -772,6 +781,12 @@ function QuestionStage({ g }) {
         <p className="st-question st-question--revealed" data-testid="question-text">
           Le cache-cache est terminé ! Voici la grille
         </p>
+      ) : current.type === 'etoiles' ? (
+        /* « CHASSE AUX ÉTOILES » : le mode et le niveau, sur une ligne courte.
+           La scène appartient au ciel et au tableau des dix meilleurs. */
+        <p className="st-question st-question--etoiles" data-testid="question-text">
+          {current.nomMode} · {current.nomNiveau}
+        </p>
       ) : current.type === 'campement' ? (
         /* « CAMPEMENT », L'ÉNONCÉ À L'ANTENNE — la phrase du document, mot pour
            mot : « Le Cercle essaie de retrouver le campement : France – Paris ».
@@ -902,6 +917,25 @@ function QuestionStage({ g }) {
                 disabled fond={current.cible?.src} />
             </div>
           ) : null
+        ) : current.type === 'etoiles' ? (
+          /* « CHASSE AUX ÉTOILES », À L'ANTENNE. « On voit le chrono de la manche
+             et, sur toute la longueur droite de l'écran, les scores en direct des
+             10 meilleurs joueurs. » Le ciel à gauche, le même que sur les
+             téléphones, avec les mêmes étoiles qui s'allument au même instant ;
+             le tableau à droite, sur toute la hauteur. */
+          <div className="st-et" data-testid="stream-etoiles">
+            <div className="st-et__ciel">
+              <Ciel ciel={current.ciel} format={current.format} allumees={jeuEtoiles.allumees}
+                testid="stream-ciel" bloc="st-et__boite" />
+              {jeuEtoiles.phase === 'compte' ? (
+                <div className="st-et__compte" data-testid="stream-etoiles-compte">
+                  <span className="st-et__compte-chiffre" key={jeuEtoiles.compte}>{jeuEtoiles.compte}</span>
+                </div>
+              ) : null}
+            </div>
+            <ClassementEtoiles donnee={g.etoilesDirect} roundId={current.roundId} bloc="st-ettop"
+              testid="stream-etoiles-top" fmt={fmt} />
+          </div>
         ) : current.type === 'campement' ? (
           /* « CAMPEMENT », À L'ANTENNE : la carte du pays, en grand, et rien
              d'autre. Pas de points en direct — ils diraient au cercle où les
@@ -1057,7 +1091,38 @@ function QuestionStage({ g }) {
         <div style={mesuresDesChoix(nbRangees, placeStats)}
           className={`st-stats${stats?.kind === 'visages' || stats?.kind === 'retour' ? ' st-stats--serie' : ''}`}
           data-bind="reveal.stats" data-testid="stats-panel">
-          {reveal.type === 'campement' ? (
+          {reveal.type === 'etoiles' ? (
+            /* « CHASSE AUX ÉTOILES » À LA RÉVÉLATION. « Une phrase en fonction de
+               la réussite du Cercle et quelques statistiques. Tu peux ajouter le
+               classement des 10 meilleurs joueurs avec le détail de leurs bons et
+               mauvais clics. » Les chiffres à gauche, le tableau figé à droite,
+               à la place où le public l'a regardé bouger. La phrase est dessous,
+               dans sa fente. */
+            <div className="st-et st-et--reveal" data-testid="stream-etoiles-reveal">
+              {stats?.kind === 'etoiles' ? (
+                <div className="st-facts st-et__faits">
+                  <div className="st-fact">
+                    <span className="st-fact__label">Étoiles attrapées</span>
+                    <span className="st-fact__value st-fact__value--good" data-testid="stream-etoiles-reussite">{stats.reussite} %</span>
+                  </div>
+                  <div className="st-fact">
+                    <span className="st-fact__label">Le meilleur</span>
+                    <span className="st-fact__value">{fmt(stats.meilleur)}<span className="st-fact__sur"> / {fmt(stats.maximum)}</span></span>
+                  </div>
+                  <div className="st-fact">
+                    <span className="st-fact__label">Points en moyenne</span>
+                    <span className="st-fact__value">{fmt(stats.moyenne)}</span>
+                  </div>
+                  <div className="st-fact">
+                    <span className="st-fact__label">Points éteints touchés</span>
+                    <span className="st-fact__value">{fmt(stats.totalRates)}</span>
+                  </div>
+                </div>
+              ) : null}
+              <ClassementEtoiles donnee={g.etoilesDirect} roundId={current.roundId} bloc="st-ettop"
+                testid="stream-etoiles-top" fmt={fmt} />
+            </div>
+          ) : reveal.type === 'campement' ? (
             /* « CAMPEMENT » À LA RÉVÉLATION, À L'ANTENNE.
                « La carte Réponse s'affiche. Sur cette carte, on doit voir
                également TOUS les points des réponses de chaque joueur (orange
@@ -1367,6 +1432,7 @@ const ANNONCES_STREAM = {
   // passerait pour aussi bonne qu'une réponse à la cinquième.
   frontieres: { emblem: <EmblemeFrontieres taille={200} />, regle: 'Une carte, quatre indices. Plus le cercle répond tôt, plus il marque.' },
   campement: { emblem: <EmblemeCampement taille={210} />, regle: 'Une carte, une ville. Le cercle plante sa tente au plus près du campement.' },
+  etoiles: { emblem: <EmblemeEtoiles taille={200} />, regle: 'Des étoiles s’allument : le cercle les touche avant qu’elles s’éteignent.' },
 };
 
 function AnnonceStage({ nom, type, annonce }) {

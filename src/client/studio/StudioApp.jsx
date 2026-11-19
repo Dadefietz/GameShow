@@ -10,6 +10,7 @@ import { getSupabase } from '../shared/supabaseClient.js';
 import { preparerImage, identifiantDObjet } from './imageObjet.js';
 import { preparerDessin } from './imageDessin.js';
 import { trouverPointRouge } from '../shared/campement.js';
+import { capaciteEtoiles } from './etoilesReglages.js';
 import './studio.css';
 
 // --- Référentiel des types de module (icône + variante couleur du mockup) ---
@@ -54,6 +55,10 @@ const MODULE_TYPES = {
   // EN DIRECT aussi : la ville cible se choisit à l'antenne, par difficulté.
   // Ce qui se règle ICI, c'est la base de villes — et ses deux cartes par ville.
   campement: { label: 'Campement', subtitle: 'Retrouver une ville sur la carte', icon: 'tent', color: 'forest', direct: true },
+  // EN DIRECT : le mode et le niveau se choisissent à l'antenne. Ce qui se règle
+  // ICI, ce sont les paramètres de chaque combinaison — « centralisés et faciles
+  // à ajuster dans le studio ».
+  etoiles: { label: 'Chasse aux étoiles', subtitle: 'Toucher les étoiles qui s’allument', icon: 'sparkles', color: 'flame', direct: true },
 };
 const TYPE_KEYS = Object.keys(MODULE_TYPES);
 const COLOR_KEYS = ['fire', 'forest', 'flame', 'info'];
@@ -167,6 +172,8 @@ const MARQUE_CUEILLETTE = 'contenu-cueillette';
 const MARQUE_FRONTIERES = 'contenu-frontieres';
 // La marque de la base de villes de « Campement » — même règle encore.
 const MARQUE_CAMPEMENT = 'contenu-campement';
+// La marque des réglages de « Chasse aux étoiles » — même règle encore.
+const MARQUE_ETOILES = 'contenu-etoiles';
 
 function serveurVersStudio(m) {
   if (!m || typeof m !== 'object') return null;
@@ -194,9 +201,10 @@ function serveurVersStudio(m) {
     // passée dans la moulinette des énoncés, elle serait effacée au premier
     // « Enregistrer ».
     contenuCampement: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_CAMPEMENT) || null,
+    contenuEtoiles: (Array.isArray(m.questions) ? m.questions : []).find((q) => q?.kind === MARQUE_ETOILES) || null,
     questions: (Array.isArray(m.questions) ? m.questions : [])
       .filter((q) => q?.kind !== 'contenu-cache' && q?.kind !== MARQUE_CUEILLETTE
-        && q?.kind !== MARQUE_FRONTIERES && q?.kind !== MARQUE_CAMPEMENT)
+        && q?.kind !== MARQUE_FRONTIERES && q?.kind !== MARQUE_CAMPEMENT && q?.kind !== MARQUE_ETOILES)
       .map((q) => serverToStudioQuestion(type, q)),
   };
 }
@@ -213,6 +221,7 @@ function studioVersServeur(m) {
       ...(m.contenuCueillette ? [m.contenuCueillette] : []),
       ...(m.contenuFrontieres ? [m.contenuFrontieres] : []),
       ...(m.contenuCampement ? [m.contenuCampement] : []),
+      ...(m.contenuEtoiles ? [m.contenuEtoiles] : []),
       ...(m.questions || [])
         .filter((q) => (q.prompt || '').trim())
         .map((q) => studioToServerQuestion(m.type, q, m.duration)),
@@ -410,6 +419,27 @@ export function StudioApp() {
     })();
     return () => { alive = false; };
   }, [typeOuvert, catalogueCampement, entetesHote]);
+
+  // LES RÉGLAGES PAR DÉFAUT DE « CHASSE AUX ÉTOILES » — même chargement.
+  const [defautsEtoiles, setDefautsEtoiles] = useState(null);
+  const [defautsEtoilesRate, setDefautsEtoilesRate] = useState(null);
+  useEffect(() => {
+    if (typeOuvert !== 'etoiles' || defautsEtoiles) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/etoiles/reglages', { headers: await entetesHote() });
+        if (!alive) return;
+        if (res.ok) { setDefautsEtoiles(await res.json()); setDefautsEtoilesRate(null); return; }
+        setDefautsEtoilesRate(res.status === 403
+          ? "Ta session d'animateur ne permet pas de lire les réglages. Reconnecte-toi."
+          : `Les réglages n'ont pas pu être chargés (${res.status}).`);
+      } catch {
+        if (alive) setDefautsEtoilesRate("Les réglages n'ont pas pu être chargés.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [typeOuvert, defautsEtoiles, entetesHote]);
 
   // CHARGEMENT : le Studio ne parle QU'AU SERVEUR (actions 2 et 10).
   //
@@ -655,6 +685,27 @@ export function StudioApp() {
       });
     }
 
+    // LES RÉGLAGES DE « CHASSE AUX ÉTOILES ». Une combinaison qui ne tient pas —
+    // plus d'étoiles que la fenêtre n'en peut porter — n'est pas refusée par le
+    // serveur : il allume ce qui tient. L'animateur doit donc l'apprendre ICI,
+    // avant de découvrir à l'antenne que le maximum annoncé est inatteignable.
+    if (m.type === 'etoiles' && m.contenuEtoiles && defautsEtoiles) {
+      for (const [mode, niveau, r] of reglagesComplets(m.contenuEtoiles, defautsEtoiles)) {
+        const tag = `${mode === 'ciel' ? 'Ciel étoilé' : 'Chasse'} ${niveau}`;
+        if (!(r.fin > r.debut + r.duree)) {
+          problems.push({ qid: null, tag, msg: 'La fenêtre d’allumage est plus courte qu’une étoile.' });
+          continue;
+        }
+        const cap = capaciteEtoiles(mode, r);
+        if (r.nombre > cap) {
+          problems.push({ qid: null, tag, msg: `${r.nombre} étoiles ne tiennent pas : au plus ${cap} avec ces réglages.` });
+        }
+        if (mode === 'chasse' && r.pauseMax < r.pauseMin) {
+          problems.push({ qid: null, tag, msg: 'La pause maximale est plus courte que la pause minimale.' });
+        }
+      }
+    }
+
     // LA MODÉRATION DE « CACHE-CACHE » SE VALIDE ICI, ET C'EST NÉCESSAIRE.
     //
     // Le serveur n'a pas de rattrapage : un tirage impossible LÈVE une erreur, et
@@ -832,6 +883,8 @@ export function StudioApp() {
           catalogueFrontieresRate={catalogueFrontieresRate}
           catalogueCampement={catalogueCampement}
           catalogueCampementRate={catalogueCampementRate}
+          defautsEtoiles={defautsEtoiles}
+          defautsEtoilesRate={defautsEtoilesRate}
           entetesHote={entetesHote}
           editingQuestionId={editingQuestionId}
           invalidQids={invalidQids}
@@ -1719,6 +1772,101 @@ function BanqueFrontieres({ contenu, catalogue, catalogueRate, entetesHote, onCh
   );
 }
 
+// « CHASSE AUX ÉTOILES » — LES RÉGLAGES DES QUATRE COMBINAISONS.
+//
+// « Les paramètres doivent être centralisés et faciles à ajuster dans le
+// studio. » Quatre blocs — Ciel étoilé et Chasse, Facile et Difficile —, chacun
+// avec ce qui le définit : combien d'étoiles, combien de temps chacune reste
+// allumée, ce qu'elle vaut, et le plafond (Ciel) ou les pauses (Chasse).
+//
+// SOUS CHAQUE BLOC, CE QUE CES RÉGLAGES PERMETTENT VRAIMENT : le maximum de
+// points, et un avertissement quand le nombre d'étoiles ne tient pas dans la
+// fenêtre — le document d'origine en contenait un, et c'est de l'arithmétique,
+// pas une affaire de goût (voir `REGLAGES_ETOILES` côté serveur).
+//
+// LA CAPACITÉ EST CALCULÉE ICI PAR LA MÊME FORMULE QUE LE SERVEUR
+// (`capaciteEtoiles`) — un contrôle unitaire confronte les deux, pour que le
+// Studio ne promette jamais autre chose que ce que le jeu fera.
+const CHAMPS_ETOILES = {
+  ciel: [
+    ['nombre', 'Étoiles', 1, 1], ['duree', 'Allumée (s)', 0.1, 0.2], ['simultanees', 'Au plus en même temps', 1, 1],
+    ['points', 'Points par étoile', 1, 0], ['debut', 'Fenêtre : début (s)', 0.1, 0], ['fin', 'Fenêtre : fin (s)', 0.1, 1],
+  ],
+  chasse: [
+    ['nombre', 'Étoiles', 1, 1], ['duree', 'Allumée (s)', 0.1, 0.2], ['pauseMin', 'Pause min. (s)', 0.1, 0],
+    ['pauseMax', 'Pause max. (s)', 0.1, 0], ['points', 'Points par étoile', 1, 0],
+    ['debut', 'Fenêtre : début (s)', 0.1, 0], ['fin', 'Fenêtre : fin (s)', 0.1, 1],
+  ],
+};
+function reglagesComplets(contenu, defauts) {
+  const sortie = [];
+  for (const { cle: mode } of defauts.modes) {
+    for (const { cle: niveau } of defauts.niveaux) {
+      const d = defauts.reglages[mode][niveau];
+      const l = contenu?.reglages?.[mode]?.[niveau] || {};
+      const r = {};
+      for (const k of Object.keys(d)) r[k] = Number.isFinite(Number(l[k])) && l[k] !== '' ? Number(l[k]) : d[k];
+      sortie.push([mode, niveau, r]);
+    }
+  }
+  return sortie;
+}
+
+function ReglagesEtoiles({ contenu, defauts, rate, onChange }) {
+  if (rate) return <p className="save-state save-state--failed" role="alert" data-testid="etoiles-reglages-rate">{rate}</p>;
+  if (!defauts) return <p className="fhint">Chargement des réglages…</p>;
+  const nomMode = Object.fromEntries(defauts.modes.map((m) => [m.cle, m.nom]));
+  const nomNiveau = Object.fromEntries(defauts.niveaux.map((n) => [n.cle, n.nom]));
+  const maj = (mode, niveau, cle, valeur) => {
+    const avant = contenu?.reglages || {};
+    const n = Number(String(valeur).replace(',', '.'));
+    onChange({
+      kind: MARQUE_ETOILES,
+      reglages: {
+        ...avant,
+        [mode]: { ...(avant[mode] || {}), [niveau]: { ...(avant[mode]?.[niveau] || {}), [cle]: Number.isFinite(n) ? n : defauts.reglages[mode][niveau][cle] } },
+      },
+    });
+  };
+  return (
+    <div className="fgroup" data-testid="etoiles-reglages">
+      <span className="flabel">Réglages des modes et des niveaux</span>
+      <p className="fhint">
+        L'animateur choisit le mode et le niveau à l'antenne ; la manche dure toujours vingt
+        secondes, après trois secondes de compte à rebours. Les temps sont en secondes depuis
+        le début du jeu.
+      </p>
+      <div className="etreg">
+        {reglagesComplets(contenu, defauts).map(([mode, niveau, r]) => {
+          const cap = capaciteEtoiles(mode, r);
+          const tient = r.nombre <= cap && r.fin > r.debut + r.duree;
+          return (
+            <fieldset className="etreg__bloc" key={`${mode}-${niveau}`} data-testid={`etoiles-reglage-${mode}-${niveau}`}>
+              <legend className="etreg__titre">{nomMode[mode]} — {nomNiveau[niveau]}</legend>
+              <div className="etreg__champs">
+                {CHAMPS_ETOILES[mode].map(([cle, libelle, pas, min]) => (
+                  <label className="cmod__champ" key={cle}>
+                    <span className="cmod__champ-label">{libelle}</span>
+                    <input className="input" type="number" inputMode="decimal" step={pas} min={min}
+                      aria-label={`${nomMode[mode]} ${nomNiveau[niveau]} — ${libelle}`}
+                      data-testid={`etoiles-${mode}-${niveau}-${cle}`}
+                      value={r[cle]} onChange={(e) => maj(mode, niveau, cle, e.target.value)} />
+                  </label>
+                ))}
+              </div>
+              <p className={`cmod__etat cmod__etat--${tient ? 'ok' : 'erreur'}`} data-testid={`etoiles-bilan-${mode}-${niveau}`}>
+                {tient
+                  ? `${r.nombre} étoiles × ${r.points} points : ${r.nombre * r.points} points au plus.`
+                  : `${r.nombre} étoiles ne tiennent pas avec ces réglages — au plus ${cap}. Le jeu n'en allumerait que ${cap}.`}
+              </p>
+            </fieldset>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // LA BASE DE VILLES DE « CAMPEMENT ».
 //
 // « Cette base de données doit être accessible quelque part dans le Studio afin
@@ -1958,7 +2106,8 @@ function BanqueCampement({ contenu, catalogue, catalogueRate, entetesHote, onCha
 function EditorPanel({
   module, editingQuestionId, invalidQids, saveState, validationErrors, confirmDelete,
   typeServeur, catalogueCache, catalogueRate, catalogueCueillette, catalogueCueilletteRate,
-  catalogueFrontieres, catalogueFrontieresRate, catalogueCampement, catalogueCampementRate, entetesHote,
+  catalogueFrontieres, catalogueFrontieresRate, catalogueCampement, catalogueCampementRate,
+  defautsEtoiles, defautsEtoilesRate, entetesHote,
   onArmDelete, onConfirmDelete, onPatchModule, onAddQuestion, onEditQuestion,
   onPatchQuestion, onRemoveQuestion, onSave, onClose,
 }) {
@@ -2082,6 +2231,11 @@ function EditorPanel({
           <BanqueFrontieres contenu={module.contenuFrontieres} catalogue={catalogueFrontieres}
             catalogueRate={catalogueFrontieresRate} entetesHote={entetesHote}
             onChange={(contenuFrontieres) => onPatchModule({ contenuFrontieres })} />
+        ) : module.type === 'etoiles' ? (
+          /* « CHASSE AUX ÉTOILES » : pas de question à écrire. Ce qui se règle
+             ici, ce sont les quatre combinaisons de mode et de niveau. */
+          <ReglagesEtoiles contenu={module.contenuEtoiles} defauts={defautsEtoiles} rate={defautsEtoilesRate}
+            onChange={(contenuEtoiles) => onPatchModule({ contenuEtoiles })} />
         ) : module.type === 'campement' ? (
           /* « CAMPEMENT » : la base de villes, « accessible dans le Studio afin
              d'être ajustée à tout moment », et où l'on peut « créer de nouvelles
